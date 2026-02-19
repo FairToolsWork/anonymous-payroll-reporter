@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <title>Payroll PDF Processor</title>
+  <title>Anonymous Payroll Report Generator</title>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -23,20 +23,40 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">Offline Payroll Report</p>
-        <h1>Payroll PDF Processor</h1>
+        <h1>Anonymous Payroll Report Generator</h1>
         <p class="subhead">
-          All processing happens locally in your browser. Nothing is uploaded or stored.
+          Your data <i>always</i> remains private, and processing happens locally in your browser, meaning that your personal information is <i>never</i> uploaded or saved to any server.
+          <br />
         </p>
       </div>
     </header>
 
     <section class="controls">
-      <div class="upload-panel">
+      <div
+        class="upload-panel"
+        :class="{ 'is-drop-active': dragActive, 'needs-acceptance': !acceptedDisclaimer }"
+        @dragenter="onDragOver"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+      >
+        <div class="drop-overlay" v-if="dragActive">
+          <div v-if="acceptedDisclaimer">
+            <strong>Drop PDFs to upload</strong>
+            <span>Release files to start processing</span>
+          </div>
+          <div v-else>
+            <strong>Accept the disclaimer to upload</strong>
+            <span>Please confirm the accuracy notice first</span>
+          </div>
+        </div>
         <h2>1. Select Pay Slip PDFs</h2>
-        <p>Drag and drop files or choose multiple PDFs.</p>
-        <label class="field">
+        <p class="upload-instructions">Drag and drop files or choose multiple PDFs.</p>
+
+        <label class="field password">
           <span>PDF password (optional)</span>
           <input
+            id="pdf-password"
             type="password"
             v-model.trim="pdfPassword"
             name="pdf-password"
@@ -47,17 +67,32 @@
             placeholder="Enter password if required"
           />
         </label>
-        <label class="upload" :class="{ disabled: status === 'processing' }">
-          <input
-            type="file"
-            accept="application/pdf"
-            multiple
-            :disabled="status === 'processing'"
-            @change="handleFiles"
-          />
-          <span>Choose PDF files</span>
+        <label class="disclaimer">
+          <input type="checkbox" v-model="acceptedDisclaimer" />
+          <span>
+            <i>I understand this report may contain processing errors or omissions, and I
+            am responsible for verifying its accuracy.</i>
+          </span>
         </label>
-        <p v-if="fileCount" class="file-count">{{ fileCount }} file(s) ready</p>
+        <div class="upload-btn-container">
+            <label
+            class="upload"
+            :class="{ disabled: status === 'processing' || !acceptedDisclaimer }"
+            >
+            <input
+                type="file"
+                accept="application/pdf"
+                multiple
+                :disabled="status === 'processing' || !acceptedDisclaimer"
+                @change="handleFiles"
+            />
+            <span>Choose PDF files</span>
+            </label>
+            <p v-if="!acceptedDisclaimer" class="disclaimer-note">
+                Accept the disclaimer to enable uploads.
+            </p>
+            <p v-if="fileCount && acceptedDisclaimer" class="file-count">{{ fileCount }} file(s) ready</p>
+        </div>
       </div>
 
       <div class="status-panel">
@@ -69,6 +104,9 @@
         <p v-if="status === 'rendering'">Rendering report…</p>
         <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
         <p v-if="error" class="error">{{ error }}</p>
+        <ul v-if="failedFiles && failedFiles.length" class="error-list">
+          <li v-for="file in failedFiles" :key="file">{{ file }}</li>
+        </ul>
 
         <div class="progress" v-if="status === 'processing'">
           <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
@@ -106,7 +144,11 @@
 
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="parser_config.js"></script>
+  <script src="js/parser_config.js"></script>
+  <script src="js/parse/payroll.js"></script>
+  <script src="js/pdf/extract.js"></script>
+  <script src="js/report/build.js"></script>
+  <script src="js/ui/app.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

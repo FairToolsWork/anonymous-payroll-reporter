@@ -1,12 +1,13 @@
 :root {
   color-scheme: light;
   --ink: #1e1c19;
-  --muted: #5f5a52;
-  --paper: #f6f3ee;
-  --card: #ffffff;
-  --accent: #c2542d;
-  --accent-dark: #8d3b1d;
-  --shadow: 0 18px 45px rgba(30, 28, 25, 0.12);
+  --ink-50: hsla(36, 9%, 11%, 0.8);
+  --muted: hsl(40, 7%, 35%);
+  --paper: hsl(37, 31%, 95%);
+  --card: hsl(0, 0%, 100%);
+  --accent: hsl(16, 62%, 47%);
+  --accent-dark: hsl(16, 66%, 33%);
+  --shadow: 0 18px 45px hsla(36, 9%, 11%, 0.12);
   --radius: 18px;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
 }
@@ -131,6 +132,67 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.field.password > span {
+    padding-inline-start: 1em;
+}
+
+.upload-instructions {
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--muted);
+  padding-bottom: 12px;
+}
+
+.upload-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-panel.needs-acceptance {
+  outline: 3px dashed rgba(194, 84, 45, 0.4);
+}
+
+.upload-panel.is-drop-active {
+  outline: 2px dashed rgba(194, 84, 45, 0.7);
+  outline-offset: 4px;
+}
+
+
+.upload-btn-container {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    align-content: center;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(194, 84, 45, 0.15);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  z-index: 2;
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.drop-overlay strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.drop-overlay span {
+  color: var(--muted);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -154,6 +216,35 @@ button:disabled {
   border-color: rgba(194, 84, 45, 0.5);
 }
 
+.disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.disclaimer input {
+  margin-top: 2px;
+}
+
+.file-count,
+.disclaimer-note {
+  font-size: 0.85rem;
+  margin-left: 10px;
+}
+
+.file-count {
+  color: var(--muted);
+
+}
+
+.disclaimer-note {
+  color: var(--accent-dark);
+}
+
 .upload {
   display: inline-flex;
   align-items: center;
@@ -174,11 +265,6 @@ button:disabled {
 .upload.disabled {
   opacity: 0.5;
   pointer-events: none;
-}
-
-.file-count {
-  margin-top: 10px;
-  color: var(--muted);
 }
 
 .status-panel p {
@@ -345,6 +431,11 @@ button:disabled {
 .report-missing {
   color: var(--muted);
   margin: 6px 0 0;
+  text-align: center;
+}
+
+.report-missing .missing-months {
+  justify-content: center;
 }
 
 .page {
@@ -392,15 +483,25 @@ button:disabled {
 .summary-table {
   font-size: 0.8em;
   table-layout: fixed;
-  margin-left: 3px;
-  margin-block: 0;
+margin-block: 0;
   border: 1px solid #ccc;
   border-radius: 5px;
+  /* border-collapse: collapse; */
+}
+
+.report-table {
+  margin-left: 3px;
   display: flex;
   min-width: 165px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.summary-table {
+  width: 100%;
+  margin-left: 3px;
+  min-width: 165px;
 }
 
 .report-table th,
@@ -446,6 +547,16 @@ button:disabled {
   min-height: 200px;
 }
 
+.debug-panel {
+  font-family: monospace;
+  inset: 0;
+  border-radius: var(--radius);
+  margin: 6px 0;
+  padding: 16px;
+  background-color: var(--ink-50);
+  color: var(--card);
+}
+
 @media print {
   body {
     background: #fff;
@@ -460,5 +571,9 @@ button:disabled {
   .report-root {
     box-shadow: none;
     padding: 0;
+  }
+
+  .debug-panel {
+    display: none;
   }
 }

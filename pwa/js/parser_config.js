@@ -1,5 +1,5 @@
 const PATTERNS = {
-  nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s+(\w+)\s*$/m,
+  nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})(?:\s+(\w+))?\s*$/m,
   employerLine: /^([A-Za-z0-9\s&',.\-]+(?:Ltd|Limited))\s*$/m,
   basicLine:
     /Basic\s+Hours\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i,
