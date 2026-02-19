@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Offline payroll PDF processor" />
+  <meta name="theme-color" content="#2b2a27" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>Payroll PDF Processor</title>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <div class="update-banner" v-if="updateAvailable">
+      <p>Update available. Refresh to load the latest version.</p>
+      <button class="primary" type="button" @click="applyUpdate">Refresh</button>
+    </div>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Offline Payroll Report</p>
+        <h1>Payroll PDF Processor</h1>
+        <p class="subhead">
+          All processing happens locally in your browser. Nothing is uploaded or stored.
+        </p>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="upload-panel">
+        <h2>1. Select Pay Slip PDFs</h2>
+        <p>Drag and drop files or choose multiple PDFs.</p>
+        <label class="field">
+          <span>PDF password (optional)</span>
+          <input
+            type="password"
+            v-model.trim="pdfPassword"
+            name="pdf-password"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="Enter password if required"
+          />
+        </label>
+        <label class="upload" :class="{ disabled: status === 'processing' }">
+          <input
+            type="file"
+            accept="application/pdf"
+            multiple
+            :disabled="status === 'processing'"
+            @change="handleFiles"
+          />
+          <span>Choose PDF files</span>
+        </label>
+        <p v-if="fileCount" class="file-count">{{ fileCount }} file(s) ready</p>
+      </div>
+
+      <div class="status-panel">
+        <h2>2. Process & Review</h2>
+        <p v-if="status === 'idle'">Upload PDFs to generate the report.</p>
+        <p v-if="status === 'processing'">
+          Processing {{ progress.current }} / {{ progress.total }} PDFs
+        </p>
+        <p v-if="status === 'rendering'">Rendering report…</p>
+        <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
+        <p v-if="error" class="error">{{ error }}</p>
+
+        <div class="progress" v-if="status === 'processing'">
+          <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+        </div>
+
+        <div class="completion" v-if="reportReady">
+          <h3>Report summary</h3>
+          <ul class="stats">
+            <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
+            <li><span>PDFs processed</span><strong>{{ fileCount }}</strong></li>
+            <li><span>Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
+            <li>
+              <span>Missing months</span>
+              <strong class="missing-months" v-html="reportStats.missingMonthsHtml"></strong>
+            </li>
+          </ul>
+          <button class="primary" type="button" @click="printReport">Print / Save as PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="report-output" v-if="reportHtml">
+      <div class="report-root" v-html="reportHtml"></div>
+    </section>
+
+    <section class="debug-panel" v-if="debugEnabled && debugText">
+      <h2>Debug: Extracted Text (first PDF)</h2>
+      <pre>{{ debugText }}</pre>
+      <h3>Debug: Parsed Values</h3>
+      <pre>{{ debugInfo.parsed }}</pre>
+      <h3>Debug: Regex Matches</h3>
+      <pre>{{ debugInfo.matches }}</pre>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="parser_config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
