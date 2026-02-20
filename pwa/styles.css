@@ -438,6 +438,22 @@ button:disabled {
   justify-content: center;
 }
 
+.report-footnote {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.report-footnote p {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.report-footnote ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .page {
   text-align: center;
   max-width: calc(100% - 12px);

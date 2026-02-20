@@ -132,13 +132,17 @@
       <div class="report-root" v-html="reportHtml"></div>
     </section>
 
-    <section class="debug-panel" v-if="debugEnabled && debugText">
+    <section class="debug-panel" v-if="debugEnabled">
+      <button class="secondary" type="button" @click="copyDebugOutput">Copy debug output</button>
       <h2>Debug: Extracted Text (first PDF)</h2>
-      <pre>{{ debugText }}</pre>
+      <pre v-if="debugText">{{ debugText }}</pre>
+      <p v-else>No debug text captured yet.</p>
       <h3>Debug: Parsed Values</h3>
-      <pre>{{ debugInfo.parsed }}</pre>
+      <pre v-if="debugInfo.parsed">{{ debugInfo.parsed }}</pre>
+      <p v-else>No parsed values captured yet.</p>
       <h3>Debug: Regex Matches</h3>
-      <pre>{{ debugInfo.matches }}</pre>
+      <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
+      <p v-else>No regex matches captured yet.</p>
     </section>
   </div>
 

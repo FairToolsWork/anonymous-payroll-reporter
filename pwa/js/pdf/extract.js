@@ -18,12 +18,21 @@ async function extractPdfData(file, password) {
   }
   let text = "";
   const allLines = [];
+  const allLineItems = [];
   let imageData = null;
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
     const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1 });
     const content = await page.getTextContent();
-    const pageLines = buildLinesFromTextItems(content.items);
+    const pageLineItems = buildLineItemsFromTextItems(content.items).map((line) => ({
+      ...line,
+      pageNumber: pageNum,
+      pageWidth: viewport.width,
+      pageHeight: viewport.height
+    }));
+    const pageLines = buildLinesFromLineItems(pageLineItems);
+    allLineItems.push(...pageLineItems);
     allLines.push(...pageLines);
     text += `${pageLines.join("\n")}\n`;
 
@@ -32,10 +41,10 @@ async function extractPdfData(file, password) {
     }
   }
 
-  return { text, imageData, lines: allLines };
+  return { text, imageData, lines: allLines, lineItems: allLineItems };
 }
 
-function buildLinesFromTextItems(items) {
+function buildLineItemsFromTextItems(items) {
   const lines = [];
   const lineTolerance = 2;
 
@@ -58,9 +67,16 @@ function buildLinesFromTextItems(items) {
 
   return lines
     .sort((a, b) => b.y - a.y)
+    .map((line) => ({
+      ...line,
+      items: line.items.sort((a, b) => a.x - b.x)
+    }));
+}
+
+function buildLinesFromLineItems(lineItems) {
+  return lineItems
     .map((line) =>
       line.items
-        .sort((a, b) => a.x - b.x)
         .map((item) => item.text)
         .join(" ")
         .replace(/\s+/g, " ")

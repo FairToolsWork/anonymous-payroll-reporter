@@ -1,0 +1,11 @@
+{
+  "name": "payroll-pwa-tools",
+  "private": true,
+  "scripts": {
+    "test:parse": "node logic_test/run_parse_test.js"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^3.11.174",
+    "canvas": "^2.11.2"
+  }
+}

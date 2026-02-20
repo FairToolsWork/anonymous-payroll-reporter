@@ -1,4 +1,6 @@
-const DEBUG_ENABLED = new URLSearchParams(window.location.search).get("debug") === "1";
+const DEBUG_LEVEL = new URLSearchParams(window.location.search).get("debug");
+const DEBUG_ENABLED = DEBUG_LEVEL === "1" || DEBUG_LEVEL === "2";
+const DEBUG_PERSIST_PASSWORD = DEBUG_LEVEL === "2";
 
 function initPayrollApp() {
   const app = Vue.createApp({
@@ -41,7 +43,43 @@ function initPayrollApp() {
         return Math.round((this.progress.current / this.progress.total) * 100);
       }
     },
+    watch: {
+      pdfPassword(value) {
+        if (!DEBUG_PERSIST_PASSWORD) {
+          return;
+        }
+        if (value) {
+          sessionStorage.setItem("pdf_password_debug", value);
+          return;
+        }
+        sessionStorage.removeItem("pdf_password_debug");
+      }
+    },
     methods: {
+      async copyDebugOutput() {
+        const payload = [
+          "=== Debug: Extracted Text ===",
+          this.debugText || "<empty>",
+          "=== Debug: Parsed Values ===",
+          this.debugInfo.parsed || "<empty>",
+          "=== Debug: Regex Matches ===",
+          this.debugInfo.matches || "<empty>"
+        ].join("\n\n");
+
+        try {
+          await navigator.clipboard.writeText(payload);
+        } catch (err) {
+          const textarea = document.createElement("textarea");
+          textarea.value = payload;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "absolute";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textarea);
+        }
+      },
       onDragOver(event) {
         event.preventDefault();
         if (this.status === "processing") {
@@ -148,9 +186,11 @@ function initPayrollApp() {
             if (record) {
               records.push(record);
               console.info("Payroll: extracted", {
-                name: record.employeeName,
-                period: record.payPeriod
+                name: record.employee?.name,
+                period: record.payrollDoc?.processDate?.date
               });
+            } else if (!this.failedFiles.includes(file.name)) {
+              this.failedFiles.push(file.name);
             }
           } catch (err) {
             console.error("Payroll: extraction failed", {
@@ -213,105 +253,37 @@ function initPayrollApp() {
         console.info("Payroll: report ready", { filename: report.filename });
       },
       async extractPayrollRecord(file, captureDebug) {
-        const { text, imageData, lines } = await extractPdfData(file, this.pdfPassword);
+        const { text, imageData, lines, lineItems } = await extractPdfData(
+          file,
+          this.pdfPassword
+        );
         if (this.debugEnabled && captureDebug && !this.debugText) {
           this.debugText = text;
         }
-        const lineItems = lines || [];
+        const payrollRecord = buildPayrollDocument({
+          text,
+          lines: lines || [],
+          lineItems: lineItems || []
+        });
+        payrollRecord.imageData = imageData;
 
-        const nameMatch = text.match(PATTERNS.nameDateId);
-        let employeeName = nameMatch && nameMatch[1] ? nameMatch[1].trim() : null;
-        let payPeriod = nameMatch && nameMatch[2] ? nameMatch[2].trim() : null;
-        let employeeId = nameMatch && nameMatch[3] ? nameMatch[3].trim() : null;
-        const employer = findEmployerLine(lineItems);
-
-        const basicMatch = text.match(PATTERNS.basicLine);
-        const basicHours = parseNumericValue(basicMatch ? basicMatch[1] : null);
-        const basicRate = parseNumericValue(basicMatch ? basicMatch[2] : null);
-        const basicAmount = parseNumericValue(basicMatch ? basicMatch[3] : null);
-        const holidayMatch = text.match(PATTERNS.holidayLine);
-        const holidayHours = parseNumericValue(holidayMatch ? holidayMatch[1] : null);
-        const holidayRate = parseNumericValue(holidayMatch ? holidayMatch[2] : null);
-        const holidayAmount = parseNumericValue(holidayMatch ? holidayMatch[3] : null);
-        const payeTax = parseNumericValue(extractField(text, PATTERNS.payeTax));
-        const nationalInsurance = parseNumericValue(
-          extractField(text, PATTERNS.nationalInsurance)
-        );
-        const nestEmployee = parseNumericValue(extractField(text, PATTERNS.nestEmployee));
-        const nestEmployer = parseNumericValue(extractField(text, PATTERNS.nestEmployer));
-        const earningsForNI = parseNumericValue(extractField(text, PATTERNS.earningsForNI));
-        const grossForTax = parseNumericValue(extractField(text, PATTERNS.grossForTax));
-        const totalGrossPay = parseNumericValue(extractField(text, PATTERNS.totalGrossPay));
-        const payCycle = extractField(text, PATTERNS.payCycle);
-        const totalGrossPayTD = parseNumericValue(extractField(text, PATTERNS.totalGrossPayTD));
-        const grossForTaxTD = parseNumericValue(extractField(text, PATTERNS.grossForTaxTD));
-        const taxPaidTD = parseNumericValue(extractField(text, PATTERNS.taxPaidTD));
-        const earningsForNITD = parseNumericValue(extractField(text, PATTERNS.earningsForNITD));
-        const nationalInsuranceTD = parseNumericValue(
-          extractField(text, PATTERNS.nationalInsuranceTD)
-        );
-        const employeePensionTD = parseNumericValue(
-          extractField(text, PATTERNS.employeePensionTD)
-        );
-        const employerPensionTD = parseNumericValue(
-          extractField(text, PATTERNS.employerPensionTD)
-        );
-        const pensionsAdjustment = parseNumericValue(
-          extractField(text, PATTERNS.pensionsAdjustment)
-        );
-        const corrections = parseNumericValue(extractField(text, PATTERNS.corrections));
-        let netPay = parseNumericValue(extractField(text, PATTERNS.netPay));
-        if (!netPay) {
-          const lineNetPay = findNetPayFromLines(lineItems);
-          netPay = parseNumericValue(lineNetPay);
-        }
-
-        if (!netPay) {
-          const fallback = extractNetPayFromText(text);
-          netPay = parseNumericValue(fallback);
-        }
+        const employeeName = payrollRecord.employee?.name || null;
+        const employer = payrollRecord.employer || null;
+        const payPeriod = payrollRecord.payrollDoc?.processDate?.date || null;
 
         if (this.debugEnabled && captureDebug && this.debugText && !this.debugInfo.parsed) {
-          this.debugInfo.parsed = JSON.stringify(
-            {
-              employeeName,
-              employeeId,
-              employer,
-              payPeriod,
-              basicHours,
-              basicRate,
-              basicAmount,
-              holidayHours,
-              holidayRate,
-              holidayAmount,
-              payeTax,
-              nationalInsurance,
-              nestEmployee,
-              nestEmployer,
-              earningsForNI,
-              grossForTax,
-              totalGrossPay,
-              payCycle,
-              totalGrossPayTD,
-              grossForTaxTD,
-              taxPaidTD,
-              earningsForNITD,
-              nationalInsuranceTD,
-              employeePensionTD,
-              employerPensionTD,
-              pensionsAdjustment,
-              corrections,
-              netPay
-            },
-            null,
-            2
-          );
+          const debugRecord = { ...payrollRecord };
+          if (debugRecord.imageData && typeof debugRecord.imageData === "string") {
+            const marker = "data:image/png;base64,";
+            debugRecord.imageData = debugRecord.imageData.startsWith(marker)
+              ? `${marker}<truncated>`
+              : "<truncated>";
+          }
+          this.debugInfo.parsed = JSON.stringify(debugRecord, null, 2);
           this.debugInfo.matches = JSON.stringify(
             {
-              nameDateId: nameMatch ? nameMatch[0] : null,
-              employerLine: employer,
-              basicLine: basicMatch ? basicMatch[0] : null,
-              holidayLine: holidayMatch ? holidayMatch[0] : null,
+              nameDateId: text.match(PATTERNS.nameDateId)?.[0] || null,
+              employerLine: text.match(PATTERNS.employerLine)?.[0] || null,
               payeTax: text.match(PATTERNS.payeTax)?.[0] || null,
               nationalInsurance: text.match(PATTERNS.nationalInsurance)?.[0] || null,
               nestEmployee: text.match(PATTERNS.nestEmployee)?.[0] || null,
@@ -327,10 +299,7 @@ function initPayrollApp() {
               nationalInsuranceTD: text.match(PATTERNS.nationalInsuranceTD)?.[0] || null,
               employeePensionTD: text.match(PATTERNS.employeePensionTD)?.[0] || null,
               employerPensionTD: text.match(PATTERNS.employerPensionTD)?.[0] || null,
-              pensionsAdjustment: text.match(PATTERNS.pensionsAdjustment)?.[0] || null,
-              corrections: text.match(PATTERNS.corrections)?.[0] || null,
-              netPay: text.match(PATTERNS.netPay)?.[0] || null,
-              lineNetPay: findNetPayFromLines(lineItems)
+              netPay: text.match(PATTERNS.netPay)?.[0] || null
             },
             null,
             2
@@ -349,40 +318,7 @@ function initPayrollApp() {
           return null;
         }
 
-        employeeId = employeeId || null;
-        payPeriod = payPeriod || "Unknown";
-
-        return {
-          employeeName,
-          employeeId,
-          employer,
-          payPeriod,
-          basicHours,
-          basicRate,
-          basicAmount,
-          holidayHours,
-          holidayRate,
-          holidayAmount,
-          payeTax,
-          nationalInsurance,
-          nestEmployeeContribution: nestEmployee,
-          nestEmployerContribution: nestEmployer,
-          earningsForNI,
-          grossForTax,
-          totalGrossPay,
-          payCycle,
-          totalGrossPayTD,
-          grossForTaxTD,
-          taxPaidTD,
-          earningsForNITD,
-          nationalInsuranceTD,
-          employeePensionTD,
-          employerPensionTD,
-          pensionsAdjustment,
-          corrections,
-          netPay,
-          imageData
-        };
+        return payrollRecord;
       },
       printReport() {
         if (!this.reportReady) {
@@ -408,6 +344,10 @@ function initPayrollApp() {
       }
     },
     mounted() {
+      if (DEBUG_PERSIST_PASSWORD) {
+        this.acceptedDisclaimer = true;
+        this.pdfPassword = sessionStorage.getItem("pdf_password_debug") || "";
+      }
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("sw.js").then((registration) => {
           this.swRegistration = registration;

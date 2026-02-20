@@ -114,6 +114,24 @@ function formatDeduction(value) {
   return `-£${Math.abs(value).toFixed(2)}`;
 }
 
+function sumMiscAmounts(items) {
+  if (!items || !items.length) {
+    return 0;
+  }
+  return items.reduce((sum, item) => sum + (item.amount || 0), 0);
+}
+
+function formatMiscLabel(item) {
+  if (!item) {
+    return "";
+  }
+  const label = item.label || item.title || "";
+  if (item.units === null || item.rate === null) {
+    return label;
+  }
+  return `${label} (${item.units.toFixed(2)} @ ${formatCurrency(item.rate)})`;
+}
+
 function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
   if (!presentMonths.length || minMonth === null || maxMonth === null) {
     return [];
@@ -130,7 +148,7 @@ function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
 
 function buildReport(records, failedPayPeriods = []) {
   const entries = records.map((record) => {
-    const parsedDate = parsePayPeriodStart(record.payPeriod);
+    const parsedDate = parsePayPeriodStart(record.payrollDoc?.processDate?.date);
     const year = parsedDate ? parsedDate.getFullYear() : null;
     const monthIndex = parsedDate ? parsedDate.getMonth() + 1 : 13;
     const monthLabel = parsedDate
@@ -154,7 +172,9 @@ function buildReport(records, failedPayPeriods = []) {
     if (a.monthIndex !== b.monthIndex) {
       return a.monthIndex - b.monthIndex;
     }
-    return a.record.payPeriod.localeCompare(b.record.payPeriod);
+    const fallbackA = a.record.payrollDoc?.processDate?.date || "Unknown";
+    const fallbackB = b.record.payrollDoc?.processDate?.date || "Unknown";
+    return fallbackA.localeCompare(fallbackB);
   });
 
   const yearGroups = new Map();
@@ -179,8 +199,9 @@ function buildReport(records, failedPayPeriods = []) {
     ? `${formatDateLabel(rangeStart)} – ${formatDateLabel(rangeEnd)}`
     : "Unknown";
 
-  const employeeName = records[0].employeeName;
+  const employeeName = records[0].employee?.name || "Unknown";
   const reportSections = [];
+  const miscFootnotes = [];
 
   const failedMonthsByYear = {};
   failedDates.forEach((date) => {
@@ -231,8 +252,8 @@ function buildReport(records, failedPayPeriods = []) {
 
   let totalNestEmployee = 0;
   let totalNestEmployer = 0;
-  let totalPensionsAdjustment = 0;
-  let totalCorrections = 0;
+  let totalMiscPayments = 0;
+  let totalMiscDeductions = 0;
 
   Array.from(yearGroups.keys()).forEach((yearKey) => {
     const entriesForYear = yearGroups.get(yearKey);
@@ -242,6 +263,27 @@ function buildReport(records, failedPayPeriods = []) {
     const yearMissingPill = `Missing months: <span class="missing-months">${yearMissingHtml}</span>`;
 
     entriesForYear.forEach((entry) => {
+      const miscPayments = entry.record.payrollDoc?.payments?.misc || [];
+      const miscDeductions = entry.record.payrollDoc?.deductions?.misc || [];
+      const dateLabel = entry.parsedDate
+        ? formatDateLabel(entry.parsedDate)
+        : entry.record.payrollDoc?.processDate?.date || "Unknown";
+
+      miscPayments.forEach((item) => {
+        miscFootnotes.push({
+          type: "payment",
+          dateLabel,
+          item
+        });
+      });
+      miscDeductions.forEach((item) => {
+        miscFootnotes.push({
+          type: "deduction",
+          dateLabel,
+          item
+        });
+      });
+
       reportSections.push("<div class=\"page\">");
       reportSections.push(renderReportCell(entry));
       reportSections.push("</div>");
@@ -257,24 +299,24 @@ function buildReport(records, failedPayPeriods = []) {
 
     const totals = entriesForYear.reduce(
       (acc, entry) => {
-        acc.nestEmployee += entry.record.nestEmployeeContribution;
-        acc.nestEmployer += entry.record.nestEmployerContribution;
-        acc.pensionsAdjustment += entry.record.pensionsAdjustment;
-        acc.corrections += entry.record.corrections;
+        acc.nestEmployee += entry.record.payrollDoc?.deductions?.nestEE?.amount || 0;
+        acc.nestEmployer += entry.record.payrollDoc?.deductions?.nestER?.amount || 0;
+        acc.miscPayments += sumMiscAmounts(entry.record.payrollDoc?.payments?.misc || []);
+        acc.miscDeductions += sumMiscAmounts(entry.record.payrollDoc?.deductions?.misc || []);
         return acc;
       },
       {
         nestEmployee: 0,
         nestEmployer: 0,
-        pensionsAdjustment: 0,
-        corrections: 0
+        miscPayments: 0,
+        miscDeductions: 0
       }
     );
 
     totalNestEmployee += totals.nestEmployee;
     totalNestEmployer += totals.nestEmployer;
-    totalPensionsAdjustment += totals.pensionsAdjustment;
-    totalCorrections += totals.corrections;
+    totalMiscPayments += totals.miscPayments;
+    totalMiscDeductions += totals.miscDeductions;
   });
 
   const totalCombined = totalNestEmployee + totalNestEmployer;
@@ -286,17 +328,44 @@ function buildReport(records, failedPayPeriods = []) {
   reportSections.push(
     "<table class=\"summary-table\"><thead><tr>" +
       "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
-      "<th>Pensions Adjustment</th><th>Corrections</th>" +
+      "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
       "<th>Total Contribution</th></tr></thead>" +
       "<tbody><tr>" +
       `<td>${formatCurrency(totalNestEmployee)}</td>` +
       `<td>${formatCurrency(totalNestEmployer)}</td>` +
-      `<td>${formatDeduction(totalPensionsAdjustment)}</td>` +
-      `<td>${formatDeduction(totalCorrections)}</td>` +
+      `<td>${formatCurrency(totalMiscPayments)}</td>` +
+      `<td>${formatDeduction(totalMiscDeductions)}</td>` +
       `<td>${formatCurrency(totalCombined)}</td>` +
       "</tr></tbody></table>"
   );
   reportSections.push("</div>");
+
+  if (miscFootnotes.length) {
+    const footnoteItems = miscFootnotes
+      .map((entry) => {
+        const typeLabel = entry.type === "deduction" ? "Deduction" : "Payment";
+        const amountLabel =
+          entry.type === "deduction"
+            ? formatDeduction(entry.item.amount)
+            : formatCurrency(entry.item.amount);
+        const itemLabel = entry.item.label || entry.item.title || "";
+        const detailLabel =
+          entry.item.units === null || entry.item.rate === null
+            ? "flat"
+            : `${entry.item.units.toFixed(2)} @ ${formatCurrency(entry.item.rate)}`;
+        return (
+          `<li>${entry.dateLabel}: ${typeLabel}: ${itemLabel} ` +
+          `(${detailLabel}): ${amountLabel}</li>`
+        );
+      })
+      .join("");
+    reportSections.push(
+      `<div class=\"report-footnote\">` +
+        "<p>† Misc entries</p>" +
+        `<ul>${footnoteItems}</ul>` +
+        "</div>"
+    );
+  }
 
   const timestamp = formatTimestamp(new Date());
   const dateStart = rangeStart ? formatDateKey(rangeStart) : "unknown";
@@ -319,40 +388,130 @@ function buildReport(records, failedPayPeriods = []) {
 function renderReportCell(entry) {
   const record = entry.record;
   const parsedDate = entry.parsedDate;
-  const dateLabel = parsedDate ? formatDateLabel(parsedDate) : record.payPeriod;
-  const combined = record.nestEmployeeContribution + record.nestEmployerContribution;
+  const dateLabel = parsedDate
+    ? formatDateLabel(parsedDate)
+    : record.payrollDoc?.processDate?.date || "Unknown";
+  const natInsNumber = record.employee?.natInsNumber || "Unknown";
+  const combined =
+    (record.payrollDoc?.deductions?.nestEE?.amount || 0) +
+    (record.payrollDoc?.deductions?.nestER?.amount || 0);
   const imageHtml = record.imageData
-    ? `<img class=\"report-image\" src=\"${record.imageData}\" alt=\"${dateLabel}\" />`
+    ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
     : "";
+  const hourlyPayments = record.payrollDoc?.payments?.hourly || {};
+  const basicHours = hourlyPayments.basic?.units || 0;
+  const basicRate = hourlyPayments.basic?.rate || 0;
+  const basicAmount = hourlyPayments.basic?.amount || 0;
+  const holidayHours = hourlyPayments.holiday?.units || 0;
+  const holidayRate = hourlyPayments.holiday?.rate || 0;
+  const holidayAmount = hourlyPayments.holiday?.amount || 0;
+  const salaryPayments = record.payrollDoc?.payments?.salary || {};
+  const basicSalaryAmount = salaryPayments.basic?.amount ?? null;
+  const holidaySalaryUnits = salaryPayments.holiday?.units ?? null;
+  const holidaySalaryRate = salaryPayments.holiday?.rate ?? null;
+  const holidaySalaryAmount = salaryPayments.holiday?.amount ?? null;
+  const miscPayments = record.payrollDoc?.payments?.misc || [];
+  const miscDeductions = record.payrollDoc?.deductions?.misc || [];
+  const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0;
+  const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0;
+  const nestEmployee = record.payrollDoc?.deductions?.nestEE?.amount || 0;
+  const nestEmployer = record.payrollDoc?.deductions?.nestER?.amount || 0;
+  const netPay = record.payrollDoc?.netPay?.amount || 0;
+  const hasHolidayHourly = [holidayHours, holidayRate, holidayAmount].some(
+    (value) => value !== null && value !== 0
+  );
+  const hasHolidaySalary = [
+    holidaySalaryUnits,
+    holidaySalaryRate,
+    holidaySalaryAmount
+  ].some((value) => value !== null && value !== 0);
+  const corePaymentRows = [];
+  if (basicHours || basicRate || basicAmount) {
+    corePaymentRows.push({
+      label: "Basic Hours",
+      units: basicHours,
+      rate: basicRate,
+      amount: basicAmount
+    });
+  }
+  if (hasHolidayHourly) {
+    corePaymentRows.push({
+      label: "Holiday Hours",
+      units: holidayHours,
+      rate: holidayRate,
+      amount: holidayAmount
+    });
+  }
+  if (basicSalaryAmount !== null) {
+    corePaymentRows.push({
+      label: "Basic Salary",
+      units: null,
+      rate: null,
+      amount: basicSalaryAmount
+    });
+  }
+  if (hasHolidaySalary) {
+    corePaymentRows.push({
+      label: "Holiday Salary",
+      units: holidaySalaryUnits,
+      rate: holidaySalaryRate,
+      amount: holidaySalaryAmount
+    });
+  }
   const rows = [
     "<table class=\"report-table\">",
     `<tr style=\"border-bottom: 2px solid black;\"><th class=\"row-header\" align=\"left\">Date</th><td>${dateLabel}</td></tr>`,
+    `<tr><th align=\"left\">NAT INS No.</th><td>${natInsNumber}</td></tr>`,
     "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Payments</th></tr>",
-    `<tr><th align=\"left\">Basic Hours (Units)</th><td>${record.basicHours.toFixed(2)}</td></tr>`,
-    `<tr><th align=\"left\">Rate</th><td>${formatCurrency(record.basicRate)}</td></tr>`,
-    `<tr><th align=\"left\">Pre-Tax Amount</th><td>${formatCurrency(record.basicAmount)}</td></tr>`,
-    `<tr><th align=\"left\">Holidays (Units)</th><td>${record.holidayHours.toFixed(2)}</td></tr>`,
-    `<tr><th align=\"left\">Holiday Rate</th><td>${formatCurrency(record.holidayRate)}</td></tr>`,
-    `<tr><th align=\"left\">Holiday Amount</th><td>${formatCurrency(record.holidayAmount)}</td></tr>`,
-    "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Pension Deductions</th></tr>",
-    `<tr><th align=\"left\">NEST Corp - EE</th><td>${formatCurrency(record.nestEmployeeContribution)}</td></tr>`,
-    `<tr><th align=\"left\">NEST Corp - ER</th><td>${formatCurrency(record.nestEmployerContribution)}</td></tr>`
+    ...corePaymentRows.map(
+      (item) =>
+        `<tr><th align=\"left\">${formatMiscLabel(item)}</th><td>${formatCurrency(
+          item.amount || 0
+        )}</td></tr>`
+    )
   ];
 
-  if (record.pensionsAdjustment !== 0) {
+  if (miscPayments.length) {
     rows.push(
-      `<tr><th align=\"left\">Pensions adjustment</th><td>${formatDeduction(record.pensionsAdjustment)}</td></tr>`
+      "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Misc Earnings</th></tr>",
+      ...miscPayments.map(
+        (item) =>
+          `<tr><th align=\"left\">${formatMiscLabel(item)}</th><td>${formatCurrency(
+            item.amount
+          )}</td></tr>`
+      )
     );
   }
-  if (record.corrections !== 0) {
+
+  rows.push(
+    "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Deductions</th></tr>",
+    `<tr><th align=\"left\">PAYE Tax</th><td>${formatDeduction(payeTax)}</td></tr>`,
+    `<tr><th align=\"left\">National Insurance</th><td>${formatDeduction(
+      nationalInsurance
+    )}</td></tr>`,
+    `<tr><th align=\"left\">NEST Corp - EE</th><td>${formatDeduction(
+      nestEmployee
+    )}</td></tr>`,
+    `<tr><th align=\"left\">NEST Corp - ER</th><td>${formatDeduction(
+      nestEmployer
+    )}</td></tr>`
+  );
+
+  if (miscDeductions.length) {
     rows.push(
-      `<tr><th align=\"left\">Corrections</th><td>${formatDeduction(record.corrections)}</td></tr>`
+      "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Misc Deductions</th></tr>",
+      ...miscDeductions.map(
+        (item) =>
+          `<tr><th align=\"left\">${formatMiscLabel(item)}</th><td>${formatDeduction(
+            item.amount
+          )}</td></tr>`
+      )
     );
   }
 
   rows.push(
     `<tr><th class=\"row-header\" align=\"left\">Combined NEST</th><td>${formatCurrency(combined)}</td></tr>`,
-    `<tr style=\"border-top: 2px solid black;\"><th class=\"row-header\" align=\"left\">Net Pay (after deductions)</th><td>${formatCurrency(record.netPay)}</td></tr>`,
+    `<tr style=\"border-top: 2px solid black;\"><th class=\"row-header\" align=\"left\">Net Pay (after deductions)</th><td>${formatCurrency(netPay)}</td></tr>`,
     "</table>"
   );
 
@@ -375,8 +534,8 @@ function renderYearSummary(entriesForYear) {
   let yearHours = 0;
   let yearNestEmployee = 0;
   let yearNestEmployer = 0;
-  let yearPensionsAdjustment = 0;
-  let yearCorrections = 0;
+  let yearMiscPayments = 0;
+  let yearMiscDeductions = 0;
 
   const bodyRows = [];
 
@@ -386,12 +545,11 @@ function renderYearSummary(entriesForYear) {
     });
     const entry = monthEntries.get(monthIndex);
     const record = entry ? entry.record : null;
-
-    const hours = record ? record.basicHours : 0;
-    const nestEmployee = record ? record.nestEmployeeContribution : 0;
-    const nestEmployer = record ? record.nestEmployerContribution : 0;
-    const pensionsAdjustment = record ? record.pensionsAdjustment : 0;
-    const corrections = record ? record.corrections : 0;
+    const hours = record?.payrollDoc?.payments?.hourly?.basic?.units || 0;
+    const nestEmployee = record?.payrollDoc?.deductions?.nestEE?.amount || 0;
+    const nestEmployer = record?.payrollDoc?.deductions?.nestER?.amount || 0;
+    const miscPayments = sumMiscAmounts(record?.payrollDoc?.payments?.misc || []);
+    const miscDeductions = sumMiscAmounts(record?.payrollDoc?.deductions?.misc || []);
     const combined = nestEmployee + nestEmployer;
 
     bodyRows.push(
@@ -400,8 +558,8 @@ function renderYearSummary(entriesForYear) {
         `<td>${hours.toFixed(2)}</td>` +
         `<td>${formatCurrency(nestEmployee)}</td>` +
         `<td>${formatCurrency(nestEmployer)}</td>` +
-        `<td>${formatDeduction(pensionsAdjustment)}</td>` +
-        `<td>${formatDeduction(corrections)}</td>` +
+        `<td>${formatCurrency(miscPayments)}</td>` +
+        `<td>${formatDeduction(miscDeductions)}</td>` +
         `<td>${formatCurrency(combined)}</td>` +
         "</tr>"
     );
@@ -409,8 +567,8 @@ function renderYearSummary(entriesForYear) {
     yearHours += hours;
     yearNestEmployee += nestEmployee;
     yearNestEmployer += nestEmployer;
-    yearPensionsAdjustment += pensionsAdjustment;
-    yearCorrections += corrections;
+    yearMiscPayments += miscPayments;
+    yearMiscDeductions += miscDeductions;
   }
 
   const yearCombined = yearNestEmployee + yearNestEmployer;
@@ -420,7 +578,7 @@ function renderYearSummary(entriesForYear) {
     "<thead><tr>" +
     "<th>Month</th><th>Basic Hours (Units)</th>" +
     "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
-    "<th>Pensions Adjustment</th><th>Corrections</th>" +
+    "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
     "<th>Combined NEST</th>" +
     "</tr></thead>" +
     `<tbody>${bodyRows.join("")}</tbody>` +
@@ -430,8 +588,8 @@ function renderYearSummary(entriesForYear) {
     `<td>${yearHours.toFixed(2)}</td>` +
     `<td>${formatCurrency(yearNestEmployee)}</td>` +
     `<td>${formatCurrency(yearNestEmployer)}</td>` +
-    `<td>${formatDeduction(yearPensionsAdjustment)}</td>` +
-    `<td>${formatDeduction(yearCorrections)}</td>` +
+    `<td>${formatCurrency(yearMiscPayments)}</td>` +
+    `<td>${formatDeduction(yearMiscDeductions)}</td>` +
     `<td>${formatCurrency(yearCombined)}</td>` +
     "</tr>" +
     "</tfoot>" +

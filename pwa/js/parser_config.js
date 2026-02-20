@@ -1,14 +1,20 @@
 const PATTERNS = {
   nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})(?:\s+(\w+))?\s*$/m,
-  employerLine: /^([A-Za-z0-9\s&',.\-]+(?:Ltd|Limited))\s*$/m,
+  employeeNo: /Employee\s+No\.?\s*:?\s*(\w+)/i,
+  employerLine: /^([A-Za-z0-9 &'.,\-]+(?:Ltd|Limited))\s*$/m,
   basicLine:
     /Basic\s+Hours\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i,
   holidayLine:
     /Holidays\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i,
+  basicSalaryLine: /Basic\s+Salary\s+([\d,]+\.\d{2})/i,
+  holidaySalaryLine: /Holiday\s+Salary\s+([\d,]+\.\d{2})/i,
   payeTax: /PAYE\s+Tax\s+([\d,]+\.\d{2})/i,
   nationalInsurance: /National\s+Insurance\s+(?!TD)([\d,]+\.\d{2})/i,
   nestEmployee: /NEST\s+Corporation\s*-\s*EE\s+([\d,]+\.\d{2})/i,
   nestEmployer: /NEST\s+Corporation\s*-\s*ER\s+([\d,]+\.\d{2})/i,
+  taxCode: /Tax\s+Code:\s*([A-Z0-9]+)/i,
+  payRun: /Pay\s+Run:\s*([A-Za-z]+\s+\d+)/i,
+  payMethod: /Pay\s+Method:\s*([A-Za-z\s]+)/i,
   earningsForNI: /Earnings\s+for\s+NI\s+([\d,]+\.\d{2})/i,
   grossForTax: /Gross\s+for\s+Tax\s+([\d,]+\.\d{2})/i,
   totalGrossPay: /Total\s+Gross\s+Pay\s+([\d,]+\.\d{2})/i,
@@ -20,8 +26,6 @@ const PATTERNS = {
   nationalInsuranceTD: /National\s+Insurance\s+TD\s+([\d,]+\.\d{2})/i,
   employeePensionTD: /Ee\s+Pension\s+TD\s+\(inc\s+AVC\)\s+([\d,]+\.\d{2})/i,
   employerPensionTD: /Employers\s+Pension\s+TD\s+([\d,]+\.\d{2})/i,
-  pensionsAdjustment: /pensions\s*adjustment\s+£?([\d,]+\.?\d*)/i,
-  corrections: /Corrections?\s+£?([\d,]+\.?\d*)/i,
   netPay: /Pay\s+Method:\s*[A-Za-z\s]+\s+([\d,]+\.\d{2})\s*$/m
 };
 
