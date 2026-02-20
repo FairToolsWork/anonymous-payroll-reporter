@@ -146,6 +146,15 @@
       <div class="report-root" v-html="reportHtml"></div>
     </section>
 
+    <button
+      class="scroll-top"
+      type="button"
+      v-if="reportReady && showScrollTop"
+      @click="scrollToTop"
+    >
+      Back to top
+    </button>
+
     <section class="debug-panel" v-if="debugEnabled">
       <button class="secondary" type="button" @click="copyDebugOutput">Copy debug output</button>
       <h2>Debug: Extracted Text (first PDF)</h2>

@@ -353,6 +353,24 @@ function buildReport(records, failedPayPeriods = []) {
     ? `<span class="validation-periods">${flaggedPeriods.join(", ")}</span>`
     : `<span class="validation-none">None</span>`;
 
+  const totals = entries.reduce(
+    (acc, entry) => {
+      acc.nestEmployee += entry.record.payrollDoc?.deductions?.nestEE?.amount || 0;
+      acc.nestEmployer += entry.record.payrollDoc?.deductions?.nestER?.amount || 0;
+      acc.miscPayments += sumMiscAmounts(entry.record.payrollDoc?.payments?.misc || []);
+      acc.miscDeductions += sumMiscAmounts(entry.record.payrollDoc?.deductions?.misc || []);
+      return acc;
+    },
+    {
+      nestEmployee: 0,
+      nestEmployer: 0,
+      miscPayments: 0,
+      miscDeductions: 0
+    }
+  );
+  const totalCombined = totals.nestEmployee + totals.nestEmployer;
+
+  reportSections.push("<div class=\"page\">");
   reportSections.push(
     `<div class="report-meta"><h2>Payroll Report - ${employeeName}</h2>` +
       `<p class="report-range">${dateRangeLabel}</p>` +
@@ -363,11 +381,23 @@ function buildReport(records, failedPayPeriods = []) {
       `<div class="report-validation">Flagged periods: ${validationListHtml}</div>` +
       "</div>"
   );
-
-  let totalNestEmployee = 0;
-  let totalNestEmployer = 0;
-  let totalMiscPayments = 0;
-  let totalMiscDeductions = 0;
+  reportSections.push(
+    `<h2>Summary Totals: ${employeeName} (${dateRangeLabel})</h2>`
+  );
+  reportSections.push(
+    "<table class=\"summary-table\"><thead><tr>" +
+      "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
+      "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
+      "<th>Total Contribution</th></tr></thead>" +
+      "<tbody><tr>" +
+      `<td>${formatCurrency(totals.nestEmployee)}</td>` +
+      `<td>${formatCurrency(totals.nestEmployer)}</td>` +
+      `<td>${formatCurrency(totals.miscPayments)}</td>` +
+      `<td>${formatDeduction(totals.miscDeductions)}</td>` +
+      `<td>${formatCurrency(totalCombined)}</td>` +
+      "</tr></tbody></table>"
+  );
+  reportSections.push("</div>");
 
   Array.from(yearGroups.keys()).forEach((yearKey) => {
     const entriesForYear = yearGroups.get(yearKey);
@@ -376,7 +406,7 @@ function buildReport(records, failedPayPeriods = []) {
     const yearMissingHtml = buildMissingMonthsHtmlForYear(yearMissing);
     const yearMissingPill = `Missing months: <span class="missing-months">${yearMissingHtml}</span>`;
 
-    entriesForYear.forEach((entry) => {
+    entriesForYear.forEach((entry, index) => {
       const miscPayments = entry.record.payrollDoc?.payments?.misc || [];
       const miscDeductions = entry.record.payrollDoc?.deductions?.misc || [];
       const dateLabel = entry.parsedDate
@@ -399,6 +429,9 @@ function buildReport(records, failedPayPeriods = []) {
       });
 
       reportSections.push("<div class=\"page\">");
+      if (index === 0) {
+        reportSections.push(`<h2 class="year-header">${yearLabel}</h2>`);
+      }
       reportSections.push(renderReportCell(entry));
       reportSections.push("</div>");
     });
@@ -419,48 +452,7 @@ function buildReport(records, failedPayPeriods = []) {
     }
     reportSections.push("</div>");
 
-    const totals = entriesForYear.reduce(
-      (acc, entry) => {
-        acc.nestEmployee += entry.record.payrollDoc?.deductions?.nestEE?.amount || 0;
-        acc.nestEmployer += entry.record.payrollDoc?.deductions?.nestER?.amount || 0;
-        acc.miscPayments += sumMiscAmounts(entry.record.payrollDoc?.payments?.misc || []);
-        acc.miscDeductions += sumMiscAmounts(entry.record.payrollDoc?.deductions?.misc || []);
-        return acc;
-      },
-      {
-        nestEmployee: 0,
-        nestEmployer: 0,
-        miscPayments: 0,
-        miscDeductions: 0
-      }
-    );
-
-    totalNestEmployee += totals.nestEmployee;
-    totalNestEmployer += totals.nestEmployer;
-    totalMiscPayments += totals.miscPayments;
-    totalMiscDeductions += totals.miscDeductions;
   });
-
-  const totalCombined = totalNestEmployee + totalNestEmployer;
-
-  reportSections.push("<div class=\"page\">");
-  reportSections.push(
-    `<h2>Summary Totals: ${employeeName} (${dateRangeLabel})</h2>`
-  );
-  reportSections.push(
-    "<table class=\"summary-table\"><thead><tr>" +
-      "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
-      "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
-      "<th>Total Contribution</th></tr></thead>" +
-      "<tbody><tr>" +
-      `<td>${formatCurrency(totalNestEmployee)}</td>` +
-      `<td>${formatCurrency(totalNestEmployer)}</td>` +
-      `<td>${formatCurrency(totalMiscPayments)}</td>` +
-      `<td>${formatDeduction(totalMiscDeductions)}</td>` +
-      `<td>${formatCurrency(totalCombined)}</td>` +
-      "</tr></tbody></table>"
-  );
-  reportSections.push("</div>");
 
   if (miscFootnotes.length) {
     const footnoteItems = miscFootnotes

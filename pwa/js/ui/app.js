@@ -37,7 +37,8 @@ function initPayrollApp() {
           parsed: "",
           matches: ""
         },
-        acceptedDisclaimer: false
+        acceptedDisclaimer: false,
+        showScrollTop: false
       };
     },
     computed: {
@@ -171,6 +172,7 @@ function initPayrollApp() {
         this.debugInfo = { parsed: "", matches: "" };
         this.failedFiles = [];
         this.failedPayPeriods = [];
+        this.showScrollTop = false;
         this.reportStats = {
           dateRangeLabel: "",
           missingMonthsLabel: "",
@@ -261,6 +263,7 @@ function initPayrollApp() {
         this.reportStats = report.stats;
         document.title = report.filename;
         console.info("Payroll: report ready", { filename: report.filename });
+        this.handleScroll();
       },
       async extractPayrollRecord(file, captureDebug) {
         const { text, imageData, lines, lineItems } = await extractPdfData(
@@ -351,6 +354,25 @@ function initPayrollApp() {
             window.location.reload();
           }, 800);
         }
+      },
+      handleScroll() {
+        if (!this.reportReady) {
+          this.showScrollTop = false;
+          return;
+        }
+        const doc = document.documentElement;
+        const scrollTop = window.scrollY || doc.scrollTop || 0;
+        const viewportHeight = window.innerHeight || doc.clientHeight || 0;
+        const scrollHeight = doc.scrollHeight || 0;
+        const scrollableHeight = Math.max(scrollHeight - viewportHeight, 0);
+        if (!scrollableHeight) {
+          this.showScrollTop = false;
+          return;
+        }
+        this.showScrollTop = scrollTop / scrollableHeight >= 0.2;
+      },
+      scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     },
     mounted() {
@@ -381,6 +403,7 @@ function initPayrollApp() {
           });
         });
       }
+      window.addEventListener("scroll", this.handleScroll, { passive: true });
     }
   });
 
