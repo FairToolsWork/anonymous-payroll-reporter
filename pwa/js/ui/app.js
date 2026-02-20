@@ -17,7 +17,12 @@ function initPayrollApp() {
         reportStats: {
           dateRangeLabel: "",
           missingMonthsLabel: "",
-          missingMonthsByYear: {}
+          missingMonthsByYear: {},
+          validationSummary: {
+            flaggedCount: 0,
+            lowConfidenceCount: 0,
+            flaggedPeriods: []
+          }
         },
         dragActive: false,
         debugEnabled: DEBUG_ENABLED,
@@ -169,7 +174,12 @@ function initPayrollApp() {
         this.reportStats = {
           dateRangeLabel: "",
           missingMonthsLabel: "",
-          missingMonthsByYear: {}
+          missingMonthsByYear: {},
+          validationSummary: {
+            flaggedCount: 0,
+            lowConfidenceCount: 0,
+            flaggedPeriods: []
+          }
         };
         this.progress = { current: 0, total: files.length };
         console.info("Payroll: starting processing", { files: files.length });

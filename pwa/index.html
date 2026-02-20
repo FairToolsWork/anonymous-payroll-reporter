@@ -122,6 +122,20 @@
               <span>Missing months</span>
               <strong class="missing-months" v-html="reportStats.missingMonthsHtml"></strong>
             </li>
+            <li>
+              <span>Flagged months</span>
+              <strong class="validation-pill">{{ reportStats.validationSummary.flaggedCount }}</strong>
+            </li>
+            <li>
+              <span>Low confidence months</span>
+              <strong class="validation-pill">{{ reportStats.validationSummary.lowConfidenceCount }}</strong>
+            </li>
+            <li>
+              <span>Flagged periods</span>
+              <strong class="validation-list">
+                {{ reportStats.validationSummary.flaggedPeriods.join(", ") || "None" }}
+              </strong>
+            </li>
           </ul>
           <button class="primary" type="button" @click="printReport">Print / Save as PDF</button>
         </div>

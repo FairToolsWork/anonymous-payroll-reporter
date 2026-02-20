@@ -25,6 +25,11 @@ const DATE_MONTHS = {
   december: 11
 };
 
+const VALIDATION_TOLERANCE = 0.05;
+const ZERO_TAX_ALLOWANCE_NOTE =
+  "PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 " +
+  "(Personal Allowance £12,570 per year for 2025/26 and 2026/27).";
+
 function parsePayPeriodStart(payPeriod) {
   if (!payPeriod) {
     return null;
@@ -132,6 +137,90 @@ function formatMiscLabel(item) {
   return `${label} (${item.units.toFixed(2)} @ ${formatCurrency(item.rate)})`;
 }
 
+function sumPayments(record) {
+  const hourly = record?.payrollDoc?.payments?.hourly || {};
+  const salary = record?.payrollDoc?.payments?.salary || {};
+  const misc = record?.payrollDoc?.payments?.misc || [];
+  return (
+    (hourly.basic?.amount || 0) +
+    (hourly.holiday?.amount || 0) +
+    (salary.basic?.amount || 0) +
+    (salary.holiday?.amount || 0) +
+    sumMiscAmounts(misc)
+  );
+}
+
+function sumDeductionsForNetPay(record) {
+  const deductions = record?.payrollDoc?.deductions || {};
+  return (
+    (deductions.payeTax?.amount || 0) +
+    (deductions.natIns?.amount || 0) +
+    (deductions.nestEE?.amount || 0) +
+    sumMiscAmounts(deductions.misc || [])
+  );
+}
+
+function isWithinTolerance(actual, expected) {
+  if (actual === null || actual === undefined || expected === null || expected === undefined) {
+    return false;
+  }
+  return Math.abs(actual - expected) <= VALIDATION_TOLERANCE;
+}
+
+function buildValidation(entry) {
+  const record = entry.record;
+  const flags = [];
+  const natInsNumber = record.employee?.natInsNumber || "";
+  const taxCode = record.payrollDoc?.taxCode?.code || "";
+  const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0;
+  const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0;
+  const totalGrossPay = record.payrollDoc?.thisPeriod?.totalGrossPay?.amount ?? null;
+  const netPay = record.payrollDoc?.netPay?.amount ?? null;
+  const paymentsTotal = sumPayments(record);
+  const deductionsTotal = sumDeductionsForNetPay(record);
+
+  if (!natInsNumber) {
+    flags.push({ id: "missing_nat_ins", label: "Missing National Insurance number" });
+  }
+  if (!taxCode) {
+    flags.push({ id: "missing_tax_code", label: "Missing tax code" });
+  }
+  if (payeTax <= 0) {
+    flags.push({ id: "paye_zero", label: "PAYE Tax missing or £0" });
+  }
+  if (nationalInsurance <= 0) {
+    flags.push({ id: "nat_ins_zero", label: "National Insurance missing or £0" });
+  }
+
+  let grossMismatch = false;
+  if (totalGrossPay !== null) {
+    grossMismatch = !isWithinTolerance(paymentsTotal, totalGrossPay);
+    if (grossMismatch) {
+      flags.push({
+        id: "gross_mismatch",
+        label: "Payments total does not match Total Gross Pay"
+      });
+    }
+  }
+
+  let netMismatch = false;
+  if (netPay !== null) {
+    const expectedNet = paymentsTotal - deductionsTotal;
+    netMismatch = !isWithinTolerance(expectedNet, netPay);
+    if (netMismatch) {
+      flags.push({
+        id: "net_mismatch",
+        label: "Net Pay does not match payments less deductions"
+      });
+    }
+  }
+
+  return {
+    flags,
+    lowConfidence: grossMismatch || netMismatch
+  };
+}
+
 function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
   if (!presentMonths.length || minMonth === null || maxMonth === null) {
     return [];
@@ -161,6 +250,10 @@ function buildReport(records, failedPayPeriods = []) {
       monthIndex,
       monthLabel
     };
+  });
+
+  entries.forEach((entry) => {
+    entry.validation = buildValidation(entry);
   });
 
   entries.sort((a, b) => {
@@ -241,12 +334,33 @@ function buildReport(records, failedPayPeriods = []) {
     (months) => months.length
   );
 
+  const flaggedEntries = entries.filter(
+    (entry) => entry.validation?.flags && entry.validation.flags.length
+  );
+  const lowConfidenceEntries = entries.filter(
+    (entry) => entry.validation?.lowConfidence
+  );
+  const flaggedPeriods = flaggedEntries.map((entry) =>
+    entry.parsedDate
+      ? formatDateLabel(entry.parsedDate)
+      : entry.record.payrollDoc?.processDate?.date || "Unknown"
+  );
+  const validationPill = flaggedEntries.length
+    ? `Flags: <span class="validation-count">${flaggedEntries.length}</span> | ` +
+      `Low confidence: <span class="validation-count">${lowConfidenceEntries.length}</span>`
+    : "Validation flags: None";
+  const validationListHtml = flaggedEntries.length
+    ? `<span class="validation-periods">${flaggedPeriods.join(", ")}</span>`
+    : `<span class="validation-none">None</span>`;
+
   reportSections.push(
     `<div class="report-meta"><h2>Payroll Report - ${employeeName}</h2>` +
       `<p class="report-range">${dateRangeLabel}</p>` +
       (hasMissingMonths
         ? `<div class="report-missing">${missingMonthsPill}</div>`
         : "") +
+      `<div class="report-validation">${validationPill}</div>` +
+      `<div class="report-validation">Flagged periods: ${validationListHtml}</div>` +
       "</div>"
   );
 
@@ -295,6 +409,14 @@ function buildReport(records, failedPayPeriods = []) {
       reportSections.push(`<p class="report-missing">${yearMissingPill}</p>`);
     }
     reportSections.push(renderYearSummary(entriesForYear));
+    const yearZeroTax = entriesForYear.some((entry) =>
+      entry.validation?.flags?.some(
+        (flag) => flag.id === "paye_zero" || flag.id === "nat_ins_zero"
+      )
+    );
+    if (yearZeroTax) {
+      reportSections.push(`<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`);
+    }
     reportSections.push("</div>");
 
     const totals = entriesForYear.reduce(
@@ -380,13 +502,19 @@ function buildReport(records, failedPayPeriods = []) {
       dateRangeLabel,
       missingMonthsLabel,
       missingMonthsHtml,
-      missingMonthsByYear
+      missingMonthsByYear,
+      validationSummary: {
+        flaggedCount: flaggedEntries.length,
+        lowConfidenceCount: lowConfidenceEntries.length,
+        flaggedPeriods
+      }
     }
   };
 }
 
 function renderReportCell(entry) {
   const record = entry.record;
+  const validation = entry.validation || { flags: [], lowConfidence: false };
   const parsedDate = entry.parsedDate;
   const dateLabel = parsedDate
     ? formatDateLabel(parsedDate)
@@ -458,10 +586,19 @@ function renderReportCell(entry) {
       amount: holidaySalaryAmount
     });
   }
+  const validationList = validation.flags
+    .map((flag) => `<li>${flag.label}</li>`)
+    .join("");
   const rows = [
     "<table class=\"report-table\">",
     `<tr style=\"border-bottom: 2px solid black;\"><th class=\"row-header\" align=\"left\">Date</th><td>${dateLabel}</td></tr>`,
     `<tr><th align=\"left\">NAT INS No.</th><td>${natInsNumber}</td></tr>`,
+    ...(validation.flags.length
+      ? [
+          `<tr class=\"report-warning\"><th align=\"left\">Warnings</th>` +
+            `<td><ul class=\"report-warning-list\">${validationList}</ul></td></tr>`
+        ]
+      : []),
     "<tr><th class=\"row-header\" align=\"left\" colspan=\"2\">Payments</th></tr>",
     ...corePaymentRows.map(
       (item) =>
@@ -515,8 +652,11 @@ function renderReportCell(entry) {
     "</table>"
   );
 
+  const cellClass = validation.lowConfidence
+    ? "report-cell is-low-confidence"
+    : "report-cell";
   return `
-    <div class=\"report-cell\">
+    <div class=\"${cellClass}\">
       ${imageHtml}
       ${rows.join("\n")}
     </div>
@@ -545,12 +685,17 @@ function renderYearSummary(entriesForYear) {
     });
     const entry = monthEntries.get(monthIndex);
     const record = entry ? entry.record : null;
+    const validation = entry?.validation || null;
     const hours = record?.payrollDoc?.payments?.hourly?.basic?.units || 0;
     const nestEmployee = record?.payrollDoc?.deductions?.nestEE?.amount || 0;
     const nestEmployer = record?.payrollDoc?.deductions?.nestER?.amount || 0;
     const miscPayments = sumMiscAmounts(record?.payrollDoc?.payments?.misc || []);
     const miscDeductions = sumMiscAmounts(record?.payrollDoc?.deductions?.misc || []);
     const combined = nestEmployee + nestEmployer;
+    const flagSummary = validation?.flags?.length
+      ? validation.flags.map((flag) => flag.label).join("; ")
+      : "—";
+    const flagClass = validation?.flags?.length ? "summary-warning" : "";
 
     bodyRows.push(
       "<tr>" +
@@ -561,6 +706,7 @@ function renderYearSummary(entriesForYear) {
         `<td>${formatCurrency(miscPayments)}</td>` +
         `<td>${formatDeduction(miscDeductions)}</td>` +
         `<td>${formatCurrency(combined)}</td>` +
+        `<td class=\"${flagClass}\">${flagSummary}</td>` +
         "</tr>"
     );
 
@@ -580,6 +726,7 @@ function renderYearSummary(entriesForYear) {
     "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
     "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
     "<th>Combined NEST</th>" +
+    "<th>Flags</th>" +
     "</tr></thead>" +
     `<tbody>${bodyRows.join("")}</tbody>` +
     "<tfoot>" +
@@ -591,6 +738,7 @@ function renderYearSummary(entriesForYear) {
     `<td>${formatCurrency(yearMiscPayments)}</td>` +
     `<td>${formatDeduction(yearMiscDeductions)}</td>` +
     `<td>${formatCurrency(yearCombined)}</td>` +
+    "<td>—</td>" +
     "</tr>" +
     "</tfoot>" +
     "</table>"
