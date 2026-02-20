@@ -294,7 +294,28 @@ function buildReport(records, failedPayPeriods = []) {
 
   const employeeName = records[0].employee?.name || "Unknown";
   const reportSections = [];
-  const miscFootnotes = [];
+  const miscFootnotes = entries.reduce((acc, entry) => {
+    const dateLabel = entry.parsedDate
+      ? formatDateLabel(entry.parsedDate)
+      : entry.record.payrollDoc?.processDate?.date || "Unknown";
+    const miscPayments = entry.record.payrollDoc?.payments?.misc || [];
+    const miscDeductions = entry.record.payrollDoc?.deductions?.misc || [];
+    miscPayments.forEach((item) => {
+      acc.push({
+        type: "payment",
+        dateLabel,
+        item
+      });
+    });
+    miscDeductions.forEach((item) => {
+      acc.push({
+        type: "deduction",
+        dateLabel,
+        item
+      });
+    });
+    return acc;
+  }, []);
 
   const failedMonthsByYear = {};
   failedDates.forEach((date) => {
@@ -397,63 +418,6 @@ function buildReport(records, failedPayPeriods = []) {
       `<td>${formatCurrency(totalCombined)}</td>` +
       "</tr></tbody></table>"
   );
-  reportSections.push("</div>");
-
-  Array.from(yearGroups.keys()).forEach((yearKey) => {
-    const entriesForYear = yearGroups.get(yearKey);
-    const yearLabel = yearKey === "Unknown" ? "Unknown Year" : yearKey;
-    const yearMissing = missingMonthsByYear[yearKey] || [];
-    const yearMissingHtml = buildMissingMonthsHtmlForYear(yearMissing);
-    const yearMissingPill = `Missing months: <span class="missing-months">${yearMissingHtml}</span>`;
-
-    entriesForYear.forEach((entry, index) => {
-      const miscPayments = entry.record.payrollDoc?.payments?.misc || [];
-      const miscDeductions = entry.record.payrollDoc?.deductions?.misc || [];
-      const dateLabel = entry.parsedDate
-        ? formatDateLabel(entry.parsedDate)
-        : entry.record.payrollDoc?.processDate?.date || "Unknown";
-
-      miscPayments.forEach((item) => {
-        miscFootnotes.push({
-          type: "payment",
-          dateLabel,
-          item
-        });
-      });
-      miscDeductions.forEach((item) => {
-        miscFootnotes.push({
-          type: "deduction",
-          dateLabel,
-          item
-        });
-      });
-
-      reportSections.push("<div class=\"page\">");
-      if (index === 0) {
-        reportSections.push(`<h2 class="year-header">${yearLabel}</h2>`);
-      }
-      reportSections.push(renderReportCell(entry));
-      reportSections.push("</div>");
-    });
-
-    reportSections.push("<div class=\"page\">");
-    reportSections.push(`<h2>${yearLabel} Summary: ${employeeName}</h2>`);
-    if (yearMissing.length) {
-      reportSections.push(`<p class="report-missing">${yearMissingPill}</p>`);
-    }
-    reportSections.push(renderYearSummary(entriesForYear));
-    const yearZeroTax = entriesForYear.some((entry) =>
-      entry.validation?.flags?.some(
-        (flag) => flag.id === "paye_zero" || flag.id === "nat_ins_zero"
-      )
-    );
-    if (yearZeroTax) {
-      reportSections.push(`<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`);
-    }
-    reportSections.push("</div>");
-
-  });
-
   if (miscFootnotes.length) {
     const footnoteItems = miscFootnotes
       .map((entry) => {
@@ -480,6 +444,45 @@ function buildReport(records, failedPayPeriods = []) {
         "</div>"
     );
   }
+  reportSections.push("</div>");
+
+  Array.from(yearGroups.keys()).forEach((yearKey) => {
+    const entriesForYear = yearGroups.get(yearKey);
+    const yearLabel = yearKey === "Unknown" ? "Unknown Year" : yearKey;
+    const yearMissing = missingMonthsByYear[yearKey] || [];
+    const yearMissingHtml = buildMissingMonthsHtmlForYear(yearMissing);
+    const yearMissingPill = `Missing months: <span class="missing-months">${yearMissingHtml}</span>`;
+
+    entriesForYear.forEach((entry, index) => {
+      const dateLabel = entry.parsedDate
+        ? formatDateLabel(entry.parsedDate)
+        : entry.record.payrollDoc?.processDate?.date || "Unknown";
+
+      reportSections.push("<div class=\"page\">");
+      if (index === 0) {
+        reportSections.push(`<h2 class="year-header">${yearLabel}</h2>`);
+      }
+      reportSections.push(renderReportCell(entry));
+      reportSections.push("</div>");
+    });
+
+    reportSections.push("<div class=\"page\">");
+    reportSections.push(`<h2>${yearLabel} Summary: ${employeeName}</h2>`);
+    if (yearMissing.length) {
+      reportSections.push(`<p class="report-missing">${yearMissingPill}</p>`);
+    }
+    reportSections.push(renderYearSummary(entriesForYear));
+    const yearZeroTax = entriesForYear.some((entry) =>
+      entry.validation?.flags?.some(
+        (flag) => flag.id === "paye_zero" || flag.id === "nat_ins_zero"
+      )
+    );
+    if (yearZeroTax) {
+      reportSections.push(`<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`);
+    }
+    reportSections.push("</div>");
+
+  });
 
   const timestamp = formatTimestamp(new Date());
   const dateStart = rangeStart ? formatDateKey(rangeStart) : "unknown";

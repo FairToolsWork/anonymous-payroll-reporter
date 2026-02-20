@@ -156,7 +156,14 @@
     </button>
 
     <section class="debug-panel" v-if="debugEnabled">
-      <button class="secondary" type="button" @click="copyDebugOutput">Copy debug output</button>
+      <button
+        class="secondary debug-copy"
+        type="button"
+        :class="{ success: debugCopySuccess }"
+        @click="copyDebugOutput"
+      >
+        {{ debugCopySuccess ? "Copied ✓" : "Copy debug output" }}
+      </button>
       <h2>Debug: Extracted Text (first PDF)</h2>
       <pre v-if="debugText">{{ debugText }}</pre>
       <p v-else>No debug text captured yet.</p>

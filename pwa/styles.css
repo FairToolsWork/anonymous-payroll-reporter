@@ -643,6 +643,33 @@ margin-block: 0;
   color: var(--card);
 }
 
+.debug-panel .debug-copy {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  margin: 6px 0 12px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 10px 26px rgba(30, 28, 25, 0.25);
+}
+
+.debug-panel .debug-copy:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.debug-panel .debug-copy.success {
+  background: rgba(86, 188, 116, 0.85);
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(30, 28, 25, 0.32);
+}
+
 @media print {
   body {
     background: #fff;

@@ -37,6 +37,8 @@ function initPayrollApp() {
           parsed: "",
           matches: ""
         },
+        debugCopySuccess: false,
+        debugCopyResetTimer: null,
         acceptedDisclaimer: false,
         showScrollTop: false
       };
@@ -84,6 +86,14 @@ function initPayrollApp() {
           textarea.select();
           document.execCommand("copy");
           document.body.removeChild(textarea);
+        } finally {
+          this.debugCopySuccess = true;
+          if (this.debugCopyResetTimer) {
+            clearTimeout(this.debugCopyResetTimer);
+          }
+          this.debugCopyResetTimer = setTimeout(() => {
+            this.debugCopySuccess = false;
+          }, 2000);
         }
       },
       onDragOver(event) {
