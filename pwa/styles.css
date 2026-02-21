@@ -7,9 +7,12 @@
   --card: hsl(0, 0%, 100%);
   --accent: hsl(16, 62%, 47%);
   --accent-dark: hsl(16, 66%, 33%);
+  --accent-green-dark: hsl(145, 52%, 33%);
   --shadow: 0 18px 45px hsla(36, 9%, 11%, 0.12);
   --radius: 18px;
   --note: hsl(46, 96%, 91%);
+  --warning-bg: hsl(12, 100%, 95%);
+  --warning-text: hsl(16, 62%, 47%);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
 }
 
@@ -94,7 +97,7 @@ button.primary,
 button.secondary,
 button.ghost {
   border-radius: 999px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, all 0.2s ease;
 }
 
 button.primary,
@@ -104,20 +107,19 @@ button.ghost {
 }
 
 button.primary {
-  background: var(--accent);
-  color: #fff;
-
+  background: var(--ink);
+  color: var(--paper);
 }
 
-button.primary,
-button.secondary {
- box-shadow: 0 10px 30px rgba(194, 84, 45, 0.25);
-}
-
-button.primary:hover,
-button.secondary:hover {
+button.primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 32px rgba(194, 84, 45, 0.3);
+  background: var(--accent-green-dark);
+}
+
+button:disabled.primary:hover {
+  transform: none;
+  background: var(--ink);
+  box-shadow: none;
 }
 
 button.ghost {
@@ -134,6 +136,7 @@ button:disabled {
 }
 
 button.secondary {
+    padding: 4px 8px;
     background: transparent;
     border: 1px solid rgba(30, 28, 25, 0.2);
     color: var(--ink);
@@ -280,7 +283,7 @@ button.secondary:hover {
 .run-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -308,6 +311,13 @@ button.secondary:hover {
   cursor: pointer;
   margin-top: 12px;
   gap: 8px;
+  transition: transform 0.2s ease, all 0.2s ease;
+}
+
+.upload:hover {
+    background: var(--accent-green-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 32px rgba(var(--accent-green-dark), 0.50);
 }
 
 .upload input {
@@ -319,13 +329,19 @@ button.secondary:hover {
   pointer-events: none;
 }
 
+
 .status-panel p {
-  margin: 0 0 12px;
+  margin: 12px 0 12px;
+
 }
 
 .error {
-  color: #b3261e;
-  font-weight: 600;
+   color: #b3261e;
+   font-weight: 600;
+   background: var(--warning-bg);
+   border: 1px solid rgba(var(--warning-bg), 0.10);
+   padding: 12px;
+   border-radius: 12px;
 }
 
 .progress {

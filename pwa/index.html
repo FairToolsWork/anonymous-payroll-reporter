@@ -80,18 +80,18 @@
             <span>Choose PDF/Excel files</span>
           </label>
           <div class="upload-results">
-            <p v-if="stagedFiles.length" class="file-count">
+            <p v-if="stagedFiles && stagedFiles.length" class="file-count">
                 {{ stagedPdfCount }} PDF(s), {{ stagedExcelCount }} Excel file(s) staged
             </p>
             <p v-else class="file-count">No files staged yet</p>
                 <button
-                    v-if="stagedFiles.length"
+                    v-if="stagedFiles && stagedFiles.length"
                     class="secondary delete"
                     type="button"
                     :disabled="status === 'processing'"
                     @click="clearUploads"
                 >
-                    <span>X </span>Clear uploads
+                   Clear uploads
                 </button>
           </div>
         </div>
@@ -152,7 +152,7 @@
             <li>
               <span>Flagged periods</span>
               <strong class="validation-list">
-                {{ reportStats.validationSummary.flaggedPeriods.join(", ") || "None" }}
+                {{ ((reportStats.validationSummary && reportStats.validationSummary.flaggedPeriods) || []).join(", ") || "None" }}
               </strong>
             </li>
           </ul>

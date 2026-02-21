@@ -561,6 +561,21 @@ function initPayrollApp() {
       }
     },
     mounted() {
+      if (!Array.isArray(this.stagedFiles)) {
+        this.stagedFiles = [];
+      }
+      if (!Array.isArray(this.failedFiles)) {
+        this.failedFiles = [];
+      }
+      if (!Array.isArray(this.reportStats?.validationSummary?.flaggedPeriods)) {
+        if (!this.reportStats) {
+          this.reportStats = {};
+        }
+        if (!this.reportStats.validationSummary) {
+          this.reportStats.validationSummary = {};
+        }
+        this.reportStats.validationSummary.flaggedPeriods = [];
+      }
       if (DEBUG_PERSIST_PASSWORD) {
         this.acceptedDisclaimer = true;
         this.pdfPassword = sessionStorage.getItem("pdf_password_debug") || "";
