@@ -122,6 +122,7 @@
           Processing {{ progress.current }} / {{ progress.total }} PDFs
         </p>
         <p v-if="parsingExcel">Parsing Excel contribution history…</p>
+        <p v-if="excelStatus" class="notice">{{ excelStatus }}</p>
         <p v-if="status === 'rendering'">Rendering report…</p>
         <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
         <p v-if="error" class="error">{{ error }}</p>

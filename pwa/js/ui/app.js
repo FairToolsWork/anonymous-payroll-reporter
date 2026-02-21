@@ -41,6 +41,7 @@ function initPayrollApp() {
         swRegistration: null,
         debugText: "",
         notice: "",
+        excelStatus: "",
         failedFiles: [],
         failedPayPeriods: [],
         debugInfo: {
@@ -220,51 +221,79 @@ function initPayrollApp() {
           throw new Error("XLSX_NOT_AVAILABLE");
         }
         const entries = [];
+        const failures = [];
         for (const file of files) {
-          const buffer = await file.arrayBuffer();
-          const workbook = window.XLSX.read(buffer, { type: "array" });
-          const sheet = workbook.Sheets["Contribution Details"];
-          if (!sheet) {
-            throw new Error("CONTRIBUTION_SHEET_MISSING");
-          }
-          const rows = window.XLSX.utils.sheet_to_json(sheet, {
-            header: 1,
-            defval: null
-          });
-          if (this.debugEnabled && !this.debugInfo.excelRows) {
-            this.debugInfo.excelSource = file.name || "Unknown";
-            this.debugInfo.excelRows = JSON.stringify(rows.slice(0, 20), null, 2);
-          }
-          const fileEntries = [];
-          for (let i = 1; i < rows.length; i += 1) {
-            const row = rows[i];
-            if (!row) {
-              continue;
+          try {
+            const buffer = await file.arrayBuffer();
+            const workbook = window.XLSX.read(buffer, { type: "array" });
+            const sheet = workbook.Sheets["Contribution Details"];
+            if (!sheet) {
+              throw new Error("CONTRIBUTION_SHEET_MISSING");
             }
-            const dateValue = row[0];
-            const typeValue = row[1];
-            const amountValue = row[3];
-            if (!dateValue || !typeValue || amountValue === null || amountValue === undefined) {
-              continue;
+            const rows = window.XLSX.utils.sheet_to_json(sheet, {
+              header: 1,
+              defval: null
+            });
+            const headerRow = rows[0] || [];
+            const headerCells = headerRow
+              .map((cell) => String(cell || "").trim().toLowerCase());
+            const hasExpectedHeaders =
+              headerCells.length >= 4 &&
+              headerCells[0].includes("date") &&
+              headerCells[1].includes("type") &&
+              (headerCells[3].includes("amount") ||
+                headerCells[3].includes("contribution"));
+            if (!hasExpectedHeaders) {
+              throw new Error("CONTRIBUTION_HEADER_INVALID");
             }
-            const date = this.parseContributionDate(dateValue);
-            const type = this.normalizeContributionType(typeValue);
-            const amount = typeof amountValue === "number"
-              ? amountValue
-              : parseFloat(String(amountValue).replace(/[^0-9.\-]/g, ""));
-            if (!date || !type || !Number.isFinite(amount)) {
-              continue;
+            if (this.debugEnabled && !this.debugInfo.excelRows) {
+              this.debugInfo.excelSource = file.name || "Unknown";
+              this.debugInfo.excelRows = JSON.stringify(rows.slice(0, 20), null, 2);
             }
-            entries.push({ date, type, amount });
-            fileEntries.push({ date, type, amount });
+            const fileEntries = [];
+            for (let i = 1; i < rows.length; i += 1) {
+              const row = rows[i];
+              if (!row) {
+                continue;
+              }
+              const dateValue = row[0];
+              const typeValue = row[1];
+              const amountValue = row[3];
+              if (!dateValue || !typeValue || amountValue === null || amountValue === undefined) {
+                continue;
+              }
+              const date = this.parseContributionDate(dateValue);
+              const type = this.normalizeContributionType(typeValue);
+              const amount = typeof amountValue === "number"
+                ? amountValue
+                : parseFloat(String(amountValue).replace(/[^0-9.\-]/g, ""));
+              if (!date || !type || !Number.isFinite(amount)) {
+                continue;
+              }
+              entries.push({ date, type, amount });
+              fileEntries.push({ date, type, amount });
+            }
+            if (!fileEntries.length) {
+              throw new Error("CONTRIBUTION_NO_ROWS");
+            }
+            if (this.debugEnabled && !this.debugInfo.excelParsed) {
+              this.debugInfo.excelParsed = JSON.stringify(
+                fileEntries.slice(0, 20),
+                null,
+                2
+              );
+            }
+          } catch (err) {
+            failures.push({
+              name: file.name || "Unknown",
+              code: err?.message || "UNKNOWN"
+            });
           }
-          if (this.debugEnabled && !this.debugInfo.excelParsed) {
-            this.debugInfo.excelParsed = JSON.stringify(
-              fileEntries.slice(0, 20),
-              null,
-              2
-            );
-          }
+        }
+        if (failures.length) {
+          const error = new Error("CONTRIBUTION_FILE_FAILURES");
+          error.failures = failures;
+          throw error;
         }
         return {
           entries,
@@ -378,6 +407,7 @@ function initPayrollApp() {
         this.reportHtml = "";
         this.reportReady = false;
         this.debugText = "";
+        this.excelStatus = "";
         this.debugInfo = {
           parsed: "",
           matches: "",
@@ -495,15 +525,46 @@ function initPayrollApp() {
             console.info("Payroll: Excel contribution history parsed", {
               entries: contributionData?.entries?.length || 0
             });
+            this.excelStatus =
+              `Excel parsed: ${contributionData?.entries?.length || 0} entries ` +
+              `from ${this.contributionFiles.length} file(s).`;
           }
         } catch (err) {
           console.warn("Payroll: contribution parsing failed", {
             message: err?.message,
             error: err
           });
-          this.error =
-            "Failed to read contribution history Excel file(s). Report generated without reconciliation.";
-          contributionData = null;
+          if (err?.message === "XLSX_NOT_AVAILABLE") {
+            this.error = "Excel parser is not available. Please refresh and try again.";
+          } else if (err?.message === "CONTRIBUTION_SHEET_MISSING") {
+            this.error = "Excel file is missing the 'Contribution Details' sheet.";
+          } else if (err?.message === "CONTRIBUTION_FILE_FAILURES") {
+            const failureDetails = (err?.failures || []).map((failure) => {
+              const reason =
+                failure.code === "CONTRIBUTION_SHEET_MISSING"
+                  ? "missing 'Contribution Details' sheet"
+                  : failure.code === "CONTRIBUTION_HEADER_INVALID"
+                    ? "headers do not match expected format"
+                    : failure.code === "CONTRIBUTION_NO_ROWS"
+                      ? "no valid contribution rows"
+                      : "unreadable or corrupted";
+              return `${failure.name}: ${reason}`;
+            });
+            this.error = failureDetails.length
+              ? `Excel file(s) could not be processed: ${failureDetails.join("; ")}.`
+              : "Excel file(s) could not be processed.";
+          } else if (err?.message === "CONTRIBUTION_HEADER_INVALID") {
+            this.error =
+              "Excel file headers do not match the expected format (Date, Type, Amount).";
+          } else if (err?.message === "CONTRIBUTION_NO_ROWS") {
+            this.error =
+              "Excel file contains no valid contribution rows. Check the sheet formatting.";
+          } else {
+            this.error =
+              "Failed to read contribution history Excel file(s). The report was not generated.";
+          }
+          this.status = "idle";
+          return;
         } finally {
           this.parsingExcel = false;
         }

@@ -129,6 +129,17 @@ function formatDeduction(value) {
   return `-£${Math.abs(value).toFixed(2)}`;
 }
 
+function formatBreakdownCell(total, ee, er, allowNA = false) {
+  if (allowNA && total === null) {
+    return "N/A";
+  }
+  const formatOrNA = (value) => (value === null ? "N/A" : formatCurrency(value));
+  const totalLabel = allowNA ? formatOrNA(total) : formatCurrency(total);
+  const eeLabel = allowNA ? formatOrNA(ee) : formatCurrency(ee);
+  const erLabel = allowNA ? formatOrNA(er) : formatCurrency(er);
+  return `${totalLabel}<br><span class="summary-breakdown">${eeLabel} EE / ${erLabel} ER</span>`;
+}
+
 function sumMiscAmounts(items) {
   if (!items || !items.length) {
     return 0;
@@ -640,15 +651,6 @@ function buildReport(records, failedPayPeriods = []) {
     }
     return `<span class="${differenceClass}">${formatCurrency(contributionDifference)}</span>`;
   };
-  const formatBreakdownCell = (total, ee, er, allowNA = false) => {
-    if (allowNA && total === null) {
-      return "N/A";
-    }
-    const totalLabel = allowNA ? formatOrNA(total) : formatCurrency(total);
-    const eeLabel = allowNA ? formatOrNA(ee) : formatCurrency(ee);
-    const erLabel = allowNA ? formatOrNA(er) : formatCurrency(er);
-    return `${totalLabel}<br><span class="summary-breakdown">${eeLabel} EE / ${erLabel} ER</span>`;
-  };
   const formatYearDiff = (value, isZeroReview = false) => {
     if (value === null) {
       return "N/A";
@@ -1027,7 +1029,11 @@ function renderYearSummary(entriesForYear) {
 
   let yearHours = 0;
   let yearHolidayUnits = 0;
+  let yearPayrollEE = 0;
+  let yearPayrollER = 0;
   let yearPayrollContribution = 0;
+  let yearReportedEE = null;
+  let yearReportedER = null;
   let yearReportedContribution = null;
 
   const bodyRows = [];
@@ -1152,8 +1158,13 @@ function renderYearSummary(entriesForYear) {
             `<th>${monthLabel}</th>` +
             `<td>${hours.toFixed(2)}</td>` +
             `<td>${holidayUnits.toFixed(2)}</td>` +
-            `<td>${formatCurrency(payrollContribution)}</td>` +
-            `<td>${formatOrNA(reportedContribution)}</td>` +
+            `<td>${formatBreakdownCell(payrollContribution, nestEmployee, nestEmployer)}</td>` +
+            `<td>${formatBreakdownCell(
+              reportedContribution,
+              actualEE,
+              actualER,
+              true
+            )}</td>` +
             `<td>${formatDiff(overUnder, zeroReview)}</td>` +
             `<td class=\"${flagClass}\">${flagSummary}</td>` +
             "</tr>"
@@ -1161,6 +1172,8 @@ function renderYearSummary(entriesForYear) {
 
         yearHours += hours;
         yearHolidayUnits += holidayUnits;
+        yearPayrollEE += nestEmployee;
+        yearPayrollER += nestEmployer;
         yearPayrollContribution += payrollContribution;
       });
     } else {
@@ -1176,8 +1189,8 @@ function renderYearSummary(entriesForYear) {
           `<th>${monthName}</th>` +
           "<td>0.00</td>" +
           "<td>0.00</td>" +
-          `<td>${formatCurrency(payrollContribution)}</td>` +
-          `<td>${formatOrNA(reportedContribution)}</td>` +
+          `<td>${formatBreakdownCell(payrollContribution, 0, 0)}</td>` +
+          `<td>${formatBreakdownCell(reportedContribution, actualEE, actualER, true)}</td>` +
           `<td>${formatDiff(overUnder, zeroReview)}</td>` +
           "<td class=\"\">—</td>" +
           "</tr>"
@@ -1186,8 +1199,9 @@ function renderYearSummary(entriesForYear) {
   }
 
   if (showReconciliation) {
-    yearReportedContribution =
-      (reconciliation.totals.actualEE || 0) + (reconciliation.totals.actualER || 0);
+    yearReportedEE = reconciliation.totals.actualEE || 0;
+    yearReportedER = reconciliation.totals.actualER || 0;
+    yearReportedContribution = yearReportedEE + yearReportedER;
   }
   const yearOverUnder =
     yearReportedContribution === null
@@ -1211,8 +1225,17 @@ function renderYearSummary(entriesForYear) {
       "<th>Total</th>" +
       `<td>${yearHours.toFixed(2)}</td>` +
       `<td>${yearHolidayUnits.toFixed(2)}</td>` +
-      `<td>${formatCurrency(yearPayrollContribution)}</td>` +
-      `<td>${formatOrNA(yearReportedContribution)}</td>` +
+      `<td>${formatBreakdownCell(
+        yearPayrollContribution,
+        yearPayrollEE,
+        yearPayrollER
+      )}</td>` +
+      `<td>${formatBreakdownCell(
+        yearReportedContribution,
+        yearReportedEE,
+        yearReportedER,
+        true
+      )}</td>` +
       `<td>${formatDiff(yearOverUnder, yearZeroReview)}</td>` +
       "<td>—</td>" +
       "</tr>" +
