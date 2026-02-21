@@ -666,6 +666,11 @@ button.secondary:hover {
   padding: 5px;
 }
 
+.summary-breakdown {
+  display: inline-block;
+  font-size: 0.75em;
+}
+
 .report-table th,
 .summary-table th {
   background-color: #f2f2f2;

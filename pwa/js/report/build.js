@@ -640,6 +640,15 @@ function buildReport(records, failedPayPeriods = []) {
     }
     return `<span class="${differenceClass}">${formatCurrency(contributionDifference)}</span>`;
   };
+  const formatBreakdownCell = (total, ee, er, allowNA = false) => {
+    if (allowNA && total === null) {
+      return "N/A";
+    }
+    const totalLabel = allowNA ? formatOrNA(total) : formatCurrency(total);
+    const eeLabel = allowNA ? formatOrNA(ee) : formatCurrency(ee);
+    const erLabel = allowNA ? formatOrNA(er) : formatCurrency(er);
+    return `${totalLabel}<br><span class="summary-breakdown">${eeLabel} EE / ${erLabel} ER</span>`;
+  };
   const formatYearDiff = (value, isZeroReview = false) => {
     if (value === null) {
       return "N/A";
@@ -682,17 +691,21 @@ function buildReport(records, failedPayPeriods = []) {
       const yearHours = entriesForYear.reduce((acc, entry) => {
         return acc + (entry.record.payrollDoc?.payments?.hourly?.basic?.units || 0);
       }, 0);
-      const yearPayrollContribution = entriesForYear.reduce((acc, entry) => {
-        const nestEmployee = entry.record.payrollDoc?.deductions?.nestEE?.amount || 0;
-        const nestEmployer = entry.record.payrollDoc?.deductions?.nestER?.amount || 0;
-        return acc + nestEmployee + nestEmployer;
+      const yearPayrollEE = entriesForYear.reduce((acc, entry) => {
+        return acc + (entry.record.payrollDoc?.deductions?.nestEE?.amount || 0);
       }, 0);
+      const yearPayrollER = entriesForYear.reduce((acc, entry) => {
+        return acc + (entry.record.payrollDoc?.deductions?.nestER?.amount || 0);
+      }, 0);
+      const yearPayrollContribution = yearPayrollEE + yearPayrollER;
       const hasFlags = entriesForYear.some(
         (entry) => entry.validation?.flags && entry.validation.flags.length
       );
       const yearReconciliation = entriesForYear.reconciliation || null;
+      const yearReportedEE = yearReconciliation ? yearReconciliation.totals.actualEE || 0 : null;
+      const yearReportedER = yearReconciliation ? yearReconciliation.totals.actualER || 0 : null;
       const yearReportedContribution = yearReconciliation
-        ? (yearReconciliation.totals.actualEE || 0) + (yearReconciliation.totals.actualER || 0)
+        ? yearReportedEE + yearReportedER
         : null;
       const yearOverUnder =
         yearReportedContribution === null
@@ -707,8 +720,13 @@ function buildReport(records, failedPayPeriods = []) {
         "<tr>" +
         `<th>${yearKey}</th>` +
         `<td>${yearHours.toFixed(2)}</td>` +
-        `<td>${formatCurrency(yearPayrollContribution)}</td>` +
-        `<td>${formatOrNA(yearReportedContribution)}</td>` +
+        `<td>${formatBreakdownCell(yearPayrollContribution, yearPayrollEE, yearPayrollER)}</td>` +
+        `<td>${formatBreakdownCell(
+          yearReportedContribution,
+          yearReportedEE,
+          yearReportedER,
+          true
+        )}</td>` +
         `<td>${formatYearDiff(yearOverUnder, yearZeroReview)}</td>` +
         `<td>${flagIcon}</td>` +
         "</tr>"
@@ -729,21 +747,20 @@ function buildReport(records, failedPayPeriods = []) {
 
   reportSections.push(
     "<table class=\"summary-table\"><thead><tr>" +
-      "<th>Payroll EE</th><th>Payroll ER</th>" +
-      "<th>Payroll Contribution</th><th>Pension EE</th>" +
-      "<th>Pension ER</th><th>Reported Contribution</th>" +
-      "<th>Under/Over</th><th>Days Since Last Contribution</th>" +
+      "<th colspan=\"2\">Date Range</th><th>Payroll Contribution</th>" +
+      "<th>Reported Contribution</th><th>Under/Over</th>" +
       "<th>Last Contribution Date</th></tr></thead>" +
       "<tbody><tr>" +
-      `<td>${formatCurrency(payrollEE)}</td>` +
-      `<td>${formatCurrency(payrollER)}</td>` +
-      `<td>${formatCurrency(payrollContribution)}</td>` +
-      `<td>${formatOrNA(pensionEE)}</td>` +
-      `<td>${formatOrNA(pensionER)}</td>` +
-      `<td>${formatOrNA(reportedContribution)}</td>` +
+      `<td colspan=\"2\">${dateRangeLabel}</td>` +
+      `<td>${formatBreakdownCell(payrollContribution, payrollEE, payrollER)}</td>` +
+      `<td>${formatBreakdownCell(
+        reportedContribution,
+        pensionEE,
+        pensionER,
+        true
+      )}</td>` +
       `<td>${formatDifference()}</td>` +
-      `<td>${formatDaysSince()}</td>` +
-      `<td>${lastContributionLabel}</td>` +
+      `<td>${lastContributionLabel}<br>${formatDaysSince()}</td>` +
       "</tr></tbody></table>"
   );
 
@@ -1001,7 +1018,10 @@ function renderYearSummary(entriesForYear) {
   const monthEntries = new Map();
   entriesForYear.forEach((entry) => {
     if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
-      monthEntries.set(entry.monthIndex, entry);
+      if (!monthEntries.has(entry.monthIndex)) {
+        monthEntries.set(entry.monthIndex, []);
+      }
+      monthEntries.get(entry.monthIndex).push(entry);
     }
   });
 
@@ -1068,20 +1088,20 @@ function renderYearSummary(entriesForYear) {
     const monthName = new Date(2024, monthIndex - 1, 1).toLocaleDateString("en-GB", {
       month: "long"
     });
-    const entry = monthEntries.get(monthIndex);
-    const record = entry ? entry.record : null;
-    const validation = entry?.validation || null;
-    const hours = record?.payrollDoc?.payments?.hourly?.basic?.units || 0;
-    const holidayHourlyUnits = record?.payrollDoc?.payments?.hourly?.holiday?.units || 0;
-    const holidaySalaryUnits = record?.payrollDoc?.payments?.salary?.holiday?.units || 0;
-    const holidayUnits = holidayHourlyUnits + holidaySalaryUnits;
-    const nestEmployee = record?.payrollDoc?.deductions?.nestEE?.amount || 0;
-    const nestEmployer = record?.payrollDoc?.deductions?.nestER?.amount || 0;
-    const payrollContribution = nestEmployee + nestEmployer;
-    const flagSummary = validation?.flags?.length
-      ? validation.flags.map((flag) => flag.label).join("; ")
-      : "—";
-    const flagClass = validation?.flags?.length ? "summary-warning" : "";
+    const entries = (monthEntries.get(monthIndex) || []).slice().sort((a, b) => {
+      const aDate = a.parsedDate || a.record?.payrollDoc?.processDate?.date || null;
+      const bDate = b.parsedDate || b.record?.payrollDoc?.processDate?.date || null;
+      if (!aDate && !bDate) {
+        return 0;
+      }
+      if (!aDate) {
+        return 1;
+      }
+      if (!bDate) {
+        return -1;
+      }
+      return new Date(aDate) - new Date(bDate);
+    });
     const reconMonth = showReconciliation
       ? reconciliation.months.get(monthIndex)
       : null;
@@ -1089,37 +1109,80 @@ function renderYearSummary(entriesForYear) {
     const actualER = reconMonth?.actualER ?? null;
     const reportedContribution =
       actualEE === null || actualER === null ? null : actualEE + actualER;
-    const overUnder =
-      reportedContribution === null ? null : reportedContribution - payrollContribution;
-    const zeroReview = payrollContribution === 0 && reportedContribution === 0;
 
-    if (validation?.flags?.length) {
-      const entryDateLabel = entry.parsedDate
-        ? formatDateLabel(entry.parsedDate)
-        : entry.record.payrollDoc?.processDate?.date || "Unknown";
-      validation.flags.forEach((flag) => {
-        const category = flagCategoryMap[flag.id];
-        if (category && flaggedCategories[category]) {
-          flaggedCategories[category].add(entryDateLabel);
+    if (entries.length) {
+      entries.forEach((entry, entryIndex) => {
+        const record = entry.record || null;
+        const validation = entry.validation || null;
+        const hours = record?.payrollDoc?.payments?.hourly?.basic?.units || 0;
+        const holidayHourlyUnits =
+          record?.payrollDoc?.payments?.hourly?.holiday?.units || 0;
+        const holidaySalaryUnits =
+          record?.payrollDoc?.payments?.salary?.holiday?.units || 0;
+        const holidayUnits = holidayHourlyUnits + holidaySalaryUnits;
+        const nestEmployee = record?.payrollDoc?.deductions?.nestEE?.amount || 0;
+        const nestEmployer = record?.payrollDoc?.deductions?.nestER?.amount || 0;
+        const payrollContribution = nestEmployee + nestEmployer;
+        const flagSummary = validation?.flags?.length
+          ? validation.flags.map((flag) => flag.label).join("; ")
+          : "—";
+        const flagClass = validation?.flags?.length ? "summary-warning" : "";
+        const overUnder =
+          reportedContribution === null
+            ? null
+            : reportedContribution - payrollContribution;
+        const zeroReview = payrollContribution === 0 && reportedContribution === 0;
+        const monthLabel =
+          entries.length > 1 ? `${monthName} (${entryIndex + 1})` : monthName;
+
+        if (validation?.flags?.length) {
+          const entryDateLabel = entry.parsedDate
+            ? formatDateLabel(entry.parsedDate)
+            : entry.record.payrollDoc?.processDate?.date || "Unknown";
+          validation.flags.forEach((flag) => {
+            const category = flagCategoryMap[flag.id];
+            if (category && flaggedCategories[category]) {
+              flaggedCategories[category].add(entryDateLabel);
+            }
+          });
         }
+
+        bodyRows.push(
+          "<tr>" +
+            `<th>${monthLabel}</th>` +
+            `<td>${hours.toFixed(2)}</td>` +
+            `<td>${holidayUnits.toFixed(2)}</td>` +
+            `<td>${formatCurrency(payrollContribution)}</td>` +
+            `<td>${formatOrNA(reportedContribution)}</td>` +
+            `<td>${formatDiff(overUnder, zeroReview)}</td>` +
+            `<td class=\"${flagClass}\">${flagSummary}</td>` +
+            "</tr>"
+        );
+
+        yearHours += hours;
+        yearHolidayUnits += holidayUnits;
+        yearPayrollContribution += payrollContribution;
       });
+    } else {
+      const payrollContribution = 0;
+      const overUnder =
+        reportedContribution === null
+          ? null
+          : reportedContribution - payrollContribution;
+      const zeroReview = payrollContribution === 0 && reportedContribution === 0;
+
+      bodyRows.push(
+        "<tr>" +
+          `<th>${monthName}</th>` +
+          "<td>0.00</td>" +
+          "<td>0.00</td>" +
+          `<td>${formatCurrency(payrollContribution)}</td>` +
+          `<td>${formatOrNA(reportedContribution)}</td>` +
+          `<td>${formatDiff(overUnder, zeroReview)}</td>` +
+          "<td class=\"\">—</td>" +
+          "</tr>"
+      );
     }
-
-    bodyRows.push(
-      "<tr>" +
-        `<th>${monthName}</th>` +
-        `<td>${hours.toFixed(2)}</td>` +
-        `<td>${holidayUnits.toFixed(2)}</td>` +
-        `<td>${formatCurrency(payrollContribution)}</td>` +
-        `<td>${formatOrNA(reportedContribution)}</td>` +
-        `<td>${formatDiff(overUnder, zeroReview)}</td>` +
-        `<td class=\"${flagClass}\">${flagSummary}</td>` +
-        "</tr>"
-    );
-
-    yearHours += hours;
-    yearHolidayUnits += holidayUnits;
-    yearPayrollContribution += payrollContribution;
   }
 
   if (showReconciliation) {
