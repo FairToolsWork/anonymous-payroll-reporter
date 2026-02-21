@@ -10,6 +10,11 @@ function initPayrollApp() {
         status: "idle",
         progress: { current: 0, total: 0 },
         fileCount: 0,
+        contributionFileCount: 0,
+        contributionFiles: [],
+        stagedFiles: [],
+        stagedPdfCount: 0,
+        stagedExcelCount: 0,
         reportHtml: "",
         reportTimestamp: "",
         reportReady: false,
@@ -49,6 +54,13 @@ function initPayrollApp() {
           return 0;
         }
         return Math.round((this.progress.current / this.progress.total) * 100);
+      },
+      canRunReport() {
+        return (
+          this.stagedPdfCount > 0 &&
+          this.acceptedDisclaimer &&
+          this.status !== "processing"
+        );
       }
     },
     watch: {
@@ -64,6 +76,161 @@ function initPayrollApp() {
       }
     },
     methods: {
+      handleContributionFiles(event) {
+        const rawFiles = Array.from(event.target.files || []);
+        if (!rawFiles.length) {
+          return;
+        }
+        const files = rawFiles.filter((file) => {
+          const name = file.name || "";
+          return (
+            file.type ===
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+            name.toLowerCase().endsWith(".xlsx")
+          );
+        });
+        if (files.length !== rawFiles.length) {
+          this.error =
+            "One or more of your uploaded files was not an XLSX. Please try again.";
+          event.target.value = "";
+          return;
+        }
+        this.contributionFiles = files;
+        this.contributionFileCount = files.length;
+        event.target.value = "";
+      },
+      stageFiles(rawFiles) {
+        const files = rawFiles.filter(Boolean);
+        if (!files.length) {
+          return;
+        }
+        const staged = [];
+        const invalid = [];
+        files.forEach((file) => {
+          const name = (file.name || "").toLowerCase();
+          if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+            staged.push({
+              id: `${file.name}-${file.size}-${file.lastModified}`,
+              name: file.name,
+              type: "pdf",
+              file
+            });
+            return;
+          }
+          if (
+            file.type ===
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+            name.endsWith(".xlsx")
+          ) {
+            staged.push({
+              id: `${file.name}-${file.size}-${file.lastModified}`,
+              name: file.name,
+              type: "xlsx",
+              file
+            });
+            return;
+          }
+          invalid.push(file.name || "Unknown");
+        });
+
+        if (invalid.length) {
+          this.error =
+            "Some files were not PDFs or XLSX files. Please remove them and try again.";
+          return;
+        }
+
+        this.error = "";
+        this.stagedFiles = [...this.stagedFiles, ...staged];
+        this.stagedPdfCount = this.stagedFiles.filter((item) => item.type === "pdf").length;
+        this.stagedExcelCount = this.stagedFiles.filter((item) => item.type === "xlsx").length;
+        this.contributionFileCount = this.stagedExcelCount;
+      },
+      parseContributionDate(value) {
+        if (value instanceof Date) {
+          return value;
+        }
+        if (typeof value === "number" && window.XLSX?.SSF?.parse_date_code) {
+          const parsed = window.XLSX.SSF.parse_date_code(value);
+          if (parsed) {
+            return new Date(parsed.y, parsed.m - 1, parsed.d);
+          }
+        }
+        if (typeof value === "string") {
+          const match = value.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+          if (match) {
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1;
+            let year = parseInt(match[3], 10);
+            if (year < 100) {
+              year += 2000;
+            }
+            const parsed = new Date(year, month, day);
+            if (!Number.isNaN(parsed.getTime())) {
+              return parsed;
+            }
+          }
+        }
+        return null;
+      },
+      normalizeContributionType(value) {
+        if (!value) {
+          return null;
+        }
+        const normalized = String(value).toLowerCase();
+        if (normalized.includes("from your salary")) {
+          return "ee";
+        }
+        if (normalized.includes("from your employer")) {
+          return "er";
+        }
+        return null;
+      },
+      async parseContributionFiles(files) {
+        if (!files || !files.length) {
+          return null;
+        }
+        if (!window.XLSX) {
+          throw new Error("XLSX_NOT_AVAILABLE");
+        }
+        const entries = [];
+        for (const file of files) {
+          const buffer = await file.arrayBuffer();
+          const workbook = window.XLSX.read(buffer, { type: "array" });
+          const sheet = workbook.Sheets["Contribution Details"];
+          if (!sheet) {
+            throw new Error("CONTRIBUTION_SHEET_MISSING");
+          }
+          const rows = window.XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+            defval: null
+          });
+          for (let i = 1; i < rows.length; i += 1) {
+            const row = rows[i];
+            if (!row) {
+              continue;
+            }
+            const dateValue = row[0];
+            const typeValue = row[1];
+            const amountValue = row[3];
+            if (!dateValue || !typeValue || amountValue === null || amountValue === undefined) {
+              continue;
+            }
+            const date = this.parseContributionDate(dateValue);
+            const type = this.normalizeContributionType(typeValue);
+            const amount = typeof amountValue === "number"
+              ? amountValue
+              : parseFloat(String(amountValue).replace(/[^0-9.\-]/g, ""));
+            if (!date || !type || !Number.isFinite(amount)) {
+              continue;
+            }
+            entries.push({ date, type, amount });
+          }
+        }
+        return {
+          entries,
+          sourceFiles: files.map((file) => file.name || "Unknown")
+        };
+      },
       async copyDebugOutput() {
         const payload = [
           "=== Debug: Extracted Text ===",
@@ -117,10 +284,6 @@ function initPayrollApp() {
           return;
         }
         this.dragActive = false;
-        if (!this.acceptedDisclaimer) {
-          this.error = "Please accept the accuracy disclaimer before uploading PDFs.";
-          return;
-        }
         const items = Array.from(event.dataTransfer?.items || []);
         const itemFiles = items
           .filter((item) => item.kind === "file")
@@ -129,52 +292,41 @@ function initPayrollApp() {
         const rawFiles = itemFiles.length
           ? itemFiles
           : Array.from(event.dataTransfer?.files || []);
-        const files = rawFiles.filter((file) => {
-          const name = file.name || "";
-          return file.type === "application/pdf" || name.toLowerCase().endsWith(".pdf");
-        });
-        if (files.length !== rawFiles.length) {
-          this.error =
-            "One or more of your uploaded files was not a PDF. Please try again.";
-          return;
-        }
-        if (!files.length) {
-          return;
-        }
-        this.fileCount = files.length;
-        await this.processFiles(files);
+        this.stageFiles(rawFiles);
       },
       async handleFiles(event) {
-        if (!this.acceptedDisclaimer) {
-          this.error = "Please accept the accuracy disclaimer before uploading PDFs.";
-          event.target.value = "";
-          return;
-        }
         const rawFiles = Array.from(event.target.files || []);
         if (!rawFiles.length) {
           return;
         }
-        const files = rawFiles.filter((file) => {
-          const name = file.name || "";
-          return file.type === "application/pdf" || name.toLowerCase().endsWith(".pdf");
-        });
-        if (files.length !== rawFiles.length) {
-          this.error =
-            "One or more of your uploaded files was not a PDF. Please try again.";
-          event.target.value = "";
-          return;
-        }
-        this.fileCount = files.length;
-        await this.processFiles(files);
+        this.stageFiles(rawFiles);
         event.target.value = "";
       },
-      async processFiles(files) {
-        if (!this.acceptedDisclaimer) {
-          this.status = "idle";
-          this.error = "Please accept the accuracy disclaimer before uploading PDFs.";
+      async runReport() {
+        if (!this.canRunReport) {
           return;
         }
-        this.status = "processing";
+        const pdfFiles = this.stagedFiles
+          .filter((item) => item.type === "pdf")
+          .map((item) => item.file);
+        const excelFiles = this.stagedFiles
+          .filter((item) => item.type === "xlsx")
+          .map((item) => item.file);
+        this.contributionFiles = excelFiles;
+        this.fileCount = pdfFiles.length;
+        await this.processFiles(pdfFiles);
+      },
+      clearUploads() {
+        this.stagedFiles = [];
+        this.stagedPdfCount = 0;
+        this.stagedExcelCount = 0;
+        this.contributionFiles = [];
+        this.fileCount = 0;
+        this.contributionFileCount = 0;
+        this.resetReportState();
+      },
+      resetReportState() {
+        this.status = "idle";
         this.error = "";
         this.reportHtml = "";
         this.reportReady = false;
@@ -193,6 +345,15 @@ function initPayrollApp() {
             flaggedPeriods: []
           }
         };
+      },
+      async processFiles(files) {
+        if (!this.acceptedDisclaimer) {
+          this.status = "idle";
+          this.error = "Please accept the accuracy disclaimer before running the report.";
+          return;
+        }
+        this.resetReportState();
+        this.status = "processing";
         this.progress = { current: 0, total: files.length };
         console.info("Payroll: starting processing", { files: files.length });
 
@@ -262,6 +423,20 @@ function initPayrollApp() {
           });
           return;
         }
+
+        let contributionData = null;
+        try {
+          contributionData = await this.parseContributionFiles(this.contributionFiles);
+        } catch (err) {
+          console.warn("Payroll: contribution parsing failed", {
+            message: err?.message,
+            error: err
+          });
+          this.error =
+            "Failed to read contribution history Excel file(s). Report generated without reconciliation.";
+          contributionData = null;
+        }
+        records.contributionData = contributionData;
 
         this.status = "rendering";
         const report = buildReport(records, this.failedPayPeriods);

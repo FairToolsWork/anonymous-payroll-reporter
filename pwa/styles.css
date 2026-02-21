@@ -9,6 +9,7 @@
   --accent-dark: hsl(16, 66%, 33%);
   --shadow: 0 18px 45px hsla(36, 9%, 11%, 0.12);
   --radius: 18px;
+  --note: hsl(46, 96%, 91%);
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
 }
 
@@ -16,9 +17,14 @@
   box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+    background: radial-gradient(circle at top, #fbf7f2 0%, #f1ede6 45%, #e8e0d6 100%);
+}
+
 body {
   margin: 0;
-  background: radial-gradient(circle at top, #fbf7f2 0%, #f1ede6 45%, #e8e0d6 100%);
+  /* background: radial-gradient(circle at top, #fbf7f2 0%, #f1ede6 45%, #e8e0d6 100%); */
   color: var(--ink);
   min-height: 100vh;
 }
@@ -85,21 +91,31 @@ button {
 }
 
 button.primary,
+button.secondary,
 button.ghost {
   border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.primary,
+button.ghost {
   padding: 12px 22px;
   font-weight: 600;
-  font-size: 0.95rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 button.primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 10px 30px rgba(194, 84, 45, 0.25);
+
 }
 
-button.primary:hover {
+button.primary,
+button.secondary {
+ box-shadow: 0 10px 30px rgba(194, 84, 45, 0.25);
+}
+
+button.primary:hover,
+button.secondary:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 32px rgba(194, 84, 45, 0.3);
 }
@@ -115,6 +131,26 @@ button:disabled {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+button.secondary {
+    background: transparent;
+    border: 1px solid rgba(30, 28, 25, 0.2);
+    color: var(--ink);
+}
+
+button.secondary:hover {
+    background: var(--accent);
+    border: 1px solid rgba(30, 28, 25, 0.2);
+    color: var(--card);
+}
+
+.note{
+    background: var(--note);
+    padding: 1em;
+    border: 1px solid rgba(var(--note), 0.10);
+    border-radius: 10px;
+    font-size: small;
 }
 
 .controls {
@@ -136,7 +172,7 @@ button:disabled {
     padding-inline-start: 1em;
 }
 
-.upload-instructions {
+.instructions {
   margin-bottom: 12px;
   border-bottom: 1px solid var(--muted);
   padding-bottom: 12px;
@@ -159,11 +195,9 @@ button:disabled {
 
 .upload-btn-container {
     display: flex;
-    flex-direction: row;
-    align-items: baseline;
+    flex-direction: column;
     justify-content: flex-start;
-    flex-wrap: wrap;
-    align-content: center;
+    padding-top: 2em;
 }
 
 .drop-overlay {
@@ -220,7 +254,6 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-top: 14px;
   font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.4;
@@ -234,6 +267,25 @@ button:disabled {
 .disclaimer-note {
   font-size: 0.85rem;
   margin-left: 10px;
+}
+
+.upload-results {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.disclaimer.inline {
+  margin-left: auto;
 }
 
 .file-count {

@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <title>Anonymous Payroll Report Generator</title>
+  <title>Anonymous Payroll Report</title>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -23,7 +23,7 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">Offline Payroll Report</p>
-        <h1>Anonymous Payroll Report Generator</h1>
+        <h1>Anonymous Payroll Report</h1>
         <p class="subhead">
           Your data <i>always</i> remains private, and processing happens locally in your browser, meaning that your personal information is <i>never</i> uploaded or saved to any server.
           <br />
@@ -34,27 +34,25 @@
     <section class="controls">
       <div
         class="upload-panel"
-        :class="{ 'is-drop-active': dragActive, 'needs-acceptance': !acceptedDisclaimer }"
+        :class="{ 'is-drop-active': dragActive }"
         @dragenter="onDragOver"
         @dragover="onDragOver"
         @dragleave="onDragLeave"
         @drop="onDrop"
       >
         <div class="drop-overlay" v-if="dragActive">
-          <div v-if="acceptedDisclaimer">
-            <strong>Drop PDFs to upload</strong>
-            <span>Release files to start processing</span>
-          </div>
-          <div v-else>
-            <strong>Accept the disclaimer to upload</strong>
-            <span>Please confirm the accuracy notice first</span>
+          <div>
+            <strong>Drop PDFs or Excel files</strong>
+            <span>Release files to add them to the queue</span>
           </div>
         </div>
-        <h2>1. Select Pay Slip PDFs</h2>
-        <p class="upload-instructions">Drag and drop files or choose multiple PDFs.</p>
-
+        <h2>1. Upload Pay Slips + Pension Excel</h2>
+        <div class="instructions">
+            <p>Drag and drop your Payroll PDFs and Pension Excel files here or choose multiple files.</p>
+            <p class="note"><b>Note:</b> Pension Excel files are optional, if you don't have them then the report will skip steps that compare deductions vs what was submitted to NEST.</p>
+        </div>
         <label class="field password">
-          <span>PDF password (optional)</span>
+          <span>PDF password</span>
           <input
             id="pdf-password"
             type="password"
@@ -64,40 +62,61 @@
             autocapitalize="off"
             autocorrect="off"
             spellcheck="false"
-            placeholder="Enter password if required"
+            placeholder="Enter password if your PDFs require one"
           />
         </label>
-        <label class="disclaimer">
-          <input type="checkbox" v-model="acceptedDisclaimer" />
-          <span>
-            <i>I understand this report may contain processing errors or omissions, and I
-            am responsible for verifying its accuracy.</i>
-          </span>
-        </label>
         <div class="upload-btn-container">
-            <label
+          <label
             class="upload"
-            :class="{ disabled: status === 'processing' || !acceptedDisclaimer }"
-            >
+            :class="{ disabled: status === 'processing' }"
+          >
             <input
-                type="file"
-                accept="application/pdf"
-                multiple
-                :disabled="status === 'processing' || !acceptedDisclaimer"
-                @change="handleFiles"
+              type="file"
+              accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              multiple
+              :disabled="status === 'processing'"
+              @change="handleFiles"
             />
-            <span>Choose PDF files</span>
-            </label>
-            <p v-if="!acceptedDisclaimer" class="disclaimer-note">
-                Accept the disclaimer to enable uploads.
+            <span>Choose PDF/Excel files</span>
+          </label>
+          <div class="upload-results">
+            <p v-if="stagedFiles.length" class="file-count">
+                {{ stagedPdfCount }} PDF(s), {{ stagedExcelCount }} Excel file(s) staged
             </p>
-            <p v-if="fileCount && acceptedDisclaimer" class="file-count">{{ fileCount }} file(s) ready</p>
+            <p v-else class="file-count">No files staged yet</p>
+                <button
+                    v-if="stagedFiles.length"
+                    class="secondary delete"
+                    type="button"
+                    :disabled="status === 'processing'"
+                    @click="clearUploads"
+                >
+                    <span>X </span>Clear uploads
+                </button>
+          </div>
         </div>
       </div>
 
       <div class="status-panel">
-        <h2>2. Process & Review</h2>
-        <p v-if="status === 'idle'">Upload PDFs to generate the report.</p>
+        <h2>2. Run & Review</h2>
+        <p class="instructions" v-if="status === 'idle'">First stage files (step 1), then run the report here.</p>
+        <div class="run-actions">
+          <label class="disclaimer inline">
+            <input type="checkbox" v-model="acceptedDisclaimer" />
+            <span>
+              <i>I understand this report may contain processing errors or omissions, and I
+              am responsible for verifying its accuracy.</i>
+            </span>
+          </label>
+          <button
+            class="primary"
+            type="button"
+            :disabled="!canRunReport"
+            @click="runReport"
+          >
+            Run report
+          </button>
+        </div>
         <p v-if="status === 'processing'">
           Processing {{ progress.current }} / {{ progress.total }} PDFs
         </p>
@@ -178,6 +197,7 @@
 
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/parser_config.js"></script>
   <script src="js/parse/payroll.js"></script>
   <script src="js/pdf/extract.js"></script>

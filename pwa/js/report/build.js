@@ -137,6 +137,128 @@ function formatMiscLabel(item) {
   return `${label} (${item.units.toFixed(2)} @ ${formatCurrency(item.rate)})`;
 }
 
+function buildMonthKey(year, monthIndex) {
+  return `${year}-${String(monthIndex).padStart(2, "0")}`;
+}
+
+function buildContributionSummary(entries, contributionData, yearKeys) {
+  if (!contributionData || !contributionData.entries || !contributionData.entries.length) {
+    return null;
+  }
+  const expectedByMonth = new Map();
+  entries.forEach((entry) => {
+    if (!(entry.parsedDate instanceof Date)) {
+      return;
+    }
+    const year = entry.parsedDate.getFullYear();
+    const monthIndex = entry.parsedDate.getMonth() + 1;
+    const key = buildMonthKey(year, monthIndex);
+    const expected = expectedByMonth.get(key) || { ee: 0, er: 0 };
+    expected.ee += entry.record.payrollDoc?.deductions?.nestEE?.amount || 0;
+    expected.er += entry.record.payrollDoc?.deductions?.nestER?.amount || 0;
+    expectedByMonth.set(key, expected);
+  });
+
+  const actualByMonth = new Map();
+  contributionData.entries.forEach((entry) => {
+    if (!(entry.date instanceof Date)) {
+      return;
+    }
+    const year = entry.date.getFullYear();
+    const monthIndex = entry.date.getMonth() + 1;
+    const key = buildMonthKey(year, monthIndex);
+    const actual = actualByMonth.get(key) || { ee: 0, er: 0 };
+    if (entry.type === "ee") {
+      actual.ee += entry.amount || 0;
+    } else if (entry.type === "er") {
+      actual.er += entry.amount || 0;
+    }
+    actualByMonth.set(key, actual);
+  });
+
+  const summaryByYear = new Map();
+  let runningBalance = 0;
+  yearKeys.forEach((yearKey) => {
+    if (!yearKey || yearKey === "Unknown") {
+      return;
+    }
+    const months = new Map();
+    const totals = {
+      expectedEE: 0,
+      expectedER: 0,
+      actualEE: 0,
+      actualER: 0,
+      delta: 0
+    };
+    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
+      const key = buildMonthKey(yearKey, monthIndex);
+      const expected = expectedByMonth.get(key) || { ee: 0, er: 0 };
+      const actual = actualByMonth.get(key) || { ee: 0, er: 0 };
+      const expectedTotal = expected.ee + expected.er;
+      const actualTotal = actual.ee + actual.er;
+      const delta = expectedTotal - actualTotal;
+      runningBalance += delta;
+      months.set(monthIndex, {
+        expectedEE: expected.ee,
+        expectedER: expected.er,
+        actualEE: actual.ee,
+        actualER: actual.er,
+        delta,
+        balance: runningBalance
+      });
+      totals.expectedEE += expected.ee;
+      totals.expectedER += expected.er;
+      totals.actualEE += actual.ee;
+      totals.actualER += actual.er;
+      totals.delta += delta;
+    }
+    summaryByYear.set(yearKey, {
+      months,
+      totals,
+      yearEndBalance: runningBalance
+    });
+  });
+
+  return {
+    years: summaryByYear,
+    balance: runningBalance,
+    sourceFiles: contributionData.sourceFiles || []
+  };
+}
+
+function renderContributionSummary(summary) {
+  if (!summary) {
+    return "";
+  }
+  const rows = Array.from(summary.years.entries()).map(([yearKey, data]) => {
+    const expectedTotal = data.totals.expectedEE + data.totals.expectedER;
+    const actualTotal = data.totals.actualEE + data.totals.actualER;
+    return (
+      "<tr>" +
+      `<th>${yearKey}</th>` +
+      `<td>${formatCurrency(expectedTotal)}</td>` +
+      `<td>${formatCurrency(actualTotal)}</td>` +
+      `<td>${formatCurrency(data.totals.delta)}</td>` +
+      `<td>${formatCurrency(data.yearEndBalance)}</td>` +
+      "</tr>"
+    );
+  });
+  const sourceLabel = summary.sourceFiles.length
+    ? `Files: ${summary.sourceFiles.join(", ")}`
+    : "";
+  return (
+    `<div class="report-reconciliation">` +
+    `<h2>Pension Contributions Reconciliation</h2>` +
+    `<p class="report-range">Current balance: ${formatCurrency(summary.balance)}</p>` +
+    (sourceLabel ? `<p class="report-range">${sourceLabel}</p>` : "") +
+    "<table class=\"summary-table\"><thead><tr>" +
+    "<th>Year</th><th>Expected (EE+ER)</th><th>Actual (EE+ER)</th>" +
+    "<th>Year Delta</th><th>Year End Balance</th></tr></thead>" +
+    `<tbody>${rows.join("")}</tbody></table>` +
+    "</div>"
+    );
+}
+
 function sumPayments(record) {
   const hourly = record?.payrollDoc?.payments?.hourly || {};
   const salary = record?.payrollDoc?.payments?.salary || {};
@@ -148,6 +270,15 @@ function sumPayments(record) {
     (salary.holiday?.amount || 0) +
     sumMiscAmounts(misc)
   );
+  if (contributionSummary) {
+    reportSections.push(renderContributionSummary(contributionSummary));
+  } else {
+    reportSections.push(
+      "<p class=\"report-footnote\">" +
+        "No pension contribution history uploaded — reconciliation skipped." +
+        "</p>"
+    );
+  }
 }
 
 function sumDeductionsForNetPay(record) {
@@ -277,6 +408,15 @@ function buildReport(records, failedPayPeriods = []) {
       yearGroups.set(key, []);
     }
     yearGroups.get(key).push(entry);
+  });
+  const yearKeys = Array.from(yearGroups.keys());
+  const contributionSummary = buildContributionSummary(
+    entries,
+    records.contributionData,
+    yearKeys
+  );
+  yearGroups.forEach((entriesForYear, yearKey) => {
+    entriesForYear.reconciliation = contributionSummary?.years.get(yearKey) || null;
   });
 
   const parsedDates = entries
@@ -673,6 +813,8 @@ function renderYearSummary(entriesForYear) {
   let yearMiscDeductions = 0;
 
   const bodyRows = [];
+  const reconciliation = entriesForYear.reconciliation;
+  const showReconciliation = Boolean(reconciliation);
 
   for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
     const monthName = new Date(2024, monthIndex - 1, 1).toLocaleDateString("en-GB", {
@@ -691,6 +833,15 @@ function renderYearSummary(entriesForYear) {
       ? validation.flags.map((flag) => flag.label).join("; ")
       : "—";
     const flagClass = validation?.flags?.length ? "summary-warning" : "";
+    const reconMonth = showReconciliation
+      ? reconciliation.months.get(monthIndex)
+      : null;
+    const expectedEE = reconMonth?.expectedEE || 0;
+    const expectedER = reconMonth?.expectedER || 0;
+    const actualEE = reconMonth?.actualEE || 0;
+    const actualER = reconMonth?.actualER || 0;
+    const monthlyDelta = reconMonth?.delta || 0;
+    const runningBalance = reconMonth?.balance || 0;
 
     bodyRows.push(
       "<tr>" +
@@ -701,6 +852,14 @@ function renderYearSummary(entriesForYear) {
         `<td>${formatCurrency(miscPayments)}</td>` +
         `<td>${formatDeduction(miscDeductions)}</td>` +
         `<td>${formatCurrency(combined)}</td>` +
+        (showReconciliation
+          ? `<td>${formatCurrency(expectedEE)}</td>` +
+            `<td>${formatCurrency(expectedER)}</td>` +
+            `<td>${formatCurrency(actualEE)}</td>` +
+            `<td>${formatCurrency(actualER)}</td>` +
+            `<td>${formatCurrency(monthlyDelta)}</td>` +
+            `<td>${formatCurrency(runningBalance)}</td>`
+          : "") +
         `<td class=\"${flagClass}\">${flagSummary}</td>` +
         "</tr>"
     );
@@ -714,6 +873,19 @@ function renderYearSummary(entriesForYear) {
 
   const yearCombined = yearNestEmployee + yearNestEmployer;
 
+  const reconciliationHeaders = showReconciliation
+    ? "<th>Expected EE</th><th>Expected ER</th><th>Actual EE</th><th>Actual ER</th>" +
+      "<th>Monthly Delta</th><th>Balance</th>"
+    : "";
+  const reconciliationTotals = showReconciliation
+    ? `<td>${formatCurrency(reconciliation.totals.expectedEE)}</td>` +
+      `<td>${formatCurrency(reconciliation.totals.expectedER)}</td>` +
+      `<td>${formatCurrency(reconciliation.totals.actualEE)}</td>` +
+      `<td>${formatCurrency(reconciliation.totals.actualER)}</td>` +
+      `<td>${formatCurrency(reconciliation.totals.delta)}</td>` +
+      `<td>${formatCurrency(reconciliation.yearEndBalance)}</td>`
+    : "";
+
   return (
     "<table class=\"summary-table\">" +
     "<thead><tr>" +
@@ -721,6 +893,7 @@ function renderYearSummary(entriesForYear) {
     "<th>NEST Corp - EE</th><th>NEST Corp - ER</th>" +
     "<th>Misc Earnings†</th><th>Misc Deductions†</th>" +
     "<th>Combined NEST</th>" +
+    reconciliationHeaders +
     "<th>Flags</th>" +
     "</tr></thead>" +
     `<tbody>${bodyRows.join("")}</tbody>` +
@@ -733,6 +906,7 @@ function renderYearSummary(entriesForYear) {
     `<td>${formatCurrency(yearMiscPayments)}</td>` +
     `<td>${formatDeduction(yearMiscDeductions)}</td>` +
     `<td>${formatCurrency(yearCombined)}</td>` +
+    reconciliationTotals +
     "<td>—</td>" +
     "</tr>" +
     "</tfoot>" +
