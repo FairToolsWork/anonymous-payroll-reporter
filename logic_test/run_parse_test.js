@@ -7,7 +7,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/legacy/build/pdf.wo
 
 const PDF_PATH = path.resolve(
   __dirname,
-  "Payslip-[REDACTED]-2022-07-28-noPW.pdf"
+  "test-payslip-no-pw.pdf"
 );
 
 function buildLineItemsFromTextItems(items) {
