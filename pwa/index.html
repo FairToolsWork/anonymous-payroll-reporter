@@ -122,7 +122,6 @@
           Processing {{ progress.current }} / {{ progress.total }} PDFs
         </p>
         <p v-if="parsingExcel">Parsing Excel contribution history…</p>
-        <p v-if="excelStatus" class="notice">{{ excelStatus }}</p>
         <p v-if="status === 'rendering'">Rendering report…</p>
         <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
         <p v-if="error" class="error">{{ error }}</p>
@@ -139,9 +138,15 @@
           <h3>Report summary</h3>
           <ul class="stats">
             <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
-            <li><span>PDFs processed</span><strong>{{ fileCount }}</strong></li>
+            <li><span>PDF files</span><strong>{{ fileCount }}</strong></li>
             <li><span>PDF Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
-            <li><span>Excel files</span><strong>{{ reportStats.contributionMeta.fileCount }}</strong></li>
+            <li>
+              <span>Excel files</span>
+              <strong>
+                {{ reportStats.contributionMeta.fileCount }}
+                ({{ reportStats.contributionMeta.recordCount }} records)
+              </strong>
+            </li>
             <li><span>Excel date range</span><strong>{{ reportStats.contributionMeta.dateRangeLabel }}</strong></li>
             <li>
               <span>Missing months</span>

@@ -41,7 +41,6 @@ function initPayrollApp() {
         swRegistration: null,
         debugText: "",
         notice: "",
-        excelStatus: "",
         failedFiles: [],
         failedPayPeriods: [],
         debugInfo: {
@@ -407,7 +406,6 @@ function initPayrollApp() {
         this.reportHtml = "";
         this.reportReady = false;
         this.debugText = "";
-        this.excelStatus = "";
         this.debugInfo = {
           parsed: "",
           matches: "",
@@ -521,13 +519,10 @@ function initPayrollApp() {
             });
           }
           contributionData = await this.parseContributionFiles(this.contributionFiles);
-          if (this.parsingExcel) {
+          if (this.debugEnabled) {
             console.info("Payroll: Excel contribution history parsed", {
               entries: contributionData?.entries?.length || 0
             });
-            this.excelStatus =
-              `Excel parsed: ${contributionData?.entries?.length || 0} entries ` +
-              `from ${this.contributionFiles.length} file(s).`;
           }
         } catch (err) {
           console.warn("Payroll: contribution parsing failed", {

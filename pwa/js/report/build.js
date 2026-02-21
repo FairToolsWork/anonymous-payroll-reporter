@@ -477,6 +477,7 @@ function buildReport(records, failedPayPeriods = []) {
   }
   const contributionMeta = {
     fileCount: records.contributionData?.sourceFiles?.length || 0,
+    recordCount: records.contributionData?.entries?.length || 0,
     dateRangeLabel: contributionRangeLabel
   };
 
@@ -718,9 +719,10 @@ function buildReport(records, failedPayPeriods = []) {
         yearPayrollContribution === 0 &&
         yearReportedContribution === 0;
       const flagIcon = hasFlags ? "⚠︎" : "—";
+      const yearSummaryAnchor = `year-summary-${yearKey}`;
       return (
         "<tr>" +
-        `<th>${yearKey}</th>` +
+        `<th><a href="#${yearSummaryAnchor}">${yearKey}</a></th>` +
         `<td>${yearHours.toFixed(2)}</td>` +
         `<td>${formatBreakdownCell(yearPayrollContribution, yearPayrollEE, yearPayrollER)}</td>` +
         `<td>${formatBreakdownCell(
@@ -809,13 +811,20 @@ function buildReport(records, failedPayPeriods = []) {
     const entriesForYear = yearGroups.get(yearKey);
     const yearLabel = yearKey === "Unknown" ? "Unknown Year" : yearKey;
     const yearMissing = missingMonthsByYear[yearKey] || [];
+    const yearAnchor = `year-monthly-${yearKey}`;
+    entriesForYear.yearKey = yearKey;
 
     reportSections.push("<div class=\"page\">");
-    reportSections.push(`<h2>${yearLabel} Summary: ${employeeName}</h2>`);
+    reportSections.push(
+      `<h2 id="year-summary-${yearKey}">${yearLabel} Summary: ${employeeName}</h2>`
+    );
     if (yearMissing.length) {
       reportSections.push(`<p class="report-missing">${yearMissingPill}</p>`);
     }
     reportSections.push(renderYearSummary(entriesForYear));
+    // reportSections.push(
+    //   `<p class="report-footnote"><a href="#${yearAnchor}">Jump to monthly breakdown</a></p>`
+    // );
     const yearZeroTax = entriesForYear.some((entry) =>
       entry.validation?.flags?.some(
         (flag) => flag.id === "paye_zero" || flag.id === "nat_ins_zero"
@@ -825,11 +834,26 @@ function buildReport(records, failedPayPeriods = []) {
       reportSections.push(`<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`);
     }
     reportSections.push("</div>");
+  });
+
+  Array.from(yearGroups.keys()).forEach((yearKey) => {
+    const entriesForYear = yearGroups.get(yearKey);
+    const yearLabel = yearKey === "Unknown" ? "Unknown Year" : yearKey;
+    const yearAnchor = `year-monthly-${yearKey}`;
+    const monthAnchors = new Set();
 
     entriesForYear.forEach((entry, index) => {
       reportSections.push("<div class=\"page\">");
       if (index === 0) {
-        reportSections.push(`<h2 class="year-header">${yearLabel}</h2>`);
+        reportSections.push(
+          `<h2 class="year-header" id="${yearAnchor}">${yearLabel}</h2>`
+        );
+      }
+      const monthIndex = entry.monthIndex;
+      if (monthIndex >= 1 && monthIndex <= 12 && !monthAnchors.has(monthIndex)) {
+        const monthAnchor = `year-monthly-${yearKey}-${String(monthIndex).padStart(2, "0")}`;
+        reportSections.push(`<div id="${monthAnchor}"></div>`);
+        monthAnchors.add(monthIndex);
       }
       reportSections.push(renderReportCell(entry));
       reportSections.push("</div>");
@@ -1026,6 +1050,7 @@ function renderYearSummary(entriesForYear) {
       monthEntries.get(entry.monthIndex).push(entry);
     }
   });
+  const yearKey = entriesForYear.yearKey || "Unknown";
 
   let yearHours = 0;
   let yearHolidayUnits = 0;
@@ -1108,6 +1133,7 @@ function renderYearSummary(entriesForYear) {
       }
       return new Date(aDate) - new Date(bDate);
     });
+    const monthAnchor = `year-monthly-${yearKey}-${String(monthIndex).padStart(2, "0")}`;
     const reconMonth = showReconciliation
       ? reconciliation.months.get(monthIndex)
       : null;
@@ -1140,6 +1166,7 @@ function renderYearSummary(entriesForYear) {
         const zeroReview = payrollContribution === 0 && reportedContribution === 0;
         const monthLabel =
           entries.length > 1 ? `${monthName} (${entryIndex + 1})` : monthName;
+        const monthLink = `<a href="#${monthAnchor}">${monthLabel}</a>`;
 
         if (validation?.flags?.length) {
           const entryDateLabel = entry.parsedDate
@@ -1155,7 +1182,7 @@ function renderYearSummary(entriesForYear) {
 
         bodyRows.push(
           "<tr>" +
-            `<th>${monthLabel}</th>` +
+            `<th>${monthLink}</th>` +
             `<td>${hours.toFixed(2)}</td>` +
             `<td>${holidayUnits.toFixed(2)}</td>` +
             `<td>${formatBreakdownCell(payrollContribution, nestEmployee, nestEmployer)}</td>` +
@@ -1183,7 +1210,6 @@ function renderYearSummary(entriesForYear) {
           ? null
           : reportedContribution - payrollContribution;
       const zeroReview = payrollContribution === 0 && reportedContribution === 0;
-
       bodyRows.push(
         "<tr>" +
           `<th>${monthName}</th>` +
