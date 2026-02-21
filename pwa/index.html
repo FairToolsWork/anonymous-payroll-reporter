@@ -197,6 +197,15 @@
       <h3>Debug: Regex Matches</h3>
       <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
       <p v-else>No regex matches captured yet.</p>
+      <h3>Debug: Excel Source File (first Excel)</h3>
+      <pre v-if="debugInfo.excelSource">{{ debugInfo.excelSource }}</pre>
+      <p v-else>No Excel source captured yet.</p>
+      <h3>Debug: Excel Raw Rows (first 20)</h3>
+      <pre v-if="debugInfo.excelRows">{{ debugInfo.excelRows }}</pre>
+      <p v-else>No Excel rows captured yet.</p>
+      <h3>Debug: Excel Parsed Entries (first 20)</h3>
+      <pre v-if="debugInfo.excelParsed">{{ debugInfo.excelParsed }}</pre>
+      <p v-else>No Excel parsed entries captured yet.</p>
     </section>
   </div>
 

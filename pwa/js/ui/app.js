@@ -45,7 +45,10 @@ function initPayrollApp() {
         failedPayPeriods: [],
         debugInfo: {
           parsed: "",
-          matches: ""
+          matches: "",
+          excelSource: "",
+          excelRows: "",
+          excelParsed: ""
         },
         debugCopySuccess: false,
         debugCopyResetTimer: null,
@@ -228,6 +231,11 @@ function initPayrollApp() {
             header: 1,
             defval: null
           });
+          if (this.debugEnabled && !this.debugInfo.excelRows) {
+            this.debugInfo.excelSource = file.name || "Unknown";
+            this.debugInfo.excelRows = JSON.stringify(rows.slice(0, 20), null, 2);
+          }
+          const fileEntries = [];
           for (let i = 1; i < rows.length; i += 1) {
             const row = rows[i];
             if (!row) {
@@ -248,6 +256,14 @@ function initPayrollApp() {
               continue;
             }
             entries.push({ date, type, amount });
+            fileEntries.push({ date, type, amount });
+          }
+          if (this.debugEnabled && !this.debugInfo.excelParsed) {
+            this.debugInfo.excelParsed = JSON.stringify(
+              fileEntries.slice(0, 20),
+              null,
+              2
+            );
           }
         }
         return {
@@ -262,7 +278,13 @@ function initPayrollApp() {
           "=== Debug: Parsed Values ===",
           this.debugInfo.parsed || "<empty>",
           "=== Debug: Regex Matches ===",
-          this.debugInfo.matches || "<empty>"
+          this.debugInfo.matches || "<empty>",
+          "=== Debug: Excel Source File ===",
+          this.debugInfo.excelSource || "<empty>",
+          "=== Debug: Excel Raw Rows (first 20) ===",
+          this.debugInfo.excelRows || "<empty>",
+          "=== Debug: Excel Parsed Entries (first 20) ===",
+          this.debugInfo.excelParsed || "<empty>"
         ].join("\n\n");
 
         try {
@@ -356,7 +378,13 @@ function initPayrollApp() {
         this.reportHtml = "";
         this.reportReady = false;
         this.debugText = "";
-        this.debugInfo = { parsed: "", matches: "" };
+        this.debugInfo = {
+          parsed: "",
+          matches: "",
+          excelSource: "",
+          excelRows: "",
+          excelParsed: ""
+        };
         this.failedFiles = [];
         this.failedPayPeriods = [];
         this.showScrollTop = false;
