@@ -50,7 +50,7 @@
         <h2>1. Upload Pay Slips + Pension Excel</h2>
         <div class="instructions">
             <p>Drag and drop your Payroll PDFs and Pension Excel files here or choose multiple files.</p>
-            <p class="note"><b>Note:</b> Pension Excel files are optional, if you don't have them then the report will skip steps that compare deductions vs what was submitted to NEST.</p>
+            <p class="notice"><b>Note:</b> Pension Excel files are optional, if you don't have them then the report will not compare deductions vs what was submitted to NEST.</p>
         </div>
         <label class="field password">
           <span>PDF password</span>
@@ -73,7 +73,7 @@
           >
             <input
               type="file"
-              accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.xls"
               multiple
               :disabled="status === 'processing'"
               @change="handleFiles"
@@ -121,9 +121,11 @@
         <p v-if="status === 'processing'">
           Processing {{ progress.current }} / {{ progress.total }} PDFs
         </p>
+        <p v-if="parsingExcel">Parsing Excel contribution history…</p>
         <p v-if="status === 'rendering'">Rendering report…</p>
         <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
         <p v-if="error" class="error">{{ error }}</p>
+        <p v-if="notice" class="notice">{{ notice }}</p>
         <ul v-if="failedFiles && failedFiles.length" class="error-list">
           <li v-for="file in failedFiles" :key="file">{{ file }}</li>
         </ul>
@@ -137,7 +139,9 @@
           <ul class="stats">
             <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
             <li><span>PDFs processed</span><strong>{{ fileCount }}</strong></li>
-            <li><span>Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
+            <li><span>PDF Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
+            <li><span>Excel files</span><strong>{{ reportStats.contributionMeta.fileCount }}</strong></li>
+            <li><span>Excel date range</span><strong>{{ reportStats.contributionMeta.dateRangeLabel }}</strong></li>
             <li>
               <span>Missing months</span>
               <strong class="missing-months" v-html="reportStats.missingMonthsHtml"></strong>

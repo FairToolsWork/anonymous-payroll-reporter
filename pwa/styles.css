@@ -8,6 +8,19 @@
   --accent: hsl(16, 62%, 47%);
   --accent-dark: hsl(16, 66%, 33%);
   --accent-green-dark: hsl(145, 52%, 33%);
+  --diff-positive: hsl(42, 78%, 38%);
+  --diff-negative: hsl(6, 72%, 45%);
+  --diff-neutral: hsl(145, 52%, 33%);
+  --diff-positive-bg: hsla(42, 78%, 38%, 0.16);
+  --diff-negative-bg: hsla(6, 72%, 45%, 0.16);
+  --diff-neutral-bg: hsla(145, 52%, 33%, 0.16);
+  --days-fresh: hsl(145, 52%, 33%);
+  --days-stale: hsl(6, 72%, 45%);
+  --days-fresh-bg: hsla(145, 52%, 33%, 0.16);
+  --days-stale-bg: hsla(6, 72%, 45%, 0.16);
+  --notice-border: hsla(42, 68%, 48%, 0.45);
+  --notice-bg: hsla(42, 68%, 48%, 0.14);
+  --notice-text: hsl(35, 52%, 32%);
   --shadow: 0 18px 45px hsla(36, 9%, 11%, 0.12);
   --radius: 18px;
   --note: hsl(46, 96%, 91%);
@@ -300,6 +313,16 @@ button.secondary:hover {
   color: var(--accent-dark);
 }
 
+.notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--notice-border);
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  font-size: 0.85rem;
+}
+
 .upload {
   display: inline-flex;
   align-items: center;
@@ -558,6 +581,7 @@ button.secondary:hover {
   margin: 16px 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+  text-align: justify;
 }
 
 .report-footnote p {
@@ -620,10 +644,10 @@ button.secondary:hover {
 .summary-table {
   font-size: 0.8em;
   table-layout: fixed;
-margin-block: 0;
+  margin-block: 0;
+  margin-bottom: 12px;
   border: 1px solid #ccc;
   border-radius: 5px;
-  /* border-collapse: collapse; */
 }
 
 .report-table {
@@ -635,14 +659,6 @@ margin-block: 0;
   align-items: center;
 }
 
-.summary-table {
-  width: 100%;
-  margin-left: 3px;
-  min-width: 165px;
-}
-
-.report-table th,
-.report-table td,
 .summary-table th,
 .summary-table td {
   font-weight: normal;
@@ -653,6 +669,98 @@ margin-block: 0;
 .report-table th,
 .summary-table th {
   background-color: #f2f2f2;
+}
+
+.summary-table {
+  width: 100%;
+}
+
+.summary-table thead th {
+  text-align: left;
+}
+
+.ta-left {
+  text-align: left;
+}
+
+.ta-center {
+  text-align: center;
+}
+
+.ta-right {
+  text-align: right;
+}
+
+.summary-table tfoot th,
+.summary-table tfoot td {
+  font-weight: 600;
+}
+
+
+.diff--positive {
+  color: var(--diff-positive);
+  font-weight: 700;
+  background: var(--diff-positive-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff--negative {
+  color: var(--diff-negative);
+  font-weight: 700;
+  background: var(--diff-negative-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff--neutral {
+  color: var(--diff-neutral);
+  font-weight: 700;
+  background: var(--diff-neutral-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff--zero-review {
+  color: var(--diff-positive);
+  font-weight: 700;
+  background: var(--diff-positive-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.days--fresh {
+  color: var(--days-fresh);
+  font-weight: 700;
+  background: var(--days-fresh-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.days--stale {
+  color: var(--days-stale);
+  font-weight: 700;
+  background: var(--days-stale-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .report-warning th,
@@ -669,26 +777,6 @@ margin-block: 0;
 
 .summary-warning {
   color: var(--accent-dark);
-  font-weight: 600;
-}
-
-.summary-table {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.summary-table thead th {
-  text-align: left;
-}
-
-.summary-table tbody td,
-.summary-table tbody th {
-  text-align: left;
-}
-
-.summary-table tfoot th,
-.summary-table tfoot td {
   font-weight: 600;
 }
 

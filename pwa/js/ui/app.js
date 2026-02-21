@@ -23,6 +23,10 @@ function initPayrollApp() {
           dateRangeLabel: "",
           missingMonthsLabel: "",
           missingMonthsByYear: {},
+          contributionMeta: {
+            fileCount: 0,
+            dateRangeLabel: "None"
+          },
           validationSummary: {
             flaggedCount: 0,
             lowConfidenceCount: 0,
@@ -36,6 +40,7 @@ function initPayrollApp() {
         waitingWorker: null,
         swRegistration: null,
         debugText: "",
+        notice: "",
         failedFiles: [],
         failedPayPeriods: [],
         debugInfo: {
@@ -45,7 +50,8 @@ function initPayrollApp() {
         debugCopySuccess: false,
         debugCopyResetTimer: null,
         acceptedDisclaimer: false,
-        showScrollTop: false
+        showScrollTop: false,
+        parsingExcel: false
       };
     },
     computed: {
@@ -106,11 +112,18 @@ function initPayrollApp() {
         }
         const staged = [];
         const invalid = [];
+        const existingIds = new Set(this.stagedFiles.map((item) => item.id));
+        const duplicates = [];
         files.forEach((file) => {
           const name = (file.name || "").toLowerCase();
           if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+            const id = `${file.name}-${file.size}-${file.lastModified}`;
+            if (existingIds.has(id)) {
+              duplicates.push(file.name || "Unknown");
+              return;
+            }
             staged.push({
-              id: `${file.name}-${file.size}-${file.lastModified}`,
+              id,
               name: file.name,
               type: "pdf",
               file
@@ -120,10 +133,17 @@ function initPayrollApp() {
           if (
             file.type ===
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-            name.endsWith(".xlsx")
+            file.type === "application/vnd.ms-excel" ||
+            name.endsWith(".xlsx") ||
+            name.endsWith(".xls")
           ) {
+            const id = `${file.name}-${file.size}-${file.lastModified}`;
+            if (existingIds.has(id)) {
+              duplicates.push(file.name || "Unknown");
+              return;
+            }
             staged.push({
-              id: `${file.name}-${file.size}-${file.lastModified}`,
+              id,
               name: file.name,
               type: "xlsx",
               file
@@ -135,11 +155,15 @@ function initPayrollApp() {
 
         if (invalid.length) {
           this.error =
-            "Some files were not PDFs or XLSX files. Please remove them and try again.";
-          return;
+            "Some files were not PDFs or Excel files and were skipped.";
+        } else {
+          this.error = "";
         }
-
-        this.error = "";
+        if (duplicates.length) {
+          this.notice = "Duplicate files detected and will be skipped automatically.";
+        } else {
+          this.notice = "";
+        }
         this.stagedFiles = [...this.stagedFiles, ...staged];
         this.stagedPdfCount = this.stagedFiles.filter((item) => item.type === "pdf").length;
         this.stagedExcelCount = this.stagedFiles.filter((item) => item.type === "xlsx").length;
@@ -328,6 +352,7 @@ function initPayrollApp() {
       resetReportState() {
         this.status = "idle";
         this.error = "";
+        this.notice = "";
         this.reportHtml = "";
         this.reportReady = false;
         this.debugText = "";
@@ -335,10 +360,15 @@ function initPayrollApp() {
         this.failedFiles = [];
         this.failedPayPeriods = [];
         this.showScrollTop = false;
+        this.parsingExcel = false;
         this.reportStats = {
           dateRangeLabel: "",
           missingMonthsLabel: "",
           missingMonthsByYear: {},
+          contributionMeta: {
+            fileCount: 0,
+            dateRangeLabel: "None"
+          },
           validationSummary: {
             flaggedCount: 0,
             lowConfidenceCount: 0,
@@ -426,7 +456,18 @@ function initPayrollApp() {
 
         let contributionData = null;
         try {
+          this.parsingExcel = this.contributionFiles.length > 0;
+          if (this.parsingExcel) {
+            console.info("Payroll: parsing Excel contribution history", {
+              files: this.contributionFiles.map((file) => file.name || "Unknown")
+            });
+          }
           contributionData = await this.parseContributionFiles(this.contributionFiles);
+          if (this.parsingExcel) {
+            console.info("Payroll: Excel contribution history parsed", {
+              entries: contributionData?.entries?.length || 0
+            });
+          }
         } catch (err) {
           console.warn("Payroll: contribution parsing failed", {
             message: err?.message,
@@ -435,6 +476,8 @@ function initPayrollApp() {
           this.error =
             "Failed to read contribution history Excel file(s). Report generated without reconciliation.";
           contributionData = null;
+        } finally {
+          this.parsingExcel = false;
         }
         records.contributionData = contributionData;
 
@@ -445,7 +488,14 @@ function initPayrollApp() {
         this.status = "done";
         this.reportTimestamp = new Date().toLocaleString("en-GB");
         this.suggestedFilename = report.filename;
-        this.reportStats = report.stats;
+        this.reportStats = {
+          ...this.reportStats,
+          ...report.stats,
+          contributionMeta: {
+            ...this.reportStats.contributionMeta,
+            ...(report.stats?.contributionMeta || {})
+          }
+        };
         document.title = report.filename;
         console.info("Payroll: report ready", { filename: report.filename });
         this.handleScroll();
