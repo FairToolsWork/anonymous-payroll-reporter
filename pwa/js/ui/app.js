@@ -563,9 +563,11 @@ function initPayrollApp() {
     mounted() {
       if (!Array.isArray(this.stagedFiles)) {
         this.stagedFiles = [];
+        console.info("Payroll: normalized stagedFiles (was not an array)");
       }
       if (!Array.isArray(this.failedFiles)) {
         this.failedFiles = [];
+        console.info("Payroll: normalized failedFiles (was not an array)");
       }
       if (!Array.isArray(this.reportStats?.validationSummary?.flaggedPeriods)) {
         if (!this.reportStats) {
@@ -575,6 +577,7 @@ function initPayrollApp() {
           this.reportStats.validationSummary = {};
         }
         this.reportStats.validationSummary.flaggedPeriods = [];
+        console.info("Payroll: normalized reportStats.validationSummary.flaggedPeriods");
       }
       if (DEBUG_PERSIST_PASSWORD) {
         this.acceptedDisclaimer = true;
