@@ -6,6 +6,11 @@
   },
   "dependencies": {
     "pdfjs-dist": "^3.11.174",
-    "canvas": "^2.11.2"
+    "canvas": "^3.2.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "canvas": "3.2.1"
+    }
   }
 }
