@@ -1,9 +1,57 @@
+/**
+ * @typedef {import("../parse/payroll.types").PayrollRecord} PayrollRecord
+ * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
+ * @typedef {PayrollRecord[] & { contributionData?: ContributionData | null }} PayrollRecordCollection
+ * @typedef {{ date: Date, type: "ee" | "er", amount: number }} ContributionEntry
+ * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
+ * @typedef {{ name: string, code: string }} ContributionFailure
+ * @typedef {{ fileCount: number, dateRangeLabel: string, recordCount: number }} ContributionMeta
+ * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
+ * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
+ * @typedef {Object} PayrollAppState
+ * @property {string} pdfPassword
+ * @property {"idle" | "processing" | "rendering" | "done"} status
+ * @property {{ current: number, total: number }} progress
+ * @property {number} fileCount
+ * @property {number} contributionFileCount
+ * @property {File[]} contributionFiles
+ * @property {Array<{ id: string, name: string, type: "pdf" | "xlsx", file: File }>} stagedFiles
+ * @property {number} stagedPdfCount
+ * @property {number} stagedExcelCount
+ * @property {string} reportHtml
+ * @property {string} reportTimestamp
+ * @property {boolean} reportReady
+ * @property {string} suggestedFilename
+ * @property {ReportStats} reportStats
+ * @property {boolean} dragActive
+ * @property {boolean} debugEnabled
+ * @property {string} error
+ * @property {boolean} updateAvailable
+ * @property {ServiceWorker | null} waitingWorker
+ * @property {ServiceWorkerRegistration | null} swRegistration
+ * @property {string} debugText
+ * @property {string} notice
+ * @property {string[]} failedFiles
+ * @property {string[]} failedPayPeriods
+ * @property {{ parsed: string, matches: string, excelSource: string, excelRows: string, excelParsed: string }} debugInfo
+ * @property {boolean} debugCopySuccess
+ * @property {number | null} debugCopyResetTimer
+ * @property {boolean} acceptedDisclaimer
+ * @property {boolean} showScrollTop
+ * @property {boolean} parsingExcel
+ */
+
+/** @type {string | null} */
 const DEBUG_LEVEL = new URLSearchParams(window.location.search).get("debug");
+/** @type {boolean} */
 const DEBUG_ENABLED = DEBUG_LEVEL === "1" || DEBUG_LEVEL === "2";
+/** @type {boolean} */
 const DEBUG_PERSIST_PASSWORD = DEBUG_LEVEL === "2";
 
+/** @returns {void} */
 function initPayrollApp() {
   const app = Vue.createApp({
+    /** @returns {PayrollAppState} */
     data() {
       return {
         pdfPassword: "",
@@ -25,6 +73,7 @@ function initPayrollApp() {
           missingMonthsByYear: {},
           contributionMeta: {
             fileCount: 0,
+            recordCount: 0,
             dateRangeLabel: "None"
           },
           validationSummary: {
@@ -58,12 +107,14 @@ function initPayrollApp() {
       };
     },
     computed: {
+      /** @returns {number} */
       progressPercent() {
         if (!this.progress.total) {
           return 0;
         }
         return Math.round((this.progress.current / this.progress.total) * 100);
       },
+      /** @returns {boolean} */
       canRunReport() {
         return (
           this.stagedPdfCount > 0 &&
@@ -73,6 +124,7 @@ function initPayrollApp() {
       }
     },
     watch: {
+      /** @param {string} value */
       pdfPassword(value) {
         if (!DEBUG_PERSIST_PASSWORD) {
           return;
@@ -85,8 +137,10 @@ function initPayrollApp() {
       }
     },
     methods: {
+      /** @param {Event} event */
       handleContributionFiles(event) {
-        const rawFiles = Array.from(event.target.files || []);
+        const input = /** @type {HTMLInputElement} */ (event.target);
+        const rawFiles = Array.from(input.files || []);
         if (!rawFiles.length) {
           return;
         }
@@ -101,13 +155,14 @@ function initPayrollApp() {
         if (files.length !== rawFiles.length) {
           this.error =
             "One or more of your uploaded files was not an XLSX. Please try again.";
-          event.target.value = "";
+          input.value = "";
           return;
         }
         this.contributionFiles = files;
         this.contributionFileCount = files.length;
-        event.target.value = "";
+        input.value = "";
       },
+      /** @param {File[]} rawFiles */
       stageFiles(rawFiles) {
         const files = rawFiles.filter(Boolean);
         if (!files.length) {
@@ -172,6 +227,7 @@ function initPayrollApp() {
         this.stagedExcelCount = this.stagedFiles.filter((item) => item.type === "xlsx").length;
         this.contributionFileCount = this.stagedExcelCount;
       },
+      /** @param {unknown} value */
       parseContributionDate(value) {
         if (value instanceof Date) {
           return value;
@@ -199,6 +255,7 @@ function initPayrollApp() {
         }
         return null;
       },
+      /** @param {unknown} value */
       normalizeContributionType(value) {
         if (!value) {
           return null;
@@ -212,6 +269,7 @@ function initPayrollApp() {
         }
         return null;
       },
+      /** @param {File[]} files */
       async parseContributionFiles(files) {
         if (!files || !files.length) {
           return null;
@@ -219,6 +277,7 @@ function initPayrollApp() {
         if (!window.XLSX) {
           throw new Error("XLSX_NOT_AVAILABLE");
         }
+        /** @type {ContributionEntry[]} */
         const entries = [];
         const failures = [];
         for (const file of files) {
@@ -249,6 +308,7 @@ function initPayrollApp() {
               this.debugInfo.excelSource = file.name || "Unknown";
               this.debugInfo.excelRows = JSON.stringify(rows.slice(0, 20), null, 2);
             }
+            /** @type {ContributionEntry[]} */
             const fileEntries = [];
             for (let i = 1; i < rows.length; i += 1) {
               const row = rows[i];
@@ -290,7 +350,9 @@ function initPayrollApp() {
           }
         }
         if (failures.length) {
-          const error = new Error("CONTRIBUTION_FILE_FAILURES");
+          const error = /** @type {Error & { failures: ContributionFailure[] }} */ (
+            new Error("CONTRIBUTION_FILE_FAILURES")
+          );
           error.failures = failures;
           throw error;
         }
@@ -299,6 +361,7 @@ function initPayrollApp() {
           sourceFiles: files.map((file) => file.name || "Unknown")
         };
       },
+      /** @returns {Promise<void>} */
       async copyDebugOutput() {
         const payload = [
           "=== Debug: Extracted Text ===",
@@ -337,6 +400,7 @@ function initPayrollApp() {
           }, 2000);
         }
       },
+      /** @param {DragEvent} event */
       onDragOver(event) {
         event.preventDefault();
         if (this.status === "processing") {
@@ -344,13 +408,17 @@ function initPayrollApp() {
         }
         this.dragActive = true;
       },
+      /** @param {DragEvent} event */
       onDragLeave(event) {
         event.preventDefault();
-        if (event.currentTarget.contains(event.relatedTarget)) {
+        const currentTarget = /** @type {HTMLElement} */ (event.currentTarget);
+        const relatedTarget = /** @type {Node | null} */ (event.relatedTarget);
+        if (relatedTarget && currentTarget.contains(relatedTarget)) {
           return;
         }
         this.dragActive = false;
       },
+      /** @param {DragEvent} event */
       async onDrop(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -368,14 +436,17 @@ function initPayrollApp() {
           : Array.from(event.dataTransfer?.files || []);
         this.stageFiles(rawFiles);
       },
+      /** @param {Event} event */
       async handleFiles(event) {
-        const rawFiles = Array.from(event.target.files || []);
+        const input = /** @type {HTMLInputElement} */ (event.target);
+        const rawFiles = Array.from(input.files || []);
         if (!rawFiles.length) {
           return;
         }
         this.stageFiles(rawFiles);
-        event.target.value = "";
+        input.value = "";
       },
+      /** @returns {Promise<void>} */
       async runReport() {
         if (!this.canRunReport) {
           return;
@@ -390,6 +461,7 @@ function initPayrollApp() {
         this.fileCount = pdfFiles.length;
         await this.processFiles(pdfFiles);
       },
+      /** @returns {void} */
       clearUploads() {
         this.stagedFiles = [];
         this.stagedPdfCount = 0;
@@ -399,6 +471,7 @@ function initPayrollApp() {
         this.contributionFileCount = 0;
         this.resetReportState();
       },
+      /** @returns {void} */
       resetReportState() {
         this.status = "idle";
         this.error = "";
@@ -423,6 +496,7 @@ function initPayrollApp() {
           missingMonthsByYear: {},
           contributionMeta: {
             fileCount: 0,
+            recordCount: 0,
             dateRangeLabel: "None"
           },
           validationSummary: {
@@ -432,6 +506,7 @@ function initPayrollApp() {
           }
         };
       },
+      /** @param {File[]} files */
       async processFiles(files) {
         if (!this.acceptedDisclaimer) {
           this.status = "idle";
@@ -443,6 +518,7 @@ function initPayrollApp() {
         this.progress = { current: 0, total: files.length };
         console.info("Payroll: starting processing", { files: files.length });
 
+        /** @type {PayrollRecordCollection} */
         const records = [];
         let stopProcessing = false;
 
@@ -590,6 +666,11 @@ function initPayrollApp() {
         });
         this.handleScroll();
       },
+      /**
+       * @param {File} file
+       * @param {boolean} captureDebug
+       * @returns {Promise<PayrollRecordWithImage | null>}
+       */
       async extractPayrollRecord(file, captureDebug) {
         const { text, imageData, lines, lineItems } = await extractPdfData(
           file,
@@ -658,12 +739,14 @@ function initPayrollApp() {
 
         return payrollRecord;
       },
+      /** @returns {void} */
       printReport() {
         if (!this.reportReady) {
           return;
         }
         window.print();
       },
+      /** @returns {void} */
       applyUpdate() {
         if (!this.waitingWorker) {
           if (this.swRegistration) {
@@ -680,6 +763,7 @@ function initPayrollApp() {
           }, 800);
         }
       },
+      /** @returns {void} */
       handleScroll() {
         if (!this.reportReady) {
           this.showScrollTop = false;
@@ -696,10 +780,12 @@ function initPayrollApp() {
         }
         this.showScrollTop = scrollTop / scrollableHeight >= 0.1;
       },
+      /** @returns {void} */
       scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     },
+    /** @returns {void} */
     mounted() {
       if (!Array.isArray(this.stagedFiles)) {
         this.stagedFiles = [];

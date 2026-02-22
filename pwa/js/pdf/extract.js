@@ -1,8 +1,21 @@
+/**
+ * @typedef {{ x: number, text: string }} LineItemText
+ * @typedef {{ y: number, items: LineItemText[] }} LineItemRow
+ * @typedef {{ y: number, items: LineItemText[], pageNumber: number, pageWidth: number, pageHeight: number }} PageLineItemRow
+ * @typedef {{ text: string, imageData: string | null, lines: string[], lineItems: PageLineItemRow[] }} ExtractedPdfData
+ */
+
+/** @type {typeof window.pdfjsLib} */
 const pdfjsLib = window.pdfjsLib;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+/**
+ * @param {File} file
+ * @param {string} password
+ * @returns {Promise<ExtractedPdfData>}
+ */
 async function extractPdfData(file, password) {
   const data = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data, password: password || undefined });
@@ -44,6 +57,10 @@ async function extractPdfData(file, password) {
   return { text, imageData, lines: allLines, lineItems: allLineItems };
 }
 
+/**
+ * @param {Array<{ transform: number[], str: string }>} items
+ * @returns {LineItemRow[]}
+ */
 function buildLineItemsFromTextItems(items) {
   const lines = [];
   const lineTolerance = 2;
@@ -73,6 +90,10 @@ function buildLineItemsFromTextItems(items) {
     }));
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {string[]}
+ */
 function buildLinesFromLineItems(lineItems) {
   return lineItems
     .map((line) =>
@@ -85,6 +106,10 @@ function buildLinesFromLineItems(lineItems) {
     .filter((lineText) => lineText);
 }
 
+/**
+ * @param {PDFPageProxy} page
+ * @returns {Promise<string>}
+ */
 async function renderPageImage(page) {
   const viewport = page.getViewport({ scale: 1.1 });
   const canvas = document.createElement("canvas");

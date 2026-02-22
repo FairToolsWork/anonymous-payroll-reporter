@@ -1,3 +1,30 @@
+/**
+ * @typedef {import("../parse/payroll.types").PayrollRecord} PayrollRecord
+ * @typedef {import("../parse/payroll.types").PayrollPayItem} PayrollPayItem
+ * @typedef {import("../parse/payroll.types").PayrollMiscDeduction} PayrollMiscDeduction
+ * @typedef {import("../parse/payroll.types").PayrollDeductions} PayrollDeductions
+ * @typedef {import("../parse/payroll.types").PayrollPayments} PayrollPayments
+ */
+
+/**
+ * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
+ * @typedef {{ id: string, label: string }} ValidationFlag
+ * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
+ * @typedef {{ date: Date | null, type: string, amount: number }} ContributionEntry
+ * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
+ * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number, balance: number }} ContributionMonthSummary
+ * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number }} ContributionYearTotals
+ * @typedef {{ months: Map<number, ContributionMonthSummary>, totals: ContributionYearTotals, yearEndBalance: number }} ContributionYearSummary
+ * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
+ * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, year: number | null, monthIndex: number, monthLabel: string, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
+ * @typedef {ReportEntry[] & { yearKey?: string | number, reconciliation?: ContributionYearSummary | null }} YearEntries
+ * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
+ * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
+ * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
+ * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
+ */
+
+/** @type {Record<string, number>} */
 const DATE_MONTHS = {
   jan: 0,
   january: 0,
@@ -25,11 +52,17 @@ const DATE_MONTHS = {
   december: 11
 };
 
+/** @type {number} */
 const VALIDATION_TOLERANCE = 0.05;
+/** @type {string} */
 const ZERO_TAX_ALLOWANCE_NOTE =
   "PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 " +
   "(Personal Allowance £12,570 per year for 2025/26 and 2026/27).";
 
+/**
+ * @param {string | null} payPeriod
+ * @returns {Date | null}
+ */
 function parsePayPeriodStart(payPeriod) {
   if (!payPeriod) {
     return null;
@@ -38,6 +71,10 @@ function parsePayPeriodStart(payPeriod) {
   return parseDateValue(startSegment);
 }
 
+/**
+ * @param {string | null} value
+ * @returns {Date | null}
+ */
 function parseDateValue(value) {
   if (!value) {
     return null;
@@ -80,6 +117,10 @@ function parseDateValue(value) {
   return null;
 }
 
+/**
+ * @param {Date | null} date
+ * @returns {string}
+ */
 function formatDateLabel(date) {
   if (!date) {
     return "Unknown";
@@ -91,6 +132,10 @@ function formatDateLabel(date) {
   });
 }
 
+/**
+ * @param {Date | null} date
+ * @returns {string}
+ */
 function formatMonthYearLabel(date) {
   if (!date) {
     return "Unknown";
@@ -101,6 +146,10 @@ function formatMonthYearLabel(date) {
   });
 }
 
+/**
+ * @param {Date | null} date
+ * @returns {string}
+ */
 function formatDateKey(date) {
   if (!date) {
     return "unknown";
@@ -111,6 +160,10 @@ function formatDateKey(date) {
   return `${year}${month}${day}`;
 }
 
+/**
+ * @param {Date} date
+ * @returns {string}
+ */
 function formatTimestamp(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -121,18 +174,37 @@ function formatTimestamp(date) {
   return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
+/**
+ * @param {number} value
+ * @returns {string}
+ */
 function formatCurrency(value) {
   return `£${value.toFixed(2)}`;
 }
 
+/**
+ * @param {number} value
+ * @returns {string}
+ */
 function formatDeduction(value) {
   return `-£${Math.abs(value).toFixed(2)}`;
 }
 
+/**
+ * @param {number} value
+ * @returns {string}
+ */
 function formatContribution(value) {
   return `£${Math.abs(value).toFixed(2)}`;
 }
 
+/**
+ * @param {number | null} total
+ * @param {number | null} ee
+ * @param {number | null} er
+ * @param {boolean} [allowNA=false]
+ * @returns {string}
+ */
 function formatBreakdownCell(total, ee, er, allowNA = false) {
   if (allowNA && total === null) {
     return "N/A";
@@ -144,6 +216,10 @@ function formatBreakdownCell(total, ee, er, allowNA = false) {
   return `${totalLabel}<br><span class="summary-breakdown">${eeLabel} EE / ${erLabel} ER</span>`;
 }
 
+/**
+ * @param {Array<{ amount: number | null }>} items
+ * @returns {number}
+ */
 function sumMiscAmounts(items) {
   if (!items || !items.length) {
     return 0;
@@ -151,21 +227,36 @@ function sumMiscAmounts(items) {
   return items.reduce((sum, item) => sum + (item.amount || 0), 0);
 }
 
+/**
+ * @param {PayrollPayItem | PayrollMiscDeduction | { title?: string, units?: number | null, rate?: number | null }} item
+ * @returns {string}
+ */
 function formatMiscLabel(item) {
   if (!item) {
     return "";
   }
-  const label = item.label || item.title || "";
+  const label = item.title || "";
   if (item.units === null || item.rate === null) {
     return label;
   }
   return `${label} (${item.units.toFixed(2)} @ ${formatCurrency(item.rate)})`;
 }
 
+/**
+ * @param {number | string} year
+ * @param {number} monthIndex
+ * @returns {string}
+ */
 function buildMonthKey(year, monthIndex) {
   return `${year}-${String(monthIndex).padStart(2, "0")}`;
 }
 
+/**
+ * @param {ReportEntry[]} entries
+ * @param {ContributionData | null | undefined} contributionData
+ * @param {Array<string | number>} yearKeys
+ * @returns {ContributionSummary | null}
+ */
 function buildContributionSummary(entries, contributionData, yearKeys) {
   if (!contributionData || !contributionData.entries || !contributionData.entries.length) {
     return null;
@@ -251,6 +342,10 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
   };
 }
 
+/**
+ * @param {ContributionSummary | null} summary
+ * @returns {string}
+ */
 function renderContributionSummary(summary) {
   if (!summary) {
     return "";
@@ -284,9 +379,17 @@ function renderContributionSummary(summary) {
     );
 }
 
+/**
+ * @param {PayrollRecord} record
+ * @returns {number}
+ */
 function sumPayments(record) {
-  const hourly = record?.payrollDoc?.payments?.hourly || {};
-  const salary = record?.payrollDoc?.payments?.salary || {};
+  const hourly = /** @type {PayrollPayments["hourly"]} */ (
+    record?.payrollDoc?.payments?.hourly || {}
+  );
+  const salary = /** @type {PayrollPayments["salary"]} */ (
+    record?.payrollDoc?.payments?.salary || {}
+  );
   const misc = record?.payrollDoc?.payments?.misc || [];
   return (
     (hourly.basic?.amount || 0) +
@@ -295,19 +398,16 @@ function sumPayments(record) {
     (salary.holiday?.amount || 0) +
     sumMiscAmounts(misc)
   );
-  if (contributionSummary) {
-    reportSections.push(renderContributionSummary(contributionSummary));
-  } else {
-    reportSections.push(
-      "<p class=\"report-footnote\">" +
-        "No pension contribution history uploaded — reconciliation skipped." +
-        "</p>"
-    );
-  }
 }
 
+/**
+ * @param {PayrollRecord} record
+ * @returns {number}
+ */
 function sumDeductionsForNetPay(record) {
-  const deductions = record?.payrollDoc?.deductions || {};
+  const deductions = /** @type {PayrollDeductions} */ (
+    record?.payrollDoc?.deductions || {}
+  );
   return (
     (deductions.payeTax?.amount || 0) +
     (deductions.natIns?.amount || 0) +
@@ -316,6 +416,11 @@ function sumDeductionsForNetPay(record) {
   );
 }
 
+/**
+ * @param {number | null | undefined} actual
+ * @param {number | null | undefined} expected
+ * @returns {boolean}
+ */
 function isWithinTolerance(actual, expected) {
   if (actual === null || actual === undefined || expected === null || expected === undefined) {
     return false;
@@ -323,6 +428,10 @@ function isWithinTolerance(actual, expected) {
   return Math.abs(actual - expected) <= VALIDATION_TOLERANCE;
 }
 
+/**
+ * @param {ReportEntry} entry
+ * @returns {ValidationResult}
+ */
 function buildValidation(entry) {
   const record = entry.record;
   const flags = [];
@@ -377,6 +486,12 @@ function buildValidation(entry) {
   };
 }
 
+/**
+ * @param {number[]} presentMonths
+ * @param {number | null} minMonth
+ * @param {number | null} maxMonth
+ * @returns {string[]}
+ */
 function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
   if (!presentMonths.length || minMonth === null || maxMonth === null) {
     return [];
@@ -391,8 +506,14 @@ function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
   return missing;
 }
 
+/**
+ * @param {PayrollRecordCollection} records
+ * @param {string[]} [failedPayPeriods=[]]
+ * @returns {{ html: string, filename: string, stats: ReportStats }}
+ */
 function buildReport(records, failedPayPeriods = []) {
   const reportRunDate = new Date();
+  /** @type {ReportEntry[]} */
   const entries = records.map((record) => {
     const parsedDate = parsePayPeriodStart(record.payrollDoc?.processDate?.date);
     const year = parsedDate ? parsedDate.getFullYear() : null;
@@ -510,6 +631,7 @@ function buildReport(records, failedPayPeriods = []) {
     return acc;
   }, []);
 
+  /** @type {Record<string, number[]>} */
   const failedMonthsByYear = {};
   failedDates.forEach((date) => {
     const yearKey = date.getFullYear();
@@ -522,6 +644,7 @@ function buildReport(records, failedPayPeriods = []) {
     }
   });
 
+  /** @type {Record<string, string[]>} */
   const missingMonthsByYear = {};
   yearGroups.forEach((entriesForYear, yearKey) => {
     const presentMonths = entriesForYear
@@ -823,6 +946,7 @@ function buildReport(records, failedPayPeriods = []) {
       `<h2 id="year-summary-${yearKey}">${yearLabel} Summary: ${employeeName}</h2>`
     );
     if (yearMissing.length) {
+      const yearMissingPill = `Missing months: <span class="missing-months">${yearMissing.join(", ")}</span>`;
       reportSections.push(`<p class="report-missing">${yearMissingPill}</p>`);
     }
     reportSections.push(renderYearSummary(entriesForYear));
@@ -888,6 +1012,10 @@ function buildReport(records, failedPayPeriods = []) {
   };
 }
 
+/**
+ * @param {ReportEntry} entry
+ * @returns {string}
+ */
 function renderReportCell(entry) {
   const record = entry.record;
   const validation = entry.validation || { flags: [], lowConfidence: false };
@@ -902,14 +1030,18 @@ function renderReportCell(entry) {
   const imageHtml = record.imageData
     ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
     : "";
-  const hourlyPayments = record.payrollDoc?.payments?.hourly || {};
+  const hourlyPayments = /** @type {PayrollPayments["hourly"]} */ (
+    record.payrollDoc?.payments?.hourly || {}
+  );
   const basicHours = hourlyPayments.basic?.units || 0;
   const basicRate = hourlyPayments.basic?.rate || 0;
   const basicAmount = hourlyPayments.basic?.amount || 0;
   const holidayHours = hourlyPayments.holiday?.units || 0;
   const holidayRate = hourlyPayments.holiday?.rate || 0;
   const holidayAmount = hourlyPayments.holiday?.amount || 0;
-  const salaryPayments = record.payrollDoc?.payments?.salary || {};
+  const salaryPayments = /** @type {PayrollPayments["salary"]} */ (
+    record.payrollDoc?.payments?.salary || {}
+  );
   const basicSalaryAmount = salaryPayments.basic?.amount ?? null;
   const holidaySalaryUnits = salaryPayments.holiday?.units ?? null;
   const holidaySalaryRate = salaryPayments.holiday?.rate ?? null;
@@ -1044,6 +1176,10 @@ function renderReportCell(entry) {
   `;
 }
 
+/**
+ * @param {YearEntries} entriesForYear
+ * @returns {string}
+ */
 function renderYearSummary(entriesForYear) {
   const monthEntries = new Map();
   entriesForYear.forEach((entry) => {
@@ -1135,7 +1271,7 @@ function renderYearSummary(entriesForYear) {
       if (!bDate) {
         return -1;
       }
-      return new Date(aDate) - new Date(bDate);
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
     });
     const monthAnchor = `year-monthly-${yearKey}-${String(monthIndex).padStart(2, "0")}`;
     const reconMonth = showReconciliation

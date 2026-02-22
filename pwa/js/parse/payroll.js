@@ -1,8 +1,35 @@
+/**
+ * @typedef {import("./payroll.types").PayrollRecord} PayrollRecord
+ * @typedef {import("./payroll.types").PayrollPayments} PayrollPayments
+ * @typedef {import("./payroll.types").PayrollDeductions} PayrollDeductions
+ * @typedef {import("./payroll.types").PayrollPayItem} PayrollPayItem
+ * @typedef {import("./payroll.types").PayrollMiscDeduction} PayrollMiscDeduction
+ * @typedef {import("./payroll.types").PayrollAddress} PayrollAddress
+ */
+
+/**
+ * @typedef {{ x: number, text: string }} LineItemText
+ * @typedef {{ y: number, items: LineItemText[] }} LineItemRow
+ * @typedef {LineItemRow & { pageNumber: number, pageWidth?: number, pageHeight?: number }} PageLineItemRow
+ * @typedef {LineItemRow[]} LineBand
+ * @typedef {{ label: string, units: number | null, rate: number | null, amount: number | null }} ParsedPaymentLine
+ * @typedef {{ leftLines: string[], rightLines: string[] }} SplitLines
+ */
+
+/**
+ * @param {string} text
+ * @param {RegExp} pattern
+ * @returns {string | null}
+ */
 function extractField(text, pattern) {
   const match = text.match(pattern);
   return match && match[1] ? match[1].trim() : null;
 }
 
+/**
+ * @param {string | null} value
+ * @returns {number}
+ */
 function parseNumericValue(value) {
   if (!value) {
     return 0;
@@ -12,6 +39,10 @@ function parseNumericValue(value) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * @param {string} text
+ * @returns {string | null}
+ */
 function extractNetPayFromText(text) {
   if (!text) {
     return null;
@@ -26,6 +57,10 @@ function extractNetPayFromText(text) {
   return candidates.length ? candidates[candidates.length - 1] : null;
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {string | null}
+ */
 function extractEmployerFromLines(lines) {
   for (const line of lines) {
     if (/\bLtd\b|\bLimited\b/.test(line)) {
@@ -35,6 +70,10 @@ function extractEmployerFromLines(lines) {
   return null;
 }
 
+/**
+ * @param {string | null} value
+ * @returns {number | null}
+ */
 function parseAmountValue(value) {
   if (!value) {
     return null;
@@ -44,6 +83,10 @@ function parseAmountValue(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {string[]}
+ */
 function buildLinesFromLineItems(lineItems) {
   return lineItems
     .map((line) =>
@@ -56,14 +99,26 @@ function buildLinesFromLineItems(lineItems) {
     .filter((lineText) => lineText);
 }
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function isPaymentsHeader(line) {
   return /^Payments$/i.test(line);
 }
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function isDeductionsHeader(line) {
   return /^Deductions$/i.test(line);
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {number | null}
+ */
 function findHeaderSplitX(lineItems) {
   let paymentsX = null;
   let deductionsX = null;
@@ -82,9 +137,15 @@ function findHeaderSplitX(lineItems) {
     return null;
   }
 
-  return (paymentsX + deductionsX) / 2;
+  return (
+    /** @type {number} */ (paymentsX) + /** @type {number} */ (deductionsX)
+  ) / 2;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {number | null}
+ */
 function findLargestGapSplitX(lineItems) {
   const points = [];
   lineItems.forEach((line) => {
@@ -111,12 +172,20 @@ function findLargestGapSplitX(lineItems) {
   return splitX;
 }
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function isSectionTerminator(line) {
   return /^(Earnings for NI|Gross for Tax|Total Gross Pay|Pay Cycle|Tax Code|Pay Run|Pay Method|Net Pay)$/i.test(
     line
   );
 }
 
+/**
+ * @param {string} line
+ * @returns {number}
+ */
 function countNumericTokens(line) {
   if (!line) {
     return 0;
@@ -125,6 +194,10 @@ function countNumericTokens(line) {
   return matches ? matches.length : 0;
 }
 
+/**
+ * @param {LineBand[]} bands
+ * @returns {number}
+ */
 function selectPaymentsBand(bands) {
   const hints = [
     "Basic Hours",
@@ -160,6 +233,12 @@ function selectPaymentsBand(bands) {
   return bestByNumeric !== null ? bestByNumeric : 1;
 }
 
+/**
+ * @param {LineBand[]} bands
+ * @param {string[]} hints
+ * @param {number} fallbackIndex
+ * @returns {number}
+ */
 function selectBandByHints(bands, hints, fallbackIndex) {
   const hintRegex = new RegExp(hints.map((term) => term.replace(/\s+/g, "\\s+")).join("|"), "i");
   let bestByHint = null;
@@ -190,6 +269,11 @@ function selectBandByHints(bands, hints, fallbackIndex) {
   return fallbackIndex;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @param {number} bandCount
+ * @returns {LineBand[]}
+ */
 function splitLineItemsIntoBands(lineItems, bandCount) {
   const sorted = lineItems.slice().sort((a, b) => b.y - a.y);
   if (!sorted.length) {
@@ -233,6 +317,11 @@ function splitLineItemsIntoBands(lineItems, bandCount) {
   return bands;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @param {number} columnCount
+ * @returns {number[]}
+ */
 function computeColumnCentroids(lineItems, columnCount) {
   const points = [];
   lineItems.forEach((line) => {
@@ -276,6 +365,11 @@ function computeColumnCentroids(lineItems, columnCount) {
   return centroids.sort((a, b) => a - b);
 }
 
+/**
+ * @param {number[]} values
+ * @param {number} columnCount
+ * @returns {number[]}
+ */
 function computeCentroidsFromValues(values, columnCount) {
   if (!values.length) {
     return [];
@@ -311,6 +405,12 @@ function computeCentroidsFromValues(values, columnCount) {
   return centroids.sort((a, b) => a - b);
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @param {number} columnCount
+ * @param {number | null} [splitX]
+ * @returns {string[][]}
+ */
 function bucketLinesByColumn(lineItems, columnCount, splitX) {
   const centroids = computeColumnCentroids(lineItems, columnCount);
   const columns = Array.from({ length: columnCount }, () => []);
@@ -360,6 +460,11 @@ function bucketLinesByColumn(lineItems, columnCount, splitX) {
   return columns;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @param {number} columnCount
+ * @returns {string[][]}
+ */
 function bucketLinesByLineLeft(lineItems, columnCount) {
   const lineEntries = lineItems
     .map((line) => {
@@ -414,6 +519,10 @@ function bucketLinesByLineLeft(lineItems, columnCount) {
   return columns;
 }
 
+/**
+ * @param {string} line
+ * @returns {boolean}
+ */
 function shouldSkipLine(line) {
   return (
     !line ||
@@ -425,6 +534,10 @@ function shouldSkipLine(line) {
   );
 }
 
+/**
+ * @param {string} label
+ * @returns {boolean}
+ */
 function shouldSkipDeductionLabel(label) {
   return (
     /^PAYE\s+Tax/i.test(label) ||
@@ -433,6 +546,14 @@ function shouldSkipDeductionLabel(label) {
   );
 }
 
+/**
+ * @param {string[]} lines
+ * @param {"payments" | "deductions"} mode
+ * @param {PayrollPayItem[]} miscPayments
+ * @param {PayrollMiscDeduction[]} miscDeductions
+ * @param {PayrollPayItem[]} basicOverrides
+ * @returns {void}
+ */
 function parseMiscLines(lines, mode, miscPayments, miscDeductions, basicOverrides) {
   lines.forEach((line) => {
     if (shouldSkipLine(line)) {
@@ -451,14 +572,14 @@ function parseMiscLines(lines, mode, miscPayments, miscDeductions, basicOverride
         return;
       }
       if (/^Basic\s+Hours/i.test(label)) {
-        basicOverrides.push({ label, units, rate, amount });
+        basicOverrides.push({ title: label, units, rate, amount });
         return;
       }
       if (mode === "deductions" && shouldSkipDeductionLabel(label)) {
         return;
       }
       (mode === "payments" ? miscPayments : miscDeductions).push({
-        label,
+        title: label,
         units,
         rate,
         amount
@@ -477,7 +598,7 @@ function parseMiscLines(lines, mode, miscPayments, miscDeductions, basicOverride
         return;
       }
       (mode === "payments" ? miscPayments : miscDeductions).push({
-        label,
+        title: label,
         units: null,
         rate: null,
         amount
@@ -486,6 +607,11 @@ function parseMiscLines(lines, mode, miscPayments, miscDeductions, basicOverride
   });
 }
 
+/**
+ * @param {string[]} lines
+ * @param {string | null} employeeName
+ * @returns {PayrollAddress}
+ */
 function extractAddressFromLines(lines, employeeName) {
   const trimmed = lines.map((line) => line.trim()).filter((line) => line);
   const filtered = trimmed.filter(
@@ -499,6 +625,10 @@ function extractAddressFromLines(lines, employeeName) {
   };
 }
 
+/**
+ * @param {string} line
+ * @returns {ParsedPaymentLine | null}
+ */
 function parsePaymentLine(line) {
   const threeNumber = line.match(
     /^(.*?)(\d[\d,]*\.\d{2})\s+(\d[\d,]*\.\d{2})\s+(\d[\d,]*\.\d{2})$/
@@ -525,6 +655,10 @@ function parsePaymentLine(line) {
   return null;
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {PayrollPayments}
+ */
 function parsePaymentsFromLines(lines) {
   const result = {
     hourly: {
@@ -583,7 +717,7 @@ function parsePaymentsFromLines(lines) {
     }
 
     result.misc.push({
-      label: parsed.label,
+      title: parsed.label,
       units: parsed.units,
       rate: parsed.rate,
       amount: parsed.amount
@@ -593,6 +727,10 @@ function parsePaymentsFromLines(lines) {
   return result;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {number | null}
+ */
 function findDeductionSplitX(lineItems) {
   const deductionRegex = /(PAYE\s+Tax|National\s+Insurance|NEST\b|Deduction)/i;
   let minX = null;
@@ -606,6 +744,10 @@ function findDeductionSplitX(lineItems) {
   return minX;
 }
 
+/**
+ * @param {LineItemRow[]} lineItems
+ * @returns {SplitLines}
+ */
 function splitLineItemsByGlobalSplit(lineItems) {
   const leftLines = [];
   const rightLines = [];
@@ -665,6 +807,10 @@ function splitLineItemsByGlobalSplit(lineItems) {
   return { leftLines, rightLines };
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {PayrollDeductions}
+ */
 function parseDeductionsFromLines(lines) {
   const result = {
     payeTax: { title: "PAYE Tax", amount: 0 },
@@ -712,13 +858,21 @@ function parseDeductionsFromLines(lines) {
   return result;
 }
 
+/**
+ * @param {string[]} lines
+ * @param {PageLineItemRow[] | null} positionalLineItems
+ * @returns {{ miscPayments: PayrollPayItem[], miscDeductions: PayrollMiscDeduction[], basicOverrides: PayrollPayItem[] }}
+ */
 function extractMiscLineItems(lines, positionalLineItems) {
   const miscPayments = [];
   const miscDeductions = [];
   const basicOverrides = [];
-  const positionalLines = Array.isArray(positionalLineItems)
-    ? positionalLineItems.filter((line) => line.pageNumber === 1)
-    : [];
+  /** @type {PageLineItemRow[]} */
+  const positionalLines = /** @type {PageLineItemRow[]} */ (
+    Array.isArray(positionalLineItems)
+      ? positionalLineItems.filter((line) => line.pageNumber === 1)
+      : []
+  );
 
   if (positionalLines.length) {
     const bands = splitLineItemsIntoBands(positionalLines, 4);
@@ -756,15 +910,26 @@ function extractMiscLineItems(lines, positionalLineItems) {
   return { miscPayments, miscDeductions, basicOverrides };
 }
 
+/**
+ * @param {string[]} lines
+ * @returns {string | null}
+ */
 function findEmployerLine(lines) {
   return lines.find((line) => /\b(Ltd|Limited)\b/.test(line)) || null;
 }
 
+/**
+ * @param {{ text: string, lines: string[], lineItems: PageLineItemRow[] }} args
+ * @returns {PayrollRecord}
+ */
 function buildPayrollDocument({ text, lines, lineItems }) {
   const lineItemsText = lines || [];
-  const positionalLines = Array.isArray(lineItems)
-    ? lineItems.filter((line) => line.pageNumber === 1)
-    : [];
+  /** @type {PageLineItemRow[]} */
+  const positionalLines = /** @type {PageLineItemRow[]} */ (
+    Array.isArray(lineItems)
+      ? lineItems.filter((line) => line.pageNumber === 1)
+      : []
+  );
   const nameMatch = text.match(PATTERNS.nameDateId);
   const employeeName = nameMatch && nameMatch[1] ? nameMatch[1].trim() : null;
   const processDate = nameMatch && nameMatch[2] ? nameMatch[2].trim() : null;

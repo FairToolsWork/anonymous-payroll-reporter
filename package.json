@@ -2,11 +2,15 @@
   "name": "payroll-pwa-tools",
   "private": true,
   "scripts": {
-    "test:parse": "node logic_test/run_parse_test.js"
+    "test:parse": "node logic_test/run_parse_test.js",
+    "check:js": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "pdfjs-dist": "^3.11.174",
     "canvas": "^3.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   },
   "pnpm": {
     "overrides": {
