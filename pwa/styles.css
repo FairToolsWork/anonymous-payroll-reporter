@@ -129,6 +129,11 @@ button.primary:hover {
   background: var(--accent-green-dark);
 }
 
+button:focus-visible {
+  outline: 3px solid rgba(194, 84, 45, 0.45);
+  outline-offset: 3px;
+}
+
 button:disabled.primary:hover {
   transform: none;
   background: var(--ink);
@@ -343,8 +348,23 @@ button.secondary:hover {
     box-shadow: 0 14px 32px rgba(var(--accent-green-dark), 0.50);
 }
 
+.upload:focus-within {
+  outline: 3px solid rgba(194, 84, 45, 0.45);
+  outline-offset: 3px;
+}
+
 .upload input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  opacity: 0;
 }
 
 .upload.disabled {
@@ -624,9 +644,9 @@ button.secondary:hover {
   vertical-align: top;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-content: center;
   align-items: flex-start;
-  justify-content: center;
   gap: 12px;
 }
 

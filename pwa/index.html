@@ -1,228 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Offline payroll PDF processor" />
-  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
-  <meta name="theme-color" content="#2b2a27" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icon.svg" />
-  <title>Anonymous Payroll Report</title>
-</head>
-<body>
-  <div id="app" class="app-shell">
-    <div class="update-banner" v-if="updateAvailable">
-      <p>Update available. Refresh to load the latest version.</p>
-      <button class="primary" type="button" @click="applyUpdate">Refresh</button>
-    </div>
-    <header class="app-header">
-      <div>
-        <p class="eyebrow">Offline Payroll Report</p>
-        <h1>Anonymous Payroll Report</h1>
-        <p class="subhead">
-          Your data <i>always</i> remains private, and processing happens locally in your browser, meaning that your personal information is <i>never</i> uploaded or saved to any server.
-          <br />
-        </p>
-      </div>
-    </header>
-
-    <section class="controls">
-      <div
-        class="upload-panel"
-        :class="{ 'is-drop-active': dragActive }"
-        @dragenter="onDragOver"
-        @dragover="onDragOver"
-        @dragleave="onDragLeave"
-        @drop="onDrop"
-      >
-        <div class="drop-overlay" v-if="dragActive">
-          <div>
-            <strong>Drop PDFs or Excel files</strong>
-            <span>Release files to add them to the queue</span>
-          </div>
-        </div>
-        <h2>1. Upload Pay Slips + Pension Excel</h2>
-        <div class="instructions">
-            <p>Drag and drop your Payroll PDFs and Pension Excel files here or choose multiple files.</p>
-            <p class="notice"><b>Note:</b> Pension Excel files are optional, if you don't have them then the report will not compare deductions vs what was submitted to NEST.</p>
-        </div>
-        <label class="field password">
-          <span>PDF password</span>
-          <input
-            id="pdf-password"
-            type="password"
-            v-model.trim="pdfPassword"
-            name="pdf-password"
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            spellcheck="false"
-            placeholder="Enter password if your PDFs require one"
-          />
-        </label>
-        <div class="upload-btn-container">
-          <label
-            class="upload"
-            :class="{ disabled: status === 'processing' }"
-          >
-            <input
-              type="file"
-              accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.xls"
-              multiple
-              :disabled="status === 'processing'"
-              @change="handleFiles"
-            />
-            <span>Choose PDF/Excel files</span>
-          </label>
-          <div class="upload-results">
-            <p v-if="stagedFiles && stagedFiles.length" class="file-count">
-                {{ stagedPdfCount }} PDF(s), {{ stagedExcelCount }} Excel file(s) staged
-            </p>
-            <p v-else class="file-count">No files staged yet</p>
-                <button
-                    v-if="stagedFiles && stagedFiles.length"
-                    class="secondary delete"
-                    type="button"
-                    :disabled="status === 'processing'"
-                    @click="clearUploads"
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content="Offline payroll PDF processor" />
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+        <meta name="theme-color" content="#2b2a27" />
+        <link rel="manifest" href="manifest.json" />
+        <link rel="stylesheet" href="styles.css" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+        <link rel="icon" href="icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="icon.svg" />
+        <title>Anonymous Payroll Report</title>
+    </head>
+    <body>
+        <main id="app" class="app-shell">
+            <div class="update-banner" v-if="updateAvailable">
+            <p>Update available. Refresh to load the latest version.</p>
+            <button class="primary" type="button" @click="applyUpdate">Refresh</button>
+            </div>
+            <header class="app-header">
+            <div>
+                <p class="eyebrow">Offline Payroll Report</p>
+                <h1>Anonymous Payroll Report</h1>
+                <p class="subhead">
+                Your data <i>always</i> remains private, and processing happens locally in your browser, meaning that your personal information is <i>never</i> uploaded or saved to any server.
+                <br />
+                </p>
+            </div>
+            </header>
+            <section class="controls">
+                <div
+                    class="upload-panel"
+                    :class="{ 'is-drop-active': dragActive }"
+                    @dragenter="onDragOver"
+                    @dragover="onDragOver"
+                    @dragleave="onDragLeave"
+                    @drop="onDrop"
                 >
-                   Clear uploads
+                    <div class="drop-overlay" v-if="dragActive">
+                    <div>
+                        <strong>Drop PDFs or Excel files</strong>
+                        <span>Release files to add them to the queue</span>
+                    </div>
+                    </div>
+                    <h2>1. Upload Pay Slips + Pension Excel</h2>
+                    <div class="instructions">
+                        <p>Drag and drop your Payroll PDFs and Pension Excel files here or choose multiple files.</p>
+                        <p class="notice"><b>Note:</b> Pension Excel files are optional, if you don't have them then the report will not compare deductions vs what was submitted to NEST.</p>
+                    </div>
+                    <label class="field password">
+                    <span>PDF password</span>
+                    <input
+                        id="pdf-password"
+                        type="password"
+                        v-model.trim="pdfPassword"
+                        name="pdf-password"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        placeholder="Enter password if your PDFs require one"
+                    />
+                    </label>
+                    <div class="upload-btn-container">
+                    <label
+                        class="upload"
+                        :class="{ disabled: status === 'processing' }"
+                    >
+                        <input
+                        type="file"
+                        accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.xls"
+                        multiple
+                        :disabled="status === 'processing'"
+                        @change="handleFiles"
+                        />
+                        <span>Choose PDF/Excel files</span>
+                    </label>
+                    <div class="upload-results">
+                        <p v-if="stagedFiles && stagedFiles.length" class="file-count">
+                            {{ stagedPdfCount }} PDF(s), {{ stagedExcelCount }} Excel file(s) staged
+                        </p>
+                        <p v-else class="file-count">No files staged yet</p>
+                            <button
+                                v-if="stagedFiles && stagedFiles.length"
+                                class="secondary delete"
+                                type="button"
+                                :disabled="status === 'processing'"
+                                @click="clearUploads"
+                            >
+                            Clear uploads
+                            </button>
+                    </div>
+                    </div>
+                </div>
+                <div class="status-panel">
+                    <h2>2. Run & Review</h2>
+                    <p class="instructions" v-if="status === 'idle'">First stage files (step 1), then run the report here.</p>
+                    <div class="run-actions">
+                    <label class="disclaimer inline">
+                        <input type="checkbox" v-model="acceptedDisclaimer" />
+                        <span>
+                        <i>I understand this report may contain processing errors or omissions, and I
+                        am responsible for verifying its accuracy.</i>
+                        </span>
+                    </label>
+                    <button
+                        class="primary"
+                        type="button"
+                        :disabled="!canRunReport"
+                        @click="runReport"
+                    >
+                        Run report
+                    </button>
+                    </div>
+                    <p v-if="status === 'processing'">
+                    Processing {{ progress.current }} / {{ progress.total }} PDFs
+                    </p>
+                    <p v-if="parsingExcel">Parsing Excel contribution history…</p>
+                    <p v-if="status === 'rendering'">Rendering report…</p>
+                    <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
+                    <p v-if="error" class="error">{{ error }}</p>
+                    <p v-if="notice" class="notice">{{ notice }}</p>
+                    <ul v-if="failedFiles && failedFiles.length" class="error-list">
+                    <li v-for="file in failedFiles" :key="file">{{ file }}</li>
+                    </ul>
+
+                    <div class="progress" v-if="status === 'processing'">
+                    <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+                    </div>
+
+                    <div class="completion" v-if="reportReady">
+                    <h3>Report summary</h3>
+                    <ul class="stats">
+                        <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
+                        <li><span>PDF files</span><strong>{{ fileCount }}</strong></li>
+                        <li><span>PDF Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
+                        <li>
+                        <span>Excel files</span>
+                        <strong>
+                            {{ reportStats.contributionMeta.fileCount }}
+                            ({{ reportStats.contributionMeta.recordCount }} records)
+                        </strong>
+                        </li>
+                        <li><span>Excel date range</span><strong>{{ reportStats.contributionMeta.dateRangeLabel }}</strong></li>
+                        <li>
+                        <span>Missing months</span>
+                        <strong class="missing-months" v-html="reportStats.missingMonthsHtml"></strong>
+                        </li>
+                        <li>
+                        <span>Flagged months</span>
+                        <strong class="validation-pill">{{ reportStats.validationSummary.flaggedCount }}</strong>
+                        </li>
+                        <li>
+                        <span>Low confidence months</span>
+                        <strong class="validation-pill">{{ reportStats.validationSummary.lowConfidenceCount }}</strong>
+                        </li>
+                        <li>
+                        <span>Flagged periods</span>
+                        <strong class="validation-list">
+                            {{ ((reportStats.validationSummary && reportStats.validationSummary.flaggedPeriods) || []).join(", ") || "None" }}
+                        </strong>
+                        </li>
+                    </ul>
+                    <button class="primary" type="button" @click="printReport">Print / Save as PDF</button>
+                    </div>
+                </div>
+            </section>
+            <section class="report-output" v-if="reportHtml">
+                <div class="report-root" v-html="reportHtml"></div>
+            </section>
+            <button
+                class="scroll-top"
+                type="button"
+            v-if="reportReady && showScrollTop"
+            @click="scrollToTop"
+            >
+            Back to top
+            </button>
+            <section class="debug-panel" v-if="debugEnabled">
+                <button
+                    class="secondary debug-copy"
+                    type="button"
+                    :class="{ success: debugCopySuccess }"
+                    @click="copyDebugOutput"
+                >
+                    {{ debugCopySuccess ? "Copied ✓" : "Copy debug output" }}
                 </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="status-panel">
-        <h2>2. Run & Review</h2>
-        <p class="instructions" v-if="status === 'idle'">First stage files (step 1), then run the report here.</p>
-        <div class="run-actions">
-          <label class="disclaimer inline">
-            <input type="checkbox" v-model="acceptedDisclaimer" />
-            <span>
-              <i>I understand this report may contain processing errors or omissions, and I
-              am responsible for verifying its accuracy.</i>
-            </span>
-          </label>
-          <button
-            class="primary"
-            type="button"
-            :disabled="!canRunReport"
-            @click="runReport"
-          >
-            Run report
-          </button>
-        </div>
-        <p v-if="status === 'processing'">
-          Processing {{ progress.current }} / {{ progress.total }} PDFs
-        </p>
-        <p v-if="parsingExcel">Parsing Excel contribution history…</p>
-        <p v-if="status === 'rendering'">Rendering report…</p>
-        <p v-if="status === 'done'">Report ready. Use Print to save as PDF.</p>
-        <p v-if="error" class="error">{{ error }}</p>
-        <p v-if="notice" class="notice">{{ notice }}</p>
-        <ul v-if="failedFiles && failedFiles.length" class="error-list">
-          <li v-for="file in failedFiles" :key="file">{{ file }}</li>
-        </ul>
-
-        <div class="progress" v-if="status === 'processing'">
-          <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
-        </div>
-
-        <div class="completion" v-if="reportReady">
-          <h3>Report summary</h3>
-          <ul class="stats">
-            <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
-            <li><span>PDF files</span><strong>{{ fileCount }}</strong></li>
-            <li><span>PDF Date range</span><strong>{{ reportStats.dateRangeLabel }}</strong></li>
-            <li>
-              <span>Excel files</span>
-              <strong>
-                {{ reportStats.contributionMeta.fileCount }}
-                ({{ reportStats.contributionMeta.recordCount }} records)
-              </strong>
-            </li>
-            <li><span>Excel date range</span><strong>{{ reportStats.contributionMeta.dateRangeLabel }}</strong></li>
-            <li>
-              <span>Missing months</span>
-              <strong class="missing-months" v-html="reportStats.missingMonthsHtml"></strong>
-            </li>
-            <li>
-              <span>Flagged months</span>
-              <strong class="validation-pill">{{ reportStats.validationSummary.flaggedCount }}</strong>
-            </li>
-            <li>
-              <span>Low confidence months</span>
-              <strong class="validation-pill">{{ reportStats.validationSummary.lowConfidenceCount }}</strong>
-            </li>
-            <li>
-              <span>Flagged periods</span>
-              <strong class="validation-list">
-                {{ ((reportStats.validationSummary && reportStats.validationSummary.flaggedPeriods) || []).join(", ") || "None" }}
-              </strong>
-            </li>
-          </ul>
-          <button class="primary" type="button" @click="printReport">Print / Save as PDF</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="report-output" v-if="reportHtml">
-      <div class="report-root" v-html="reportHtml"></div>
-    </section>
-
-    <button
-      class="scroll-top"
-      type="button"
-      v-if="reportReady && showScrollTop"
-      @click="scrollToTop"
-    >
-      Back to top
-    </button>
-
-    <section class="debug-panel" v-if="debugEnabled">
-      <button
-        class="secondary debug-copy"
-        type="button"
-        :class="{ success: debugCopySuccess }"
-        @click="copyDebugOutput"
-      >
-        {{ debugCopySuccess ? "Copied ✓" : "Copy debug output" }}
-      </button>
-      <h2>Debug: Extracted Text (first PDF)</h2>
-      <pre v-if="debugText">{{ debugText }}</pre>
-      <p v-else>No debug text captured yet.</p>
-      <h3>Debug: Parsed Values</h3>
-      <pre v-if="debugInfo.parsed">{{ debugInfo.parsed }}</pre>
-      <p v-else>No parsed values captured yet.</p>
-      <h3>Debug: Regex Matches</h3>
-      <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
-      <p v-else>No regex matches captured yet.</p>
-      <h3>Debug: Excel Source File (first Excel)</h3>
-      <pre v-if="debugInfo.excelSource">{{ debugInfo.excelSource }}</pre>
-      <p v-else>No Excel source captured yet.</p>
-      <h3>Debug: Excel Raw Rows (first 20)</h3>
-      <pre v-if="debugInfo.excelRows">{{ debugInfo.excelRows }}</pre>
-      <p v-else>No Excel rows captured yet.</p>
-      <h3>Debug: Excel Parsed Entries (first 20)</h3>
-      <pre v-if="debugInfo.excelParsed">{{ debugInfo.excelParsed }}</pre>
-      <p v-else>No Excel parsed entries captured yet.</p>
-    </section>
-  </div>
-
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="js/parser_config.js"></script>
-  <script src="js/parse/payroll.js"></script>
-  <script src="js/pdf/extract.js"></script>
-  <script src="js/report/build.js"></script>
-  <script src="js/ui/app.js"></script>
-  <script src="app.js"></script>
-</body>
+                <h2>Debug: Extracted Text (first PDF)</h2>
+                <pre v-if="debugText">{{ debugText }}</pre>
+                <p v-else>No debug text captured yet.</p>
+                <h3>Debug: Parsed Values</h3>
+                <pre v-if="debugInfo.parsed">{{ debugInfo.parsed }}</pre>
+                <p v-else>No parsed values captured yet.</p>
+                <h3>Debug: Regex Matches</h3>
+                <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
+                <p v-else>No regex matches captured yet.</p>
+                <h3>Debug: Excel Source File (first Excel)</h3>
+                <pre v-if="debugInfo.excelSource">{{ debugInfo.excelSource }}</pre>
+                <p v-else>No Excel source captured yet.</p>
+                <h3>Debug: Excel Raw Rows (first 20)</h3>
+                <pre v-if="debugInfo.excelRows">{{ debugInfo.excelRows }}</pre>
+                <p v-else>No Excel rows captured yet.</p>
+                <h3>Debug: Excel Parsed Entries (first 20)</h3>
+                <pre v-if="debugInfo.excelParsed">{{ debugInfo.excelParsed }}</pre>
+                <p v-else>No Excel parsed entries captured yet.</p>
+            </section>
+        </main>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+        <script src="js/parser_config.js"></script>
+        <script src="js/parse/payroll.js"></script>
+        <script src="js/pdf/extract.js"></script>
+        <script src="js/report/build.js"></script>
+        <script src="js/ui/app.js"></script>
+        <script src="app.js"></script>
+    </body>
 </html>
