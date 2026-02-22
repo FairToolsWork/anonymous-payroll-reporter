@@ -129,6 +129,10 @@ function formatDeduction(value) {
   return `-£${Math.abs(value).toFixed(2)}`;
 }
 
+function formatContribution(value) {
+  return `£${Math.abs(value).toFixed(2)}`;
+}
+
 function formatBreakdownCell(total, ee, er, allowNA = false) {
   if (allowNA && total === null) {
     return "N/A";
@@ -1008,7 +1012,7 @@ function renderReportCell(entry) {
     `<tr><th align=\"left\">NEST Corp - EE</th>` +
       `<td class=\"${nestEmployeeClass}\">${formatDeduction(nestEmployee)}</td></tr>`,
     `<tr><th align=\"left\">NEST Corp - ER</th>` +
-      `<td class=\"${nestEmployerClass}\">${formatDeduction(nestEmployer)}</td></tr>`
+      `<td class=\"${nestEmployerClass}\">( ${formatContribution(nestEmployer)} )</td></tr>`
   );
 
   if (miscDeductions.length) {

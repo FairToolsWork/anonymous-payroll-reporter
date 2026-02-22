@@ -582,6 +582,12 @@ function initPayrollApp() {
         };
         document.title = report.filename;
         console.info("Payroll: report ready", { filename: report.filename });
+        this.$nextTick(() => {
+          document
+            .getElementById("report-summary")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          document.getElementById("print-report-btn")?.focus();
+        });
         this.handleScroll();
       },
       async extractPayrollRecord(file, captureDebug) {
@@ -688,7 +694,7 @@ function initPayrollApp() {
           this.showScrollTop = false;
           return;
         }
-        this.showScrollTop = scrollTop / scrollableHeight >= 0.2;
+        this.showScrollTop = scrollTop / scrollableHeight >= 0.1;
       },
       scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });

@@ -166,6 +166,11 @@ button.secondary:hover {
     color: var(--card);
 }
 
+button.next-action,
+label.next-action {
+    background: var(--accent-green-dark);
+}
+
 .note{
     background: var(--note);
     padding: 1em;
@@ -822,6 +827,7 @@ button.secondary:hover {
   padding: 16px;
   background-color: var(--ink-50);
   color: var(--card);
+  overflow-x: auto;
 }
 
 .debug-panel .debug-copy {

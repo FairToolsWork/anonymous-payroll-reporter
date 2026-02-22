@@ -65,10 +65,13 @@
                         placeholder="Enter password if your PDFs require one"
                     />
                     </label>
-                    <div class="upload-btn-container">
+                    <div class="upload-btn-container ">
                     <label
                         class="upload"
-                        :class="{ disabled: status === 'processing' }"
+                        :class="{
+                          disabled: status === 'processing',
+                          'next-action': !stagedFiles.length
+                        }"
                     >
                         <input
                         type="file"
@@ -109,6 +112,7 @@
                     </label>
                     <button
                         class="primary"
+                        :class="{ 'next-action': stagedFiles.length && !reportReady }"
                         type="button"
                         :disabled="!canRunReport"
                         @click="runReport"
@@ -133,7 +137,7 @@
                     </div>
 
                     <div class="completion" v-if="reportReady">
-                    <h3>Report summary</h3>
+                    <h3 id="report-summary">Report summary</h3>
                     <ul class="stats">
                         <li><span>Generated</span><strong>{{ reportTimestamp }}</strong></li>
                         <li><span>PDF files</span><strong>{{ fileCount }}</strong></li>
@@ -165,7 +169,15 @@
                         </strong>
                         </li>
                     </ul>
-                    <button class="primary" type="button" @click="printReport">Print / Save as PDF</button>
+                    <button
+                      id="print-report-btn"
+                      class="primary"
+                      :class="{ 'next-action': reportReady }"
+                      type="button"
+                      @click="printReport"
+                    >
+                      Print / Save as PDF
+                    </button>
                     </div>
                 </div>
             </section>
