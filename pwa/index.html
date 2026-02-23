@@ -9,6 +9,14 @@
             content="noindex, nofollow, noarchive, nosnippet, noimageindex"
         />
         <meta name="theme-color" content="#2b2a27" />
+        <script>
+            ;(() => {
+                const script = document.createElement('script')
+                if (!('noModule' in script)) {
+                    document.documentElement.classList.add('no-esm')
+                }
+            })()
+        </script>
         <link rel="manifest" href="manifest.json" />
         <link rel="stylesheet" href="styles.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,6 +30,26 @@
         <title>Anonymous Payroll Report</title>
     </head>
     <body>
+        <section class="no-esm-screen" aria-live="polite">
+            <div class="no-esm-card">
+                <p class="eyebrow">Browser update required</p>
+                <h1>Unsupported browser</h1>
+                <p class="subhead">
+                    This app requires a browser that supports JavaScript
+                    modules. Please update your browser to continue.
+                </p>
+                <div class="no-esm-actions">
+                    <a
+                        class="primary"
+                        href="https://browsehappy.com/"
+                        rel="noopener"
+                        target="_blank"
+                    >
+                        Update browser
+                    </a>
+                </div>
+            </div>
+        </section>
         <main id="app" class="app-shell">
             <div class="update-banner" v-if="updateAvailable" v-cloak>
                 <p>Update available. Refresh to load the latest version.</p>
