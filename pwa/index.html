@@ -23,7 +23,7 @@
     </head>
     <body>
         <main id="app" class="app-shell">
-            <div class="update-banner" v-if="updateAvailable">
+            <div class="update-banner" v-if="updateAvailable" v-cloak>
                 <p>Update available. Refresh to load the latest version.</p>
                 <button class="primary" type="button" @click="applyUpdate">
                     Refresh
@@ -34,17 +34,15 @@
                     <p class="eyebrow">Offline Payroll Report</p>
                     <h1>Anonymous Payroll Report</h1>
                     <p class="subhead">
-                        Your data <i>always</i> remains private, and processing
-                        happens locally in your browser, meaning that your
-                        personal information is <i>never</i> uploaded or saved
-                        to any server.
-                        <br />
+                        All processing happens in the browser, so your data
+                        never leaves your computer.
                     </p>
                 </div>
             </header>
+
             <section class="controls" v-cloak>
                 <div
-                    class="upload-panel"
+                    class="control upload-panel"
                     :class="{ 'is-drop-active': dragActive }"
                     @dragenter="onDragOver"
                     @dragover="onDragOver"
@@ -121,7 +119,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="status-panel">
+                <div class="control status-panel">
                     <h2>2. Run & Review</h2>
                     <p class="instructions" v-if="status === 'idle'">
                         First stage files (step 1), then run the report here.
@@ -256,18 +254,35 @@
                     </div>
                 </div>
             </section>
-            <section class="report-output" v-if="reportHtml">
+            <section class="report-output" v-if="reportHtml" v-cloak>
                 <div class="report-root" v-html="reportHtml"></div>
             </section>
+            <div class="controls-loading" aria-live="polite" v-cloak>
+                <div class="control">
+                    <div class="loading-block">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <strong>Initializing…</strong>
+                    </div>
+                    <p>Loading the offline payroll tools.</p>
+                </div>
+                <div class="control">
+                    <div class="loading-block">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <strong>Initializing…</strong>
+                    </div>
+                    <p>Loading the offline payroll tools.</p>
+                </div>
+            </div>
             <button
                 class="scroll-top"
                 type="button"
                 v-if="reportReady && showScrollTop"
                 @click="scrollToTop"
+                v-cloak
             >
                 Back to top
             </button>
-            <section class="debug-panel" v-if="debugEnabled">
+            <section class="debug-panel" v-if="debugEnabled" v-cloak>
                 <button
                     class="secondary debug-copy"
                     type="button"
