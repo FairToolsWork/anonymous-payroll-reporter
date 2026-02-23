@@ -666,8 +666,8 @@ function parsePaymentsFromLines(lines) {
       holiday: { title: "Holiday Hours", units: null, rate: null, amount: null }
     },
     salary: {
-      basic: { title: "Basic Salary", amount: null },
-      holiday: { title: "Holiday Salary", units: 0, rate: 0, amount: 0 }
+      basic: { title: "Salary", amount: null },
+      holiday: { title: "Holiday", units: null, rate: null, amount: null }
     },
     misc: []
   };
@@ -701,17 +701,17 @@ function parsePaymentsFromLines(lines) {
     }
     if (/^Basic\s+Salary$/i.test(parsed.label)) {
       result.salary.basic = {
-        title: "Basic Salary",
+        title: "Salary",
         amount: parsed.amount
       };
       return;
     }
     if (/^Holiday\s+Salary$/i.test(parsed.label)) {
       result.salary.holiday = {
-        title: "Holiday Salary",
-        units: parsed.units ?? 0,
-        rate: parsed.rate ?? 0,
-        amount: parsed.amount ?? 0
+        title: "Holiday",
+        units: parsed.units ?? null,
+        rate: parsed.rate ?? null,
+        amount: parsed.amount ?? null
       };
       return;
     }
@@ -915,7 +915,20 @@ function extractMiscLineItems(lines, positionalLineItems) {
  * @returns {string | null}
  */
 function findEmployerLine(lines) {
-  return lines.find((line) => /\b(Ltd|Limited)\b/.test(line)) || null;
+  const employerSuffixPattern =
+    /\b(Limited|Ltd|Public\s+Limited\s+Company|PLC|Limited\s+Liability\s+Partnership|LLP|Community\s+Interest\s+Company|CIC|Cyfyngedig|Cyf|Cwmni\s+Cyfyngedig\s+Cyhoeddus|CCC|Partneriaeth\s+Atebolrwydd\s+Cyfyngedig|PAC|Cwmni\s+Buddiant\s+Cymunedol|CBC)\b/i;
+  const normalizedCandidates = lines.map((line) => {
+    const normalized = line
+      .replace(/\bL\s+imited\b/gi, "Limited")
+      .replace(/\bL\s+t\s+d\b/gi, "Ltd");
+    return { original: line, normalized };
+  });
+  const candidates = normalizedCandidates.filter(({ normalized }) => employerSuffixPattern.test(normalized));
+  const filtered = candidates.find(({ normalized }) => !/[©®]/.test(normalized) && !/\bSage\b/i.test(normalized));
+  if (filtered) {
+    return filtered.normalized;
+  }
+  return candidates.length ? candidates[0].normalized : null;
 }
 
 /**
@@ -930,13 +943,22 @@ function buildPayrollDocument({ text, lines, lineItems }) {
       ? lineItems.filter((line) => line.pageNumber === 1)
       : []
   );
+  const leftColumnLines = positionalLines.length
+    ? bucketLinesByLineLeft(positionalLines, 2)[0]
+    : [];
   const nameMatch = text.match(PATTERNS.nameDateId);
   const employeeName = nameMatch && nameMatch[1] ? nameMatch[1].trim() : null;
-  const processDate = nameMatch && nameMatch[2] ? nameMatch[2].trim() : null;
-  const natInsNumber = nameMatch && nameMatch[3] ? nameMatch[3].trim() : null;
+  const processDate = nameMatch && nameMatch[2]
+    ? nameMatch[2].trim().replace(/\s+(?=\d{1,2}$)/, "")
+    : null;
+  const natInsNumber = nameMatch && nameMatch[3]
+    ? nameMatch[3].trim().replace(/\s+/g, "")
+    : null;
   const employeeId = extractField(text, PATTERNS.employeeNo);
   const employer =
-    findEmployerLine(lineItemsText) || extractField(text, PATTERNS.employerLine);
+    findEmployerLine(leftColumnLines) ||
+    findEmployerLine(lineItemsText) ||
+    extractField(text, PATTERNS.employerLine);
 
   let address = {
     street: null,
@@ -1018,13 +1040,6 @@ function buildPayrollDocument({ text, lines, lineItems }) {
         units: parseNumericValue(holidayMatch[1]),
         rate: parseNumericValue(holidayMatch[2]),
         amount: parseNumericValue(holidayMatch[3])
-      };
-    } else {
-      payments.hourly.holiday = {
-        title: "Holiday Hours",
-        units: 0,
-        rate: 0,
-        amount: 0
       };
     }
   }

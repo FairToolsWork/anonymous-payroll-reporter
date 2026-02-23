@@ -33,7 +33,7 @@
 /** @type {ParserPatterns} */
 const PATTERNS = {
   // Employee name, pay date, and optional NI number.
-  nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})(?:\s+(\w+))?\s*$/m,
+  nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d(?:\s*\d){3})(?:\s+([A-Za-z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-Za-z]))?\s*$/m,
   // Employee number/ID.
   employeeNo: /Employee\s+No\.?\s*:?\s*(\w+)/i,
   // Employer legal line (Ltd/Limited).

@@ -1,8 +1,9 @@
 {
   "name": "payroll-pwa-tools",
+  "type": "module",
   "private": true,
   "scripts": {
-    "test:parse": "node logic_test/run_parse_test.js",
+    "test:parse": "node logic_test/run_parse_test.cjs",
     "check:js": "tsc -p tsconfig.json"
   },
   "dependencies": {
