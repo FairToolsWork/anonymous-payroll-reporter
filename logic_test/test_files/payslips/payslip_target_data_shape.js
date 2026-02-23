@@ -17,129 +17,127 @@
 */
 
 export default {
-  employee: {
-    id: null,
-    name: "Jane Doe",
-    natInsNumber: "AA000000A",
-    address: {
-      street: "Some Apartment",
-      city: "SOMETOWN",
-      administrativeArea: "SOMEWHERE",
-      postalCode: "XX0 0XX"
-    }
-  },
-  employer: "The Better Place Catering Company Limited",
-  payrollDoc: {
-    processDate: {
-      title: "Process Date",
-      date: "20 Jul 2025"
-    },
-    taxCode: {
-      title: "Tax Code",
-      code: "S1257L"
-    },
-    payMethod: {
-      title: "Pay Method",
-      method: "Bank Transfer"
-    },
-    payRun: {
-      title: "Pay Run",
-      run: "Month 4"
-    },
-    payments: {
-      hourly: {
-        basic: {
-          title: "Basic Hours",
-          units: 189.75,
-          rate: 10,
-          amount: 1897.5
+    employee: {
+        id: null,
+        name: 'Jane Doe',
+        natInsNumber: 'AA000000A',
+        address: {
+            street: 'Some Apartment',
+            city: 'SOMETOWN',
+            administrativeArea: 'SOMEWHERE',
+            postalCode: 'XX0 0XX',
         },
-        holiday: {
-          title: "Holiday Hours",
-          units: null,
-          rate: null,
-          amount: null
-        }
-      },
-      salary: {
-        basic: {
-          title: "Salary",
-          amount: null
+    },
+    employer: 'The Better Place Catering Company Limited',
+    payrollDoc: {
+        processDate: {
+            title: 'Process Date',
+            date: '20 Jul 2025',
         },
-        holiday: {
-          title: "Holiday",
-          units: null,
-          rate: null,
-          amount: null
-        }
-      },
-      misc: [
-        {
-          title: "Basic Hours-make up",
-          units: 56.5,
-          rate: 10,
-          amount: 565
+        taxCode: {
+            title: 'Tax Code',
+            code: 'S1257L',
         },
-      ]
+        payMethod: {
+            title: 'Pay Method',
+            method: 'Bank Transfer',
+        },
+        payRun: {
+            title: 'Pay Run',
+            run: 'Month 4',
+        },
+        payments: {
+            hourly: {
+                basic: {
+                    title: 'Basic Hours',
+                    units: 189.75,
+                    rate: 10,
+                    amount: 1897.5,
+                },
+                holiday: {
+                    title: 'Holiday Hours',
+                    units: null,
+                    rate: null,
+                    amount: null,
+                },
+            },
+            salary: {
+                basic: {
+                    title: 'Salary',
+                    amount: null,
+                },
+                holiday: {
+                    title: 'Holiday',
+                    units: null,
+                    rate: null,
+                    amount: null,
+                },
+            },
+            misc: [
+                {
+                    title: 'Basic Hours-make up',
+                    units: 56.5,
+                    rate: 10,
+                    amount: 565,
+                },
+            ],
+        },
+        deductions: {
+            payeTax: {
+                title: 'PAYE Tax',
+                amount: 261.6,
+            },
+            natIns: {
+                title: 'National Insurance',
+                amount: 187.42,
+            },
+            nestEE: {
+                title: 'NEST Corporation - EE',
+                amount: 97.13,
+            },
+            nestER: {
+                title: 'NEST Corporation - ER',
+                amount: 58.28,
+            },
+            misc: [
+                {
+                    title: 'Other Net Deduction',
+                    units: null,
+                    rate: null,
+                    amount: 500,
+                },
+            ],
+        },
+        thisPeriod: {
+            earningsNI: {
+                title: 'Earnings for NI',
+                amount: 2462.5,
+            },
+            grossForTax: {
+                title: 'Gross for Tax',
+                amount: 2365.37,
+            },
+            totalGrossPay: {
+                title: 'Total Gross Pay',
+                amount: 2462.5,
+            },
+            payCycle: {
+                title: 'Pay Cycle',
+                cycle: 'Monthly',
+            },
+        },
+        yearToDate: {
+            totalGrossPayTD: 8630,
+            grossForTaxTD: 8372.89,
+            taxPaidTD: 828.59,
+            earningsForNITD: 8620.15,
+            nationalInsuranceTD: 676.17,
+            employeePensionTD_AVC: 311.06,
+            employerPensionTD: 196.21,
+        },
+        netPay: {
+            title: 'Net Pay',
+            amount: 1416.35,
+        },
     },
-    deductions: {
-      payeTax: {
-        title: "PAYE Tax",
-        amount: 261.6
-      },
-      natIns: {
-        title: "National Insurance",
-        amount: 187.42
-      },
-      nestEE: {
-        title: "NEST Corporation - EE",
-        amount: 97.13
-      },
-      nestER: {
-        title: "NEST Corporation - ER",
-        amount: 58.28
-      },
-      misc: [
-        {
-          title: "Other Net Deduction",
-          units: null,
-          rate: null,
-          amount: 500
-        }
-      ]
-    },
-    thisPeriod: {
-      earningsNI: {
-        title: "Earnings for NI",
-        amount: 2462.5
-      },
-      grossForTax: {
-        title: "Gross for Tax",
-        amount: 2365.37
-      },
-      totalGrossPay: {
-        title: "Total Gross Pay",
-        amount: 2462.50
-      },
-      payCycle: {
-        title: "Pay Cycle",
-        cycle: "Monthly"
-      }
-    },
-    yearToDate: {
-      totalGrossPayTD: 8630,
-      grossForTaxTD: 8372.89,
-      taxPaidTD: 828.59,
-      earningsForNITD: 8620.15,
-      nationalInsuranceTD: 676.17,
-      employeePensionTD_AVC: 311.06,
-      employerPensionTD: 196.21
-    },
-    netPay: {
-      title: "Net Pay",
-      amount: 1416.35
-    }
-  }
-};
-
-
+}

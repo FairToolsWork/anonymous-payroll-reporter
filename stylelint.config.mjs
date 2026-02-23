@@ -1,0 +1,26 @@
+export default {
+    extends: 'stylelint-config-standard',
+    ignoreFiles: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/.git/**',
+        'demonstrator/**',
+        'logic_test/**',
+        '!**/*.css',
+        '**/*.js',
+        '**/*.mjs',
+        '**/*.ts',
+        '**/*.svg',
+        '**/*.json',
+        '**/*.txt',
+        '**/*.html',
+        '**/*.lock',
+        '**/*.yaml',
+        '**/*.md',
+    ],
+    rules: {
+        'selector-class-pattern': '^(?:--)?[a-z][a-z0-9-]*$',
+        // 'no-descending-specificity': null,
+        // 'property-no-deprecated': null,
+    },
+}

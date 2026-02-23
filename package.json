@@ -1,25 +1,45 @@
 {
-  "name": "payroll-pwa-tools",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
-    "test:excel_contribution": "node logic_test/run_excell_contribution_tests.mjs",
-    "test:report_calc": "node logic_test/run_report_calculation_tests.mjs",
-    "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution && pnpm test:report_calc",
-    "check:js": "tsc -p tsconfig.json"
-  },
-  "dependencies": {
-    "pdfjs-dist": "^3.11.174",
-    "canvas": "^3.2.1"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "xlsx": "^0.18.5"
-  },
-  "pnpm": {
-    "overrides": {
-      "canvas": "3.2.1"
+    "name": "payroll-pwa-tools",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
+        "test:excel_contribution": "node logic_test/run_excell_contribution_tests.mjs",
+        "test:report_calc": "node logic_test/run_report_calculation_tests.mjs",
+        "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution && pnpm test:report_calc",
+        "check:js": "tsc -p tsconfig.json",
+        "jslint": "eslint .",
+        "jslint:fix": "eslint . --fix",
+        "csslint": "stylelint .",
+        "csslint:fix": "stylelint . --fix",
+        "format": "prettier --write ."
+    },
+    "prettier": {
+        "trailingComma": "es5",
+        "tabWidth": 4,
+        "semi": false,
+        "singleQuote": true
+    },
+    "dependencies": {
+        "canvas": "^3.2.1",
+        "pdfjs-dist": "^3.11.174"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.24.0",
+        "@typescript-eslint/eslint-plugin": "^8.56.0",
+        "@typescript-eslint/parser": "^8.56.0",
+        "eslint": "^10.0.1",
+        "eslint-config-prettier": "^10.1.8",
+        "prettier": "^3.8.1",
+        "stylelint": "^17.3.0",
+        "stylelint-config-prettier": "^9.0.5",
+        "stylelint-config-standard": "^40.0.0",
+        "typescript": "^5.9.3",
+        "xlsx": "^0.18.5"
+    },
+    "pnpm": {
+        "overrides": {
+            "canvas": "3.2.1"
+        }
     }
-  }
 }

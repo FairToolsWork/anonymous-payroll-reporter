@@ -1,3 +1,3 @@
-import { initPayrollApp } from "./js/ui/app.js";
+import { initPayrollApp } from './js/ui/app.js'
 
-initPayrollApp();
+initPayrollApp()
