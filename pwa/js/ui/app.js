@@ -4,7 +4,7 @@
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData | null }} PayrollRecordCollection
  * @typedef {{ date: Date, type: "ee" | "er", amount: number }} ContributionEntry
  * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
- * @typedef {{ name: string, code: string }} ContributionFailure
+ * @typedef {{ name: string, code: string, employers?: string[], missingTypes?: string[] }} ContributionFailure
  * @typedef {{ fileCount: number, dateRangeLabel: string, recordCount: number }} ContributionMeta
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
@@ -218,7 +218,7 @@ function initPayrollApp() {
           this.error = "";
         }
         if (duplicates.length) {
-          this.notice = "Duplicate files detected and will be skipped automatically.";
+          this.notice = "Warning: Duplicate files detected, these will be skipped automatically.";
         } else {
           this.notice = "";
         }
@@ -284,68 +284,21 @@ function initPayrollApp() {
           try {
             const buffer = await file.arrayBuffer();
             const workbook = window.XLSX.read(buffer, { type: "array" });
-            const sheet = workbook.Sheets["Contribution Details"];
-            if (!sheet) {
-              throw new Error("CONTRIBUTION_SHEET_MISSING");
-            }
-            const rows = window.XLSX.utils.sheet_to_json(sheet, {
-              header: 1,
-              defval: null
-            });
-            const headerRow = rows[0] || [];
-            const headerCells = headerRow
-              .map((cell) => String(cell || "").trim().toLowerCase());
-            const hasExpectedHeaders =
-              headerCells.length >= 4 &&
-              headerCells[0].includes("date") &&
-              headerCells[1].includes("type") &&
-              (headerCells[3].includes("amount") ||
-                headerCells[3].includes("contribution"));
-            if (!hasExpectedHeaders) {
-              throw new Error("CONTRIBUTION_HEADER_INVALID");
-            }
+            const parsed = parseContributionWorkbook(workbook, file.name || "Unknown", window.XLSX);
+            entries.push(...parsed.entries);
             if (this.debugEnabled && !this.debugInfo.excelRows) {
               this.debugInfo.excelSource = file.name || "Unknown";
-              this.debugInfo.excelRows = JSON.stringify(rows.slice(0, 20), null, 2);
-            }
-            /** @type {ContributionEntry[]} */
-            const fileEntries = [];
-            for (let i = 1; i < rows.length; i += 1) {
-              const row = rows[i];
-              if (!row) {
-                continue;
-              }
-              const dateValue = row[0];
-              const typeValue = row[1];
-              const amountValue = row[3];
-              if (!dateValue || !typeValue || amountValue === null || amountValue === undefined) {
-                continue;
-              }
-              const date = this.parseContributionDate(dateValue);
-              const type = this.normalizeContributionType(typeValue);
-              const amount = typeof amountValue === "number"
-                ? amountValue
-                : parseFloat(String(amountValue).replace(/[^0-9.\-]/g, ""));
-              if (!date || !type || !Number.isFinite(amount)) {
-                continue;
-              }
-              entries.push({ date, type, amount });
-              fileEntries.push({ date, type, amount });
-            }
-            if (!fileEntries.length) {
-              throw new Error("CONTRIBUTION_NO_ROWS");
+              this.debugInfo.excelRows = JSON.stringify(parsed.debugRows || [], null, 2);
             }
             if (this.debugEnabled && !this.debugInfo.excelParsed) {
-              this.debugInfo.excelParsed = JSON.stringify(
-                fileEntries.slice(0, 20),
-                null,
-                2
-              );
+              this.debugInfo.excelParsed = JSON.stringify(parsed.debugEntries || [], null, 2);
             }
           } catch (err) {
             failures.push({
               name: file.name || "Unknown",
-              code: err?.message || "UNKNOWN"
+              code: err?.message || "UNKNOWN",
+              employers: err?.employers || [],
+              missingTypes: err?.missingTypes || []
             });
           }
         }
@@ -618,7 +571,11 @@ function initPayrollApp() {
                     ? "headers do not match expected format"
                     : failure.code === "CONTRIBUTION_NO_ROWS"
                       ? "no valid contribution rows"
-                      : "unreadable or corrupted";
+                      : failure.code === "CONTRIBUTION_EMPLOYER_MIXED"
+                        ? `multiple employers detected (${(failure.employers || []).join(", ") || "unknown"}). Generate one report per employer.`
+                        : failure.code === "CONTRIBUTION_MISSING_EE_ER"
+                          ? `missing ${failure.missingTypes?.length ? failure.missingTypes.join(" and ") : "employee/employer"} contributions. Regenerate the report with both Employee and Employer contributions.`
+                          : "unreadable or corrupted";
               return `${failure.name}: ${reason}`;
             });
             this.error = failureDetails.length

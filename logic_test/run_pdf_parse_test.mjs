@@ -1,15 +1,20 @@
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
-const { createCanvas } = require("canvas");
-const { pathToFileURL } = require("url");
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+import { createCanvas } from "canvas";
+import fs from "fs";
+import { createRequire } from "module";
+import path from "path";
+import pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
+import { fileURLToPath, pathToFileURL } from "url";
+import vm from "vm";
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/legacy/build/pdf.worker.js");
 
 const PDF_PATH = path.resolve(
   __dirname,
-  "test-payslip-no-pw.pdf"
+  "./test_files/payslips/test-payslip-no-pw.pdf"
 );
 
 function loadParserFunctions() {
@@ -103,33 +108,6 @@ function diffValues(expected, actual, pathLabel = "", extraKeys = []) {
   return { diffs, extraKeys };
 }
 
-function getDebugLines(text, lines) {
-  const sourceLines = Array.isArray(lines) && lines.length
-    ? lines
-    : String(text || "").split(/\r?\n/);
-  const keywordMatchers = [
-    /employee/i,
-    /national\s+insurance/i,
-    /process\s+date/i,
-    /tax\s+code/i,
-    /pay\s+run/i,
-    /pay\s+method/i
-  ];
-  const employerMatchers = [
-    /\bLtd\b/i,
-    /\bLimited\b/i,
-    /\bCompany\b/i,
-    /\bCorporation\b/i
-  ];
-  const matchedLines = sourceLines.filter((line) =>
-    keywordMatchers.some((matcher) => matcher.test(line))
-  );
-  const employerCandidates = sourceLines.filter((line) =>
-    employerMatchers.some((matcher) => matcher.test(line))
-  );
-  return { matchedLines, employerCandidates };
-}
-
 async function run() {
   const parserContext = loadParserFunctions();
   if (typeof parserContext.buildPayrollDocument !== "function") {
@@ -150,25 +128,18 @@ async function run() {
     delete actual.imageData;
   }
   const expectedModule = await import(pathToFileURL(
-    path.resolve(__dirname, "./data_shape.js")
+    path.resolve(__dirname, "./test_files/payslips/payslip_target_data_shape.js")
   ));
   const expected = expectedModule.default;
 
   const { diffs, extraKeys } = diffValues(expected, actual, "result", []);
   if (diffs.length) {
-    const { matchedLines, employerCandidates } = getDebugLines(text, lines);
     console.error("\nParse test failed:");
     diffs.forEach((diff) => console.error(`- ${diff}`));
     if (extraKeys.length) {
       console.error("\nExtra keys found (not used for failure):");
       extraKeys.forEach((key) => console.error(`- ${key}`));
     }
-    console.error("\nDebug lines (keyword matches):");
-    matchedLines.forEach((line) => console.error(`- ${line}`));
-    console.error("\nDebug lines (employer candidates):");
-    employerCandidates.forEach((line) => console.error(`- ${line}`));
-    console.error("\nRaw extracted text:");
-    console.error(text);
     console.error("\nActual output:");
     console.error(JSON.stringify(actual, null, 2));
     process.exitCode = 1;

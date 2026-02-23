@@ -707,6 +707,8 @@ label.next-action {
 
 .summary-table thead th {
   text-align: left;
+  overflow: hidden;
+  line-break: anywhere;
 }
 
 .ta-left {
@@ -876,4 +878,10 @@ label.next-action {
   .debug-panel {
     display: none;
   }
+}
+
+@media only screen and (max-width: 725px ) {
+    table{
+        overflow-x: auto;
+    }
 }

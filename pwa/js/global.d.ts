@@ -78,6 +78,16 @@ declare function buildPayrollDocument(args: {
   }>;
 }): any;
 
+declare function parseContributionWorkbook(
+  workbook: any,
+  sourceName: string,
+  xlsx: any
+): {
+  entries: Array<{ date: Date; type: "ee" | "er"; amount: number }>;
+  debugRows?: unknown[];
+  debugEntries?: Array<{ date: Date; type: "ee" | "er"; amount: number }>;
+};
+
 interface Window {
   XLSX?: any;
   pdfjsLib?: typeof pdfjsLib;

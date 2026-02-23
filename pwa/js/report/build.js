@@ -869,7 +869,7 @@ function buildReport(records, failedPayPeriods = []) {
       "<table class=\"summary-table\"><thead><tr>" +
         "<th>Year</th><th>Hours</th>" +
         "<th>Payroll Contribution</th><th>Reported Contribution</th>" +
-        "<th>Over/Under</th><th>Flags</th>" +
+        "<th>Over / Under</th><th>Flags</th>" +
         "</tr></thead>" +
         `<tbody>${yearSummaryRows}</tbody>` +
         "</table>"
@@ -1383,7 +1383,7 @@ function renderYearSummary(entriesForYear) {
       "<thead><tr>" +
       "<th>Month</th><th>Hours</th><th>Holiday Used (Units)</th>" +
       "<th>Payroll Contribution</th><th>Reported Contribution</th>" +
-      "<th>Over/Under</th><th>Flags</th>" +
+      "<th>Over / Under</th><th>Flags</th>" +
       "</tr></thead>" +
       `<tbody>${bodyRows.join("")}</tbody>` +
       "<tfoot>" +

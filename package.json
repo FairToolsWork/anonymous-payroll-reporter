@@ -3,7 +3,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test:parse": "node logic_test/run_parse_test.cjs",
+    "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
+    "test:excell_contribution": "node logic_test/run_excell_contribution_tests.mjs",
+    "test:all": "pnpm test:pdf_parse && pnpm test:excell_contribution",
     "check:js": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -11,7 +13,8 @@
     "canvas": "^3.2.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "xlsx": "^0.18.5"
   },
   "pnpm": {
     "overrides": {
