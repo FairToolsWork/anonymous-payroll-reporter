@@ -5,7 +5,8 @@
   "scripts": {
     "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
     "test:excel_contribution": "node logic_test/run_excell_contribution_tests.mjs",
-    "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution",
+    "test:report_calc": "node logic_test/run_report_calculation_tests.mjs",
+    "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution && pnpm test:report_calc",
     "check:js": "tsc -p tsconfig.json"
   },
   "dependencies": {
