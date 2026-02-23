@@ -159,7 +159,3 @@ export { parseContributionWorkbook };
 if (typeof window !== "undefined") {
   window.parseContributionWorkbook = parseContributionWorkbook;
 }
-
-if (typeof module !== "undefined") {
-  module.exports = { parseContributionWorkbook };
-}

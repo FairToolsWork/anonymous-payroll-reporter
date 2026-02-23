@@ -24,6 +24,7 @@ function loadParserFunctions() {
   );
   const parserPath = path.resolve(__dirname, "../pwa/js/parse/payroll.js");
   const extractPath = path.resolve(__dirname, "../pwa/js/pdf/extract.js");
+  const validationPath = path.resolve(__dirname, "../pwa/js/parse/pdf_validation.js");
   const pdfjsLibForTests = {
     ...pdfjsLib,
     getDocument: (args) => pdfjsLib.getDocument({ ...args, disableWorker: true })
@@ -55,6 +56,12 @@ function loadParserFunctions() {
   });
   vm.runInContext(fs.readFileSync(parserPath, "utf8"), context, {
     filename: parserPath
+  });
+  const validationSource = fs
+    .readFileSync(validationPath, "utf8")
+    .replace(/export\s+\{\s*parsePayrollPdf\s*\};?\s*/g, "");
+  vm.runInContext(validationSource, context, {
+    filename: validationPath
   });
   return context;
 }
@@ -110,11 +117,8 @@ function diffValues(expected, actual, pathLabel = "", extraKeys = []) {
 
 async function run() {
   const parserContext = loadParserFunctions();
-  if (typeof parserContext.buildPayrollDocument !== "function") {
-    throw new Error("buildPayrollDocument is not defined in payroll.js");
-  }
-  if (typeof parserContext.extractPdfData !== "function") {
-    throw new Error("extractPdfData is not defined in extract.js");
+  if (typeof parserContext.parsePayrollPdf !== "function") {
+    throw new Error("parsePayrollPdf is not defined in pdf_validation.js");
   }
 
   const buffer = fs.readFileSync(PDF_PATH);
@@ -122,11 +126,11 @@ async function run() {
     arrayBuffer: async () =>
       buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
   };
-  const { text, lines, lineItems } = await parserContext.extractPdfData(file, "");
-  const actual = parserContext.buildPayrollDocument({ text, lines, lineItems });
+  const { record: actual, debug } = await parserContext.parsePayrollPdf(file, "");
   if (actual && typeof actual === "object" && "imageData" in actual) {
     delete actual.imageData;
   }
+  const { text, lines } = debug;
   const expectedModule = await import(pathToFileURL(
     path.resolve(__dirname, "./test_files/payslips/payslip_target_data_shape.js")
   ));

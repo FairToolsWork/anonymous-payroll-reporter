@@ -1,4 +1,6 @@
-
+/**
+ * This is a reference object for a Nest pension contribution target summary.
+ */
 
 export default {
   totalEntries: 8,

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
-    "test:excell_contribution": "node logic_test/run_excell_contribution_tests.mjs",
-    "test:all": "pnpm test:pdf_parse && pnpm test:excell_contribution",
+    "test:excel_contribution": "node logic_test/run_excell_contribution_tests.mjs",
+    "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution",
     "check:js": "tsc -p tsconfig.json"
   },
   "dependencies": {

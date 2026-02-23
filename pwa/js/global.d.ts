@@ -88,6 +88,23 @@ declare function parseContributionWorkbook(
   debugEntries?: Array<{ date: Date; type: "ee" | "er"; amount: number }>;
 };
 
+declare function parsePayrollPdf(
+  file: File,
+  password: string
+): Promise<{
+  record: any;
+  debug: {
+    text: string;
+    lines: string[];
+    lineItems: Array<{
+      pageNumber: number;
+      y: number;
+      items: Array<{ x: number; text: string }>;
+    }>;
+    imageData: string | null;
+  };
+}>;
+
 interface Window {
   XLSX?: any;
   pdfjsLib?: typeof pdfjsLib;

@@ -629,19 +629,14 @@ function initPayrollApp() {
        * @returns {Promise<PayrollRecordWithImage | null>}
        */
       async extractPayrollRecord(file, captureDebug) {
-        const { text, imageData, lines, lineItems } = await extractPdfData(
+        const { record: payrollRecord, debug } = await parsePayrollPdf(
           file,
           this.pdfPassword
         );
         if (this.debugEnabled && captureDebug && !this.debugText) {
-          this.debugText = text;
+          this.debugText = debug.text;
         }
-        const payrollRecord = buildPayrollDocument({
-          text,
-          lines: lines || [],
-          lineItems: lineItems || []
-        });
-        payrollRecord.imageData = imageData;
+        payrollRecord.imageData = debug.imageData;
 
         const employeeName = payrollRecord.employee?.name || null;
         const employer = payrollRecord.employer || null;
@@ -658,24 +653,24 @@ function initPayrollApp() {
           this.debugInfo.parsed = JSON.stringify(debugRecord, null, 2);
           this.debugInfo.matches = JSON.stringify(
             {
-              nameDateId: text.match(PATTERNS.nameDateId)?.[0] || null,
-              employerLine: text.match(PATTERNS.employerLine)?.[0] || null,
-              payeTax: text.match(PATTERNS.payeTax)?.[0] || null,
-              nationalInsurance: text.match(PATTERNS.nationalInsurance)?.[0] || null,
-              nestEmployee: text.match(PATTERNS.nestEmployee)?.[0] || null,
-              nestEmployer: text.match(PATTERNS.nestEmployer)?.[0] || null,
-              earningsForNI: text.match(PATTERNS.earningsForNI)?.[0] || null,
-              grossForTax: text.match(PATTERNS.grossForTax)?.[0] || null,
-              totalGrossPay: text.match(PATTERNS.totalGrossPay)?.[0] || null,
-              payCycle: text.match(PATTERNS.payCycle)?.[0] || null,
-              totalGrossPayTD: text.match(PATTERNS.totalGrossPayTD)?.[0] || null,
-              grossForTaxTD: text.match(PATTERNS.grossForTaxTD)?.[0] || null,
-              taxPaidTD: text.match(PATTERNS.taxPaidTD)?.[0] || null,
-              earningsForNITD: text.match(PATTERNS.earningsForNITD)?.[0] || null,
-              nationalInsuranceTD: text.match(PATTERNS.nationalInsuranceTD)?.[0] || null,
-              employeePensionTD: text.match(PATTERNS.employeePensionTD)?.[0] || null,
-              employerPensionTD: text.match(PATTERNS.employerPensionTD)?.[0] || null,
-              netPay: text.match(PATTERNS.netPay)?.[0] || null
+              nameDateId: debug.text.match(PATTERNS.nameDateId)?.[0] || null,
+              employerLine: debug.text.match(PATTERNS.employerLine)?.[0] || null,
+              payeTax: debug.text.match(PATTERNS.payeTax)?.[0] || null,
+              nationalInsurance: debug.text.match(PATTERNS.nationalInsurance)?.[0] || null,
+              nestEmployee: debug.text.match(PATTERNS.nestEmployee)?.[0] || null,
+              nestEmployer: debug.text.match(PATTERNS.nestEmployer)?.[0] || null,
+              earningsForNI: debug.text.match(PATTERNS.earningsForNI)?.[0] || null,
+              grossForTax: debug.text.match(PATTERNS.grossForTax)?.[0] || null,
+              totalGrossPay: debug.text.match(PATTERNS.totalGrossPay)?.[0] || null,
+              payCycle: debug.text.match(PATTERNS.payCycle)?.[0] || null,
+              totalGrossPayTD: debug.text.match(PATTERNS.totalGrossPayTD)?.[0] || null,
+              grossForTaxTD: debug.text.match(PATTERNS.grossForTaxTD)?.[0] || null,
+              taxPaidTD: debug.text.match(PATTERNS.taxPaidTD)?.[0] || null,
+              earningsForNITD: debug.text.match(PATTERNS.earningsForNITD)?.[0] || null,
+              nationalInsuranceTD: debug.text.match(PATTERNS.nationalInsuranceTD)?.[0] || null,
+              employeePensionTD: debug.text.match(PATTERNS.employeePensionTD)?.[0] || null,
+              employerPensionTD: debug.text.match(PATTERNS.employerPensionTD)?.[0] || null,
+              netPay: debug.text.match(PATTERNS.netPay)?.[0] || null
             },
             null,
             2
