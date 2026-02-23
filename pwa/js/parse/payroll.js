@@ -7,6 +7,8 @@
  * @typedef {import("./payroll.types").PayrollAddress} PayrollAddress
  */
 
+import { PATTERNS } from "./parser_config.js";
+
 /**
  * @typedef {{ x: number, text: string }} LineItemText
  * @typedef {{ y: number, items: LineItemText[] }} LineItemRow
@@ -935,7 +937,7 @@ function findEmployerLine(lines) {
  * @param {{ text: string, lines: string[], lineItems: PageLineItemRow[] }} args
  * @returns {PayrollRecord}
  */
-function buildPayrollDocument({ text, lines, lineItems }) {
+export function buildPayrollDocument({ text, lines, lineItems }) {
   const lineItemsText = lines || [];
   /** @type {PageLineItemRow[]} */
   const positionalLines = /** @type {PageLineItemRow[]} */ (

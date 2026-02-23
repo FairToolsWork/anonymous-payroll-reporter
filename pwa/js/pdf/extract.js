@@ -6,7 +6,9 @@
  */
 
 /** @type {typeof window.pdfjsLib} */
-const pdfjsLib = window.pdfjsLib;
+const pdfjsLib = typeof window !== "undefined"
+  ? window.pdfjsLib
+  : globalThis.window?.pdfjsLib;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -16,7 +18,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
  * @param {string} password
  * @returns {Promise<ExtractedPdfData>}
  */
-async function extractPdfData(file, password) {
+export async function extractPdfData(file, password) {
   const data = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data, password: password || undefined });
   let pdf;

@@ -31,7 +31,7 @@
  */
 
 /** @type {ParserPatterns} */
-const PATTERNS = {
+export const PATTERNS = {
   // Employee name, pay date, and optional NI number.
   nameDateId: /^([A-Za-z]+(?:\s+[A-Za-z]+)+)\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d(?:\s*\d){3})(?:\s+([A-Za-z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-Za-z]))?\s*$/m,
   // Employee number/ID.
@@ -92,7 +92,7 @@ const PATTERNS = {
  * @param {number} monthIndex
  * @returns {string}
  */
-function formatMonthLabel(monthIndex) {
+export function formatMonthLabel(monthIndex) {
   return new Date(2024, monthIndex - 1, 1).toLocaleDateString("en-GB", {
     month: "long"
   });
@@ -102,7 +102,7 @@ function formatMonthLabel(monthIndex) {
  * @param {MonthEntry[]} entries
  * @returns {string[]}
  */
-function getMissingMonths(entries) {
+export function getMissingMonths(entries) {
   const monthIndexes = entries
     .map((entry) => entry.monthIndex)
     .filter((month) => month >= 1 && month <= 12);
@@ -125,7 +125,7 @@ function getMissingMonths(entries) {
  * @param {MissingMonthsByYear} missingByYear
  * @returns {string}
  */
-function buildMissingMonthsLabel(missingByYear) {
+export function buildMissingMonthsLabel(missingByYear) {
   const entries = Object.entries(missingByYear).filter(([, months]) => months.length);
   if (!entries.length) {
     return "None";
@@ -139,7 +139,7 @@ function buildMissingMonthsLabel(missingByYear) {
  * @param {MissingMonthsByYear} missingByYear
  * @returns {string}
  */
-function buildMissingMonthsHtml(missingByYear) {
+export function buildMissingMonthsHtml(missingByYear) {
   const entries = Object.entries(missingByYear).filter(([, months]) => months.length);
   if (!entries.length) {
     return "<span class=\"missing-none\">None</span>";
@@ -158,7 +158,7 @@ function buildMissingMonthsHtml(missingByYear) {
  * @param {string[]} months
  * @returns {string}
  */
-function buildMissingMonthsHtmlForYear(months) {
+export function buildMissingMonthsHtmlForYear(months) {
   if (!months.length) {
     return "<span class=\"missing-none\">None</span>";
   }

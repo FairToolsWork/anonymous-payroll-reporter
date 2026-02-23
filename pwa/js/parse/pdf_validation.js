@@ -1,9 +1,12 @@
+import { extractPdfData } from "../pdf/extract.js";
+import { buildPayrollDocument } from "./payroll.js";
+
 /**
  * @param {File} file
  * @param {string} password
  * @returns {Promise<{ record: any, debug: { text: string, lines: string[], lineItems: Array<any>, imageData: string | null } }>}
  */
-async function parsePayrollPdf(file, password) {
+export async function parsePayrollPdf(file, password) {
   if (!file) {
     throw new Error("PDF_FILE_MISSING");
   }
@@ -23,8 +26,6 @@ async function parsePayrollPdf(file, password) {
     }
   };
 }
-
-export { parsePayrollPdf };
 
 if (typeof window !== "undefined") {
   window.parsePayrollPdf = parsePayrollPdf;

@@ -6,6 +6,12 @@
  * @typedef {import("../parse/payroll.types").PayrollPayments} PayrollPayments
  */
 
+import {
+    buildMissingMonthsHtml,
+    buildMissingMonthsLabel,
+    formatMonthLabel
+} from "../parse/parser_config.js";
+
 /**
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
  * @typedef {{ id: string, label: string }} ValidationFlag
@@ -511,7 +517,7 @@ function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
  * @param {string[]} [failedPayPeriods=[]]
  * @returns {{ html: string, filename: string, stats: ReportStats }}
  */
-function buildReport(records, failedPayPeriods = []) {
+export function buildReport(records, failedPayPeriods = []) {
   const reportRunDate = new Date();
   /** @type {ReportEntry[]} */
   const entries = records.map((record) => {

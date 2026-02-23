@@ -75,12 +75,20 @@ function parseContributionWorkbook(workbook, sourceName, xlsx) {
   const dateIndex = headerCells.findIndex((cell) => cell.includes("date"));
   const typeIndex = headerCells.findIndex((cell) => cell.includes("type"));
   const amountIndex = headerCells.findIndex((cell) =>
-    cell.includes("amount") || cell.includes("contribution")
+    cell.includes("amount") &&
+    !cell.includes("charge") &&
+    !cell.includes("relief") &&
+    !cell.includes("invested")
   );
+  const resolvedAmountIndex = amountIndex >= 0
+    ? amountIndex
+    : headerCells.findIndex((cell) =>
+      cell.includes("contribution") && !cell.includes("date")
+    );
   const employerIndex = headerCells.findIndex((cell) =>
     cell.includes("employer") || cell.includes("company")
   );
-  const hasExpectedHeaders = dateIndex >= 0 && typeIndex >= 0 && amountIndex >= 0;
+  const hasExpectedHeaders = dateIndex >= 0 && typeIndex >= 0 && resolvedAmountIndex >= 0;
   if (!hasExpectedHeaders || employerIndex < 0) {
     throw new Error("CONTRIBUTION_HEADER_INVALID");
   }
@@ -99,7 +107,7 @@ function parseContributionWorkbook(workbook, sourceName, xlsx) {
     }
     const dateValue = row[dateIndex];
     const typeValue = row[typeIndex];
-    const amountValue = row[amountIndex];
+    const amountValue = row[resolvedAmountIndex];
     const employerValue = row[employerIndex];
     if (!dateValue || !typeValue || amountValue === null || amountValue === undefined) {
       continue;

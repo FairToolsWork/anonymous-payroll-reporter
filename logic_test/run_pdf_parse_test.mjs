@@ -4,7 +4,6 @@ import { createRequire } from "module";
 import path from "path";
 import pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { fileURLToPath, pathToFileURL } from "url";
-import vm from "vm";
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -17,20 +16,17 @@ const PDF_PATH = path.resolve(
   "./test_files/payslips/test-payslip-no-pw.pdf"
 );
 
-function loadParserFunctions() {
-  const parserConfigPath = path.resolve(
-    __dirname,
-    "../pwa/js/parse/parser_config.js"
-  );
-  const parserPath = path.resolve(__dirname, "../pwa/js/parse/payroll.js");
-  const extractPath = path.resolve(__dirname, "../pwa/js/pdf/extract.js");
-  const validationPath = path.resolve(__dirname, "../pwa/js/parse/pdf_validation.js");
+function buildBrowserShims() {
   const pdfjsLibForTests = {
     ...pdfjsLib,
     getDocument: (args) => pdfjsLib.getDocument({ ...args, disableWorker: true })
   };
-  const window = { pdfjsLib: pdfjsLibForTests };
-  const document = {
+  globalThis.window = {
+    pdfjsLib: pdfjsLibForTests,
+    requestAnimationFrame: (callback) => setTimeout(callback, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id)
+  };
+  globalThis.document = {
     createElement: (tag) => {
       if (tag !== "canvas") {
         throw new Error(`Unsupported element: ${tag}`);
@@ -38,32 +34,6 @@ function loadParserFunctions() {
       return createCanvas(1, 1);
     }
   };
-  const context = {
-    console,
-    require,
-    module: {},
-    exports: {},
-    process,
-    window,
-    document
-  };
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(parserConfigPath, "utf8"), context, {
-    filename: parserConfigPath
-  });
-  vm.runInContext(fs.readFileSync(extractPath, "utf8"), context, {
-    filename: extractPath
-  });
-  vm.runInContext(fs.readFileSync(parserPath, "utf8"), context, {
-    filename: parserPath
-  });
-  const validationSource = fs
-    .readFileSync(validationPath, "utf8")
-    .replace(/export\s+\{\s*parsePayrollPdf\s*\};?\s*/g, "");
-  vm.runInContext(validationSource, context, {
-    filename: validationPath
-  });
-  return context;
 }
 
 function formatDiffValue(value) {
@@ -116,9 +86,12 @@ function diffValues(expected, actual, pathLabel = "", extraKeys = []) {
 }
 
 async function run() {
-  const parserContext = loadParserFunctions();
-  if (typeof parserContext.parsePayrollPdf !== "function") {
-    throw new Error("parsePayrollPdf is not defined in pdf_validation.js");
+  buildBrowserShims();
+  const { parsePayrollPdf } = await import(
+    pathToFileURL(path.resolve(__dirname, "../pwa/js/parse/pdf_validation.js"))
+  );
+  if (typeof parsePayrollPdf !== "function") {
+    throw new Error("parsePayrollPdf is not available");
   }
 
   const buffer = fs.readFileSync(PDF_PATH);
@@ -126,7 +99,7 @@ async function run() {
     arrayBuffer: async () =>
       buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
   };
-  const { record: actual, debug } = await parserContext.parsePayrollPdf(file, "");
+  const { record: actual, debug } = await parsePayrollPdf(file, "");
   if (actual && typeof actual === "object" && "imageData" in actual) {
     delete actual.imageData;
   }

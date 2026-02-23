@@ -41,6 +41,11 @@
  * @property {boolean} parsingExcel
  */
 
+import { parseContributionWorkbook } from "../parse/contribution_validation.js";
+import { PATTERNS } from "../parse/parser_config.js";
+import { parsePayrollPdf } from "../parse/pdf_validation.js";
+import { buildReport } from "../report/build.js";
+
 /** @type {string | null} */
 const DEBUG_LEVEL = new URLSearchParams(window.location.search).get("debug");
 /** @type {boolean} */
@@ -49,7 +54,7 @@ const DEBUG_ENABLED = DEBUG_LEVEL === "1" || DEBUG_LEVEL === "2";
 const DEBUG_PERSIST_PASSWORD = DEBUG_LEVEL === "2";
 
 /** @returns {void} */
-function initPayrollApp() {
+export function initPayrollApp() {
   const app = Vue.createApp({
     /** @returns {PayrollAppState} */
     data() {

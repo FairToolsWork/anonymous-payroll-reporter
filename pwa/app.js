@@ -1,5 +1,3 @@
-if (typeof initPayrollApp === "function") {
-  initPayrollApp();
-} else {
-  console.error("Payroll: initPayrollApp is not available.");
-}
+import { initPayrollApp } from "./js/ui/app.js";
+
+initPayrollApp();
