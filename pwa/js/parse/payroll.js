@@ -139,11 +139,10 @@ function findHeaderSplitX(lineItems) {
         return null
     }
 
-    return (
-        /** @type {number} */ (
-            paymentsX + /** @type {number} */ (deductionsX)
-        ) / 2
-    )
+    const paymentsXValue = /** @type {number} */ (paymentsX)
+    const deductionsXValue = /** @type {number} */ (deductionsX)
+
+    return (paymentsXValue + deductionsXValue) / 2
 }
 
 /**

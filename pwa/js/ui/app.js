@@ -52,6 +52,14 @@ const DEBUG_LEVEL = new URLSearchParams(window.location.search).get('debug')
 const DEBUG_ENABLED = DEBUG_LEVEL === '1' || DEBUG_LEVEL === '2'
 /** @type {boolean} */
 const DEBUG_PERSIST_PASSWORD = DEBUG_LEVEL === '2'
+/** @type {string} */
+const PDF_PASSWORD_KEY = 'pdf_password'
+/** @type {string} */
+const DISCLAIMER_ACCEPTED_KEY = 'disclaimer_accepted'
+/** @type {string} */
+const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
+/** @type {number} */
+const SESSION_TTL_MS = 30 * 60 * 1000
 
 /** @returns {void} */
 export function initPayrollApp() {
@@ -133,14 +141,33 @@ export function initPayrollApp() {
         watch: {
             /** @param {string} value */
             pdfPassword(value) {
-                if (!DEBUG_PERSIST_PASSWORD) {
-                    return
-                }
                 if (value) {
-                    sessionStorage.setItem('pdf_password_debug', value)
+                    sessionStorage.setItem(PDF_PASSWORD_KEY, value)
+                    sessionStorage.setItem(
+                        SESSION_PERSISTED_AT_KEY,
+                        String(Date.now())
+                    )
                     return
                 }
-                sessionStorage.removeItem('pdf_password_debug')
+                sessionStorage.removeItem(PDF_PASSWORD_KEY)
+                if (!this.acceptedDisclaimer) {
+                    sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
+                }
+            },
+            /** @param {boolean} value */
+            acceptedDisclaimer(value) {
+                if (value) {
+                    sessionStorage.setItem(DISCLAIMER_ACCEPTED_KEY, 'true')
+                    sessionStorage.setItem(
+                        SESSION_PERSISTED_AT_KEY,
+                        String(Date.now())
+                    )
+                    return
+                }
+                sessionStorage.removeItem(DISCLAIMER_ACCEPTED_KEY)
+                if (!this.pdfPassword) {
+                    sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
+                }
             },
         },
         methods: {
@@ -899,11 +926,17 @@ export function initPayrollApp() {
                     'Payroll: normalized reportStats.validationSummary.flaggedPeriods'
                 )
             }
-            if (DEBUG_PERSIST_PASSWORD) {
-                this.acceptedDisclaimer = true
-                this.pdfPassword =
-                    sessionStorage.getItem('pdf_password_debug') || ''
+            const persistedAt = Number(
+                sessionStorage.getItem(SESSION_PERSISTED_AT_KEY) || 0
+            )
+            if (persistedAt && Date.now() - persistedAt > SESSION_TTL_MS) {
+                sessionStorage.removeItem(PDF_PASSWORD_KEY)
+                sessionStorage.removeItem(DISCLAIMER_ACCEPTED_KEY)
+                sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
             }
+            this.pdfPassword = sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
+            this.acceptedDisclaimer =
+                sessionStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === 'true'
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker
                     .register('sw.js')
