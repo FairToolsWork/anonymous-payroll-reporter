@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Document -->
+  <path d="M10 4 L44 4 L54 14 L54 60 L10 60 Z" fill="white" stroke="black" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Folded corner -->
+  <path d="M44 4 L44 14 L54 14" fill="none" stroke="black" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Currency symbol -->
+  <text x="32" y="34" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="bold" fill="black">£</text>
+  <!-- Lines -->
+  <line x1="16" y1="42" x2="48" y2="42" stroke="black" stroke-width="1.5"/>
+  <line x1="16" y1="48" x2="38" y2="48" stroke="black" stroke-width="1.5"/>
+  <line x1="16" y1="54" x2="44" y2="54" stroke="black" stroke-width="1.5"/>
+</svg>

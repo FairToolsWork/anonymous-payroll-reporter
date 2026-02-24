@@ -3,6 +3,7 @@ export default {
     ignoreFiles: [
         '**/node_modules/**',
         '**/dist/**',
+        '**/imgs/**',
         '**/.git/**',
         'demonstrator/**',
         'logic_test/**',

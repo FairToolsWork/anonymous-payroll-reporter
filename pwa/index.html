@@ -59,7 +59,7 @@
             </div>
             <header class="app-header">
                 <div>
-                    <p class="eyebrow">Offline Payroll Report</p>
+                    <p class="eyebrow">Offline & Anonymous</p>
                     <h1>Anonymous Payroll Report</h1>
                     <p class="subhead">
                         All processing happens in the browser, so your data
@@ -68,9 +68,166 @@
                 </div>
             </header>
 
+            <section class="prep">
+                <h2 class="prep-title">1. Prep</h2>
+                <div class="prep-grid">
+                    <div class="card">
+                        <header>
+                            <img
+                                src="imgs/payslip-icon.svg"
+                                alt="Payslip icon"
+                            />
+                            <h3>A) Download payslips</h3>
+                        </header>
+                        <details>
+                            <summary>What to download</summary>
+                            <ul>
+                                <li>
+                                    From your email, download all payslips for
+                                    the dates you want to review.
+                                </li>
+                            </ul>
+                            <div class="notice">
+                                <i
+                                    ><b>Note:</b> Ask your manager if you need a
+                                    password to open them.</i
+                                >
+                            </div>
+                        </details>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <img src="imgs/nest.png" alt="Nest icon" />
+                            <h3>B) NEST contributions</h3>
+                        </header>
+                        <details>
+                            <summary>Logging into NEST</summary>
+                            <ul>
+                                <li>
+                                    If you've never logged into NEST, first
+                                    create your account here:
+                                    <a
+                                        target="_blank"
+                                        href="https://www.nestpensions.org.uk/user/registration/enrolled/personal-details/nest-id/"
+                                        >Sign up for NEST</a
+                                    >
+                                    <br />
+                                </li>
+                            </ul>
+                            <div class="notice">
+                                <b>Note:</b> Your NEST member number can be
+                                found on any letter they've sent - it looks like
+                                this:<br />
+                                <span class="code"
+                                    ><span class="code-prefix">MEM</span
+                                    >048559238</span
+                                >
+                            </div>
+                        </details>
+                        <details>
+                            <summary>What to download</summary>
+                            <p>
+                                Download a contributions Excel file for each
+                                year of employment.
+                            </p>
+                            <ul>
+                                <li>
+                                    Visit:
+                                    <a
+                                        href="https://member.nestpensions.org.uk/app/contributions/contribution-history"
+                                        target="_blank"
+                                        >your contributions</a
+                                    >
+                                </li>
+                                <li>
+                                    <h4>Tax Year</h4>
+                                    One at a time, select each financial year
+                                    you have been employed with the company.
+                                    <img
+                                        src="imgs/nest-1.png"
+                                        alt="Nest tax year"
+                                        width="482"
+                                        height="140"
+                                    />
+                                    <p class="notice">
+                                        You will need to "apply filters" and
+                                        "download results" for each financial
+                                        year.
+                                    </p>
+                                </li>
+                                <li>
+                                    <h4>Employer</h4>
+                                    Select your employer (current company
+                                    owner).
+                                    <img
+                                        src="imgs/nest-2.png"
+                                        alt="Nest employer"
+                                        width="676"
+                                        height="272"
+                                    />
+                                </li>
+                                <li>
+                                    <h4>Contribution types</h4>
+                                    <p class="notice">
+                                        Important: chose both "From your salary"
+                                        <b>and</b>
+                                        "From your employer".
+                                    </p>
+                                    <img
+                                        src="imgs/nest-3.png"
+                                        alt="Nest contributions"
+                                        width="684"
+                                        height="360"
+                                    />
+                                </li>
+                                <li>
+                                    Click "Apply filters" and then "Download
+                                    Results" button.
+                                    <img
+                                        src="imgs/nest-4.png"
+                                        alt="Nest download"
+                                        width="686"
+                                        height="650"
+                                    />
+                                    <img
+                                        src="imgs/nest-5.png"
+                                        alt="Nest download"
+                                        width="686"
+                                        height="650"
+                                    />
+                                    <p class="notice">
+                                        You will need to "apply filters" and
+                                        "download results" for each financial
+                                        year.
+                                    </p>
+                                </li>
+                            </ul>
+                        </details>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <img src="imgs/unite.svg" alt="Unite icon" />
+                            <h3>C) Join Unite</h3>
+                        </header>
+                        <p>
+                            If you're not already a member, why not
+                            <a href="https://join.unitetheunion.org/"
+                                >join Unite</a
+                            >?
+                        </p>
+                        <p class="notice">
+                            <b>Notice:</b> Unite can advise but
+                            <i>generally</i> cannot provide legal services for
+                            employment issues that arise less then four weeks
+                            from the date of the joining.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             <section class="controls" v-cloak>
                 <div
-                    class="control upload-panel"
+                    class="card upload-panel"
                     :class="{ 'is-drop-active': dragActive }"
                     @dragenter="onDragOver"
                     @dragover="onDragOver"
@@ -83,7 +240,7 @@
                             <span>Release files to add them to the queue</span>
                         </div>
                     </div>
-                    <h2>1. Upload Pay Slips + Pension Excel</h2>
+                    <h2>3. Upload Pay Slips + Pension Excel</h2>
                     <div class="instructions">
                         <p>
                             Drag and drop your Payroll PDFs and Pension Excel
@@ -147,7 +304,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="control status-panel">
+                <div class="card status-panel">
                     <h2>2. Run & Review</h2>
                     <p class="instructions" v-if="status === 'idle'">
                         First stage files (step 1), then run the report here.
@@ -173,7 +330,7 @@
                             :disabled="!canRunReport"
                             @click="runReport"
                         >
-                            Run report
+                            Run Report
                         </button>
                     </div>
                     <p v-if="status === 'processing'">
@@ -286,14 +443,14 @@
                 <div class="report-root" v-html="reportHtml"></div>
             </section>
             <div class="controls-loading" aria-live="polite" v-cloak>
-                <div class="control">
+                <div class="card">
                     <div class="loading-block">
                         <span class="spinner" aria-hidden="true"></span>
                         <strong>Initializing…</strong>
                     </div>
                     <p>Loading the offline payroll tools.</p>
                 </div>
-                <div class="control">
+                <div class="card">
                     <div class="loading-block">
                         <span class="spinner" aria-hidden="true"></span>
                         <strong>Initializing…</strong>
