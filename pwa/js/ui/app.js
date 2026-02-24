@@ -37,6 +37,7 @@
  * @property {boolean} debugCopySuccess
  * @property {number | null} debugCopyResetTimer
  * @property {boolean} acceptedDisclaimer
+ * @property {boolean} prepCollapsed
  * @property {boolean} showScrollTop
  * @property {boolean} parsingExcel
  */
@@ -58,6 +59,8 @@ const PDF_PASSWORD_KEY = 'pdf_password'
 const DISCLAIMER_ACCEPTED_KEY = 'disclaimer_accepted'
 /** @type {string} */
 const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
+/** @type {string} */
+const PREP_COLLAPSED_KEY = 'prep_collapsed'
 /** @type {number} */
 const SESSION_TTL_MS = 30 * 60 * 1000
 
@@ -115,6 +118,7 @@ export function initPayrollApp() {
                 debugCopySuccess: false,
                 debugCopyResetTimer: null,
                 acceptedDisclaimer: false,
+                prepCollapsed: false,
                 showScrollTop: false,
                 parsingExcel: false,
             }
@@ -169,8 +173,26 @@ export function initPayrollApp() {
                     sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
                 }
             },
+            /** @param {boolean} value */
+            prepCollapsed(value) {
+                if (value) {
+                    sessionStorage.setItem(PREP_COLLAPSED_KEY, 'true')
+                    return
+                }
+                sessionStorage.removeItem(PREP_COLLAPSED_KEY)
+            },
         },
         methods: {
+            /** @returns {void} */
+            togglePrepCollapsed() {
+                this.prepCollapsed = !this.prepCollapsed
+            },
+            /** @returns {void} */
+            handlePrepFocus() {
+                if (this.prepCollapsed) {
+                    this.prepCollapsed = false
+                }
+            },
             /** @param {Event} event */
             handleContributionFiles(event) {
                 const input = /** @type {HTMLInputElement} */ (event.target)
@@ -937,6 +959,8 @@ export function initPayrollApp() {
             this.pdfPassword = sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
             this.acceptedDisclaimer =
                 sessionStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === 'true'
+            this.prepCollapsed =
+                sessionStorage.getItem(PREP_COLLAPSED_KEY) === 'true'
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker
                     .register('sw.js')

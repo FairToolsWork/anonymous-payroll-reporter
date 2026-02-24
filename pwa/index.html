@@ -69,8 +69,26 @@
             </header>
 
             <section class="prep">
-                <h2 class="prep-title">1. Prep</h2>
-                <div class="prep-grid">
+                <div class="prep-header">
+                    <h2 class="prep-title">1. Prep</h2>
+                    <button
+                        class="prep-toggle"
+                        type="button"
+                        @click="togglePrepCollapsed"
+                        :aria-expanded="(!prepCollapsed).toString()"
+                        aria-controls="prep-content"
+                    >
+                        <span>{{ prepCollapsed ? 'Expand' : 'Collapse' }}</span>
+                    </button>
+                </div>
+                <div
+                    class="prep-grid"
+                    id="prep-content"
+                    :class="{ 'is-collapsed': prepCollapsed }"
+                    @focusin="handlePrepFocus"
+                    :aria-hidden="prepCollapsed"
+                    :inert="prepCollapsed"
+                >
                     <div class="card">
                         <header>
                             <img

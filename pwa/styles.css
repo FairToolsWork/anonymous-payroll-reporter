@@ -255,14 +255,68 @@ label.next-action {
     margin-bottom: 36px;
 }
 
-.prep-title {
+.prep-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
     margin-bottom: 16px;
+}
+
+.prep-title {
+    margin: 0;
+}
+
+.prep-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgb(30 28 25 / 20%);
+    background: transparent;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.prep-toggle::before {
+    content: '+';
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.prep-toggle[aria-expanded='true']::before {
+    content: '\2212';
 }
 
 .prep-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
+    position: relative;
+    overflow: hidden;
+    max-height: 2000px;
+    transition: all 0.25s ease;
+    padding: 0 45px 45px 45px;
+    margin: 0 -45px -45px -45px;
+}
+
+.prep-grid.is-collapsed {
+    max-height: 75px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+}
+
+.prep-grid.is-collapsed::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 10px;
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0%), var(--paper));
+    pointer-events: none;
 }
 
 .prep-card ul {
@@ -560,8 +614,8 @@ label.next-action {
 .upload:hover {
     background: var(--accent-green-dark);
     transform: translateY(-1px);
-    box-shadow: 0 14px 32px
-        color-mix(in srgb, var(--accent-green-dark) 50%, transparent);
+    /* box-shadow: 0 14px 32px
+        color-mix(in srgb, var(--accent-green-dark) 50%, transparent); */
 }
 
 .upload:focus-within {
