@@ -28,7 +28,17 @@
     --warning-bg: hsl(12deg 100% 95%);
     --warning-text: hsl(16deg 62% 47%);
 
-    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-family: 'Space Grotesk', 'Arial', sans-serif;
+}
+
+@font-face {
+    /* Space adjusted for Arial */
+    font-family: 'Space Grotesk';
+    src: local(Arial);
+    size-adjust: 111%;
+    ascent-override: 96%;
+    descent-override: 21%;
+    line-gap-override: 2%;
 }
 
 * {
@@ -61,7 +71,8 @@ body {
     padding: 32px 20px 80px;
 }
 
-[v-cloak] {
+[v-cloak],
+.controls[v-cloak] {
     display: none;
 }
 
@@ -72,7 +83,11 @@ body {
     margin-bottom: 36px;
 }
 
-[v-cloak] + .controls-loading {
+.controls-loading[v-cloak] .card {
+    min-width: 500px;
+}
+
+.controls[v-cloak] + .controls-loading {
     display: grid;
 }
 
@@ -485,6 +500,12 @@ label.next-action {
     padding-bottom: 12px;
 }
 
+.status-panel,
+.upload-panel,
+.controls-loading .card {
+    min-height: 450px;
+}
+
 .upload-panel {
     position: relative;
     overflow: hidden;
@@ -698,8 +719,8 @@ label.next-action {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: grid;
-    gap: 8px;
+    /* display: grid;
+    gap: 8px; */
 }
 
 .stats li {
@@ -1133,6 +1154,7 @@ label.next-action {
     }
 
     .app-header,
+    .prep,
     .controls,
     .report-actions {
         display: none;
