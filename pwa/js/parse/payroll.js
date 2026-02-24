@@ -633,6 +633,14 @@ function parseMiscLines(
             if (!label || amount === null) {
                 return
             }
+            if (
+                /^(Basic\s+Hours|Holiday\s+Hours|Holidays?)$/i.test(label) ||
+                /^(Basic\s+Hours|Holiday\s+Hours|Holidays?)\s+\d[\d,]*\.\d{2}$/i.test(
+                    label
+                )
+            ) {
+                return
+            }
             if (mode === 'deductions' && shouldSkipDeductionLabel(label)) {
                 return
             }
@@ -771,6 +779,13 @@ function parsePaymentsFromLines(lines) {
             return
         }
 
+        if (
+            /^(Basic\s+Hours|Holiday\s+Hours|Holidays?)\s+\d[\d,]*\.\d{2}$/i.test(
+                parsed.label
+            )
+        ) {
+            return
+        }
         result.misc.push({
             title: parsed.label,
             units: parsed.units,

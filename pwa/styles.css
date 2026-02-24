@@ -1075,6 +1075,8 @@ label.next-action {
     padding-left: 18px;
     color: var(--accent-dark);
     font-weight: 600;
+    list-style-type: none;
+    text-align: left;
 }
 
 .summary-warning {

@@ -23,7 +23,7 @@ import {
 
 /**
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
- * @typedef {{ id: string, label: string }} ValidationFlag
+ * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ date: Date | null, type: string, amount: number }} ContributionEntry
  * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
@@ -41,8 +41,8 @@ import {
 
 /** @type {string} */
 const ZERO_TAX_ALLOWANCE_NOTE =
-    'PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
-    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27).'
+    '<b>Note:</b> <i>PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
+    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27)</i>.'
 
 /**
  * @param {Date} date
@@ -335,41 +335,11 @@ export function buildReport(records, failedPayPeriods = []) {
         ? `Flags: <span class="validation-count">${flaggedEntries.length}</span> | ` +
           `Low confidence: <span class="validation-count">${lowConfidenceEntries.length}</span>`
         : 'Validation flags: None'
-    const flaggedCategories = {
-        'Missing NAT INS No': new Set(),
-        'Missing Tax Code': new Set(),
-        'Zero Values': new Set(),
-        Reconciliation: new Set(),
-    }
-    const flagCategoryMap = {
-        missing_nat_ins: 'Missing NAT INS No',
-        missing_tax_code: 'Missing Tax Code',
-        paye_zero: 'Zero Values',
-        nat_ins_zero: 'Zero Values',
-        gross_mismatch: 'Reconciliation',
-        net_mismatch: 'Reconciliation',
-    }
-    entries.forEach((entry) => {
-        const entryFlags = entry.validation?.flags || []
-        if (!entryFlags.length) {
-            return
-        }
-        const entryDateLabel = entry.parsedDate
-            ? formatDateLabel(entry.parsedDate)
-            : entry.record.payrollDoc?.processDate?.date || 'Unknown'
-        entryFlags.forEach((flag) => {
-            const category = flagCategoryMap[flag.id]
-            if (category && flaggedCategories[category]) {
-                flaggedCategories[category].add(entryDateLabel)
-            }
-        })
+    const hasLowPretaxPay = entries.some((entry) => {
+        const totalGrossPay =
+            entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
+        return typeof totalGrossPay === 'number' && totalGrossPay < 1048
     })
-    const flaggedCategoryLines = Object.entries(flaggedCategories)
-        .filter(([, dates]) => dates.size)
-        .map(
-            ([category, dates]) =>
-                `${category}: ${Array.from(dates).join(', ')}`
-        )
 
     const totals = entries.reduce(
         (acc, entry) => {
@@ -574,17 +544,6 @@ export function buildReport(records, failedPayPeriods = []) {
             '</tr></tbody></table>'
     )
 
-    if (flaggedCategoryLines.length) {
-        const flaggedHtml = flaggedCategoryLines
-            .map((line) => `<p>${line}</p>`)
-            .join('')
-        reportSections.push(
-            `<div class="report-footnote">` +
-                '<p>Flagged Periods:</p>' +
-                flaggedHtml +
-                '</div>'
-        )
-    }
     if (miscFootnotes.length) {
         const footnoteItems = miscFootnotes
             .map((entry) => {
@@ -612,6 +571,12 @@ export function buildReport(records, failedPayPeriods = []) {
                 '</div>'
         )
     }
+
+    if (hasLowPretaxPay) {
+        reportSections.push(
+            `<div class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</div>`
+        )
+    }
     reportSections.push('</div>')
 
     Array.from(yearGroups.keys()).forEach((yearKey) => {
@@ -631,16 +596,41 @@ export function buildReport(records, failedPayPeriods = []) {
                 `<p class="report-missing">${yearMissingPill}</p>`
             )
         }
+        const yearFlagNotes = []
+        const yearFlagIndexById = new Map()
+        entriesForYear.forEach((entry) => {
+            const entryFlags = entry.validation?.flags || []
+            entryFlags.forEach((flag) => {
+                let noteIndex = yearFlagIndexById.get(flag.id)
+                if (noteIndex === undefined) {
+                    noteIndex = yearFlagNotes.length + 1
+                    yearFlagIndexById.set(flag.id, noteIndex)
+                    yearFlagNotes.push(flag.label)
+                }
+                flag.noteIndex = noteIndex
+            })
+        })
         reportSections.push(renderYearSummary(entriesForYear))
+        if (yearFlagNotes.length) {
+            const noteItems = yearFlagNotes
+                .map((label, index) => `<li>${index + 1} ${label}</li>`)
+                .join('')
+            reportSections.push(
+                `<div class="report-footnote">` +
+                    '<p>† Flag notes</p>' +
+                    `<ul>${noteItems}</ul>` +
+                    '</div>'
+            )
+        }
         // reportSections.push(
         //   `<p class="report-footnote"><a href="#${yearAnchor}">Jump to monthly breakdown</a></p>`
         // );
-        const yearZeroTax = entriesForYear.some((entry) =>
-            entry.validation?.flags?.some(
-                (flag) => flag.id === 'paye_zero' || flag.id === 'nat_ins_zero'
-            )
-        )
-        if (yearZeroTax) {
+        const yearLowPretaxPay = entriesForYear.some((entry) => {
+            const totalGrossPay =
+                entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
+            return typeof totalGrossPay === 'number' && totalGrossPay < 1048
+        })
+        if (yearLowPretaxPay) {
             reportSections.push(
                 `<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`
             )
@@ -907,20 +897,6 @@ function renderYearSummary(entriesForYear) {
                 : 'diff--negative'
         return `<span class="${diffClass}">${formatCurrency(value)}</span>`
     }
-    const flaggedCategories = {
-        'Missing NAT INS No': new Set(),
-        'Missing Tax Code': new Set(),
-        'Zero Values': new Set(),
-        Reconciliation: new Set(),
-    }
-    const flagCategoryMap = {
-        missing_nat_ins: 'Missing NAT INS No',
-        missing_tax_code: 'Missing Tax Code',
-        paye_zero: 'Zero Values',
-        nat_ins_zero: 'Zero Values',
-        gross_mismatch: 'Reconciliation',
-        net_mismatch: 'Reconciliation',
-    }
     const miscFootnotes = entriesForYear.reduce((acc, entry) => {
         const dateLabel = entry.parsedDate
             ? formatDateLabel(entry.parsedDate)
@@ -999,7 +975,11 @@ function renderYearSummary(entriesForYear) {
                     record?.payrollDoc?.deductions?.nestER?.amount || 0
                 const payrollContribution = nestEmployee + nestEmployer
                 const flagSummary = validation?.flags?.length
-                    ? validation.flags.map((flag) => flag.label).join('; ')
+                    ? validation.flags
+                          .map((flag) =>
+                              flag.noteIndex ? `${flag.noteIndex}` : flag.label
+                          )
+                          .join('; ')
                     : '—'
                 const flagClass = validation?.flags?.length
                     ? 'summary-warning'
@@ -1015,19 +995,6 @@ function renderYearSummary(entriesForYear) {
                         ? `${monthName} (${entryIndex + 1})`
                         : monthName
                 const monthLink = `<a href="#${monthAnchor}">${monthLabel}</a>`
-
-                if (validation?.flags?.length) {
-                    const entryDateLabel = entry.parsedDate
-                        ? formatDateLabel(entry.parsedDate)
-                        : entry.record.payrollDoc?.processDate?.date ||
-                          'Unknown'
-                    validation.flags.forEach((flag) => {
-                        const category = flagCategoryMap[flag.id]
-                        if (category && flaggedCategories[category]) {
-                            flaggedCategories[category].add(entryDateLabel)
-                        }
-                    })
-                }
 
                 bodyRows.push(
                     '<tr>' +
@@ -1085,13 +1052,6 @@ function renderYearSummary(entriesForYear) {
             : yearReportedContribution - yearPayrollContribution
     const yearZeroReview =
         yearPayrollContribution === 0 && yearReportedContribution === 0
-    const flaggedCategoryLines = Object.entries(flaggedCategories)
-        .filter(([, dates]) => dates.size)
-        .map(
-            ([category, dates]) =>
-                `${category}: ${Array.from(dates).join(', ')}`
-        )
-
     const sections = [
         '<table class="summary-table">' +
             '<thead><tr>' +
@@ -1122,18 +1082,6 @@ function renderYearSummary(entriesForYear) {
             '</tfoot>' +
             '</table>',
     ]
-
-    if (flaggedCategoryLines.length) {
-        const flaggedHtml = flaggedCategoryLines
-            .map((line) => `<p>${line}</p>`)
-            .join('')
-        sections.push(
-            `<div class="report-footnote">` +
-                '<p>Flagged Periods:</p>' +
-                flaggedHtml +
-                '</div>'
-        )
-    }
 
     if (miscFootnotes.length) {
         const footnoteItems = miscFootnotes
