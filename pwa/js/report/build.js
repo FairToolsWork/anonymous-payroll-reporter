@@ -9,10 +9,10 @@
 import {
     buildMissingMonthsHtml,
     buildMissingMonthsLabel,
+    formatMonthLabel,
 } from '../parse/parser_config.js'
 import {
     buildContributionSummary,
-    buildMissingMonthsWithRange,
     buildValidation,
     formatDateKey,
     formatDateLabel,
@@ -293,25 +293,32 @@ export function buildReport(records, failedPayPeriods = []) {
         }
     })
 
+    const currentDate = new Date()
+    const currentYear = currentDate.getFullYear()
+    const currentMonthIndex = currentDate.getMonth() + 1
     /** @type {Record<string, string[]>} */
     const missingMonthsByYear = {}
     yearGroups.forEach((entriesForYear, yearKey) => {
+        const numericYear = Number(yearKey)
         const presentMonths = entriesForYear
             .map((entry) => entry.monthIndex)
             .filter((month) => month >= 1 && month <= 12)
         const failedMonths = failedMonthsByYear[yearKey] || []
         const combinedMonths = presentMonths.concat(failedMonths)
-        if (!combinedMonths.length) {
+        const maxMonth =
+            numericYear === currentYear ? currentMonthIndex - 1 : 12
+        if (!combinedMonths.length || maxMonth <= 0) {
             missingMonthsByYear[yearKey] = []
             return
         }
-        const minMonth = Math.min(...combinedMonths)
-        const maxMonth = Math.max(...combinedMonths)
-        missingMonthsByYear[yearKey] = buildMissingMonthsWithRange(
-            presentMonths,
-            minMonth,
-            maxMonth
-        )
+        const present = new Set(presentMonths)
+        const missing = []
+        for (let month = 1; month <= maxMonth; month += 1) {
+            if (!present.has(month)) {
+                missing.push(formatMonthLabel(month))
+            }
+        }
+        missingMonthsByYear[yearKey] = missing
     })
     const missingMonthsLabel = buildMissingMonthsLabel(missingMonthsByYear)
     const missingMonthsHtml = buildMissingMonthsHtml(missingMonthsByYear)
