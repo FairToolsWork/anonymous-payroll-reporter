@@ -355,7 +355,7 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
     })
 
     const summaryByYear = new Map()
-    let runningBalance = 0
+    let overallBalance = 0
     yearKeys.forEach((yearKey) => {
         if (!yearKey || yearKey === 'Unknown') {
             return
@@ -368,13 +368,14 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
             actualER: 0,
             delta: 0,
         }
+        let runningBalance = 0
         for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
             const key = buildMonthKey(yearKey, monthIndex)
             const expected = expectedByMonth.get(key) || { ee: 0, er: 0 }
             const actual = actualByMonth.get(key) || { ee: 0, er: 0 }
             const expectedTotal = expected.ee + expected.er
             const actualTotal = actual.ee + actual.er
-            const delta = expectedTotal - actualTotal
+            const delta = actualTotal - expectedTotal
             runningBalance += delta
             months.set(monthIndex, {
                 expectedEE: expected.ee,
@@ -395,11 +396,12 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
             totals,
             yearEndBalance: runningBalance,
         })
+        overallBalance += totals.delta
     })
 
     return {
         years: summaryByYear,
-        balance: runningBalance,
+        balance: overallBalance,
         sourceFiles: contributionData.sourceFiles || [],
     }
 }

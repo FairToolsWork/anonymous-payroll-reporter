@@ -1,9 +1,9 @@
+import { formatMonthLabel } from '../pwa/js/parse/parser_config.js'
 import {
     buildContributionSummary,
     buildMissingMonthsWithRange,
     buildValidation,
 } from '../pwa/js/report/report_calculations.js'
-import { formatMonthLabel } from '../pwa/js/parse/parser_config.js'
 
 function assertEqual(actual, expected, label) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -135,11 +135,70 @@ function runMissingMonthsTest() {
     assertEqual(missing, [formatMonthLabel(2)], 'Missing months')
 }
 
+function runYearEndBalanceTest() {
+    const entries = [
+        {
+            record: buildRecord({
+                nestEE: 10,
+                nestER: 5,
+                grossPay: 100,
+                netPay: 90,
+            }),
+            parsedDate: new Date(2024, 0, 15),
+            year: 2024,
+            monthIndex: 1,
+            monthLabel: 'January',
+        },
+        {
+            record: buildRecord({
+                nestEE: 20,
+                nestER: 10,
+                grossPay: 100,
+                netPay: 90,
+            }),
+            parsedDate: new Date(2025, 0, 15),
+            year: 2025,
+            monthIndex: 1,
+            monthLabel: 'January',
+        },
+    ]
+    const contributionData = {
+        entries: [
+            { date: new Date(2024, 0, 20), type: 'ee', amount: 8 },
+            { date: new Date(2024, 0, 20), type: 'er', amount: 7 },
+            { date: new Date(2025, 0, 20), type: 'ee', amount: 35 },
+            { date: new Date(2025, 0, 20), type: 'er', amount: 0 },
+        ],
+        sourceFiles: ['fixture.xlsx'],
+    }
+    const summary = buildContributionSummary(
+        entries,
+        contributionData,
+        [2024, 2025]
+    )
+    const year2024 = summary?.years.get(2024)
+    const year2025 = summary?.years.get(2025)
+    assertEqual(
+        {
+            year2024End: year2024?.yearEndBalance,
+            year2025End: year2025?.yearEndBalance,
+            overall: summary?.balance,
+        },
+        {
+            year2024End: 0,
+            year2025End: 5,
+            overall: 5,
+        },
+        'Year end balance is per-year'
+    )
+}
+
 function run() {
     const tests = [
         { label: 'Contribution summary', fn: runContributionSummaryTest },
         { label: 'Validation flags', fn: runValidationTest },
         { label: 'Missing months', fn: runMissingMonthsTest },
+        { label: 'Year end balance', fn: runYearEndBalanceTest },
     ]
     const failures = []
     tests.forEach((test) => {

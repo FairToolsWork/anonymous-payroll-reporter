@@ -344,6 +344,7 @@ label.next-action {
     gap: 20px;
     margin-bottom: 36px;
     min-height: 450px;
+    padding-top: 1px;
 }
 
 .missing-pill {

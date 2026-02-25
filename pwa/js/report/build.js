@@ -144,6 +144,7 @@ function renderContributionSummary(summary) {
         `<div class="report-reconciliation">` +
         `<h2>Pension Contributions Reconciliation</h2>` +
         `<p class="report-range">Current balance: ${formatCurrency(summary.balance)}</p>` +
+        `<p class="report-range">Note: Year Delta = Actual − Expected. Negative values indicate underpaid vs expected. Year End Balance is cumulative within the year.</p>` +
         (sourceLabel ? `<p class="report-range">${sourceLabel}</p>` : '') +
         '<table class="summary-table"><thead><tr>' +
         '<th>Year</th><th>Expected (EE+ER)</th><th>Actual (EE+ER)</th>' +
@@ -524,8 +525,8 @@ export function buildReport(records, failedPayPeriods = []) {
         reportSections.push(
             '<table class="summary-table"><thead><tr>' +
                 '<th>Year</th><th>Hours</th>' +
-                '<th>Payroll Contribution</th><th>Reported Contribution</th>' +
-                '<th>Over / Under</th><th>Flags</th>' +
+                '<th>Payroll Cont. (EE+ER)</th><th>Reported Cont. (EE+ER)</th>' +
+                '<th>YE Over / Under</th><th>Flags</th>' +
                 '</tr></thead>' +
                 `<tbody>${yearSummaryRows}</tbody>` +
                 '</table>'
@@ -534,8 +535,8 @@ export function buildReport(records, failedPayPeriods = []) {
 
     reportSections.push(
         '<table class="summary-table"><thead><tr>' +
-            '<th colspan="2">Date Range</th><th>Payroll Contribution</th>' +
-            '<th>Reported Contribution</th><th>Under/Over</th>' +
+            '<th colspan="2">Date Range</th><th>Payroll Cont. (EE+ER)</th>' +
+            '<th>Reported (EE+ER)</th><th>Accumulated Over/Under</th>' +
             '<th>Last Contribution Date</th></tr></thead>' +
             '<tbody><tr>' +
             `<td colspan="2">${dateRangeLabel}</td>` +
@@ -548,8 +549,12 @@ export function buildReport(records, failedPayPeriods = []) {
             )}</td>` +
             `<td>${formatDifference()}</td>` +
             `<td>${lastContributionLabel}<br>${formatDaysSince()}</td>` +
-            '</tr></tbody></table>'
+            '</tr></tbody>' +
+            '</table>' +
+            `<p class="notice">Note: Accumulated Over / Under = Payroll Contributions (EE+ER) − Reported (EE+ER). Negative values indicate an underpayment to you pension.</p>`
     )
+
+    // reportSections.push(renderContributionSummary(contributionSummary))
 
     if (miscFootnotes.length) {
         const footnoteItems = miscFootnotes
@@ -1063,7 +1068,7 @@ function renderYearSummary(entriesForYear) {
         '<table class="summary-table">' +
             '<thead><tr>' +
             '<th>Month</th><th>Hours</th><th>Holiday Used (Units)</th>' +
-            '<th>Payroll Contribution</th><th>Reported Contribution</th>' +
+            '<th>Payroll Cont. (EE+ER)</th><th>Reported Cont. (EE+ER)</th>' +
             '<th>Over / Under</th><th>Flags</th>' +
             '</tr></thead>' +
             `<tbody>${bodyRows.join('')}</tbody>` +
