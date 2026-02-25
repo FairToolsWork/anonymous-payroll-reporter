@@ -4,6 +4,7 @@ import { createRequire } from 'module'
 import path from 'path'
 import pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'
 import { fileURLToPath, pathToFileURL } from 'url'
+import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -93,61 +94,58 @@ function diffValues(expected, actual, pathLabel = '', extraKeys = []) {
     return { diffs, extraKeys }
 }
 
-async function run() {
-    buildBrowserShims()
-    const { parsePayrollPdf } = await import(
-        pathToFileURL(
-            path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
-        )
-    )
-    if (typeof parsePayrollPdf !== 'function') {
-        throw new Error('parsePayrollPdf is not available')
-    }
-
-    const buffer = fs.readFileSync(PDF_PATH)
-    const file = {
-        arrayBuffer: async () =>
-            buffer.buffer.slice(
-                buffer.byteOffset,
-                buffer.byteOffset + buffer.byteLength
-            ),
-    }
-    const { record: actual, debug } = await parsePayrollPdf(file, '')
-    if (actual && typeof actual === 'object' && 'imageData' in actual) {
-        delete actual.imageData
-    }
-    const { text, lines } = debug
-    const expectedModule = await import(
-        pathToFileURL(
-            path.resolve(
-                __dirname,
-                './test_files/payslips/payslip_target_data_shape.js'
-            )
-        )
-    )
-    const expected = expectedModule.default
-
-    const { diffs, extraKeys } = diffValues(expected, actual, 'result', [])
-    if (diffs.length) {
-        console.error('\nParse test failed:')
-        diffs.forEach((diff) => console.error(`- ${diff}`))
-        if (extraKeys.length) {
-            console.error('\nExtra keys found (not used for failure):')
-            extraKeys.forEach((key) => console.error(`- ${key}`))
-        }
-        console.error('\nActual output:')
-        console.error(JSON.stringify(actual, null, 2))
-        process.exitCode = 1
-        return
-    }
+function buildDiffError(diffs, extraKeys, actual) {
+    const lines = ['Parse test failed:']
+    diffs.forEach((diff) => lines.push(`- ${diff}`))
     if (extraKeys.length) {
-        console.warn('\nParse test warning: extra keys found:')
-        extraKeys.forEach((key) => console.warn(`- ${key}`))
+        lines.push('', 'Extra keys found (not used for failure):')
+        extraKeys.forEach((key) => lines.push(`- ${key}`))
     }
-    console.log('\nParse test passed.')
+    lines.push('', 'Actual output:', JSON.stringify(actual, null, 2))
+    return new Error(lines.join('\n'))
 }
 
-run().catch((error) => {
-    console.error('Parse test error:', error)
-    process.exitCode = 1
+describe('pdf parse', () => {
+    it('matches the target data shape', async () => {
+        buildBrowserShims()
+        const { parsePayrollPdf } = await import(
+            pathToFileURL(
+                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+            )
+        )
+        expect(typeof parsePayrollPdf).toBe('function')
+
+        const buffer = fs.readFileSync(PDF_PATH)
+        const file = {
+            arrayBuffer: async () =>
+                buffer.buffer.slice(
+                    buffer.byteOffset,
+                    buffer.byteOffset + buffer.byteLength
+                ),
+        }
+        const { record: actual, debug } = await parsePayrollPdf(file, '')
+        if (actual && typeof actual === 'object' && 'imageData' in actual) {
+            delete actual.imageData
+        }
+        const expectedModule = await import(
+            pathToFileURL(
+                path.resolve(
+                    __dirname,
+                    './test_files/payslips/payslip_target_data_shape.js'
+                )
+            )
+        )
+        const expected = expectedModule.default
+
+        const { diffs, extraKeys } = diffValues(expected, actual, 'result', [])
+        if (diffs.length) {
+            throw buildDiffError(diffs, extraKeys, actual)
+        }
+        if (extraKeys.length) {
+            console.warn('\nParse test warning: extra keys found:')
+            extraKeys.forEach((key) => console.warn(`- ${key}`))
+        }
+        expect(debug?.text).toBeDefined()
+        expect(debug?.lines).toBeDefined()
+    })
 })

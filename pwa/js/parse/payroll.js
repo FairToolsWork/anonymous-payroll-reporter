@@ -49,24 +49,19 @@ function extractNetPayFromText(text) {
     if (!text) {
         return null
     }
-    const candidates = []
-    text.split('\n').forEach((line) => {
-        const stripped = line.trim()
-        if (/^£?\d[\d,]*\.\d{2}$/.test(stripped)) {
-            candidates.push(stripped.replace(/^£/, ''))
+    const lines = text.split('\n')
+    for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i].trim()
+        const inlineMatch = line.match(/net\s+pay.*?(£?\d[\d,]*\.\d{2})/i)
+        if (inlineMatch) {
+            return inlineMatch[1].replace(/^£/, '')
         }
-    })
-    return candidates.length ? candidates[candidates.length - 1] : null
-}
-
-/**
- * @param {string[]} lines
- * @returns {string | null}
- */
-function extractEmployerFromLines(lines) {
-    for (const line of lines) {
-        if (/\bLtd\b|\bLimited\b/.test(line)) {
-            return line.trim()
+        if (/net\s+pay/i.test(line)) {
+            const nextLine = lines[i + 1]?.trim() || ''
+            const amountMatch = nextLine.match(/^£?\d[\d,]*\.\d{2}$/)
+            if (amountMatch) {
+                return amountMatch[0].replace(/^£/, '')
+            }
         }
     }
     return null

@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
+import { beforeAll, describe, expect, it } from 'vitest'
 import XLSX from 'xlsx'
 import { parseContributionWorkbook } from '../pwa/js/parse/contribution_validation.js'
 
@@ -46,22 +47,6 @@ function readWorkbook(filename) {
     const filePath = path.join(FIXTURE_DIR, filename)
     const buffer = fs.readFileSync(filePath)
     return XLSX.read(buffer, { type: 'buffer' })
-}
-
-function assertArrayEquals(actual, expected, label) {
-    const normalizedActual = Array.isArray(actual)
-        ? actual.slice().sort()
-        : actual
-    const normalizedExpected = Array.isArray(expected)
-        ? expected.slice().sort()
-        : expected
-    const match =
-        JSON.stringify(normalizedActual) === JSON.stringify(normalizedExpected)
-    if (!match) {
-        throw new Error(
-            `${label} expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
-        )
-    }
 }
 
 function buildSummary(entries) {
@@ -111,64 +96,65 @@ function runFixture(expectedSummary, { file, error, missingTypes }) {
             throw new Error(`${file}: expected entries, got none`)
         }
         const summary = buildSummary(result.entries)
-        const match =
-            JSON.stringify(summary) === JSON.stringify(expectedSummary)
-        if (!match) {
-            throw new Error(
-                `${file}: summary mismatch. expected ${JSON.stringify(expectedSummary)}, got ${JSON.stringify(summary)}`
-            )
-        }
+        expect(summary).toEqual(expectedSummary)
         return
     }
     try {
         parseContributionWorkbook(workbook, file, XLSX)
     } catch (err) {
-        if (err?.message !== error) {
-            throw new Error(
-                `${file}: expected error ${error}, got ${err?.message}`
-            )
-        }
-        if (
-            error === 'CONTRIBUTION_EMPLOYER_MIXED' &&
-            !Array.isArray(err?.employers)
-        ) {
-            throw new Error(`${file}: expected employers list on error`)
+        expect(err?.message).toBe(error)
+        if (error === 'CONTRIBUTION_EMPLOYER_MIXED') {
+            expect(Array.isArray(err?.employers)).toBe(true)
         }
         if (error === 'CONTRIBUTION_MISSING_EE_ER' && missingTypes) {
-            assertArrayEquals(
-                err?.missingTypes || [],
-                missingTypes,
-                `${file}: missingTypes`
-            )
+            expect(err?.missingTypes || []).toEqual(missingTypes)
         }
         return
     }
     throw new Error(`${file}: expected error ${error}, got success`)
 }
 
-async function run() {
-    const expectedSummary = (await import(pathToFileURL(SUMMARY_PATH))).default
-    const failures = []
-    Object.values(FIXTURES).forEach((fixture) => {
-        try {
-            runFixture(expectedSummary, fixture)
-            console.log(`✔ ${fixture.file}`)
-        } catch (err) {
-            failures.push({ file: fixture.file, error: err })
-            console.error(`✘ ${fixture.file}: ${err?.message || err}`)
-        }
+describe('contribution workbook parsing', () => {
+    let expectedSummary
+
+    beforeAll(async () => {
+        expectedSummary = (await import(pathToFileURL(SUMMARY_PATH))).default
     })
 
-    if (failures.length) {
-        console.error(`\nContribution tests failed (${failures.length}).`)
-        process.exitCode = 1
-        return
-    }
+    Object.values(FIXTURES).forEach((fixture) => {
+        const label = fixture.file
+        it(`handles ${label}`, () => {
+            runFixture(expectedSummary, fixture)
+        })
+    })
 
-    console.log('\nContribution tests passed.')
-}
-
-run().catch((err) => {
-    console.error(err?.message || err)
-    process.exitCode = 1
+    it('parses contribution dates', () => {
+        const numericDate = 45123
+        const parsedNumeric = XLSX.SSF.parse_date_code(numericDate)
+        const expectedNumeric = new Date(
+            parsedNumeric.y,
+            parsedNumeric.m - 1,
+            parsedNumeric.d
+        )
+            .toISOString()
+            .slice(0, 10)
+        const rows = [
+            ['Date', 'Type', 'Amount', 'Employer'],
+            [numericDate, 'From your salary', 10, 'Test Co'],
+            ['01/02/25', 'From your employer', 12, 'Test Co'],
+            ['not-a-date', 'From your salary', 5, 'Test Co'],
+        ]
+        const sheet = XLSX.utils.aoa_to_sheet(rows)
+        const workbook = { Sheets: { 'Contribution Details': sheet } }
+        const result = parseContributionWorkbook(
+            workbook,
+            'date-test.xlsx',
+            XLSX
+        )
+        const dates = result.entries.map((entry) =>
+            entry.date.toISOString().slice(0, 10)
+        )
+        expect(dates).toEqual([expectedNumeric, '2025-02-01'])
+        expect(result.entries.length).toBe(2)
+    })
 })

@@ -37,7 +37,7 @@
  * @property {boolean} debugCopySuccess
  * @property {number | null} debugCopyResetTimer
  * @property {boolean} acceptedDisclaimer
- * @property {boolean} prepCollapsed
+ * @property {{ prep: boolean, nextSteps: boolean }} collapsedSections
  * @property {boolean} showScrollTop
  * @property {boolean} parsingExcel
  */

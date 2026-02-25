@@ -3,10 +3,10 @@
     "type": "module",
     "private": true,
     "scripts": {
-        "test:pdf_parse": "node logic_test/run_pdf_parse_test.mjs",
-        "test:excel_contribution": "node logic_test/run_excell_contribution_tests.mjs",
-        "test:report_calc": "node logic_test/run_report_calculation_tests.mjs",
-        "test:all": "pnpm test:pdf_parse && pnpm test:excel_contribution && pnpm test:report_calc",
+        "test:pdf_parse": "vitest run tests/pdf_parse.test.mjs",
+        "test:excel_contribution": "vitest run tests/excel_contribution.test.mjs",
+        "test:report_calc": "vitest run tests/report_calculation.test.mjs",
+        "test:all": "vitest run",
         "check:js": "tsc -p tsconfig.json",
         "jslint": "eslint .",
         "jslint:fix": "eslint . --fix",
@@ -35,6 +35,7 @@
         "stylelint-config-prettier": "^9.0.5",
         "stylelint-config-standard": "^40.0.0",
         "typescript": "^5.9.3",
+        "vitest": "4.0.18",
         "xlsx": "^0.18.5"
     },
     "pnpm": {

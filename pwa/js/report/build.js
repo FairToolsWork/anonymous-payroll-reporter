@@ -117,44 +117,6 @@ function formatMiscLabel(item) {
 }
 
 /**
- * @param {ContributionSummary | null} summary
- * @returns {string}
- */
-function renderContributionSummary(summary) {
-    if (!summary) {
-        return ''
-    }
-    const rows = Array.from(summary.years.entries()).map(([yearKey, data]) => {
-        const expectedTotal = data.totals.expectedEE + data.totals.expectedER
-        const actualTotal = data.totals.actualEE + data.totals.actualER
-        return (
-            '<tr>' +
-            `<th>${yearKey}</th>` +
-            `<td>${formatCurrency(expectedTotal)}</td>` +
-            `<td>${formatCurrency(actualTotal)}</td>` +
-            `<td>${formatCurrency(data.totals.delta)}</td>` +
-            `<td>${formatCurrency(data.yearEndBalance)}</td>` +
-            '</tr>'
-        )
-    })
-    const sourceLabel = summary.sourceFiles.length
-        ? `Files: ${summary.sourceFiles.join(', ')}`
-        : ''
-    return (
-        `<div class="report-reconciliation">` +
-        `<h2>Pension Contributions Reconciliation</h2>` +
-        `<p class="report-range">Current balance: ${formatCurrency(summary.balance)}</p>` +
-        `<p class="report-range">Note: Year Delta = Actual − Expected. Negative values indicate underpaid vs expected. Year End Balance is cumulative within the year.</p>` +
-        (sourceLabel ? `<p class="report-range">${sourceLabel}</p>` : '') +
-        '<table class="summary-table"><thead><tr>' +
-        '<th>Year</th><th>Expected (EE+ER)</th><th>Actual (EE+ER)</th>' +
-        '<th>Year Delta</th><th>Year End Balance</th></tr></thead>' +
-        `<tbody>${rows.join('')}</tbody></table>` +
-        '</div>'
-    )
-}
-
-/**
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @returns {{ html: string, filename: string, stats: ReportStats }}
@@ -553,8 +515,6 @@ export function buildReport(records, failedPayPeriods = []) {
             '</table>' +
             `<p class="notice">Note: Accumulated Over / Under = Payroll Contributions (EE+ER) − Reported (EE+ER). Negative values indicate an underpayment to you pension.</p>`
     )
-
-    // reportSections.push(renderContributionSummary(contributionSummary))
 
     if (miscFootnotes.length) {
         const footnoteItems = miscFootnotes
