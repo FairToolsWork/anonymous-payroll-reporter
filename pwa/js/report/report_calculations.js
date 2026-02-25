@@ -414,5 +414,7 @@ export {
     formatDateLabel,
     formatMonthYearLabel,
     parsePayPeriodStart,
+    sumDeductionsForNetPay,
     sumMiscAmounts,
+    sumPayments,
 }

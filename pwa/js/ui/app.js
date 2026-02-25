@@ -45,7 +45,7 @@
 import { parseContributionWorkbook } from '../parse/contribution_validation.js'
 import { PATTERNS } from '../parse/parser_config.js'
 import { parsePayrollPdf } from '../parse/pdf_validation.js'
-import { buildReport } from '../report/build.js'
+import { runPayrollReportWorkflow } from '../report/report_workflow.js'
 
 /** @type {string | null} */
 const DEBUG_LEVEL = new URLSearchParams(window.location.search).get('debug')
@@ -572,84 +572,7 @@ export function initPayrollApp() {
                     files: files.length,
                 })
 
-                /** @type {PayrollRecordCollection} */
-                const records = []
-                let stopProcessing = false
-
-                for (let i = 0; i < files.length; i += 1) {
-                    const file = files[i]
-                    this.progress.current = i + 1
-                    try {
-                        console.info('Payroll: extracting', {
-                            index: i + 1,
-                            name: file.name,
-                        })
-                        const record = await this.extractPayrollRecord(
-                            file,
-                            i === 0
-                        )
-                        if (record) {
-                            records.push(record)
-                            console.info('Payroll: extracted', {
-                                name: record.employee?.name,
-                                period: record.payrollDoc?.processDate?.date,
-                            })
-                        } else if (!this.failedFiles.includes(file.name)) {
-                            this.failedFiles.push(file.name)
-                        }
-                    } catch (err) {
-                        console.error('Payroll: extraction failed', {
-                            name: file.name,
-                            message: err?.message,
-                            error: err,
-                        })
-                        if (err && err.message === 'PASSWORD_REQUIRED') {
-                            this.error =
-                                'A password is required for one or more of the uploaded PDF(s). Enter a password and try again.'
-                            document.getElementById('pdf-password')?.focus()
-                            stopProcessing = true
-                        } else if (
-                            err &&
-                            err.message === 'INCORRECT_PASSWORD'
-                        ) {
-                            this.error = `Incorrect password for ${file.name}. Please re-enter the PDF password.`
-                            document.getElementById('pdf-password')?.focus()
-                            stopProcessing = true
-                        } else {
-                            this.error = `Failed to read the following files:`
-                            this.failedFiles.push(file.name)
-                        }
-                    }
-                    if (stopProcessing) {
-                        break
-                    }
-                }
-
-                if (stopProcessing) {
-                    this.status = 'idle'
-                    return
-                }
-
-                console.info('Payroll: failed files summary', {
-                    count: this.failedFiles.length,
-                    files: [...this.failedFiles],
-                })
-
-                if (this.failedFiles.length && !this.error) {
-                    this.error = `Failed to read ${this.failedFiles.length} PDF(s).`
-                }
-
-                if (!records.length) {
-                    this.status = 'idle'
-                    this.error = this.error || 'No payroll data was extracted.'
-                    console.warn('Payroll: no records extracted', {
-                        files: files.length,
-                        error: this.error,
-                    })
-                    return
-                }
-
-                let contributionData = null
+                let workflowResult = null
                 try {
                     this.parsingExcel = this.contributionFiles.length > 0
                     if (this.parsingExcel) {
@@ -662,23 +585,52 @@ export function initPayrollApp() {
                             }
                         )
                     }
-                    contributionData = await this.parseContributionFiles(
-                        this.contributionFiles
-                    )
-                    if (this.debugEnabled) {
+                    workflowResult = await runPayrollReportWorkflow({
+                        pdfFiles: files,
+                        excelFiles: this.contributionFiles,
+                        pdfPassword: this.pdfPassword,
+                        xlsx: window.XLSX,
+                        failedPayPeriods: this.failedPayPeriods,
+                        failedFiles: this.failedFiles,
+                        captureDebug: this.debugEnabled,
+                        onProgress: ({ current, total, file }) => {
+                            this.progress.current = current
+                            this.progress.total = total
+                            console.info('Payroll: extracting', {
+                                index: current,
+                                name: file.name,
+                            })
+                        },
+                    })
+                    if (this.debugEnabled && workflowResult?.debug) {
+                        console.info('Payroll: PDF extraction debug captured')
+                    }
+                    if (this.debugEnabled && workflowResult?.contributionData) {
                         console.info(
                             'Payroll: Excel contribution history parsed',
                             {
-                                entries: contributionData?.entries?.length || 0,
+                                entries:
+                                    workflowResult.contributionData?.entries
+                                        ?.length || 0,
                             }
                         )
                     }
                 } catch (err) {
-                    console.warn('Payroll: contribution parsing failed', {
+                    console.error('Payroll: extraction failed', {
                         message: err?.message,
                         error: err,
                     })
-                    if (err?.message === 'XLSX_NOT_AVAILABLE') {
+                    if (err && err.message === 'PASSWORD_REQUIRED') {
+                        this.error =
+                            'A password is required for one or more of the uploaded PDF(s). Enter a password and try again.'
+                        document.getElementById('pdf-password')?.focus()
+                    } else if (err && err.message === 'INCORRECT_PASSWORD') {
+                        const fileLabel = err?.fileName
+                            ? ` for ${err.fileName}`
+                            : ''
+                        this.error = `Incorrect password${fileLabel}. Please re-enter the PDF password.`
+                        document.getElementById('pdf-password')?.focus()
+                    } else if (err?.message === 'XLSX_NOT_AVAILABLE') {
                         this.error =
                             'Excel parser is not available. Please refresh and try again.'
                     } else if (err?.message === 'CONTRIBUTION_SHEET_MISSING') {
@@ -717,18 +669,144 @@ export function initPayrollApp() {
                         this.error =
                             'Excel file contains no valid contribution rows. Check the sheet formatting.'
                     } else {
-                        this.error =
-                            'Failed to read contribution history Excel file(s). The report was not generated.'
+                        this.error = `Failed to read the following files:`
                     }
                     this.status = 'idle'
                     return
                 } finally {
                     this.parsingExcel = false
                 }
-                records.contributionData = contributionData
+
+                console.info('Payroll: failed files summary', {
+                    count: this.failedFiles.length,
+                    files: [...this.failedFiles],
+                })
+
+                if (this.failedFiles.length && !this.error) {
+                    this.error = `Failed to read ${this.failedFiles.length} PDF(s).`
+                }
+
+                const records = workflowResult?.records || []
+                if (!records.length) {
+                    this.status = 'idle'
+                    this.error = this.error || 'No payroll data was extracted.'
+                    console.warn('Payroll: no records extracted', {
+                        files: files.length,
+                        error: this.error,
+                    })
+                    return
+                }
+
+                if (this.debugEnabled && workflowResult?.debug) {
+                    if (!this.debugText) {
+                        this.debugText = workflowResult.debug.text
+                    }
+                    if (!this.debugInfo.parsed) {
+                        const debugRecord = { ...records[0] }
+                        if (
+                            debugRecord.imageData &&
+                            typeof debugRecord.imageData === 'string'
+                        ) {
+                            const marker = 'data:image/png;base64,'
+                            debugRecord.imageData =
+                                debugRecord.imageData.startsWith(marker)
+                                    ? `${marker}<truncated>`
+                                    : '<truncated>'
+                        }
+                        this.debugInfo.parsed = JSON.stringify(
+                            debugRecord,
+                            null,
+                            2
+                        )
+                        this.debugInfo.matches = JSON.stringify(
+                            {
+                                nameDateId:
+                                    this.debugText.match(
+                                        PATTERNS.nameDateId
+                                    )?.[0] || null,
+                                employerLine:
+                                    this.debugText.match(
+                                        PATTERNS.employerLine
+                                    )?.[0] || null,
+                                payeTax:
+                                    this.debugText.match(
+                                        PATTERNS.payeTax
+                                    )?.[0] || null,
+                                nationalInsurance:
+                                    this.debugText.match(
+                                        PATTERNS.nationalInsurance
+                                    )?.[0] || null,
+                                nestEmployee:
+                                    this.debugText.match(
+                                        PATTERNS.nestEmployee
+                                    )?.[0] || null,
+                                nestEmployer:
+                                    this.debugText.match(
+                                        PATTERNS.nestEmployer
+                                    )?.[0] || null,
+                                earningsForNI:
+                                    this.debugText.match(
+                                        PATTERNS.earningsForNI
+                                    )?.[0] || null,
+                                grossForTax:
+                                    this.debugText.match(
+                                        PATTERNS.grossForTax
+                                    )?.[0] || null,
+                                totalGrossPay:
+                                    this.debugText.match(
+                                        PATTERNS.totalGrossPay
+                                    )?.[0] || null,
+                                payCycle:
+                                    this.debugText.match(
+                                        PATTERNS.payCycle
+                                    )?.[0] || null,
+                                totalGrossPayTD:
+                                    this.debugText.match(
+                                        PATTERNS.totalGrossPayTD
+                                    )?.[0] || null,
+                                grossForTaxTD:
+                                    this.debugText.match(
+                                        PATTERNS.grossForTaxTD
+                                    )?.[0] || null,
+                                taxPaidTD:
+                                    this.debugText.match(
+                                        PATTERNS.taxPaidTD
+                                    )?.[0] || null,
+                                earningsForNITD:
+                                    this.debugText.match(
+                                        PATTERNS.earningsForNITD
+                                    )?.[0] || null,
+                                nationalInsuranceTD:
+                                    this.debugText.match(
+                                        PATTERNS.nationalInsuranceTD
+                                    )?.[0] || null,
+                                employeePensionTD:
+                                    this.debugText.match(
+                                        PATTERNS.employeePensionTD
+                                    )?.[0] || null,
+                                employerPensionTD:
+                                    this.debugText.match(
+                                        PATTERNS.employerPensionTD
+                                    )?.[0] || null,
+                                netPay:
+                                    this.debugText.match(
+                                        PATTERNS.netPay
+                                    )?.[0] || null,
+                            },
+                            null,
+                            2
+                        )
+                    }
+                }
+
+                const report = workflowResult.report
+                if (!report) {
+                    this.status = 'idle'
+                    this.error = this.error || 'No payroll data was extracted.'
+                    return
+                }
 
                 this.status = 'rendering'
-                const report = buildReport(records, this.failedPayPeriods)
                 this.reportHtml = report.html
                 this.reportReady = true
                 this.status = 'done'
@@ -969,12 +1047,22 @@ export function initPayrollApp() {
             const storedSections = sessionStorage.getItem(SECTION_COLLAPSED_KEY)
             if (storedSections) {
                 try {
-                    this.collapsedSections = JSON.parse(storedSections)
-                } catch (error) {
+                    const parsed = JSON.parse(storedSections)
+                    if (parsed && typeof parsed === 'object') {
+                        this.collapsedSections = {
+                            prep: false,
+                            nextSteps: true,
+                            ...parsed,
+                        }
+                    }
+                } catch {
                     this.collapsedSections = { prep: false, nextSteps: true }
                 }
             }
-            if (!this.collapsedSections) {
+            if (
+                !this.collapsedSections ||
+                typeof this.collapsedSections !== 'object'
+            ) {
                 this.collapsedSections = { prep: false, nextSteps: true }
             }
             if ('serviceWorker' in navigator) {

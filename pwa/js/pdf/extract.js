@@ -21,9 +21,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
  */
 export async function extractPdfData(file, password) {
     const data = await file.arrayBuffer()
+    const isTestEnv = Boolean(
+        globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsDebug
+    )
     const loadingTask = pdfjsLib.getDocument({
         data,
         password: password || undefined,
+        disableFontFace: isTestEnv,
+        useSystemFonts: isTestEnv,
+        verbosity: isTestEnv ? 0 : undefined,
     })
     let pdf
     try {

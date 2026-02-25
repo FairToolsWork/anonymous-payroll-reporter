@@ -24,7 +24,7 @@ Open `pwa/index.html` in a browser or serve the folder with any static server.
 
 To enable debug panel:
 
-```
+```bash
 index.html?debug=1
 ```
 

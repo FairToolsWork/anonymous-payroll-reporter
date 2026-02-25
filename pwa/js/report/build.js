@@ -102,6 +102,23 @@ function formatBreakdownCell(total, ee, er, allowNA = false) {
 }
 
 /**
+ * @param {number | null} value
+ * @returns {string}
+ */
+function formatContributionDifference(value) {
+    if (value === null) {
+        return 'N/A'
+    }
+    const diffClass =
+        value === 0
+            ? 'diff--neutral'
+            : value > 0
+              ? 'diff--positive'
+              : 'diff--negative'
+    return `<span class="${diffClass}">${formatCurrency(value)}</span>`
+}
+
+/**
  * @param {PayrollPayItem | PayrollMiscDeduction | { title?: string, units?: number | null, rate?: number | null }} item
  * @returns {string}
  */
@@ -243,143 +260,46 @@ export function buildReport(records, failedPayPeriods = []) {
         return acc
     }, [])
 
-    /** @type {Record<string, number[]>} */
-    const failedMonthsByYear = {}
-    failedDates.forEach((date) => {
-        const yearKey = date.getFullYear()
-        const monthIndex = date.getMonth() + 1
-        if (!failedMonthsByYear[yearKey]) {
-            failedMonthsByYear[yearKey] = []
-        }
-        if (!failedMonthsByYear[yearKey].includes(monthIndex)) {
-            failedMonthsByYear[yearKey].push(monthIndex)
-        }
-    })
-
-    const currentDate = new Date()
-    const currentYear = currentDate.getFullYear()
-    const currentMonthIndex = currentDate.getMonth() + 1
-    /** @type {Record<string, string[]>} */
-    const missingMonthsByYear = {}
-    yearGroups.forEach((entriesForYear, yearKey) => {
-        const numericYear = Number(yearKey)
-        const presentMonths = entriesForYear
-            .map((entry) => entry.monthIndex)
-            .filter((month) => month >= 1 && month <= 12)
-        const failedMonths = failedMonthsByYear[yearKey] || []
-        const combinedMonths = presentMonths.concat(failedMonths)
-        const maxMonth =
-            numericYear === currentYear ? currentMonthIndex - 1 : 12
-        if (!combinedMonths.length || maxMonth <= 0) {
-            missingMonthsByYear[yearKey] = []
-            return
-        }
-        const present = new Set(presentMonths)
-        const missing = []
-        for (let month = 1; month <= maxMonth; month += 1) {
-            if (!present.has(month)) {
-                missing.push(formatMonthLabel(month))
-            }
-        }
-        missingMonthsByYear[yearKey] = missing
-    })
-    const missingMonthsLabel = buildMissingMonthsLabel(missingMonthsByYear)
-    const missingMonthsHtml = buildMissingMonthsHtml(missingMonthsByYear)
+    const {
+        missingMonthsByYear,
+        hasMissingMonths,
+        missingMonthsLabel,
+        missingMonthsHtml,
+    } = buildMissingMonths(yearGroups, failedDates)
     const missingMonthsPill = `Missing months: <span class="missing-months">${missingMonthsHtml}</span>`
-    const hasMissingMonths = Object.values(missingMonthsByYear).some(
-        (months) => months.length
-    )
 
-    const flaggedEntries = entries.filter(
-        (entry) => entry.validation?.flags && entry.validation.flags.length
-    )
-    const lowConfidenceEntries = entries.filter(
-        (entry) => entry.validation?.lowConfidence
-    )
-    const flaggedPeriods = flaggedEntries.map((entry) =>
-        entry.parsedDate
-            ? formatDateLabel(entry.parsedDate)
-            : entry.record.payrollDoc?.processDate?.date || 'Unknown'
-    )
-    const validationPill = flaggedEntries.length
-        ? `Flags: <span class="validation-count">${flaggedEntries.length}</span> | ` +
-          `Low confidence: <span class="validation-count">${lowConfidenceEntries.length}</span>`
-        : 'Validation flags: None'
+    const {
+        flaggedEntries,
+        lowConfidenceEntries,
+        flaggedPeriods,
+        validationPill,
+    } = buildValidationSummary(entries)
     const hasLowPretaxPay = entries.some((entry) => {
         const totalGrossPay =
             entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
         return typeof totalGrossPay === 'number' && totalGrossPay < 1048
     })
 
-    const totals = entries.reduce(
-        (acc, entry) => {
-            acc.nestEmployee +=
-                entry.record.payrollDoc?.deductions?.nestEE?.amount || 0
-            acc.nestEmployer +=
-                entry.record.payrollDoc?.deductions?.nestER?.amount || 0
-            acc.miscPayments += sumMiscAmounts(
-                entry.record.payrollDoc?.payments?.misc || []
-            )
-            acc.miscDeductions += sumMiscAmounts(
-                entry.record.payrollDoc?.deductions?.misc || []
-            )
-            return acc
-        },
-        {
-            nestEmployee: 0,
-            nestEmployer: 0,
-            miscPayments: 0,
-            miscDeductions: 0,
-        }
-    )
-    const payrollEE = totals.nestEmployee
-    const payrollER = totals.nestEmployer
-    const payrollContribution = payrollEE + payrollER
-    let pensionEE = null
-    let pensionER = null
-    let reportedContribution = null
-    let contributionDifference = null
-    let daysSinceContribution = null
-    let lastContributionLabel = 'N/A'
+    const {
+        payrollEE,
+        payrollER,
+        payrollContribution,
+        pensionEE,
+        pensionER,
+        reportedContribution,
+        contributionDifference,
+    } = buildContributionTotals(entries, contributionSummary)
     const daysThreshold = 30
-    if (contributionSummary) {
-        const pensionTotals = Array.from(
-            contributionSummary.years.values()
-        ).reduce(
-            (acc, yearData) => {
-                acc.ee += yearData.totals.actualEE || 0
-                acc.er += yearData.totals.actualER || 0
-                return acc
-            },
-            { ee: 0, er: 0 }
+    const { daysSinceContribution, lastContributionLabel } =
+        buildContributionRecency(
+            lastContributionDate,
+            reportRunDate,
+            daysThreshold
         )
-        pensionEE = pensionTotals.ee
-        pensionER = pensionTotals.er
-        reportedContribution = pensionEE + pensionER
-        contributionDifference = reportedContribution - payrollContribution
-    }
-    if (lastContributionDate) {
-        const millisecondsSince =
-            reportRunDate.getTime() - lastContributionDate.getTime()
-        const dayCount = Math.floor(millisecondsSince / (1000 * 60 * 60 * 24))
-        daysSinceContribution = Math.max(0, dayCount)
-        lastContributionLabel = formatDateLabel(lastContributionDate)
-    }
-    const differenceClass =
-        contributionDifference === null
-            ? ''
-            : contributionDifference === 0
-              ? 'diff--neutral'
-              : contributionDifference > 0
-                ? 'diff--positive'
-                : 'diff--negative'
     const formatOrNA = (value) =>
         value === null ? 'N/A' : formatCurrency(value)
     const formatDifference = () => {
-        if (contributionDifference === null) {
-            return 'N/A'
-        }
-        return `<span class="${differenceClass}">${formatCurrency(contributionDifference)}</span>`
+        return formatContributionDifference(contributionDifference)
     }
     const formatYearDiff = (value, isZeroReview = false) => {
         if (value === null) {
@@ -660,6 +580,183 @@ export function buildReport(records, failedPayPeriods = []) {
             },
         },
     }
+}
+
+/**
+ * @param {Map<string | number, YearEntries>} yearGroups
+ * @param {Date[]} failedDates
+ * @returns {{ missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }}
+ */
+function buildMissingMonths(yearGroups, failedDates) {
+    /** @type {Record<string, number[]>} */
+    const failedMonthsByYear = {}
+    failedDates.forEach((date) => {
+        const yearKey = date.getFullYear()
+        const monthIndex = date.getMonth() + 1
+        if (!failedMonthsByYear[yearKey]) {
+            failedMonthsByYear[yearKey] = []
+        }
+        if (!failedMonthsByYear[yearKey].includes(monthIndex)) {
+            failedMonthsByYear[yearKey].push(monthIndex)
+        }
+    })
+
+    const currentDate = new Date()
+    const currentYear = currentDate.getFullYear()
+    const currentMonthIndex = currentDate.getMonth() + 1
+    /** @type {Record<string, string[]>} */
+    const missingMonthsByYear = {}
+    yearGroups.forEach((entriesForYear, yearKey) => {
+        const numericYear = Number(yearKey)
+        const presentMonths = entriesForYear
+            .map((entry) => entry.monthIndex)
+            .filter((month) => month >= 1 && month <= 12)
+        const failedMonths = failedMonthsByYear[yearKey] || []
+        const combinedMonths = presentMonths.concat(failedMonths)
+        const maxMonth =
+            numericYear === currentYear ? currentMonthIndex - 1 : 12
+        if (!combinedMonths.length || maxMonth <= 0) {
+            missingMonthsByYear[yearKey] = []
+            return
+        }
+        const present = new Set(presentMonths)
+        const missing = []
+        for (let month = 1; month <= maxMonth; month += 1) {
+            if (!present.has(month)) {
+                missing.push(formatMonthLabel(month))
+            }
+        }
+        missingMonthsByYear[yearKey] = missing
+    })
+
+    const missingMonthsLabel = buildMissingMonthsLabel(missingMonthsByYear)
+    const missingMonthsHtml = buildMissingMonthsHtml(missingMonthsByYear)
+    const hasMissingMonths = Object.values(missingMonthsByYear).some(
+        (months) => months.length
+    )
+
+    return {
+        missingMonthsByYear,
+        hasMissingMonths,
+        missingMonthsLabel,
+        missingMonthsHtml,
+    }
+}
+
+/**
+ * @param {ReportEntry[]} entries
+ * @returns {{ flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }}
+ */
+function buildValidationSummary(entries) {
+    const flaggedEntries = entries.filter(
+        (entry) => entry.validation?.flags && entry.validation.flags.length
+    )
+    const lowConfidenceEntries = entries.filter(
+        (entry) => entry.validation?.lowConfidence
+    )
+    const flaggedPeriods = flaggedEntries.map((entry) =>
+        entry.parsedDate
+            ? formatDateLabel(entry.parsedDate)
+            : entry.record.payrollDoc?.processDate?.date || 'Unknown'
+    )
+    const validationPill = flaggedEntries.length
+        ? `Flags: <span class="validation-count">${flaggedEntries.length}</span> | ` +
+          `Low confidence: <span class="validation-count">${lowConfidenceEntries.length}</span>`
+        : 'Validation flags: None'
+    return {
+        flaggedEntries,
+        lowConfidenceEntries,
+        flaggedPeriods,
+        validationPill,
+    }
+}
+
+/**
+ * @param {ReportEntry[]} entries
+ * @param {ContributionSummary | null} contributionSummary
+ * @returns {{ payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }}
+ */
+function buildContributionTotals(entries, contributionSummary) {
+    const totals = entries.reduce(
+        (acc, entry) => {
+            acc.nestEmployee +=
+                entry.record.payrollDoc?.deductions?.nestEE?.amount || 0
+            acc.nestEmployer +=
+                entry.record.payrollDoc?.deductions?.nestER?.amount || 0
+            acc.miscPayments += sumMiscAmounts(
+                entry.record.payrollDoc?.payments?.misc || []
+            )
+            acc.miscDeductions += sumMiscAmounts(
+                entry.record.payrollDoc?.deductions?.misc || []
+            )
+            return acc
+        },
+        {
+            nestEmployee: 0,
+            nestEmployer: 0,
+            miscPayments: 0,
+            miscDeductions: 0,
+        }
+    )
+
+    const payrollEE = totals.nestEmployee
+    const payrollER = totals.nestEmployer
+    const payrollContribution = payrollEE + payrollER
+
+    let pensionEE = null
+    let pensionER = null
+    let reportedContribution = null
+    let contributionDifference = null
+
+    if (contributionSummary) {
+        const pensionTotals = Array.from(
+            contributionSummary.years.values()
+        ).reduce(
+            (acc, yearData) => {
+                acc.ee += yearData.totals.actualEE || 0
+                acc.er += yearData.totals.actualER || 0
+                return acc
+            },
+            { ee: 0, er: 0 }
+        )
+        pensionEE = pensionTotals.ee
+        pensionER = pensionTotals.er
+        reportedContribution = pensionEE + pensionER
+        contributionDifference = reportedContribution - payrollContribution
+    }
+
+    return {
+        payrollEE,
+        payrollER,
+        payrollContribution,
+        pensionEE,
+        pensionER,
+        reportedContribution,
+        contributionDifference,
+    }
+}
+
+/**
+ * @param {Date | null} lastContributionDate
+ * @param {Date} reportRunDate
+ * @param {number} daysThreshold
+ * @returns {{ daysSinceContribution: number | null, lastContributionLabel: string }}
+ */
+function buildContributionRecency(
+    lastContributionDate,
+    reportRunDate,
+    daysThreshold
+) {
+    let daysSinceContribution = null
+    let lastContributionLabel = 'N/A'
+    if (lastContributionDate) {
+        const millisecondsSince =
+            reportRunDate.getTime() - lastContributionDate.getTime()
+        const dayCount = Math.floor(millisecondsSince / (1000 * 60 * 60 * 24))
+        daysSinceContribution = Math.max(0, dayCount)
+        lastContributionLabel = formatDateLabel(lastContributionDate)
+    }
+    return { daysSinceContribution, lastContributionLabel }
 }
 
 /**
@@ -1084,4 +1181,12 @@ function renderYearSummary(entriesForYear) {
     }
 
     return sections.join('')
+}
+
+export {
+    buildContributionTotals,
+    buildMissingMonths,
+    buildValidationSummary,
+    formatBreakdownCell,
+    formatContributionDifference,
 }
