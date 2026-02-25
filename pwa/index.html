@@ -68,27 +68,29 @@
                 </div>
             </header>
 
-            <section class="prep">
-                <div class="prep-header">
-                    <h2 class="prep-title">1. Prep</h2>
+            <section class="prep collapse-section">
+                <div class="collapse-header">
+                    <h2 class="collapse-title">1. Prep</h2>
                     <button
-                        class="prep-toggle"
+                        class="collapse-toggle"
                         type="button"
-                        @click="togglePrepCollapsed"
-                        :aria-expanded="(!prepCollapsed).toString()"
+                        @click="toggleSection('prep')"
+                        :aria-expanded="(!collapsedSections.prep).toString()"
                         aria-controls="prep-content"
                         v-cloak
                     >
-                        <span>{{ prepCollapsed ? 'Expand' : 'Collapse' }}</span>
+                        <span>
+                            {{ collapsedSections.prep ? 'Expand' : 'Collapse' }}
+                        </span>
                     </button>
                 </div>
                 <div
-                    class="prep-grid"
+                    class="collapse-grid"
                     id="prep-content"
-                    :class="{ 'is-collapsed': prepCollapsed }"
-                    @focusin="handlePrepFocus"
-                    :aria-hidden="prepCollapsed"
-                    :inert="prepCollapsed"
+                    :class="{ 'is-collapsed': collapsedSections.prep }"
+                    @focusin="handleSectionFocus('prep')"
+                    :aria-hidden="collapsedSections.prep"
+                    :inert="collapsedSections.prep"
                 >
                     <div class="card">
                         <header>
@@ -110,7 +112,8 @@
                             <div class="notice">
                                 <i
                                     ><b>Note:</b> Ask your manager if you need a
-                                    password to open them.</i
+                                    password to open them, or if you are missing
+                                    any dates.</i
                                 >
                             </div>
                         </details>
@@ -160,67 +163,87 @@
                             </p>
                             <ol>
                                 <li>
-                                    <h4>Select a Tax Year</h4>
-                                    <img
-                                        src="imgs/nest-1.png"
-                                        alt="Nest tax year"
-                                        width="482"
-                                        height="140"
-                                    />
-                                    <p class="notice">
-                                        You will repeat this process for each
-                                        financial year.
-                                    </p>
+                                    <details name="nest-steps">
+                                        <summary>Select a Tax Year</summary>
+                                        <img
+                                            src="imgs/nest-1.png"
+                                            alt="Nest tax year"
+                                            width="482"
+                                            height="140"
+                                        />
+                                        <p class="notice">
+                                            You will repeat this process for
+                                            each financial year.
+                                        </p>
+                                    </details>
                                 </li>
                                 <li>
-                                    <h4>Employer</h4>
-                                    Select employer (current company name, if
-                                    more then one).
-                                    <img
-                                        src="imgs/nest-2.png"
-                                        alt="Nest employer"
-                                        width="676"
-                                        height="272"
-                                    />
+                                    <details name="nest-steps">
+                                        <summary>
+                                            Select current Employer
+                                        </summary>
+                                        <p>
+                                            Select employer (current company
+                                            name, if more then one).
+                                        </p>
+                                        <img
+                                            src="imgs/nest-2.png"
+                                            alt="Nest employer"
+                                            width="676"
+                                            height="272"
+                                        />
+                                    </details>
                                 </li>
                                 <li>
-                                    <h4>Contribution types</h4>
-                                    <p class="notice">
-                                        <b>Important:</b> Choose both "From your
-                                        salary"
-                                        <b>and</b>
-                                        "From your employer".
-                                    </p>
-                                    <img
-                                        src="imgs/nest-3.png"
-                                        alt="Nest contributions"
-                                        width="684"
-                                        height="360"
-                                    />
+                                    <details name="nest-steps">
+                                        <summary>
+                                            Tick <b>both</b> contribution types
+                                        </summary>
+
+                                        <img
+                                            src="imgs/nest-3.png"
+                                            alt="Nest contributions"
+                                            width="684"
+                                            height="360"
+                                        />
+                                        <p class="notice">
+                                            <b>Important:</b> Choose both "From
+                                            your salary"
+                                            <b>and</b>
+                                            "From your employer".
+                                        </p>
+                                    </details>
                                 </li>
                                 <li>
-                                    Click "Apply filters" and then the "Download
-                                    Results" button.
-                                    <img
-                                        src="imgs/nest-4.png"
-                                        alt="Nest download"
-                                        width="686"
-                                        height="650"
-                                    />
-                                    <img
-                                        src="imgs/nest-5.png"
-                                        alt="Nest download"
-                                        width="686"
-                                        height="650"
-                                    />
-                                    <p class="notice">
-                                        Rinse and repeat - You will need change
-                                        the year and click "apply filters" and
-                                        "download results" for each financial
-                                        year.
-                                    </p>
+                                    <details name="nest-steps">
+                                        <summary>
+                                            Click 'Apply Filters' &amp;
+                                            'Download'
+                                        </summary>
+                                        <p>
+                                            Click "Apply filters" and then the
+                                            "Download Results" buttons.
+                                        </p>
+                                        <img
+                                            src="imgs/nest-4.png"
+                                            alt="Nest download"
+                                            width="686"
+                                            height="650"
+                                        />
+                                        <img
+                                            src="imgs/nest-5.png"
+                                            alt="Nest download"
+                                            width="686"
+                                            height="650"
+                                        />
+                                    </details>
                                 </li>
                             </ol>
+                            <p class="notice">
+                                Rinse and repeat - You will need change the year
+                                and click "apply filters" and "download results"
+                                for each financial year.
+                            </p>
                         </details>
                     </div>
                     <!-- <div class="card">
@@ -242,7 +265,6 @@
                     </div> -->
                 </div>
             </section>
-
             <section class="controls" v-cloak>
                 <div
                     class="card upload-panel"
@@ -472,6 +494,86 @@
                     </div>
                 </div>
             </div>
+
+            <section class="next-steps collapse-section">
+                <div class="collapse-header">
+                    <h2 class="collapse-title">3. Next Steps</h2>
+                    <button
+                        class="collapse-toggle"
+                        type="button"
+                        @click="toggleSection('nextSteps')"
+                        :aria-expanded="(!collapsedSections.nextSteps).toString()"
+                        aria-controls="next-steps-content"
+                        v-cloak
+                    >
+                        <span
+                            >{{ collapsedSections.nextSteps ? 'Expand' :
+                            'Collapse' }}</span
+                        >
+                    </button>
+                </div>
+                <div
+                    class="collapse-grid"
+                    id="next-steps-content"
+                    :class="{ 'is-collapsed': collapsedSections.nextSteps }"
+                    @focusin="handleSectionFocus('nextSteps')"
+                    :aria-hidden="collapsedSections.nextSteps"
+                    :inert="collapsedSections.nextSteps"
+                >
+                    <div class="card">
+                        <header>
+                            <img src="imgs/email.svg" alt="Email icon" />
+                            <h3>A) Email your manager</h3>
+                        </header>
+                        <p>
+                            If you note any discrepencies in your pension
+                            contributions, or deductions firt email your manager
+                            with these concerns. You may wish to forward them a
+                            copy of this report as evidence.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <img
+                                src="imgs/hmrc-icon.svg"
+                                alt="HMRC Revenue and Customs icon"
+                            />
+                            <h3>B) Verify Tax Payments</h3>
+                        </header>
+                        <p>
+                            If you have any concerns about your tax payments,
+                            you should verify them with HMRC - eg your payslip
+                            is missing deductions taxcode or National Insurance
+                            ID. You can do this by downloading the
+                            <a
+                                href="https://www.gov.uk/guidance/download-the-hmrc-app"
+                                target="_blank"
+                                rel="noopener"
+                                title="Download the HMRC app"
+                                >HMRC app</a
+                            >
+                            from the Apple App or Google Play Stores.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <img src="imgs/unite.svg" alt="Unite icon" />
+                            <h3>C) Join Unite</h3>
+                        </header>
+                        <p>
+                            If you're not already a member, why not
+                            <a href="https://join.unitetheunion.org/"
+                                >join Unite</a
+                            >?
+                        </p>
+                        <p class="notice">
+                            <b>Note:</b> Unite can advise, but
+                            <i>usually</i> can't provide legal help for issues
+                            reported within four weeks of joining.
+                        </p>
+                    </div>
+                </div>
+            </section>
 
             <section class="report-output" v-if="reportHtml" v-cloak>
                 <div class="report-root" v-html="reportHtml"></div>

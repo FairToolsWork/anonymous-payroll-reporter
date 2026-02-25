@@ -51,8 +51,6 @@ import { buildReport } from '../report/build.js'
 const DEBUG_LEVEL = new URLSearchParams(window.location.search).get('debug')
 /** @type {boolean} */
 const DEBUG_ENABLED = DEBUG_LEVEL === '1' || DEBUG_LEVEL === '2'
-/** @type {boolean} */
-const DEBUG_PERSIST_PASSWORD = DEBUG_LEVEL === '2'
 /** @type {string} */
 const PDF_PASSWORD_KEY = 'pdf_password'
 /** @type {string} */
@@ -60,7 +58,7 @@ const DISCLAIMER_ACCEPTED_KEY = 'disclaimer_accepted'
 /** @type {string} */
 const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
 /** @type {string} */
-const PREP_COLLAPSED_KEY = 'prep_collapsed'
+const SECTION_COLLAPSED_KEY = 'section_collapsed'
 /** @type {number} */
 const SESSION_TTL_MS = 30 * 60 * 1000
 
@@ -118,7 +116,10 @@ export function initPayrollApp() {
                 debugCopySuccess: false,
                 debugCopyResetTimer: null,
                 acceptedDisclaimer: false,
-                prepCollapsed: false,
+                collapsedSections: {
+                    prep: false,
+                    nextSteps: true,
+                },
                 showScrollTop: false,
                 parsingExcel: false,
             }
@@ -173,24 +174,30 @@ export function initPayrollApp() {
                     sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
                 }
             },
-            /** @param {boolean} value */
-            prepCollapsed(value) {
-                if (value) {
-                    sessionStorage.setItem(PREP_COLLAPSED_KEY, 'true')
-                    return
-                }
-                sessionStorage.removeItem(PREP_COLLAPSED_KEY)
+            /** @param {Record<string, boolean>} value */
+            collapsedSections: {
+                handler(value) {
+                    sessionStorage.setItem(
+                        SECTION_COLLAPSED_KEY,
+                        JSON.stringify(value || {})
+                    )
+                },
+                deep: true,
             },
         },
         methods: {
             /** @returns {void} */
-            togglePrepCollapsed() {
-                this.prepCollapsed = !this.prepCollapsed
+            toggleSection(sectionKey) {
+                if (!this.collapsedSections) {
+                    this.collapsedSections = {}
+                }
+                this.collapsedSections[sectionKey] =
+                    !this.collapsedSections[sectionKey]
             },
             /** @returns {void} */
-            handlePrepFocus() {
-                if (this.prepCollapsed) {
-                    this.prepCollapsed = false
+            handleSectionFocus(sectionKey) {
+                if (this.collapsedSections?.[sectionKey]) {
+                    this.collapsedSections[sectionKey] = false
                 }
             },
             /** @param {Event} event */
@@ -959,8 +966,17 @@ export function initPayrollApp() {
             this.pdfPassword = sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
             this.acceptedDisclaimer =
                 sessionStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === 'true'
-            this.prepCollapsed =
-                sessionStorage.getItem(PREP_COLLAPSED_KEY) === 'true'
+            const storedSections = sessionStorage.getItem(SECTION_COLLAPSED_KEY)
+            if (storedSections) {
+                try {
+                    this.collapsedSections = JSON.parse(storedSections)
+                } catch (error) {
+                    this.collapsedSections = { prep: false, nextSteps: true }
+                }
+            }
+            if (!this.collapsedSections) {
+                this.collapsedSections = { prep: false, nextSteps: true }
+            }
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker
                     .register('sw.js')

@@ -266,11 +266,11 @@ label.next-action {
     background: var(--accent-green-dark);
 }
 
-.prep {
+.collapse-section {
     margin-bottom: 36px;
 }
 
-.prep-header {
+.collapse-header {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -278,11 +278,11 @@ label.next-action {
     margin-bottom: 16px;
 }
 
-.prep-title {
+.collapse-title {
     margin: 0;
 }
 
-.prep-toggle {
+.collapse-toggle {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -296,18 +296,18 @@ label.next-action {
     cursor: pointer;
 }
 
-.prep-toggle::before {
+.collapse-toggle::before {
     content: '+';
     display: inline-block;
     color: var(--accent);
     font-weight: 700;
 }
 
-.prep-toggle[aria-expanded='true']::before {
+.collapse-toggle[aria-expanded='true']::before {
     content: '\2212';
 }
 
-.prep-grid {
+.collapse-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
@@ -319,13 +319,13 @@ label.next-action {
     margin: 0 -45px -45px -45px;
 }
 
-.prep-grid.is-collapsed {
+.collapse-grid.is-collapsed {
     max-height: 75px;
     margin-bottom: 16px;
     padding-bottom: 16px;
 }
 
-.prep-grid.is-collapsed::after {
+.collapse-grid.is-collapsed::after {
     content: '';
     position: absolute;
     inset: auto 0 0;
@@ -334,7 +334,7 @@ label.next-action {
     pointer-events: none;
 }
 
-.prep-card ul {
+.collapse-card ul {
     margin: 8px 0 0 18px;
 }
 
