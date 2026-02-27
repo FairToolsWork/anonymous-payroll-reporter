@@ -1,0 +1,38 @@
+{
+    "header_bar": [
+        "anchor",
+        "ni_anchor",
+        "basic_line_anchor",
+        "net_amount_anchor"
+    ],
+    "payments_table": ["anchor", "hours_label", "holiday_label"],
+    "deductions_table": [
+        "anchor",
+        "pension_ee_label",
+        "pension_er_label",
+        "other_net_ded_label"
+    ],
+    "address_block": ["anchor", "name_anchor"],
+    "this_period": [
+        "anchor",
+        "earnings_ni_label",
+        "gross_tax_label",
+        "total_gross_pay_label",
+        "pay_cycle_label"
+    ],
+    "year_to_date": [
+        "anchor",
+        "ni_td_label",
+        "pension_ee_td_label",
+        "pension_er_td_label"
+    ],
+    "footer": [
+        "anchor",
+        "employer_anchor",
+        "tax_code_label",
+        "pay_run_label",
+        "pay_run_text_template",
+        "pay_method_label",
+        "copyright_line"
+    ]
+}

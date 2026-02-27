@@ -1,0 +1,124 @@
+{
+    "constants": {
+        "personal_allowance_annual": 12570.0,
+        "personal_allowance_monthly": 1048.0,
+        "national_tax_bands_annual": [
+            [15397.0, 0.19],
+            [27491.0, 0.2],
+            [43662.0, 0.21],
+            [75000.0, 0.42],
+            [125140.0, 0.45],
+            ["inf", 0.48]
+        ],
+        "ni_threshold_monthly": 1048.0,
+        "ni_employee_rate": 0.12,
+        "ni_employer_rate": 0.138,
+        "pens_qual_lower_monthly": 520.0,
+        "pens_qual_upper_monthly": 4189.17,
+        "pens_employee_rate": 0.05,
+        "pens_employer_rate": 0.03,
+        "pension_provider": "NEST Corporation",
+        "employee_id_text": "0005",
+        "tax_code_value": "S1257L",
+        "pay_method_value": "Bank Transfer"
+    },
+    "dataset": [
+        {
+            "month": "2024-04",
+            "basic_lines": [
+                [75.9, 8.6],
+                [75.9, 10.0]
+            ],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-05",
+            "basic_lines": [[170.78, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-06",
+            "basic_lines": [[218.21, 10.0]],
+            "makeup_lines": [[15, 10.0]],
+            "holiday_lines": [[4, 10.0]],
+            "other_deduction": 50
+        },
+        {
+            "month": "2024-07",
+            "basic_lines": [[199.24, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-08",
+            "basic_lines": [[142.31, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [[4, 10.0]],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-09",
+            "basic_lines": [[246.68, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-10",
+            "basic_lines": [[180.26, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2024-11",
+            "basic_lines": [[208.73, 10.0]],
+            "makeup_lines": [[20, 10.0]],
+            "holiday_lines": [],
+            "other_deduction": 50
+        },
+        {
+            "month": "2024-12",
+            "basic_lines": [[161.29, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [[7, 10.0]],
+            "other_deduction": 0
+        },
+        {
+            "month": "2025-01",
+            "basic_lines": [[227.7, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [[7, 10.0]],
+            "other_deduction": 0
+        },
+        {
+            "month": "2025-02",
+            "basic_lines": [[132.83, 10.0]],
+            "makeup_lines": [[12, 10.0]],
+            "holiday_lines": [],
+            "other_deduction": 50
+        },
+        {
+            "month": "2025-03",
+            "basic_lines": [[237.19, 10.0]],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        },
+        {
+            "month": "2025-04",
+            "basic_lines": [
+                [94.88, 10.0],
+                [94.87, 10.85]
+            ],
+            "makeup_lines": [],
+            "holiday_lines": [],
+            "other_deduction": 0
+        }
+    ]
+}

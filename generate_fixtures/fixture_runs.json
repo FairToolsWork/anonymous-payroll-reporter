@@ -1,0 +1,100 @@
+{
+    "default_structure": "generate_fixtures/formats/sage-uk/structure.json",
+    "runs": [
+        {
+            "id": "baseline",
+            "output_dir": "tests/test_files/pdf-parse/fixtures",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employee": {}
+        },
+        {
+            "id": "report-workflow-baseline",
+            "output_dir": "tests/test_files/report-workflow/fixtures",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employee": {}
+        },
+        {
+            "id": "missing-employee",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/missing-employee",
+            "months": ["2024-04"],
+            "employee": {
+                "name": "",
+                "employer": ""
+            }
+        },
+        {
+            "id": "missing-months",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/missing-months",
+            "months": ["2024-04", "2024-05", "2024-07", "2024-09"],
+            "employee": {}
+        },
+        {
+            "id": "mixed-employee",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/mixed-employee",
+            "months": ["2024-04", "2024-05"],
+            "employee": {},
+            "employee_overrides": {
+                "2024-05": {
+                    "name": "Alex Carter",
+                    "employer": "Better Place Catering Company Ltd"
+                }
+            }
+        },
+        {
+            "id": "mixed-employer",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/mixed-employer",
+            "months": ["2024-04", "2024-05"],
+            "employee": {},
+            "employee_overrides": {
+                "2024-05": {
+                    "employer": "Different Employer Ltd"
+                }
+            }
+        },
+        {
+            "id": "pdf-parse-edge-cases",
+            "output_dir": "tests/test_files/pdf-parse/edge-fixtures",
+            "months": ["2024-04", "2024-05", "2024-06"],
+            "employee": {},
+            "fixture_overrides": {
+                "2024-04": {
+                    "omit_tax_code": true
+                },
+                "2024-05": {
+                    "omit_process_date": true
+                },
+                "2024-06": {
+                    "omit_pay_run": true
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,100 @@
+{
+    "sources": {
+        "base_pdf": "generate_fixtures/formats/sage-uk/test-payslip-no-pw.pdf",
+        "background_pdf": "generate_fixtures/formats/sage-uk/test-payslip-blank-©sage-(uk)-limited.pdf"
+    },
+    "layout": {
+        "font": "Helvetica",
+        "bold_font": "Helvetica-Bold",
+        "mid_band_scan_margin": 6,
+        "row_cluster_threshold": 3.0,
+        "debug_boxes": false,
+        "debug_box_line_width": 1
+    },
+    "header_bar": {
+        "anchor": "Jane Doe 20 Jul 2025 AA000000A",
+        "ni_anchor": "AA000000A",
+        "basic_line_anchor": "189.75 10.00 1897.50",
+        "net_amount_anchor": "1416.35",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [-55, 0],
+            "date_year_spacing": 5,
+            "employee_id_offset": 56.7,
+            "process_date_century": "20"
+        }
+    },
+    "payments_table": {
+        "anchor": "Basic Hours 189.75 10.00 1897.50",
+        "hours_label": "Hours-make up",
+        "holiday_label": "Holiday",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "deductions_table": {
+        "anchor": "PAYE Tax 261.60",
+        "pension_ee_label": "NEST Corporation - EE",
+        "pension_er_label": "NEST Corporation - ER",
+        "other_net_ded_label": "Other Net Deduction",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "address_block": {
+        "anchor": "Some Apartment",
+        "name_anchor": "Jane Doe",
+        "address_lines": 4,
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [5, 0]
+        }
+    },
+    "this_period": {
+        "anchor": "Earnings for NI 2462.50",
+        "earnings_ni_label": "Earnings for NI",
+        "gross_tax_label": "Gross for Tax",
+        "total_gross_pay_label": "Total Gross Pay",
+        "pay_cycle_label": "Pay Cycle Monthly",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "year_to_date": {
+        "anchor": "Total Gross Pay TD 8630.00",
+        "ni_td_label": "National Insurance TD",
+        "pension_ee_td_label": "Ee Pension TD",
+        "pension_er_td_label": "Employers Pension TD",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0],
+            "row_spacing": 8.5
+        }
+    },
+    "footer": {
+        "anchor": "The Better Place Catering Company Limited",
+        "employer_anchor": "The Better Place Catering Company Limited",
+        "tax_code_label": "Tax Code:",
+        "pay_run_label": "Pay Run:",
+        "pay_run_text_template": "Pay Run: Month {}",
+        "pay_method_label": "Pay Method:",
+        "copyright_line": "© 1998 Sage (UK) Limited.",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, -3],
+            "pay_run_min_spacing": 28,
+            "pay_run_max_spacing": 64,
+            "copyright_nudge": 20
+        }
+    }
+}
