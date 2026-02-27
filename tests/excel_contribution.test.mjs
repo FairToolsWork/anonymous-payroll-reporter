@@ -10,12 +10,12 @@ const __dirname = path.dirname(__filename)
 
 const FIXTURE_DIR = path.resolve(
     __dirname,
-    './test_files/nest-test-penstion-reports'
+    './test_files/excel-contribution/fixtures'
 )
 
 const SUMMARY_PATH = path.resolve(
     __dirname,
-    './test_files/nest-test-penstion-reports/nest_contribution_target_summary.js'
+    './test_files/excel-contribution/expected/nest_contribution_target_summary.js'
 )
 
 const FIXTURES = {

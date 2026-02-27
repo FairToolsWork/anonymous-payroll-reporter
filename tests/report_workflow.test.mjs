@@ -1,0 +1,281 @@
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { describe, expect, it } from 'vitest'
+import {
+    formatBreakdownCell,
+    formatContributionDifference,
+} from '../pwa/js/report/build.js'
+import {
+    buildContributionSummary,
+    sumDeductionsForNetPay,
+    sumPayments,
+} from '../pwa/js/report/report_calculations.js'
+import {
+    buildBrowserShims,
+    runReportFromFixtures,
+} from './utils/report_runner.mjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const FIXTURES_DIR = path.resolve(
+    __dirname,
+    './test_files/report-workflow/fixtures'
+)
+const EXCEL_FIXTURE = path.resolve(
+    __dirname,
+    './test_files/excel-contribution/fixtures/nest-contribution-history-correct.xlsx'
+)
+const NET_PAY_TOLERANCE = 0.05
+
+describe('report workflow', () => {
+    it('builds report output from fixtures', async () => {
+        buildBrowserShims()
+        const pdfPaths = fs
+            .readdirSync(FIXTURES_DIR)
+            .filter((file) => file.endsWith('.pdf'))
+            .map((file) => path.resolve(FIXTURES_DIR, file))
+
+        const result = await runReportFromFixtures({
+            pdfPaths,
+            excelPaths: [EXCEL_FIXTURE],
+            captureDebug: true,
+            requireEmployeeDetails: false,
+            includeReportContext: true,
+        })
+
+        expect(result.records.length).toBe(13)
+        expect(result.report).toBeTruthy()
+        expect(result.debug?.text).toBeDefined()
+        expect(result.reportContext).toBeTruthy()
+        expect(result.reportContext?.entries?.length).toBe(13)
+        expect(result.report.stats.validationSummary).toEqual({
+            flaggedCount:
+                result.reportContext.validationSummary.flaggedEntries.length,
+            lowConfidenceCount:
+                result.reportContext.validationSummary.lowConfidenceEntries
+                    .length,
+            flaggedPeriods:
+                result.reportContext.validationSummary.flaggedPeriods,
+        })
+        expect(result.report.stats.missingMonthsByYear).toEqual(
+            result.reportContext.missingMonths.missingMonthsByYear
+        )
+
+        const expectedContributionSummary = buildContributionSummary(
+            result.reportContext.entries,
+            result.contributionData,
+            result.reportContext.yearKeys
+        )
+        expect(result.reportContext.contributionSummary).toEqual(
+            expectedContributionSummary
+        )
+
+        /** @type {Map<number, { expectedEE: number, expectedER: number, actualEE: number, actualER: number }>} */
+        const expectedAnnualTotals = new Map()
+        result.reportContext.entries.forEach((entry) => {
+            if (!(entry.parsedDate instanceof Date)) {
+                return
+            }
+            const year = entry.parsedDate.getFullYear()
+            const totals = expectedAnnualTotals.get(year) || {
+                expectedEE: 0,
+                expectedER: 0,
+                actualEE: 0,
+                actualER: 0,
+            }
+            totals.expectedEE +=
+                entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
+            totals.expectedER +=
+                entry.record.payrollDoc?.deductions?.pensionER?.amount || 0
+            expectedAnnualTotals.set(year, totals)
+        })
+        const contributionEntries = result.contributionData?.entries || []
+        contributionEntries.forEach((entry) => {
+            if (!(entry.date instanceof Date)) {
+                return
+            }
+            const year = entry.date.getFullYear()
+            const totals = expectedAnnualTotals.get(year) || {
+                expectedEE: 0,
+                expectedER: 0,
+                actualEE: 0,
+                actualER: 0,
+            }
+            if (entry.type === 'ee') {
+                totals.actualEE += entry.amount || 0
+            } else if (entry.type === 'er') {
+                totals.actualER += entry.amount || 0
+            }
+            expectedAnnualTotals.set(year, totals)
+        })
+        const assertTotalsWithinTolerance = (actual, expected) => {
+            if (!actual || !expected) {
+                expect(actual).toEqual(expected)
+                return
+            }
+            expect(
+                Math.abs(actual.expectedEE - expected.expectedEE)
+            ).toBeLessThanOrEqual(NET_PAY_TOLERANCE)
+            expect(
+                Math.abs(actual.expectedER - expected.expectedER)
+            ).toBeLessThanOrEqual(NET_PAY_TOLERANCE)
+            expect(
+                Math.abs(actual.actualEE - expected.actualEE)
+            ).toBeLessThanOrEqual(NET_PAY_TOLERANCE)
+            expect(
+                Math.abs(actual.actualER - expected.actualER)
+            ).toBeLessThanOrEqual(NET_PAY_TOLERANCE)
+            expect(Math.abs(actual.delta - expected.delta)).toBeLessThanOrEqual(
+                NET_PAY_TOLERANCE
+            )
+        }
+
+        result.reportContext.yearKeys.forEach((yearKey) => {
+            const numericYear = Number(yearKey)
+            if (!Number.isFinite(numericYear)) {
+                return
+            }
+            const expectedTotals = expectedAnnualTotals.get(numericYear) || {
+                expectedEE: 0,
+                expectedER: 0,
+                actualEE: 0,
+                actualER: 0,
+            }
+            const expectedDelta =
+                expectedTotals.actualEE +
+                expectedTotals.actualER -
+                expectedTotals.expectedEE -
+                expectedTotals.expectedER
+            const yearSummary =
+                result.reportContext.contributionSummary?.years.get(yearKey)
+            assertTotalsWithinTolerance(yearSummary?.totals, {
+                expectedEE: expectedTotals.expectedEE,
+                expectedER: expectedTotals.expectedER,
+                actualEE: expectedTotals.actualEE,
+                actualER: expectedTotals.actualER,
+                delta: expectedDelta,
+            })
+        })
+        const expectedBalance = result.reportContext.yearKeys.reduce(
+            (acc, yearKey) => {
+                const numericYear = Number(yearKey)
+                if (!Number.isFinite(numericYear)) {
+                    return acc
+                }
+                const totals = expectedAnnualTotals.get(numericYear) || {
+                    expectedEE: 0,
+                    expectedER: 0,
+                    actualEE: 0,
+                    actualER: 0,
+                }
+                return (
+                    acc +
+                    totals.actualEE +
+                    totals.actualER -
+                    totals.expectedEE -
+                    totals.expectedER
+                )
+            },
+            0
+        )
+        expect(result.reportContext.contributionSummary?.balance).toBeCloseTo(
+            expectedBalance
+        )
+
+        const contributionTotals = result.reportContext.contributionTotals
+        const payrollBreakdown = formatBreakdownCell(
+            contributionTotals.payrollContribution,
+            contributionTotals.payrollEE,
+            contributionTotals.payrollER
+        )
+        const reportedBreakdown = formatBreakdownCell(
+            contributionTotals.reportedContribution,
+            contributionTotals.pensionEE,
+            contributionTotals.pensionER,
+            true
+        )
+        const differenceLabel = formatContributionDifference(
+            contributionTotals.contributionDifference
+        )
+
+        result.reportContext.entries.forEach((entry) => {
+            const { record } = entry
+            const payments = sumPayments(record)
+            const deductions = sumDeductionsForNetPay(record)
+            const expectedNet = payments - deductions
+            const actualNet = record?.payrollDoc?.netPay?.amount || 0
+            const isMismatch =
+                Math.abs(actualNet - expectedNet) > NET_PAY_TOLERANCE
+            const hasNetMismatchFlag = entry.validation?.flags?.some(
+                (flag) => flag.id === 'net_mismatch'
+            )
+            expect(hasNetMismatchFlag).toBe(isMismatch)
+        })
+
+        expect(result.report.html).toContain('Payroll Report -')
+        expect(result.report.html).toContain('<th>Year</th>')
+        expect(result.report.html).toContain('<th>Hours</th>')
+        expect(result.report.html).toContain('<th>Payroll Cont. (EE+ER)</th>')
+        expect(result.report.html).toContain('<th>Reported (EE+ER)</th>')
+        expect(result.report.html).toContain('<th>YE Over / Under</th>')
+        expect(result.report.html).toContain('<th>Flags</th>')
+        expect(result.report.html).toContain('<th colspan="2">Date Range</th>')
+        expect(result.report.html).toContain('<th>Reported (EE+ER)</th>')
+        expect(result.report.html).toContain('<th>Accumulated Over/Under</th>')
+        expect(result.report.html).toContain('<th>Last Contribution Date</th>')
+        expect(result.report.html).toContain('<th>Month</th>')
+        expect(result.report.html).toContain('<th>Holiday Used (Units)</th>')
+        expect(result.report.html).toContain('<th>Over / Under</th>')
+        expect(result.report.html).toContain('<th>Total</th>')
+        result.reportContext.yearKeys.forEach((yearKey) => {
+            if (!yearKey || yearKey === 'Unknown') {
+                return
+            }
+            const yearLabel = String(yearKey)
+            const numericYear = Number(yearLabel)
+            expect(result.report.html).toContain(
+                `<a href="#year-summary-${yearLabel}">${yearLabel}</a>`
+            )
+            expect(result.report.html).toContain(
+                `<h2 id="year-summary-${yearLabel}">${yearLabel} Summary:`
+            )
+            expect(result.report.html).toContain(
+                `<h2 class="year-header" id="year-monthly-${yearLabel}">${yearLabel}</h2>`
+            )
+            const yearMissing =
+                result.reportContext.missingMonths.missingMonthsByYear[
+                    yearKey
+                ] || []
+            if (yearMissing.length) {
+                expect(result.report.html).toContain(
+                    `Missing months: <span class="missing-months">${yearMissing.join(
+                        ', '
+                    )}</span>`
+                )
+            }
+            const monthAnchors = new Set(
+                result.reportContext.entries
+                    .filter(
+                        (entry) =>
+                            entry.year === numericYear &&
+                            entry.monthIndex >= 1 &&
+                            entry.monthIndex <= 12
+                    )
+                    .map((entry) => entry.monthIndex)
+            )
+            monthAnchors.forEach((monthIndex) => {
+                const monthAnchor = `year-monthly-${yearLabel}-${String(
+                    monthIndex
+                ).padStart(2, '0')}`
+                expect(result.report.html).toContain(
+                    `<div id="${monthAnchor}"></div>`
+                )
+            })
+        })
+        expect(result.report.html).toContain(payrollBreakdown)
+        expect(result.report.html).toContain(reportedBreakdown)
+        expect(result.report.html).toContain(differenceLabel)
+    })
+})

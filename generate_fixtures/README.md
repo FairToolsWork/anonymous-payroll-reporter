@@ -50,6 +50,45 @@ To add a new format, create a new directory under `generate_fixtures/formats/`, 
 
 > **Note:** `generate_fixtures.py` currently contains Sage UK-specific processing logic — it knows the exact semantics of each section (which fields are numeric, how many YTD columns each row has, how the pay run token is structured, etc.). Adding a genuinely different format would require updates to `apply_fixture()` in addition to the config files.
 
+## Switching formats
+
+Fixture generation is deployed for one payroll format at a time. Switching format means changing **one value** in `fixture_runs.json` — the `default_structure` field (or the `structure` field on a specific run):
+
+```json
+{
+    "default_structure": "generate_fixtures/formats/<name>/structure.json",
+    "runs": [ ... ]
+}
+```
+
+The rest of the pipeline (fixture generation, expected snapshot regeneration, tests) is unchanged. After switching:
+
+```bash
+pnpm fixtures:generate
+pnpm fixtures:expected
+pnpm test:all
+```
+
+You must also switch the PWA parser to match — see `pwa/README.md` for the parallel steps on the parser side.
+
+## Adding a new format
+
+A new format requires a directory under `generate_fixtures/formats/<name>/` containing four files:
+
+1. **`structure.json`** — layout config: source PDF paths, anchor strings, position nudges. See the [File reference](#file-reference) below for the full schema.
+
+2. **`schema.json`** — declares which sections and string keys `structure.json` must contain. Validated automatically by `load_structure()`. Copy from `formats/sage-uk/schema.json` and adapt to match your section names.
+
+3. **`processor.py`** — format-specific processing logic. `generate_fixtures.py` loads this at runtime via `importlib`. Must expose:
+   - `configure(structure)` — called once per run; read layout config from `structure.json` into module state
+   - `apply_fixture(words, line_map, line_text, structure, payroll_constants, data, month_index, month_label, year, reset_payrun, ...)` — mutates the word list for one month and returns the grouped word dict for rendering
+
+   Import generic PDF utilities from `pdf_utils.py` (shared, format-agnostic helpers). See `formats/sage-uk/processor.py` as a reference implementation.
+
+4. **Source PDFs** — a base PDF with real data (for extracting word positions and anchor strings) and a blank background PDF (rendered as the visual layer). See [Why two source PDFs](#why-two-source-pdfs).
+
+Once the directory is in place, point `default_structure` in `fixture_runs.json` at `generate_fixtures/formats/<name>/structure.json` and run `pnpm fixtures:generate` to test.
+
 ### Sage UK layout
 
 The Sage UK payslip is divided into four horizontal bands, each containing one or more columns. The seven sections in `structure.json` map to these bands as follows:

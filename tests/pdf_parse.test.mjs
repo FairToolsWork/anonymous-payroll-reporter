@@ -1,3 +1,5 @@
+/* global setTimeout, clearTimeout, console */
+
 import { createCanvas } from 'canvas'
 import fs from 'fs'
 import { createRequire } from 'module'
@@ -12,10 +14,11 @@ const __dirname = path.dirname(__filename)
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js')
 
-const PDF_PATH = path.resolve(
-    __dirname,
-    './test_files/payslips/test-payslip-no-pw.pdf'
-)
+const FIXTURE_DIRS = [
+    path.resolve(__dirname, './test_files/pdf-parse/fixtures'),
+    path.resolve(__dirname, './test_files/pdf-parse/edge-fixtures'),
+]
+const EXPECTED_DIR = path.resolve(__dirname, './test_files/pdf-parse/expected')
 
 function buildBrowserShims() {
     const pdfjsLibForTests = {
@@ -25,6 +28,7 @@ function buildBrowserShims() {
     }
     globalThis.window = {
         pdfjsLib: pdfjsLibForTests,
+        pdfjsDebug: true,
         requestAnimationFrame: (callback) => setTimeout(callback, 0),
         cancelAnimationFrame: (id) => clearTimeout(id),
     }
@@ -53,7 +57,7 @@ function formatDiffValue(value) {
     }
     try {
         return JSON.stringify(value)
-    } catch (error) {
+    } catch {
         return String(value)
     }
 }
@@ -106,7 +110,7 @@ function buildDiffError(diffs, extraKeys, actual) {
 }
 
 describe('pdf parse', () => {
-    it('matches the target data shape', async () => {
+    it('matches fixture expected outputs', async () => {
         buildBrowserShims()
         const { parsePayrollPdf } = await import(
             pathToFileURL(
@@ -114,38 +118,49 @@ describe('pdf parse', () => {
             )
         )
         expect(typeof parsePayrollPdf).toBe('function')
-
-        const buffer = fs.readFileSync(PDF_PATH)
-        const file = {
-            arrayBuffer: async () =>
-                buffer.buffer.slice(
-                    buffer.byteOffset,
-                    buffer.byteOffset + buffer.byteLength
-                ),
-        }
-        const { record: actual, debug } = await parsePayrollPdf(file, '')
-        if (actual && typeof actual === 'object' && 'imageData' in actual) {
-            delete actual.imageData
-        }
-        const expectedModule = await import(
-            pathToFileURL(
-                path.resolve(
-                    __dirname,
-                    './test_files/payslips/payslip_target_data_shape.js'
-                )
-            )
+        const fixtureFiles = FIXTURE_DIRS.flatMap((fixturesDir) =>
+            fs
+                .readdirSync(fixturesDir)
+                .filter((file) => file.endsWith('.pdf'))
+                .map((file) => ({ file, fixturesDir }))
         )
-        const expected = expectedModule.default
 
-        const { diffs, extraKeys } = diffValues(expected, actual, 'result', [])
-        if (diffs.length) {
-            throw buildDiffError(diffs, extraKeys, actual)
+        for (const { file: filename, fixturesDir } of fixtureFiles) {
+            const pdfPath = path.resolve(fixturesDir, filename)
+            const isEdgeFixture = path.basename(fixturesDir) === 'edge-fixtures'
+            const expectedFilename = isEdgeFixture
+                ? filename.replace(/\.pdf$/i, '.edge.json')
+                : filename.replace(/\.pdf$/i, '.json')
+            const expectedPath = path.resolve(EXPECTED_DIR, expectedFilename)
+            const buffer = fs.readFileSync(pdfPath)
+            const file = {
+                arrayBuffer: async () =>
+                    buffer.buffer.slice(
+                        buffer.byteOffset,
+                        buffer.byteOffset + buffer.byteLength
+                    ),
+            }
+            const { record: actual, debug } = await parsePayrollPdf(file, '')
+            if (actual && typeof actual === 'object' && 'imageData' in actual) {
+                delete actual.imageData
+            }
+            const expected = JSON.parse(fs.readFileSync(expectedPath, 'utf8'))
+
+            const { diffs, extraKeys } = diffValues(
+                expected,
+                actual,
+                `result (${filename})`,
+                []
+            )
+            if (diffs.length) {
+                throw buildDiffError(diffs, extraKeys, actual)
+            }
+            if (extraKeys.length) {
+                console.warn('\nParse test warning: extra keys found:')
+                extraKeys.forEach((key) => console.warn(`- ${key}`))
+            }
+            expect(debug?.text).toBeDefined()
+            expect(debug?.lines).toBeDefined()
         }
-        if (extraKeys.length) {
-            console.warn('\nParse test warning: extra keys found:')
-            extraKeys.forEach((key) => console.warn(`- ${key}`))
-        }
-        expect(debug?.text).toBeDefined()
-        expect(debug?.lines).toBeDefined()
     })
 })

@@ -2,6 +2,9 @@
 __pycache__
 *.pyc
 .venv
-screenshots/
-source/
 ~$*
+tests/test_files/**/fixtures/
+tests/test_files/**/expected/
+tests/test_files/**/edge-fixtures/
+tests/test_files/**/source/
+tests/test_files/.DS_Store

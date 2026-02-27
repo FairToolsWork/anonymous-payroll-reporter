@@ -25,8 +25,8 @@ function buildRecord({
             deductions: {
                 payeTax: { amount: 0 },
                 natIns: { amount: 0 },
-                nestEE: { amount: nestEE },
-                nestER: { amount: nestER },
+                pensionEE: { amount: nestEE },
+                pensionER: { amount: nestER },
                 misc: [],
             },
             payments: {
@@ -84,7 +84,11 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(entries, contributionData, [2025])
+        const summary = buildContributionSummary(
+            entries,
+            contributionData,
+            [2025]
+        )
         const totals = summary?.years.get(2025)?.totals
         expect(totals).toEqual({
             expectedEE: 110,
@@ -174,8 +178,9 @@ describe('report calculations', () => {
     it('sums misc amounts', () => {
         expect(sumMiscAmounts([])).toBe(0)
         expect(sumMiscAmounts(null)).toBe(0)
-        expect(sumMiscAmounts([{ amount: 10 }, { amount: null }, { amount: 5 }]))
-            .toBe(15)
+        expect(
+            sumMiscAmounts([{ amount: 10 }, { amount: null }, { amount: 5 }])
+        ).toBe(15)
     })
 
     it('keeps year end balance per year', () => {

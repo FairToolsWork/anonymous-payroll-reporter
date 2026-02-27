@@ -3,6 +3,9 @@
     "type": "module",
     "private": true,
     "scripts": {
+        "fixtures:generate": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_fixtures.py",
+        "fixtures:print-text": "./generate_fixtures/.venv/bin/python generate_fixtures/print_pdf_text.py",
+        "fixtures:expected": "node tests/utils/regenerate_expected_payslips.mjs",
         "test:pdf_parse": "vitest run tests/pdf_parse.test.mjs",
         "test:excel_contribution": "vitest run tests/excel_contribution.test.mjs",
         "test:report_calc": "vitest run tests/report_calculation.test.mjs",
