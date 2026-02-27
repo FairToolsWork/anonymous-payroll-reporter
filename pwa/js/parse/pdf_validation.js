@@ -1,5 +1,5 @@
 import { extractPdfData } from '../pdf/extract.js'
-import { buildPayrollDocument } from './payroll.js'
+import { buildPayrollDocument } from './formats/sage-uk/parser.js'
 
 /**
  * @param {File} file

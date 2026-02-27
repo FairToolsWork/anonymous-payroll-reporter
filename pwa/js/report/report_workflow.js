@@ -1,3 +1,7 @@
+/**
+ * @typedef {import('./build.js').YearEntries} YearEntries
+ */
+
 import { parseContributionWorkbook } from '../parse/contribution_validation.js'
 import { parsePayrollPdf } from '../parse/pdf_validation.js'
 import {
@@ -119,6 +123,23 @@ export async function runPayrollReportWorkflow(options) {
         }
     }
 
+    if (records.length > 1) {
+        const employeeNames = new Set(
+            records
+                .map((record) => record.employee?.name)
+                .filter((name) => name)
+        )
+        if (employeeNames.size > 1) {
+            throw new Error('PAYROLL_EMPLOYEE_MIXED')
+        }
+        const employerNames = new Set(
+            records.map((record) => record.employer).filter((name) => name)
+        )
+        if (employerNames.size > 1) {
+            throw new Error('PAYROLL_EMPLOYER_MIXED')
+        }
+    }
+
     let contributionData = null
     if (excelFiles.length) {
         if (!xlsx) {
@@ -166,10 +187,10 @@ export async function runPayrollReportWorkflow(options) {
         }
     }
 
-    /** @type {any} */ records.contributionData = contributionData
-
     const report =
-        records.length > 0 ? buildReport(records, failedPayPeriods) : null
+        records.length > 0
+            ? buildReport(records, failedPayPeriods, contributionData)
+            : null
     let reportContext = null
     if (includeReportContext && records.length) {
         const entries = records.map((record) => {
@@ -222,7 +243,7 @@ export async function runPayrollReportWorkflow(options) {
             yearKeys
         )
         yearGroups.forEach((entriesForYear, yearKey) => {
-            entriesForYear.reconciliation =
+            /** @type {YearEntries} */ entriesForYear.reconciliation =
                 contributionSummary?.years.get(yearKey) || null
         })
         const failedDates = failedPayPeriods

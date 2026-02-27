@@ -77,8 +77,8 @@
  * @typedef {Object} PayrollDeductions
  * @property {PayrollDeduction} payeTax
  * @property {PayrollDeduction} natIns
- * @property {PayrollDeduction} nestEE
- * @property {PayrollDeduction} nestER
+ * @property {PayrollDeduction} pensionEE
+ * @property {PayrollDeduction} pensionER
  * @property {PayrollMiscDeduction[]} misc
  */
 

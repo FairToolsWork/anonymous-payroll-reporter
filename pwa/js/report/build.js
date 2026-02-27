@@ -136,9 +136,14 @@ function formatMiscLabel(item) {
 /**
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
+ * @param {import('../parse/contribution_validation.js').ContributionData | null} [contributionData=null]
  * @returns {{ html: string, filename: string, stats: ReportStats }}
  */
-export function buildReport(records, failedPayPeriods = []) {
+export function buildReport(
+    records,
+    failedPayPeriods = [],
+    contributionData = null
+) {
     const reportRunDate = new Date()
     /** @type {ReportEntry[]} */
     const entries = records.map((record) => {
@@ -188,7 +193,7 @@ export function buildReport(records, failedPayPeriods = []) {
     const yearKeys = Array.from(yearGroups.keys())
     const contributionSummary = buildContributionSummary(
         entries,
-        records.contributionData,
+        contributionData,
         yearKeys
     )
     yearGroups.forEach((entriesForYear, yearKey) => {
@@ -352,13 +357,15 @@ export function buildReport(records, failedPayPeriods = []) {
             const yearPayrollEE = entriesForYear.reduce((acc, entry) => {
                 return (
                     acc +
-                    (entry.record.payrollDoc?.deductions?.nestEE?.amount || 0)
+                    (entry.record.payrollDoc?.deductions?.pensionEE?.amount ||
+                        0)
                 )
             }, 0)
             const yearPayrollER = entriesForYear.reduce((acc, entry) => {
                 return (
                     acc +
-                    (entry.record.payrollDoc?.deductions?.nestER?.amount || 0)
+                    (entry.record.payrollDoc?.deductions?.pensionER?.amount ||
+                        0)
                 )
             }, 0)
             const yearPayrollContribution = yearPayrollEE + yearPayrollER
@@ -407,7 +414,7 @@ export function buildReport(records, failedPayPeriods = []) {
         reportSections.push(
             '<table class="summary-table"><thead><tr>' +
                 '<th>Year</th><th>Hours</th>' +
-                '<th>Payroll Cont. (EE+ER)</th><th>Reported Cont. (EE+ER)</th>' +
+                '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
                 '<th>YE Over / Under</th><th>Flags</th>' +
                 '</tr></thead>' +
                 `<tbody>${yearSummaryRows}</tbody>` +
@@ -680,9 +687,9 @@ function buildContributionTotals(entries, contributionSummary) {
     const totals = entries.reduce(
         (acc, entry) => {
             acc.nestEmployee +=
-                entry.record.payrollDoc?.deductions?.nestEE?.amount || 0
+                entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
             acc.nestEmployer +=
-                entry.record.payrollDoc?.deductions?.nestER?.amount || 0
+                entry.record.payrollDoc?.deductions?.pensionER?.amount || 0
             acc.miscPayments += sumMiscAmounts(
                 entry.record.payrollDoc?.payments?.misc || []
             )
@@ -772,8 +779,8 @@ function renderReportCell(entry) {
         : record.payrollDoc?.processDate?.date || 'Unknown'
     const natInsNumber = record.employee?.natInsNumber || ''
     const combined =
-        (record.payrollDoc?.deductions?.nestEE?.amount || 0) +
-        (record.payrollDoc?.deductions?.nestER?.amount || 0)
+        (record.payrollDoc?.deductions?.pensionEE?.amount || 0) +
+        (record.payrollDoc?.deductions?.pensionER?.amount || 0)
     const imageHtml = record.imageData
         ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
         : ''
@@ -797,8 +804,8 @@ function renderReportCell(entry) {
     const miscDeductions = record.payrollDoc?.deductions?.misc || []
     const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
     const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0
-    const nestEmployee = record.payrollDoc?.deductions?.nestEE?.amount || 0
-    const nestEmployer = record.payrollDoc?.deductions?.nestER?.amount || 0
+    const nestEmployee = record.payrollDoc?.deductions?.pensionEE?.amount || 0
+    const nestEmployer = record.payrollDoc?.deductions?.pensionER?.amount || 0
     const netPay = record.payrollDoc?.netPay?.amount || 0
     const hasHolidayHourly = [holidayHours, holidayRate, holidayAmount].some(
         (value) => value !== null && value !== 0
@@ -1039,9 +1046,9 @@ function renderYearSummary(entriesForYear) {
                     record?.payrollDoc?.payments?.salary?.holiday?.units || 0
                 const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
                 const nestEmployee =
-                    record?.payrollDoc?.deductions?.nestEE?.amount || 0
+                    record?.payrollDoc?.deductions?.pensionEE?.amount || 0
                 const nestEmployer =
-                    record?.payrollDoc?.deductions?.nestER?.amount || 0
+                    record?.payrollDoc?.deductions?.pensionER?.amount || 0
                 const payrollContribution = nestEmployee + nestEmployer
                 const flagSummary = validation?.flags?.length
                     ? validation.flags
@@ -1125,7 +1132,7 @@ function renderYearSummary(entriesForYear) {
         '<table class="summary-table">' +
             '<thead><tr>' +
             '<th>Month</th><th>Hours</th><th>Holiday Used (Units)</th>' +
-            '<th>Payroll Cont. (EE+ER)</th><th>Reported Cont. (EE+ER)</th>' +
+            '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
             '<th>Over / Under</th><th>Flags</th>' +
             '</tr></thead>' +
             `<tbody>${bodyRows.join('')}</tbody>` +

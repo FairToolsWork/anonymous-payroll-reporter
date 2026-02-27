@@ -736,13 +736,13 @@ export function initPayrollApp() {
                                     this.debugText.match(
                                         PATTERNS.nationalInsurance
                                     )?.[0] || null,
-                                nestEmployee:
+                                pensionEmployee:
                                     this.debugText.match(
-                                        PATTERNS.nestEmployee
+                                        PATTERNS.pensionEmployee
                                     )?.[0] || null,
-                                nestEmployer:
+                                pensionEmployer:
                                     this.debugText.match(
-                                        PATTERNS.nestEmployer
+                                        PATTERNS.pensionEmployer
                                     )?.[0] || null,
                                 earningsForNI:
                                     this.debugText.match(

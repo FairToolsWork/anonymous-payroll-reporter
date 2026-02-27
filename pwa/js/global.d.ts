@@ -26,8 +26,8 @@ declare const PATTERNS: {
     holidaySalaryLine: RegExp
     payeTax: RegExp
     nationalInsurance: RegExp
-    nestEmployee: RegExp
-    nestEmployer: RegExp
+    pensionEmployee: RegExp
+    pensionEmployer: RegExp
     taxCode: RegExp
     payRun: RegExp
     payMethod: RegExp

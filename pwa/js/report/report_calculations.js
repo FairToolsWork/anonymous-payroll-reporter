@@ -225,7 +225,7 @@ function sumDeductionsForNetPay(record) {
     return (
         (deductions.payeTax?.amount || 0) +
         (deductions.natIns?.amount || 0) +
-        (deductions.nestEE?.amount || 0) +
+        (deductions.pensionEE?.amount || 0) +
         sumMiscAmounts(deductions.misc || [])
     )
 }
@@ -332,8 +332,10 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
         const monthIndex = entry.parsedDate.getMonth() + 1
         const key = buildMonthKey(year, monthIndex)
         const expected = expectedByMonth.get(key) || { ee: 0, er: 0 }
-        expected.ee += entry.record.payrollDoc?.deductions?.nestEE?.amount || 0
-        expected.er += entry.record.payrollDoc?.deductions?.nestER?.amount || 0
+        expected.ee +=
+            entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
+        expected.er +=
+            entry.record.payrollDoc?.deductions?.pensionER?.amount || 0
         expectedByMonth.set(key, expected)
     })
 
