@@ -67,7 +67,9 @@ body {
 }
 
 .app-shell {
+    width: 100%;
     max-width: 1200px;
+    min-width: 0;
     margin: 0 auto;
     padding: 32px 20px 80px;
 }
@@ -506,7 +508,7 @@ label.next-action {
 }
 
 .controls-loading[v-cloak] .card {
-    min-width: 500px;
+    min-width: 0;
 }
 
 .upload-panel {
@@ -789,6 +791,8 @@ label.next-action {
 }
 
 .report-output {
+    width: 100%;
+    min-width: 0;
     margin-top: 40px;
 }
 
@@ -822,6 +826,9 @@ label.next-action {
 }
 
 .report-root {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
     background: #fff;
     padding: 20px;
     border-radius: var(--radius);
