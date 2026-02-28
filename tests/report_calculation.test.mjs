@@ -183,6 +183,181 @@ describe('report calculations', () => {
         ).toBe(15)
     })
 
+    it('detects under-contribution when employer pays less than payslip deducted', () => {
+        const entries = [
+            {
+                record: buildRecord({
+                    nestEE: 50,
+                    nestER: 30,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 3, 20),
+                year: 2025,
+                monthIndex: 4,
+                monthLabel: 'April',
+            },
+            {
+                record: buildRecord({
+                    nestEE: 60,
+                    nestER: 40,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 4, 20),
+                year: 2025,
+                monthIndex: 5,
+                monthLabel: 'May',
+            },
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2025, 3, 20), type: 'ee', amount: 50 },
+                { date: new Date(2025, 3, 20), type: 'er', amount: 20 },
+                { date: new Date(2025, 4, 20), type: 'ee', amount: 60 },
+                { date: new Date(2025, 4, 20), type: 'er', amount: 30 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+        const summary = buildContributionSummary(
+            entries,
+            contributionData,
+            [2025]
+        )
+        const year = summary?.years.get(2025)
+        const aprilMonth = year?.months.get(4)
+        const mayMonth = year?.months.get(5)
+
+        expect(aprilMonth?.delta).toBe(-10)
+        expect(aprilMonth?.balance).toBe(-10)
+        expect(mayMonth?.delta).toBe(-10)
+        expect(mayMonth?.balance).toBe(-20)
+        expect(year?.yearEndBalance).toBe(-20)
+        expect(year?.totals.delta).toBe(-20)
+        expect(summary?.balance).toBe(-20)
+    })
+
+    it('detects over-contribution when employer pays more than payslip deducted', () => {
+        const entries = [
+            {
+                record: buildRecord({
+                    nestEE: 50,
+                    nestER: 30,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 3, 20),
+                year: 2025,
+                monthIndex: 4,
+                monthLabel: 'April',
+            },
+            {
+                record: buildRecord({
+                    nestEE: 60,
+                    nestER: 40,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 4, 20),
+                year: 2025,
+                monthIndex: 5,
+                monthLabel: 'May',
+            },
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2025, 3, 20), type: 'ee', amount: 50 },
+                { date: new Date(2025, 3, 20), type: 'er', amount: 45 },
+                { date: new Date(2025, 4, 20), type: 'ee', amount: 60 },
+                { date: new Date(2025, 4, 20), type: 'er', amount: 55 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+        const summary = buildContributionSummary(
+            entries,
+            contributionData,
+            [2025]
+        )
+        const year = summary?.years.get(2025)
+        const aprilMonth = year?.months.get(4)
+        const mayMonth = year?.months.get(5)
+
+        expect(aprilMonth?.delta).toBe(15)
+        expect(aprilMonth?.balance).toBe(15)
+        expect(mayMonth?.delta).toBe(15)
+        expect(mayMonth?.balance).toBe(30)
+        expect(year?.yearEndBalance).toBe(30)
+        expect(year?.totals.delta).toBe(30)
+        expect(summary?.balance).toBe(30)
+    })
+
+    it('accumulates per-month balance correctly when contributions vary month to month', () => {
+        const entries = [
+            {
+                record: buildRecord({
+                    nestEE: 50,
+                    nestER: 30,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 3, 20),
+                year: 2025,
+                monthIndex: 4,
+                monthLabel: 'April',
+            },
+            {
+                record: buildRecord({
+                    nestEE: 60,
+                    nestER: 40,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 4, 20),
+                year: 2025,
+                monthIndex: 5,
+                monthLabel: 'May',
+            },
+            {
+                record: buildRecord({
+                    nestEE: 55,
+                    nestER: 35,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 5, 20),
+                year: 2025,
+                monthIndex: 6,
+                monthLabel: 'June',
+            },
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2025, 3, 20), type: 'ee', amount: 50 },
+                { date: new Date(2025, 3, 20), type: 'er', amount: 20 },
+                { date: new Date(2025, 4, 20), type: 'ee', amount: 60 },
+                { date: new Date(2025, 4, 20), type: 'er', amount: 50 },
+                { date: new Date(2025, 5, 20), type: 'ee', amount: 55 },
+                { date: new Date(2025, 5, 20), type: 'er', amount: 35 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+        const summary = buildContributionSummary(
+            entries,
+            contributionData,
+            [2025]
+        )
+        const year = summary?.years.get(2025)
+
+        expect(year?.months.get(4)?.delta).toBe(-10)
+        expect(year?.months.get(4)?.balance).toBe(-10)
+        expect(year?.months.get(5)?.delta).toBe(10)
+        expect(year?.months.get(5)?.balance).toBe(0)
+        expect(year?.months.get(6)?.delta).toBe(0)
+        expect(year?.months.get(6)?.balance).toBe(0)
+        expect(year?.yearEndBalance).toBe(0)
+        expect(year?.totals.delta).toBe(0)
+    })
+
     it('keeps year end balance per year', () => {
         const entries = [
             {

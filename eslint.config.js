@@ -50,6 +50,14 @@ export default [
         },
     },
     {
+        files: ['tests/utils/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                console: 'readonly',
+            },
+        },
+    },
+    {
         files: ['logic_test/**/*.mjs'],
         languageOptions: {
             globals: {

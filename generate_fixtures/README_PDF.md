@@ -1,4 +1,4 @@
-# generate_fixtures
+# generate_pdf_fixtures
 
 Generates synthetic payslip PDF fixtures used by the test suite in `tests/`. Each fixture is a real-looking PDF built from a source payslip template, with payroll values calculated from `payroll_inputs.json` and layout driven by a format-specific `payslip_structure.json`.
 
@@ -27,9 +27,9 @@ All commands are run from the repo root (or the `pwa/` folder — both resolve t
 
 | Command | What it does |
 |---|---|
-| `pnpm fixtures:generate` | Runs `generate_fixtures.py` — generates all fixture PDFs defined in `fixture_runs.json` |
+| `pnpm fixtures:generate` | Runs `generate_pdf_fixtures.py` — generates all fixture PDFs defined in `fixture_runs.json` |
 | `pnpm fixtures:expected` | Runs `regenerate_expected_payslips.mjs` — snapshots the current fixture parse output as the expected baseline for `pdf_parse.test.mjs` |
-| `pnpm fixtures:print-text` | Runs `print_pdf_text.py` — prints all text lines from the current format's base PDF with vertical positions, for use when configuring anchors in `structure.json` |
+| `pnpm fixtures:print-pdf-text` | Runs `print_pdf_text.py` — prints all text lines from the current format's base PDF with vertical positions, for use when configuring anchors in `structure.json` |
 | `pnpm test:all` | Runs the full vitest suite |
 
 Typical workflow after changing payroll inputs or structure:
@@ -48,7 +48,7 @@ pnpm test:all
 
 To add a new format, create a new directory under `generate_fixtures/formats/`, add the two source PDFs, a `structure.json`, and a `schema.json` (see the file reference below), then point `default_structure` in `fixture_runs.json` at it or set `structure` on individual runs.
 
-> **Note:** `generate_fixtures.py` currently contains Sage UK-specific processing logic — it knows the exact semantics of each section (which fields are numeric, how many YTD columns each row has, how the pay run token is structured, etc.). Adding a genuinely different format would require updates to `apply_fixture()` in addition to the config files.
+> **Note:** `generate_pdf_fixtures.py` currently contains Sage UK-specific processing logic — it knows the exact semantics of each section (which fields are numeric, how many YTD columns each row has, how the pay run token is structured, etc.). Adding a genuinely different format would require updates to `apply_fixture()` in addition to the config files.
 
 ## Switching formats
 
@@ -79,7 +79,7 @@ A new format requires a directory under `generate_fixtures/formats/<name>/` cont
 
 2. **`schema.json`** — declares which sections and string keys `structure.json` must contain. Validated automatically by `load_structure()`. Copy from `formats/sage-uk/schema.json` and adapt to match your section names.
 
-3. **`processor.py`** — format-specific processing logic. `generate_fixtures.py` loads this at runtime via `importlib`. Must expose:
+3. **`processor.py`** — format-specific processing logic. `generate_pdf_fixtures.py` loads this at runtime via `importlib`. Must expose:
    - `configure(structure)` — called once per run; read layout config from `structure.json` into module state
    - `apply_fixture(words, line_map, line_text, structure, payroll_constants, data, month_index, month_label, year, reset_payrun, ...)` — mutates the word list for one month and returns the grouped word dict for rendering
 
@@ -146,7 +146,7 @@ Two source PDFs are required for every format:
 
 **Base PDF (`base_pdf`)** — a target payslip with real data values in all fields. This is the primary source of spatial information. `pdfplumber` extracts every word along with its exact bounding box coordinates (`x0`, `x1`, `top`, `bottom`). These coordinates form the skeleton that the generated fixtures are built from — the script mutates the text of those words while keeping their positions intact.
 
-The anchor strings in `structure.json` must exactly match text that appears in this PDF. Use `pnpm fixtures:print-text` to inspect what text is present and on which lines.
+The anchor strings in `structure.json` must exactly match text that appears in this PDF. Use `pnpm fixtures:print-pdf-text` to inspect what text is present and on which lines.
 
 **Background PDF (`background_pdf`)** — a blank copy of the same payslip template, with no data values filled in, typically just the printed form with labels and borders. This is rendered as a raster image behind the generated text so that the output looks like a real filled-in payslip. Without it, the output would be floating text on a white page with no visual structure.
 
@@ -166,14 +166,14 @@ Each section in `structure.json` has a `position` object that controls how its w
 
 The typical workflow when calibrating a new format is:
 
-1. Run `pnpm fixtures:print-text` to find the anchor strings and understand the source layout
+1. Run `pnpm fixtures:print-pdf-text` to find the anchor strings and understand the source layout
 2. Generate fixtures with `nudge: [0, 0]` and inspect the output
 3. Adjust `nudge` to shift sections that are slightly off
 4. Set `debug_boxes: true` in `layout` to render colored bounding boxes around each section group, making misalignment easy to spot
 
 ## File reference
 
-### `generate_fixtures.py`
+### `generate_pdf_fixtures.py`
 
 The main script. Orchestrates the full pipeline:
 
@@ -259,7 +259,7 @@ Generic, format-agnostic PDF utilities shared by all processors:
 
 ### `processor.py`
 
-Lives alongside `structure.json` and `schema.json` in the format's directory (e.g. `generate_fixtures/formats/sage-uk/processor.py`). Contains all format-specific processing logic. `generate_fixtures.py` loads it at runtime via `importlib` from the structure file's parent directory.
+Lives alongside `structure.json` and `schema.json` in the format's directory (e.g. `generate_fixtures/formats/sage-uk/processor.py`). Contains all format-specific processing logic. `generate_pdf_fixtures.py` loads it at runtime via `importlib` from the structure file's parent directory.
 
 A processor module must expose:
 
