@@ -493,10 +493,10 @@ function findNetPayFromLines(lines) {
 }
 
 /**
- * @param {{ text: string, lines: string[], lineItems: PageLineItemRow[] }} args
- * @returns {PayrollRecord}
+ * @param {{ text: string, lines: string[], lineItems: PageLineItemRow[], imageData?: string | null }} args
+ * @returns {Promise<PayrollRecord>}
  */
-export function buildPayrollDocument({ text, lines, lineItems }) {
+export async function buildPayrollDocument({ text, lines, lineItems }) {
     const lineItemsText = lines || []
     /** @type {PageLineItemRow[]} */
     const positionalLines = /** @type {PageLineItemRow[]} */ (

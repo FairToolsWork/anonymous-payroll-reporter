@@ -14,10 +14,11 @@ export async function parsePayrollPdf(file, password) {
         file,
         password
     )
-    const record = buildPayrollDocument({
+    const record = await buildPayrollDocument({
         text,
         lines: lines || [],
         lineItems: lineItems || [],
+        imageData: imageData || null,
     })
     return {
         record,
