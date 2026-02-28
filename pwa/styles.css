@@ -319,11 +319,8 @@ label.next-action {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
     position: relative;
-    overflow: hidden;
     max-height: 2000px;
     transition: all 0.25s ease;
-    padding: 0 45px 45px;
-    margin: 0 -45px -45px;
 }
 
 .collapse-shell {
@@ -343,6 +340,7 @@ label.next-action {
     max-height: 75px;
     margin-bottom: 16px;
     padding-bottom: 16px;
+    overflow: hidden;
 }
 
 .collapse-grid.is-collapsed::after {
@@ -1209,6 +1207,17 @@ p.report-footnote-row {
 
     .debug-panel {
         display: none;
+    }
+
+    .missing-pill {
+        background: #fff;
+        color: #111;
+        border: 1px solid #777;
+        box-shadow: none;
+    }
+
+    .missing-pill * {
+        color: #111;
     }
 }
 
