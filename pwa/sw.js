@@ -1,9 +1,9 @@
-const CACHE_NAME = 'payroll-pwa-v2'
+const CACHE_NAME = 'payroll-pwa-v3'
 const CORE_ASSETS = [
     './index.html',
     './styles.css',
     './app.js',
-    './manifest.json',
+    './site.webmanifest',
     './icon.svg',
 ]
 
@@ -27,8 +27,8 @@ self.addEventListener('activate', (event) => {
                         .map((key) => caches.delete(key))
                 )
             )
+            .then(() => self.clients.claim())
     )
-    self.clients.claim()
 })
 
 self.addEventListener('message', (event) => {
@@ -41,6 +41,7 @@ function isCdnRequest(url) {
     return (
         url.startsWith('https://cdnjs.cloudflare.com') ||
         url.startsWith('https://unpkg.com') ||
+        url.startsWith('https://cdn.jsdelivr.net') ||
         url.startsWith('https://fonts.googleapis.com') ||
         url.startsWith('https://fonts.gstatic.com')
     )

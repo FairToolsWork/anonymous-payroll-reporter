@@ -61,6 +61,10 @@ const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
 const SECTION_COLLAPSED_KEY = 'section_collapsed'
 /** @type {number} */
 const SESSION_TTL_MS = 30 * 60 * 1000
+/** @type {string} */
+const LAST_LOADED_AT_KEY = 'last_loaded_at'
+/** @type {number} */
+const STALE_INSTANCE_TTL_MS = 24 * 60 * 60 * 1000
 
 /** @returns {void} */
 export function initPayrollApp() {
@@ -102,6 +106,7 @@ export function initPayrollApp() {
                 updateAvailable: false,
                 waitingWorker: null,
                 swRegistration: null,
+                staleInstance: false,
                 debugText: '',
                 notice: '',
                 failedFiles: [],
@@ -193,6 +198,12 @@ export function initPayrollApp() {
                 }
                 this.collapsedSections[sectionKey] =
                     !this.collapsedSections[sectionKey]
+            },
+            /** @returns {void} */
+            expandSection(sectionKey) {
+                if (this.collapsedSections?.[sectionKey]) {
+                    this.collapsedSections[sectionKey] = false
+                }
             },
             /** @returns {void} */
             handleSectionFocus(sectionKey) {
@@ -969,13 +980,7 @@ export function initPayrollApp() {
                     window.location.reload()
                     return
                 }
-                if (!sessionStorage.getItem('sw_refresh_pending')) {
-                    sessionStorage.setItem('sw_refresh_pending', 'true')
-                    this.waitingWorker.postMessage({ type: 'SKIP_WAITING' })
-                    setTimeout(() => {
-                        window.location.reload()
-                    }, 800)
-                }
+                this.waitingWorker.postMessage({ type: 'SKIP_WAITING' })
             },
             /** @returns {void} */
             handleScroll() {
@@ -1005,6 +1010,9 @@ export function initPayrollApp() {
         },
         /** @returns {void} */
         mounted() {
+            if (DEBUG_LEVEL === '2') {
+                this.updateAvailable = true
+            }
             if (!Array.isArray(this.stagedFiles)) {
                 this.stagedFiles = []
                 console.info(
@@ -1040,6 +1048,7 @@ export function initPayrollApp() {
                 sessionStorage.removeItem(PDF_PASSWORD_KEY)
                 sessionStorage.removeItem(DISCLAIMER_ACCEPTED_KEY)
                 sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
+                sessionStorage.removeItem(SECTION_COLLAPSED_KEY)
             }
             this.pdfPassword = sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
             this.acceptedDisclaimer =
@@ -1048,7 +1057,11 @@ export function initPayrollApp() {
             if (storedSections) {
                 try {
                     const parsed = JSON.parse(storedSections)
-                    if (parsed && typeof parsed === 'object') {
+                    if (
+                        parsed &&
+                        typeof parsed === 'object' &&
+                        !Array.isArray(parsed)
+                    ) {
                         this.collapsedSections = {
                             prep: false,
                             nextSteps: true,
@@ -1065,7 +1078,30 @@ export function initPayrollApp() {
             ) {
                 this.collapsedSections = { prep: false, nextSteps: true }
             }
+            const lastLoadedAt = Number(
+                localStorage.getItem(LAST_LOADED_AT_KEY) || 0
+            )
+            localStorage.setItem(LAST_LOADED_AT_KEY, String(Date.now()))
+            if (
+                lastLoadedAt &&
+                Date.now() - lastLoadedAt > STALE_INSTANCE_TTL_MS
+            ) {
+                this.staleInstance = true
+            }
+
             if ('serviceWorker' in navigator) {
+                const hadController = !!navigator.serviceWorker.controller
+                let reloadPending = false
+                navigator.serviceWorker.addEventListener(
+                    'controllerchange',
+                    () => {
+                        if (hadController && !reloadPending) {
+                            reloadPending = true
+                            window.location.reload()
+                        }
+                    }
+                )
+
                 navigator.serviceWorker
                     .register('sw.js')
                     .then((registration) => {
