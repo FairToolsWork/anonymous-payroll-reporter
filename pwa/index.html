@@ -72,8 +72,8 @@
                     <a
                         class="primary"
                         href="https://browsehappy.com/"
-                        rel="noopener"
                         target="_blank"
+                        rel="noopener"
                     >
                         Update browser
                     </a>
@@ -81,9 +81,17 @@
             </div>
         </section>
         <main id="app" class="app-shell">
-            <div class="update-banner" v-if="updateAvailable" v-cloak>
+            <div
+                class="update-banner"
+                v-if="updateAvailable || staleInstance"
+                v-cloak
+            >
                 <p>Update available. Refresh to load the latest version.</p>
-                <button class="primary" type="button" @click="applyUpdate">
+                <button
+                    class="primary on-dk"
+                    type="button"
+                    @click="applyUpdate"
+                >
                     Refresh
                 </button>
             </div>
@@ -107,177 +115,184 @@
                         @click="toggleSection('prep')"
                         :aria-expanded="(!collapsedSections.prep).toString()"
                         aria-controls="prep-content"
-                        v-cloak
                     >
-                        <span>
+                        <span v-cloak>
                             {{ collapsedSections.prep ? 'Expand' : 'Collapse' }}
                         </span>
                     </button>
                 </div>
-                <div
-                    class="collapse-grid"
-                    id="prep-content"
-                    :class="{ 'is-collapsed': collapsedSections.prep }"
-                    @focusin="handleSectionFocus('prep')"
-                    :aria-hidden="collapsedSections.prep"
-                    :inert="collapsedSections.prep"
-                >
-                    <div class="card">
-                        <header>
-                            <img
-                                src="imgs/payslip-icon.svg"
-                                alt="Payslip icon"
-                            />
-                            <h3>A) Download payslips</h3>
-                        </header>
-                        <details>
-                            <summary>What to download</summary>
-                            <ul>
-                                <li>
-                                    From your email, download all payslips for
-                                    the dates you want to review (ideally for
-                                    your entire employment).
-                                </li>
-                            </ul>
-                            <div class="notice">
-                                <i
-                                    ><b>Note:</b> Ask your manager if you need a
-                                    password to open them, or if you are missing
-                                    any dates.</i
-                                >
-                            </div>
-                        </details>
-                    </div>
-                    <div class="card">
-                        <header>
-                            <img src="imgs/nest.png" alt="Nest icon" />
-                            <h3>B) NEST contributions</h3>
-                        </header>
-                        <details>
-                            <summary>Logging into NEST</summary>
-                            <ul>
-                                <li>
-                                    If you've never logged into NEST, first
-                                    create your account here:
+                <div class="collapse-shell">
+                    <div
+                        class="collapse-grid"
+                        id="prep-content"
+                        :class="{ 'is-collapsed': collapsedSections.prep }"
+                        @focusin="handleSectionFocus('prep')"
+                        :aria-hidden="collapsedSections.prep"
+                        :inert="collapsedSections.prep"
+                    >
+                        <div class="card">
+                            <header>
+                                <img
+                                    src="imgs/payslip-icon.svg"
+                                    alt="Payslip icon"
+                                />
+                                <h3>A) Payslips & Holiday Forms</h3>
+                            </header>
+                            <details open>
+                                <summary>What to gather</summary>
+                                <ul>
+                                    <li>
+                                        From your email, download all payslips
+                                        PDFs for the dates you want to review
+                                        (ideally for your entire employment).
+                                    </li>
+                                    <li>
+                                        Also gather copies of all holiday forms
+                                        so you can assess what holiday pay you
+                                        should have received in a given month.
+                                    </li>
+                                </ul>
+                                <div class="notice">
+                                    <i
+                                        ><b>Note:</b> Ask your manager if you
+                                        need a password to open your payslips,
+                                        or if you are missing any dates.</i
+                                    >
+                                </div>
+                            </details>
+                        </div>
+                        <div class="card">
+                            <header>
+                                <img src="imgs/nest.png" alt="Nest icon" />
+                                <h3>B) NEST contributions</h3>
+                            </header>
+                            <details name="nest-top" open>
+                                <summary>Logging into NEST</summary>
+                                <ul>
+                                    <li>
+                                        If you've never logged into NEST, first
+                                        create your account here:
+                                        <a
+                                            target="_blank"
+                                            rel="noopener"
+                                            href="https://www.nestpensions.org.uk/user/registration/enrolled/personal-details/nest-id/"
+                                            >Sign up for NEST</a
+                                        >
+                                        <br />
+                                    </li>
+                                </ul>
+                                <div class="notice">
+                                    <b>Note:</b> Your NEST member number can be
+                                    found on any letter they've sent - it looks
+                                    like this:<br />
+                                    <span class="code"
+                                        ><span class="code-prefix">MEM</span
+                                        >048559238</span
+                                    >
+                                </div>
+                            </details>
+                            <details name="nest-top">
+                                <summary>What to download</summary>
+                                <p>
+                                    Nest provides a pension contributions record
+                                    for each financial year.
+                                </p>
+                                <p>
+                                    After loggin in visit:
                                     <a
+                                        href="https://member.nestpensions.org.uk/app/contributions/contribution-history"
                                         target="_blank"
                                         rel="noopener"
-                                        href="https://www.nestpensions.org.uk/user/registration/enrolled/personal-details/nest-id/"
-                                        >Sign up for NEST</a
+                                        >NEST: Contribution history</a
                                     >
-                                    <br />
-                                </li>
-                            </ul>
-                            <div class="notice">
-                                <b>Note:</b> Your NEST member number can be
-                                found on any letter they've sent - it looks like
-                                this:<br />
-                                <span class="code"
-                                    ><span class="code-prefix">MEM</span
-                                    >048559238</span
-                                >
-                            </div>
-                        </details>
-                        <details>
-                            <summary>What to download</summary>
-                            <p>
-                                Nest provides a pension contributions record for
-                                each financial year.
-                            </p>
-                            <p>
-                                After loggin in visit:
-                                <a
-                                    href="https://member.nestpensions.org.uk/app/contributions/contribution-history"
-                                    target="_blank"
-                                    >NEST: Contribution history</a
-                                >
-                            </p>
-                            <ol>
-                                <li>
-                                    <details name="nest-steps">
-                                        <summary>Select a Tax Year</summary>
-                                        <img
-                                            src="imgs/nest-1.png"
-                                            alt="Nest tax year"
-                                            width="482"
-                                            height="140"
-                                        />
-                                        <p class="notice">
-                                            You will repeat this process for
-                                            each financial year.
-                                        </p>
-                                    </details>
-                                </li>
-                                <li>
-                                    <details name="nest-steps">
-                                        <summary>
-                                            Select current Employer
-                                        </summary>
-                                        <p>
-                                            Select employer (current company
-                                            name, if more then one).
-                                        </p>
-                                        <img
-                                            src="imgs/nest-2.png"
-                                            alt="Nest employer"
-                                            width="676"
-                                            height="272"
-                                        />
-                                    </details>
-                                </li>
-                                <li>
-                                    <details name="nest-steps">
-                                        <summary>
-                                            Tick <b>both</b> contribution types
-                                        </summary>
+                                </p>
+                                <ol>
+                                    <li>
+                                        <details name="nest-steps">
+                                            <summary>Select a Tax Year</summary>
+                                            <img
+                                                src="imgs/nest-1.png"
+                                                alt="Nest tax year"
+                                                width="482"
+                                                height="140"
+                                            />
+                                            <p class="notice">
+                                                You will repeat this process for
+                                                each financial year.
+                                            </p>
+                                        </details>
+                                    </li>
+                                    <li>
+                                        <details name="nest-steps">
+                                            <summary>
+                                                Select current Employer
+                                            </summary>
+                                            <p>
+                                                Select employer (current company
+                                                name, if more then one).
+                                            </p>
+                                            <img
+                                                src="imgs/nest-2.png"
+                                                alt="Nest employer"
+                                                width="676"
+                                                height="272"
+                                            />
+                                        </details>
+                                    </li>
+                                    <li>
+                                        <details name="nest-steps">
+                                            <summary>
+                                                Tick <b>both</b> contribution
+                                                types
+                                            </summary>
 
-                                        <img
-                                            src="imgs/nest-3.png"
-                                            alt="Nest contributions"
-                                            width="684"
-                                            height="360"
-                                        />
-                                        <p class="notice">
-                                            <b>Important:</b> Choose both "From
-                                            your salary"
-                                            <b>and</b>
-                                            "From your employer".
-                                        </p>
-                                    </details>
-                                </li>
-                                <li>
-                                    <details name="nest-steps">
-                                        <summary>
-                                            Click 'Apply Filters' &amp;
-                                            'Download'
-                                        </summary>
-                                        <p>
-                                            Click "Apply filters" and then the
-                                            "Download Results" buttons.
-                                        </p>
-                                        <img
-                                            src="imgs/nest-4.png"
-                                            alt="Nest download"
-                                            width="686"
-                                            height="650"
-                                        />
-                                        <img
-                                            src="imgs/nest-5.png"
-                                            alt="Nest download"
-                                            width="686"
-                                            height="650"
-                                        />
-                                    </details>
-                                </li>
-                            </ol>
-                            <p class="notice">
-                                Rinse and repeat - You will need change the year
-                                and click "apply filters" and "download results"
-                                for each financial year.
-                            </p>
-                        </details>
-                    </div>
-                    <!-- <div class="card">
+                                            <img
+                                                src="imgs/nest-3.png"
+                                                alt="Nest contributions"
+                                                width="684"
+                                                height="360"
+                                            />
+                                            <p class="notice">
+                                                <b>Important:</b> Choose both
+                                                "From your salary"
+                                                <b>and</b>
+                                                "From your employer".
+                                            </p>
+                                        </details>
+                                    </li>
+                                    <li>
+                                        <details name="nest-steps">
+                                            <summary>
+                                                Click 'Apply Filters' &amp;
+                                                'Download'
+                                            </summary>
+                                            <p>
+                                                Click "Apply filters" and then
+                                                the "Download Results" buttons.
+                                            </p>
+                                            <img
+                                                src="imgs/nest-4.png"
+                                                alt="Nest download"
+                                                width="686"
+                                                height="650"
+                                            />
+                                            <img
+                                                src="imgs/nest-5.png"
+                                                alt="Nest download"
+                                                width="686"
+                                                height="650"
+                                            />
+                                        </details>
+                                    </li>
+                                </ol>
+                                <p class="notice">
+                                    Rinse and repeat - You will need change the
+                                    year and click "apply filters" and "download
+                                    results" for each financial year.
+                                </p>
+                            </details>
+                        </div>
+                        <!-- <div class="card">
                         <header>
                             <img src="imgs/unite.svg" alt="Unite icon" />
                             <h3>C) Join Unite</h3>
@@ -294,8 +309,17 @@
                             reported within four weeks of joining.
                         </p>
                     </div> -->
+                    </div>
+                    <button
+                        v-if="collapsedSections.prep"
+                        class="collapse-overlay"
+                        type="button"
+                        aria-label="Expand prep section"
+                        @click="expandSection('prep')"
+                    ></button>
                 </div>
             </section>
+
             <section class="controls" v-cloak>
                 <div
                     class="card upload-panel"
@@ -535,74 +559,83 @@
                         @click="toggleSection('nextSteps')"
                         :aria-expanded="(!collapsedSections.nextSteps).toString()"
                         aria-controls="next-steps-content"
-                        v-cloak
                     >
-                        <span
+                        <span v-cloak
                             >{{ collapsedSections.nextSteps ? 'Expand' :
                             'Collapse' }}</span
                         >
                     </button>
                 </div>
-                <div
-                    class="collapse-grid"
-                    id="next-steps-content"
-                    :class="{ 'is-collapsed': collapsedSections.nextSteps }"
-                    @focusin="handleSectionFocus('nextSteps')"
-                    :aria-hidden="collapsedSections.nextSteps"
-                    :inert="collapsedSections.nextSteps"
-                >
-                    <div class="card">
-                        <header>
-                            <img src="imgs/email.svg" alt="Email icon" />
-                            <h3>A) Email your manager</h3>
-                        </header>
-                        <p>
-                            If you note any discrepencies in your pension
-                            contributions, or deductions first email your
-                            manager with these concerns. You may wish to forward
-                            them a copy of this report as evidence.
-                        </p>
+                <div class="collapse-shell">
+                    <div
+                        class="collapse-grid"
+                        id="next-steps-content"
+                        :class="{ 'is-collapsed': collapsedSections.nextSteps }"
+                        @focusin="handleSectionFocus('nextSteps')"
+                        :aria-hidden="collapsedSections.nextSteps"
+                        :inert="collapsedSections.nextSteps"
+                    >
+                        <div class="card">
+                            <header>
+                                <img src="imgs/email.svg" alt="Email icon" />
+                                <h3>A) Email your manager</h3>
+                            </header>
+                            <p>
+                                If you note any discrepencies in your pension
+                                contributions, or deductions first email your
+                                manager with these concerns. You may wish to
+                                forward them a copy of this report as evidence.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <header>
+                                <img
+                                    src="imgs/hmrc-icon.svg"
+                                    alt="HMRC Revenue and Customs icon"
+                                />
+                                <h3>B) Verify Tax Payments</h3>
+                            </header>
+                            <p>
+                                If you have any concerns about your tax
+                                payments, you should verify them with HMRC - eg
+                                your payslip is missing deductions taxcode or
+                                National Insurance ID. You can do this by
+                                downloading the
+                                <a
+                                    href="https://www.gov.uk/guidance/download-the-hmrc-app"
+                                    target="_blank"
+                                    rel="noopener"
+                                    title="Download the HMRC app"
+                                    >HMRC app</a
+                                >
+                                from the Apple App or Google Play Stores.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <header>
+                                <img src="imgs/unite.svg" alt="Unite icon" />
+                                <h3>C) Join Unite</h3>
+                            </header>
+                            <p>
+                                If you're not already a member, why not
+                                <a href="https://join.unitetheunion.org/"
+                                    >join Unite</a
+                                >?
+                            </p>
+                            <p class="notice">
+                                <b>Note:</b> Unite can advise, but
+                                <i>usually</i> can't provide legal help for
+                                issues reported within four weeks of joining.
+                            </p>
+                        </div>
                     </div>
-                    <div class="card">
-                        <header>
-                            <img
-                                src="imgs/hmrc-icon.svg"
-                                alt="HMRC Revenue and Customs icon"
-                            />
-                            <h3>B) Verify Tax Payments</h3>
-                        </header>
-                        <p>
-                            If you have any concerns about your tax payments,
-                            you should verify them with HMRC - eg your payslip
-                            is missing deductions taxcode or National Insurance
-                            ID. You can do this by downloading the
-                            <a
-                                href="https://www.gov.uk/guidance/download-the-hmrc-app"
-                                target="_blank"
-                                rel="noopener"
-                                title="Download the HMRC app"
-                                >HMRC app</a
-                            >
-                            from the Apple App or Google Play Stores.
-                        </p>
-                    </div>
-                    <div class="card">
-                        <header>
-                            <img src="imgs/unite.svg" alt="Unite icon" />
-                            <h3>C) Join Unite</h3>
-                        </header>
-                        <p>
-                            If you're not already a member, why not
-                            <a href="https://join.unitetheunion.org/"
-                                >join Unite</a
-                            >?
-                        </p>
-                        <p class="notice">
-                            <b>Note:</b> Unite can advise, but
-                            <i>usually</i> can't provide legal help for issues
-                            reported within four weeks of joining.
-                        </p>
-                    </div>
+                    <button
+                        v-if="collapsedSections.nextSteps"
+                        class="collapse-overlay"
+                        type="button"
+                        aria-label="Expand next steps section"
+                        @click="expandSection('nextSteps')"
+                    ></button>
                 </div>
             </section>
 

@@ -198,6 +198,13 @@ button {
     font-family: inherit;
 }
 
+button.primary.on-dk,
+button.secondary.on-dk,
+button.ghost.on-dk {
+    background: var(--paper);
+    color: var(--ink);
+}
+
 button.primary,
 button.secondary,
 button.ghost {
@@ -293,6 +300,7 @@ label.next-action {
     font-weight: 600;
     font-size: 0.85rem;
     cursor: pointer;
+    min-width: 105px;
 }
 
 .collapse-toggle::before {
@@ -316,6 +324,19 @@ label.next-action {
     transition: all 0.25s ease;
     padding: 0 45px 45px;
     margin: 0 -45px -45px;
+}
+
+.collapse-shell {
+    position: relative;
+}
+
+.collapse-overlay {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
 }
 
 .collapse-grid.is-collapsed {

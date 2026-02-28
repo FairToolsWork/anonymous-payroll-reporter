@@ -31,6 +31,7 @@ export default [
                 document: 'readonly',
                 navigator: 'readonly',
                 sessionStorage: 'readonly',
+                localStorage: 'readonly',
                 URLSearchParams: 'readonly',
                 Vue: 'readonly',
                 console: 'readonly',
