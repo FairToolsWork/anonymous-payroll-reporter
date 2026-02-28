@@ -1011,6 +1011,15 @@ label.next-action {
     background: rgb(194 84 45 / 12%);
 }
 
+p.report-footnote-row {
+    font-size: 0.75em;
+    color: #555;
+    font-style: italic;
+    margin: 4px 3px 0;
+    padding-top: 4px;
+    border-top: 1px dashed #ccc;
+}
+
 .summary-table thead th {
     text-align: left;
     overflow: hidden;

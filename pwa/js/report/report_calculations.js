@@ -356,9 +356,23 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
         actualByMonth.set(key, actual)
     })
 
+    const contributionYears = new Set()
+    actualByMonth.forEach((_, key) => {
+        const year = key.split('-')[0]
+        if (year && year !== 'Unknown') {
+            contributionYears.add(isNaN(Number(year)) ? year : Number(year))
+        }
+    })
+    const allYearKeys = Array.from(
+        new Set([
+            ...yearKeys.filter((k) => k && k !== 'Unknown'),
+            ...contributionYears,
+        ])
+    ).sort((a, b) => Number(a) - Number(b))
+
     const summaryByYear = new Map()
     let overallBalance = 0
-    yearKeys.forEach((yearKey) => {
+    allYearKeys.forEach((yearKey) => {
         if (!yearKey || yearKey === 'Unknown') {
             return
         }

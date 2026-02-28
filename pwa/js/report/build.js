@@ -39,10 +39,17 @@ import {
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
  */
 
+/** @type {number} Update this each tax year if the personal allowance changes */
+const PERSONAL_ALLOWANCE_ANNUAL = 12_570
+/** @type {string} Update this each tax year e.g. '2026/27 and 2027/28' */
+const PERSONAL_ALLOWANCE_TAX_YEARS = '2025/26 and 2026/27'
+/** @type {number} */
+const PERSONAL_ALLOWANCE_MONTHLY = Math.round(PERSONAL_ALLOWANCE_ANNUAL / 12)
+
 /** @type {string} */
 const ZERO_TAX_ALLOWANCE_NOTE =
-    '<b>Note:</b> <i>PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
-    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27)</i>.'
+    `<b>Note:</b> <i>PAYE Tax / National Insurance may be £0 when monthly pay is below £${PERSONAL_ALLOWANCE_MONTHLY.toLocaleString('en-GB')} ` +
+    `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year for ${PERSONAL_ALLOWANCE_TAX_YEARS})</i>.`
 
 /**
  * @param {Date} date
@@ -208,7 +215,6 @@ export function buildReport(
     const failedDates = failedPayPeriods
         .map((period) => parsePayPeriodStart(period))
         .filter((date) => date instanceof Date)
-    const rangeDates = parsedDates.concat(failedDates)
     const rangeStart = parsedDates[0] || null
     const rangeEnd = parsedDates[parsedDates.length - 1] || null
     const dateRangeLabel =
@@ -440,7 +446,7 @@ export function buildReport(
             `<td>${lastContributionLabel}<br>${formatDaysSince()}</td>` +
             '</tr></tbody>' +
             '</table>' +
-            `<p class="notice">Note: Accumulated Over / Under = Payroll Contributions (EE+ER) − Reported (EE+ER). Negative values indicate an underpayment to you pension.</p>`
+            `<p class="notice">Note: Accumulated Over / Under = Reported (EE+ER) − Payroll Contributions (EE+ER). Positive values indicate an overpayment; negative values indicate an underpayment to your pension.</p>`
     )
 
     if (miscFootnotes.length) {
@@ -626,7 +632,7 @@ function buildMissingMonths(yearGroups, failedDates) {
             missingMonthsByYear[yearKey] = []
             return
         }
-        const present = new Set(presentMonths)
+        const present = new Set([...presentMonths, ...failedMonths])
         const missing = []
         for (let month = 1; month <= maxMonth; month += 1) {
             if (!present.has(month)) {
@@ -897,7 +903,7 @@ function renderReportCell(entry) {
         )}</td></tr>`,
         `<tr><th align="left">NEST Corp - EE</th>` +
             `<td class="${nestEmployeeClass}">${formatDeduction(nestEmployee)}</td></tr>`,
-        `<tr><th align="left">NEST Corp - ER</th>` +
+        `<tr><th align="left">NEST Corp - ER <sup>†</sup></th>` +
             `<td class="${nestEmployerClass}">( ${formatContribution(nestEmployer)} )</td></tr>`
     )
 
@@ -922,10 +928,16 @@ function renderReportCell(entry) {
     const cellClass = validation.lowConfidence
         ? 'report-cell is-low-confidence'
         : 'report-cell'
+    const erFootnote =
+        '<p class="report-footnote-row"><sup>†</sup> ' +
+        'Employer contribution — paid by the employer on top of your salary, ' +
+        'not deducted from your net pay.' +
+        '</p>'
     return `
     <div class="${cellClass}">
       ${imageHtml}
       ${rows.join('\n')}
+      ${erFootnote}
     </div>
   `
 }
