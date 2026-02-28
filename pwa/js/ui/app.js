@@ -13,7 +13,6 @@
  * @property {"idle" | "processing" | "rendering" | "done"} status
  * @property {{ current: number, total: number }} progress
  * @property {number} fileCount
- * @property {number} contributionFileCount
  * @property {File[]} contributionFiles
  * @property {Array<{ id: string, name: string, type: "pdf" | "xlsx", file: File }>} stagedFiles
  * @property {number} stagedPdfCount
@@ -40,11 +39,11 @@
  * @property {{ prep: boolean, nextSteps: boolean }} collapsedSections
  * @property {boolean} showScrollTop
  * @property {boolean} parsingExcel
+ * @property {boolean} staleInstance
  */
 
 import { parseContributionWorkbook } from '../parse/contribution_validation.js'
 import { PATTERNS } from '../parse/parser_config.js'
-import { parsePayrollPdf } from '../parse/pdf_validation.js'
 import { runPayrollReportWorkflow } from '../report/report_workflow.js'
 
 /** @type {string | null} */
@@ -76,7 +75,6 @@ export function initPayrollApp() {
                 status: 'idle',
                 progress: { current: 0, total: 0 },
                 fileCount: 0,
-                contributionFileCount: 0,
                 contributionFiles: [],
                 stagedFiles: [],
                 stagedPdfCount: 0,
@@ -211,31 +209,6 @@ export function initPayrollApp() {
                     this.collapsedSections[sectionKey] = false
                 }
             },
-            /** @param {Event} event */
-            handleContributionFiles(event) {
-                const input = /** @type {HTMLInputElement} */ (event.target)
-                const rawFiles = Array.from(input.files || [])
-                if (!rawFiles.length) {
-                    return
-                }
-                const files = rawFiles.filter((file) => {
-                    const name = file.name || ''
-                    return (
-                        file.type ===
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                        name.toLowerCase().endsWith('.xlsx')
-                    )
-                })
-                if (files.length !== rawFiles.length) {
-                    this.error =
-                        'One or more of your uploaded files was not an XLSX. Please try again.'
-                    input.value = ''
-                    return
-                }
-                this.contributionFiles = files
-                this.contributionFileCount = files.length
-                input.value = ''
-            },
             /** @param {File[]} rawFiles */
             stageFiles(rawFiles) {
                 const files = rawFiles.filter(Boolean)
@@ -309,7 +282,6 @@ export function initPayrollApp() {
                 this.stagedExcelCount = this.stagedFiles.filter(
                     (item) => item.type === 'xlsx'
                 ).length
-                this.contributionFileCount = this.stagedExcelCount
             },
             /** @param {unknown} value */
             parseContributionDate(value) {
@@ -530,7 +502,6 @@ export function initPayrollApp() {
                 this.stagedExcelCount = 0
                 this.contributionFiles = []
                 this.fileCount = 0
-                this.contributionFileCount = 0
                 this.resetReportState()
             },
             /** @returns {void} */
@@ -843,127 +814,6 @@ export function initPayrollApp() {
                 })
                 this.handleScroll()
             },
-            /**
-             * @param {File} file
-             * @param {boolean} captureDebug
-             * @returns {Promise<PayrollRecordWithImage | null>}
-             */
-            async extractPayrollRecord(file, captureDebug) {
-                const { record: payrollRecord, debug } = await parsePayrollPdf(
-                    file,
-                    this.pdfPassword
-                )
-                if (this.debugEnabled && captureDebug && !this.debugText) {
-                    this.debugText = debug.text
-                }
-                payrollRecord.imageData = debug.imageData
-
-                const employeeName = payrollRecord.employee?.name || null
-                const employer = payrollRecord.employer || null
-                const payPeriod =
-                    payrollRecord.payrollDoc?.processDate?.date || null
-
-                if (
-                    this.debugEnabled &&
-                    captureDebug &&
-                    this.debugText &&
-                    !this.debugInfo.parsed
-                ) {
-                    const debugRecord = { ...payrollRecord }
-                    if (
-                        debugRecord.imageData &&
-                        typeof debugRecord.imageData === 'string'
-                    ) {
-                        const marker = 'data:image/png;base64,'
-                        debugRecord.imageData =
-                            debugRecord.imageData.startsWith(marker)
-                                ? `${marker}<truncated>`
-                                : '<truncated>'
-                    }
-                    this.debugInfo.parsed = JSON.stringify(debugRecord, null, 2)
-                    this.debugInfo.matches = JSON.stringify(
-                        {
-                            nameDateId:
-                                debug.text.match(PATTERNS.nameDateId)?.[0] ||
-                                null,
-                            employerLine:
-                                debug.text.match(PATTERNS.employerLine)?.[0] ||
-                                null,
-                            payeTax:
-                                debug.text.match(PATTERNS.payeTax)?.[0] || null,
-                            nationalInsurance:
-                                debug.text.match(
-                                    PATTERNS.nationalInsurance
-                                )?.[0] || null,
-                            nestEmployee:
-                                debug.text.match(PATTERNS.nestEmployee)?.[0] ||
-                                null,
-                            nestEmployer:
-                                debug.text.match(PATTERNS.nestEmployer)?.[0] ||
-                                null,
-                            earningsForNI:
-                                debug.text.match(PATTERNS.earningsForNI)?.[0] ||
-                                null,
-                            grossForTax:
-                                debug.text.match(PATTERNS.grossForTax)?.[0] ||
-                                null,
-                            totalGrossPay:
-                                debug.text.match(PATTERNS.totalGrossPay)?.[0] ||
-                                null,
-                            payCycle:
-                                debug.text.match(PATTERNS.payCycle)?.[0] ||
-                                null,
-                            totalGrossPayTD:
-                                debug.text.match(
-                                    PATTERNS.totalGrossPayTD
-                                )?.[0] || null,
-                            grossForTaxTD:
-                                debug.text.match(PATTERNS.grossForTaxTD)?.[0] ||
-                                null,
-                            taxPaidTD:
-                                debug.text.match(PATTERNS.taxPaidTD)?.[0] ||
-                                null,
-                            earningsForNITD:
-                                debug.text.match(
-                                    PATTERNS.earningsForNITD
-                                )?.[0] || null,
-                            nationalInsuranceTD:
-                                debug.text.match(
-                                    PATTERNS.nationalInsuranceTD
-                                )?.[0] || null,
-                            employeePensionTD:
-                                debug.text.match(
-                                    PATTERNS.employeePensionTD
-                                )?.[0] || null,
-                            employerPensionTD:
-                                debug.text.match(
-                                    PATTERNS.employerPensionTD
-                                )?.[0] || null,
-                            netPay:
-                                debug.text.match(PATTERNS.netPay)?.[0] || null,
-                        },
-                        null,
-                        2
-                    )
-                }
-
-                if (!employeeName || !employer) {
-                    console.warn('Payroll: missing required fields', {
-                        name: employeeName,
-                        employer,
-                        payPeriod,
-                    })
-                    if (
-                        payPeriod &&
-                        !this.failedPayPeriods.includes(payPeriod)
-                    ) {
-                        this.failedPayPeriods.push(payPeriod)
-                    }
-                    return null
-                }
-
-                return payrollRecord
-            },
             /** @returns {void} */
             printReport() {
                 if (!this.reportReady) {
@@ -1007,6 +857,10 @@ export function initPayrollApp() {
             scrollToTop() {
                 window.scrollTo({ top: 0, behavior: 'smooth' })
             },
+        },
+        /** @returns {void} */
+        beforeUnmount() {
+            window.removeEventListener('scroll', this.handleScroll)
         },
         /** @returns {void} */
         mounted() {

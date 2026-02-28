@@ -9,10 +9,7 @@ const CORE_ASSETS = [
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.addAll(CORE_ASSETS))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
     )
 })
 
@@ -89,13 +86,15 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
                 return cachedResponse
             }
-            return fetch(event.request).then((response) => {
-                const responseClone = response.clone()
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseClone)
+            return fetch(event.request)
+                .then((response) => {
+                    const responseClone = response.clone()
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone)
+                    })
+                    return response
                 })
-                return response
-            })
+                .catch(() => caches.match('./index.html'))
         })
     )
 })
