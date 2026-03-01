@@ -221,7 +221,8 @@ export async function runPayrollReportWorkflow(options) {
             }
         })
         entries.forEach((entry) => {
-            /** @type {any} */ entry.validation = buildValidation(entry)
+            const anyEntry = /** @type {any} */ (entry)
+            anyEntry.validation = buildValidation(entry)
         })
         entries.sort((a, b) => {
             const yearA = a.year ?? 9999

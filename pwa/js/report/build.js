@@ -142,7 +142,7 @@ function formatMiscLabel(item) {
 /**
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
- * @param {import('../parse/contribution_validation.js').ContributionData | null} [contributionData=null]
+ * @param {ContributionData | null} [contributionData=null]
  * @returns {{ html: string, filename: string, stats: ReportStats }}
  */
 export function buildReport(
