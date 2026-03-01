@@ -332,6 +332,19 @@ label.next-action {
 .collapse-shell.is-collapsed {
     max-height: 75px;
     overflow: hidden;
+    filter: saturate(0.5) opacity(0.6);
+}
+
+.collapse-shell.is-collapsed::before {
+    content: '';
+    display: flex;
+    width: 100%;
+    :background: hsl(208deg 40.21% 21.98%);
+    height: 10px;
+    position: absolute;
+    top: 70px;
+    z-index: 999999;
+    filter: blur(22px);
 }
 
 .collapse-overlay {
@@ -381,7 +394,6 @@ label.next-action {
     font-weight: 600;
     font-size: 0.85rem;
     letter-spacing: 0.01em;
-    box-shadow: 0 8px 18px rgb(194 84 45 / 20%);
 }
 
 .missing-pill * {
@@ -421,16 +433,52 @@ label.next-action {
     margin: 15px 0;
 }
 
+.card summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent-dark);
+    list-style: none;
+}
+
+.card summary::before {
+    content: '+';
+    display: inline-block;
+    margin-right: 8px;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.card details[open] summary::before {
+    content: '\2212';
+}
+
 .card details {
     margin-top: 12px;
     border: 1px solid rgb(30 28 25 / 12%);
     border-radius: 12px;
     padding: 10px 12px;
     background: var(--paper);
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease;
 }
 
 .card details + details {
     margin-top: 10px;
+}
+
+.card details:not([open]):hover {
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--card);
+}
+
+.card details:not([open]):hover summary {
+    color: var(--card);
+}
+
+.card details:not([open]):hover summary::before {
+    color: var(--card);
 }
 
 .card details[open] > *:not(summary) {
@@ -449,27 +497,8 @@ label.next-action {
     }
 }
 
-.card summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--accent-dark);
-    list-style: none;
-}
-
 .card summary::-webkit-details-marker {
     display: none;
-}
-
-.card summary::before {
-    content: '+';
-    display: inline-block;
-    margin-right: 8px;
-    color: var(--accent);
-    font-weight: 700;
-}
-
-.card details[open] summary::before {
-    content: '\2212';
 }
 
 .note {
@@ -569,7 +598,6 @@ label.next-action {
     z-index: 2;
     color: var(--ink);
     -webkit-backdrop-filter: blur(2px);
-    /* stylelint-disable-next-line */
     backdrop-filter: blur(2px);
     pointer-events: none;
 }

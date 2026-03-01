@@ -443,10 +443,11 @@
                     </div>
                     <p v-if="status === 'processing'">
                         Processing {{ progress.current }} / {{ progress.total }}
-                        PDFs
+                        files
                     </p>
                     <p v-if="parsingExcel">
-                        Parsing Excel contribution history…
+                        Parsing PDF Payroll & Excel Pension contribution
+                        history…
                     </p>
                     <p v-if="status === 'rendering'">Rendering report…</p>
                     <p v-if="status === 'done'">
