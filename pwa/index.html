@@ -131,7 +131,10 @@
                         </span>
                     </button>
                 </div>
-                <div class="collapse-shell">
+                <div
+                    class="collapse-shell"
+                    :class="{ 'is-collapsed': collapsedSections.prep }"
+                >
                     <div
                         class="collapse-grid"
                         id="prep-content"
@@ -576,7 +579,10 @@
                         >
                     </button>
                 </div>
-                <div class="collapse-shell">
+                <div
+                    class="collapse-shell"
+                    :class="{ 'is-collapsed': collapsedSections.nextSteps }"
+                >
                     <div
                         class="collapse-grid"
                         id="next-steps-content"

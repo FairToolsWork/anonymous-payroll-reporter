@@ -319,12 +319,19 @@ label.next-action {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
     position: relative;
-    max-height: 2000px;
-    transition: all 0.25s ease;
+    padding: 0 12px 12px;
+    margin: 0 -12px -12px;
 }
 
 .collapse-shell {
     position: relative;
+    max-height: 2000px;
+    transition: max-height 0.25s ease;
+}
+
+.collapse-shell.is-collapsed {
+    max-height: 75px;
+    overflow: hidden;
 }
 
 .collapse-overlay {
@@ -337,10 +344,8 @@ label.next-action {
 }
 
 .collapse-grid.is-collapsed {
-    max-height: 75px;
     margin-bottom: 16px;
     padding-bottom: 16px;
-    overflow: hidden;
 }
 
 .collapse-grid.is-collapsed::after {

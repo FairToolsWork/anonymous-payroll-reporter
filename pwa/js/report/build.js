@@ -40,7 +40,7 @@ import {
  */
 
 /** @type {number} Update this each tax year if the personal allowance changes */
-const PERSONAL_ALLOWANCE_ANNUAL = 12_570
+const PERSONAL_ALLOWANCE_ANNUAL = 12570
 /** @type {string} Update this each tax year e.g. '2026/27 and 2027/28' */
 const PERSONAL_ALLOWANCE_TAX_YEARS = '2025/26 and 2026/27'
 /** @type {number} */

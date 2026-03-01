@@ -1,10 +1,9 @@
-const CACHE_NAME = 'payroll-pwa-v3'
+const CACHE_NAME = 'payroll-pwa-v4'
 const CORE_ASSETS = [
     './index.html',
     './styles.css',
     './app.js',
     './site.webmanifest',
-    './icon.svg',
 ]
 
 self.addEventListener('install', (event) => {

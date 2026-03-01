@@ -7,11 +7,6 @@
     "theme_color": "#2b2a27",
     "icons": [
         {
-            "src": "icon.svg",
-            "sizes": "any",
-            "type": "image/svg+xml"
-        },
-        {
             "src": "appstore-images/android/launchericon-48x48.png",
             "sizes": "48x48",
             "type": "image/png"
