@@ -65,6 +65,7 @@ export async function runPayrollReportWorkflow(options) {
     const onProgress = options?.onProgress
     const requireEmployeeDetails = options?.requireEmployeeDetails !== false
     const includeReportContext = Boolean(options?.includeReportContext)
+    const totalSteps = pdfFiles.length + excelFiles.length
 
     /** @type {any[]} */
     const records = []
@@ -74,7 +75,7 @@ export async function runPayrollReportWorkflow(options) {
     for (let i = 0; i < pdfFiles.length; i += 1) {
         const file = pdfFiles[i]
         if (typeof onProgress === 'function') {
-            onProgress({ current: i + 1, total: pdfFiles.length, file })
+            onProgress({ current: i + 1, total: totalSteps, file })
         }
         try {
             const { record: payrollRecord, debug: recordDebug } =
@@ -148,7 +149,16 @@ export async function runPayrollReportWorkflow(options) {
         /** @type {Array<{ date: Date, type: "ee" | "er", amount: number }>} */
         const entries = []
         const failures = []
-        for (const file of excelFiles) {
+        const startIndex = pdfFiles.length
+        for (let i = 0; i < excelFiles.length; i += 1) {
+            const file = excelFiles[i]
+            if (typeof onProgress === 'function') {
+                onProgress({
+                    current: startIndex + i + 1,
+                    total: totalSteps,
+                    file,
+                })
+            }
             try {
                 const buffer = await file.arrayBuffer()
                 const workbook = xlsx.read(buffer, { type: 'array' })

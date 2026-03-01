@@ -18,7 +18,6 @@ import {
     formatDateLabel,
     formatMonthYearLabel,
     parsePayPeriodStart,
-    sumMiscAmounts,
 } from './report_calculations.js'
 
 /**
@@ -221,7 +220,7 @@ export function buildReport(
         rangeStart && rangeEnd
             ? `${formatDateLabel(rangeStart)} – ${formatDateLabel(rangeEnd)}`
             : 'Unknown'
-    const contributionEntries = records.contributionData?.entries || []
+    const contributionEntries = contributionData?.entries || []
     const contributionDates = contributionEntries
         .map((entry) => entry.date)
         .filter((date) => date instanceof Date)
@@ -237,12 +236,12 @@ export function buildReport(
             Math.max(...contributionDates.map((date) => date.getTime()))
         )
         contributionRangeLabel = `${formatMonthYearLabel(minContribution)} – ${formatMonthYearLabel(maxContribution)}`
-    } else if ((records.contributionData?.sourceFiles || []).length) {
+    } else if ((contributionData?.sourceFiles || []).length) {
         contributionRangeLabel = 'Unknown'
     }
     const contributionMeta = {
-        fileCount: records.contributionData?.sourceFiles?.length || 0,
-        recordCount: records.contributionData?.entries?.length || 0,
+        fileCount: contributionData?.sourceFiles?.length || 0,
+        recordCount: contributionData?.entries?.length || 0,
         dateRangeLabel: contributionRangeLabel,
     }
 
@@ -696,19 +695,24 @@ function buildContributionTotals(entries, contributionSummary) {
                 entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
             acc.nestEmployer +=
                 entry.record.payrollDoc?.deductions?.pensionER?.amount || 0
-            acc.miscPayments += sumMiscAmounts(
-                entry.record.payrollDoc?.payments?.misc || []
-            )
-            acc.miscDeductions += sumMiscAmounts(
-                entry.record.payrollDoc?.deductions?.misc || []
-            )
+            // acc.miscPayments += sumMiscAmounts(
+            //     entry.record.payrollDoc?.payments?.misc || []
+            // )
+            // acc.miscDeductions += sumMiscAmounts(
+            //     entry.record.payrollDoc?.deductions?.misc || []
+            // )
             return acc
         },
         {
             nestEmployee: 0,
             nestEmployer: 0,
-            miscPayments: 0,
-            miscDeductions: 0,
+            // TODO: miscPayments and miscDeductions aggregates are computed here
+            // for potential use as summary table columns (e.g. "Misc Pay" / "Misc Ded."
+            // per year). Not implemented yet — misc items are already shown via the
+            // per-payslip card and the per-year/global footnote sections.
+
+            // miscPayments: 0,
+            // miscDeductions: 0,
         }
     )
 

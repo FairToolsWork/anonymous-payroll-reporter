@@ -549,7 +549,10 @@ export function initPayrollApp() {
                 }
                 this.resetReportState()
                 this.status = 'processing'
-                this.progress = { current: 0, total: files.length }
+                this.progress = {
+                    current: 0,
+                    total: files.length + this.contributionFiles.length,
+                }
                 console.info('Payroll: starting processing', {
                     files: files.length,
                 })
