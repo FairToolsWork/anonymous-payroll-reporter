@@ -339,7 +339,7 @@ label.next-action {
     content: '';
     display: flex;
     width: 100%;
-    :background: hsl(208deg 40.21% 21.98%);
+    background: hsl(208deg 40.21% 21.98%);
     height: 10px;
     position: absolute;
     top: 70px;
@@ -655,6 +655,7 @@ label.next-action {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    margin-top: 6px;
 }
 
 .run-actions {

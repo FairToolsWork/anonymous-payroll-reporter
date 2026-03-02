@@ -118,7 +118,7 @@
 
             <section class="prep collapse-section">
                 <div class="collapse-header">
-                    <h2 class="collapse-title">1. Prep</h2>
+                    <h2 class="collapse-title">1. Gather</h2>
                     <button
                         class="collapse-toggle"
                         type="button"
@@ -348,16 +348,17 @@
                             <span>Release files to add them to the queue</span>
                         </div>
                     </div>
-                    <h2>3. Upload Pay Slips + Pension Excel</h2>
+                    <h2>3. Upload: Payslip PDF & Pension Excel</h2>
                     <div class="instructions">
                         <p>
                             Drag and drop your Payroll PDFs and Pension Excel
                             files here or choose multiple files.
                         </p>
                         <p class="notice">
-                            <b>Note:</b> Pension Excel files are optional, if
-                            you don't have them then the report will not compare
-                            deductions vs what was submitted to NEST.
+                            <b>Note:</b> Nest Pension Contribution files (Excel)
+                            are optional, if you don't have them the report will
+                            not compare deductions vs what was submitted to
+                            Nest.
                         </p>
                     </div>
                     <label class="field password">
@@ -407,7 +408,7 @@
                                 :disabled="status === 'processing'"
                                 @click="clearUploads"
                             >
-                                Clear uploads
+                                RESET
                             </button>
                         </div>
                     </div>
@@ -415,7 +416,8 @@
                 <div class="card status-panel">
                     <h2>2. Run & Review</h2>
                     <p class="instructions" v-if="status === 'idle'">
-                        First stage files (step 1), then run the report here.
+                        Once you have selected the files, run the report, it
+                        will be presented at the bottom of the page.
                     </p>
                     <div class="run-actions">
                         <label class="disclaimer inline">

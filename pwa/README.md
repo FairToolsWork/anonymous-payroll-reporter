@@ -22,11 +22,49 @@ All processing happens locally in the browser — no uploads or server calls, pr
 
 Open `pwa/index.html` in a browser or serve the folder with any static server.
 
-To enable debug panel:
+### Debug flags
 
-```bash
+| Flag       | What it enables                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `?debug=1` | Debug panel: extracted PDF text, parsed values, regex matches, Excel raw rows and parsed entries. Copy-to-clipboard button.              |
+| `?debug=2` | Everything in `?debug=1`, plus forces the update banner to appear on mount (for testing the SW update UI without a real waiting worker). |
+
+```text
 index.html?debug=1
+index.html?debug=2
 ```
+
+## Deploying changes
+
+Whenever JS, CSS, HTML, or any other cached asset changes, the Service Worker cache must be invalidated so users receive the updated files. The SW uses a versioned cache name to control this.
+
+### Releases and `CACHE_NAME` versioning
+
+`CACHE_NAME` in `pwa/sw.js` is managed automatically by [release-please](https://github.com/googleapis/release-please). On every push to `main`, the release-please GitHub Action maintains an open release PR. When that PR is merged, `CACHE_NAME` is bumped to match the new semver version and a GitHub release is tagged.
+
+Use [conventional commits](https://www.conventionalcommits.org/) to drive version increments:
+
+| Commit prefix | Version bump |
+| ------------- | ------------ |
+| `fix:` | patch — `1.0.0` → `1.0.1` |
+| `feat:` | minor — `1.0.0` → `1.1.0` |
+| `feat!:` / `BREAKING CHANGE:` | major — `1.0.0` → `2.0.0` |
+
+The `CACHE_NAME` bump causes the new SW to delete the old cache on activate and re-fetch all assets fresh. Without a changed `CACHE_NAME`, users may be served stale cached files indefinitely.
+
+### Checklist for every deployment
+
+1. **Merge the release-please PR** on GitHub — this bumps `package.json` and `CACHE_NAME` in `sw.js` atomically and creates the release tag.
+
+2. **Deploy all changed files** — the SW itself (`sw.js`) must be included. Browsers re-fetch `sw.js` on every navigation (it is not cached by the SW), so a changed `sw.js` will trigger the install → wait → activate cycle automatically.
+
+3. **Users with the app open** will see the update banner once the new SW reaches the `waiting` state. Clicking **Refresh** sends `SKIP_WAITING`, the new SW activates, and the page reloads with fresh assets.
+
+4. **Orphaned instances** (tabs open for more than 24 hours without a reload) will show the update banner automatically via the `staleInstance` flag, prompting the user to refresh.
+
+### If the cache is stuck during development
+
+Open DevTools → **Application** → **Storage** → **Clear site data**, then hard-reload (`Cmd+Shift+R`). This bypasses the SW entirely and fetches fresh files.
 
 ## Tech
 
@@ -101,20 +139,20 @@ See `generate_fixtures/README.md` for the parallel steps on the fixture generati
 
 All format parsers must return a `PayrollRecord` as defined in `pwa/js/parse/payroll.types.js`. The key fields consumed by the report builder are:
 
-| Path | Description |
-|---|---|
-| `employee.name` | Employee full name |
-| `employee.id` | Employee ID / payroll number |
-| `employer` | Employer name string |
-| `payrollDoc.processDate.date` | Pay date string |
-| `payrollDoc.payments.hourly.basic` | Basic hours pay item |
-| `payrollDoc.payments.hourly.holiday` | Holiday hours pay item |
-| `payrollDoc.payments.salary.basic` | Basic salary pay item |
-| `payrollDoc.deductions.payeTax.amount` | PAYE tax amount |
-| `payrollDoc.deductions.natIns.amount` | Employee NI amount |
-| `payrollDoc.deductions.pensionEE.amount` | Employee pension contribution |
-| `payrollDoc.deductions.pensionER.amount` | Employer pension contribution |
-| `payrollDoc.deductions.misc` | Array of other deductions |
-| `payrollDoc.thisPeriod.*` | Earnings for NI, Gross for Tax, Total Gross Pay, Pay Cycle |
-| `payrollDoc.yearToDate.*` | All year-to-date cumulative figures |
-| `payrollDoc.netPay.amount` | Net pay |
+| Path                                     | Description                                                |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `employee.name`                          | Employee full name                                         |
+| `employee.id`                            | Employee ID / payroll number                               |
+| `employer`                               | Employer name string                                       |
+| `payrollDoc.processDate.date`            | Pay date string                                            |
+| `payrollDoc.payments.hourly.basic`       | Basic hours pay item                                       |
+| `payrollDoc.payments.hourly.holiday`     | Holiday hours pay item                                     |
+| `payrollDoc.payments.salary.basic`       | Basic salary pay item                                      |
+| `payrollDoc.deductions.payeTax.amount`   | PAYE tax amount                                            |
+| `payrollDoc.deductions.natIns.amount`    | Employee NI amount                                         |
+| `payrollDoc.deductions.pensionEE.amount` | Employee pension contribution                              |
+| `payrollDoc.deductions.pensionER.amount` | Employer pension contribution                              |
+| `payrollDoc.deductions.misc`             | Array of other deductions                                  |
+| `payrollDoc.thisPeriod.*`                | Earnings for NI, Gross for Tax, Total Gross Pay, Pay Cycle |
+| `payrollDoc.yearToDate.*`                | All year-to-date cumulative figures                        |
+| `payrollDoc.netPay.amount`               | Net pay                                                    |

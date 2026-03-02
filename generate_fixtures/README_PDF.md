@@ -25,12 +25,12 @@ The `.venv` directory is gitignored. You only need to do this once.
 
 All commands are run from the repo root (or the `pwa/` folder — both resolve to the same workspace scripts).
 
-| Command | What it does |
-|---|---|
-| `pnpm fixtures:generate` | Runs `generate_pdf_fixtures.py` — generates all fixture PDFs defined in `fixture_runs.json` |
-| `pnpm fixtures:expected` | Runs `regenerate_expected_payslips.mjs` — snapshots the current fixture parse output as the expected baseline for `pdf_parse.test.mjs` |
+| Command                        | What it does                                                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm fixtures:generate`       | Runs `generate_pdf_fixtures.py` — generates all fixture PDFs defined in `fixture_runs.json`                                                                       |
+| `pnpm fixtures:expected`       | Runs `regenerate_expected_payslips.mjs` — snapshots the current fixture parse output as the expected baseline for `pdf_parse.test.mjs`                            |
 | `pnpm fixtures:print-pdf-text` | Runs `print_pdf_text.py` — prints all text lines from the current format's base PDF with vertical positions, for use when configuring anchors in `structure.json` |
-| `pnpm test:all` | Runs the full vitest suite |
+| `pnpm test:all`                | Runs the full vitest suite                                                                                                                                        |
 
 Typical workflow after changing payroll inputs or structure:
 
@@ -42,8 +42,8 @@ pnpm test:all
 
 ## Available formats
 
-| Format | Structure file | Source PDFs |
-|---|---|---|
+| Format      | Structure file                                     | Source PDFs                                                                                                                                                           |
+| ----------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Sage UK** | `generate_fixtures/formats/sage-uk/structure.json` | - `generate_fixtures/formats/sage-uk/test-payslip-no-pw.pdf` (data) <br> - `generate_fixtures/formats/sage-uk/test-payslip-blank-©sage-(uk)-limited.pdf` (background) |
 
 To add a new format, create a new directory under `generate_fixtures/formats/`, add the two source PDFs, a `structure.json`, and a `schema.json` (see the file reference below), then point `default_structure` in `fixture_runs.json` at it or set `structure` on individual runs.
@@ -80,10 +80,10 @@ A new format requires a directory under `generate_fixtures/formats/<name>/` cont
 2. **`schema.json`** — declares which sections and string keys `structure.json` must contain. Validated automatically by `load_structure()`. Copy from `formats/sage-uk/schema.json` and adapt to match your section names.
 
 3. **`processor.py`** — format-specific processing logic. `generate_pdf_fixtures.py` loads this at runtime via `importlib`. Must expose:
-   - `configure(structure)` — called once per run; read layout config from `structure.json` into module state
-   - `apply_fixture(words, line_map, line_text, structure, payroll_constants, data, month_index, month_label, year, reset_payrun, ...)` — mutates the word list for one month and returns the grouped word dict for rendering
+    - `configure(structure)` — called once per run; read layout config from `structure.json` into module state
+    - `apply_fixture(words, line_map, line_text, structure, payroll_constants, data, month_index, month_label, year, reset_payrun, ...)` — mutates the word list for one month and returns the grouped word dict for rendering
 
-   Import generic PDF utilities from `pdf_utils.py` (shared, format-agnostic helpers). See `formats/sage-uk/processor.py` as a reference implementation.
+    Import generic PDF utilities from `pdf_utils.py` (shared, format-agnostic helpers). See `formats/sage-uk/processor.py` as a reference implementation.
 
 4. **Source PDFs** — a base PDF with real data (for extracting word positions and anchor strings) and a blank background PDF (rendered as the visual layer). See [Why two source PDFs](#why-two-source-pdfs).
 
@@ -190,28 +190,28 @@ Defines the payroll data to calculate from. Two top-level keys:
 
 **`constants`** — tax/NI/pension rates and employee metadata:
 
-| Key | Description |
-|---|---|
-| `personal_allowance_annual` / `_monthly` | Scottish income tax personal allowance |
-| `national_tax_bands_annual` | Scottish income tax bands as `[upper_limit, rate]` pairs |
-| `ni_threshold_monthly` | NI lower earnings threshold |
-| `ni_employee_rate` / `ni_employer_rate` | NI contribution rates |
-| `pens_qual_lower_monthly` / `_upper_monthly` | Qualifying earnings band for pension |
-| `pens_employee_rate` / `pens_employer_rate` | Pension contribution rates |
-| `pension_provider` | Label used in the deductions table (e.g. `"NEST Corporation"`) |
-| `employee_id_text` | Employee ID rendered to the left of the name in the header |
-| `tax_code_value` | Tax code shown in the footer |
-| `pay_method_value` | Pay method shown in the footer |
+| Key                                          | Description                                                    |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| `personal_allowance_annual` / `_monthly`     | Scottish income tax personal allowance                         |
+| `national_tax_bands_annual`                  | Scottish income tax bands as `[upper_limit, rate]` pairs       |
+| `ni_threshold_monthly`                       | NI lower earnings threshold                                    |
+| `ni_employee_rate` / `ni_employer_rate`      | NI contribution rates                                          |
+| `pens_qual_lower_monthly` / `_upper_monthly` | Qualifying earnings band for pension                           |
+| `pens_employee_rate` / `pens_employer_rate`  | Pension contribution rates                                     |
+| `pension_provider`                           | Label used in the deductions table (e.g. `"NEST Corporation"`) |
+| `employee_id_text`                           | Employee ID rendered to the left of the name in the header     |
+| `tax_code_value`                             | Tax code shown in the footer                                   |
+| `pay_method_value`                           | Pay method shown in the footer                                 |
 
 **`dataset`** — one entry per month, each with:
 
-| Key | Description |
-|---|---|
-| `month` | `YYYY-MM` identifier |
-| `basic_lines` | Array of `[hours, rate]` pairs for basic pay lines |
-| `makeup_lines` | Array of `[hours, rate]` pairs for hours-make-up lines |
-| `holiday_lines` | Array of `[days, rate]` pairs for holiday pay lines |
-| `other_deduction` | Fixed net deduction amount (£) |
+| Key               | Description                                            |
+| ----------------- | ------------------------------------------------------ |
+| `month`           | `YYYY-MM` identifier                                   |
+| `basic_lines`     | Array of `[hours, rate]` pairs for basic pay lines     |
+| `makeup_lines`    | Array of `[hours, rate]` pairs for hours-make-up lines |
+| `holiday_lines`   | Array of `[days, rate]` pairs for holiday pay lines    |
+| `other_deduction` | Fixed net deduction amount (£)                         |
 
 ### `fixture_runs.json`
 
@@ -219,32 +219,32 @@ Defines all fixture generation runs. Each entry in `runs` produces a set of PDFs
 
 **Run fields:**
 
-| Field | Required | Description |
-|---|---|---|
-| `id` | yes | Human-readable identifier (for reference only) |
-| `structure` | no | Path to the format structure JSON, relative to repo root. Falls back to `default_structure` if omitted. |
-| `output_dir` | yes | Output directory for generated PDFs, relative to repo root |
-| `months` | yes | Array of `YYYY-MM` strings to generate |
-| `missing_months` | no | Months to skip even if listed in `months` |
-| `employee` | no | Default employee override for the run (see below) |
-| `employee_overrides` | no | Per-month employee overrides keyed by `YYYY-MM` |
-| `fixture_overrides` | no | Per-month fixture flags keyed by `YYYY-MM` |
+| Field                | Required | Description                                                                                             |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| `id`                 | yes      | Human-readable identifier (for reference only)                                                          |
+| `structure`          | no       | Path to the format structure JSON, relative to repo root. Falls back to `default_structure` if omitted. |
+| `output_dir`         | yes      | Output directory for generated PDFs, relative to repo root                                              |
+| `months`             | yes      | Array of `YYYY-MM` strings to generate                                                                  |
+| `missing_months`     | no       | Months to skip even if listed in `months`                                                               |
+| `employee`           | no       | Default employee override for the run (see below)                                                       |
+| `employee_overrides` | no       | Per-month employee overrides keyed by `YYYY-MM`                                                         |
+| `fixture_overrides`  | no       | Per-month fixture flags keyed by `YYYY-MM`                                                              |
 
 **`employee` / `employee_overrides` fields:**
 
-| Field | Description |
-|---|---|
-| `name` | Replaces the employee name in the header and address block. Empty string clears it. |
-| `employer` | Replaces the employer name in the header and footer. Empty string clears it. |
-| `address` | Array of address lines (up to `address_lines` count from the structure). Replaces address lines in the address block. |
+| Field      | Description                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `name`     | Replaces the employee name in the header and address block. Empty string clears it.                                   |
+| `employer` | Replaces the employer name in the header and footer. Empty string clears it.                                          |
+| `address`  | Array of address lines (up to `address_lines` count from the structure). Replaces address lines in the address block. |
 
 **`fixture_overrides` flags** (per month):
 
-| Flag | Description |
-|---|---|
-| `omit_tax_code` | Removes the tax code from the footer |
+| Flag                | Description                              |
+| ------------------- | ---------------------------------------- |
+| `omit_tax_code`     | Removes the tax code from the footer     |
 | `omit_process_date` | Removes the process date from the header |
-| `omit_pay_run` | Removes the pay run line from the footer |
+| `omit_pay_run`      | Removes the pay run line from the footer |
 
 ### `pdf_utils.py`
 
@@ -287,13 +287,13 @@ Lives in the format's directory (e.g. `generate_fixtures/formats/sage-uk/structu
 
 **`layout`** — global rendering parameters:
 
-| Key | Description |
-|---|---|
-| `font` / `bold_font` | Reportlab font names |
-| `mid_band_scan_margin` | Pixel margin above the lower band when grouping words into sections |
+| Key                     | Description                                                             |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `font` / `bold_font`    | Reportlab font names                                                    |
+| `mid_band_scan_margin`  | Pixel margin above the lower band when grouping words into sections     |
 | `row_cluster_threshold` | Max vertical distance (pts) between words to be considered the same row |
-| `debug_boxes` | `true` to render coloured bounding boxes around each section group |
-| `debug_box_line_width` | Stroke width of debug boxes |
+| `debug_boxes`           | `true` to render coloured bounding boxes around each section group      |
+| `debug_box_line_width`  | Stroke width of debug boxes                                             |
 
 **Section objects** (`header_bar`, `payments_table`, `deductions_table`, `address_block`, `this_period`, `year_to_date`, `footer`) — each has:
 

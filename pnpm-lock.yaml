@@ -32,6 +32,9 @@ importers:
             eslint-config-prettier:
                 specifier: ^10.1.8
                 version: 10.1.8(eslint@10.0.1)
+            husky:
+                specifier: ^9.1.7
+                version: 9.1.7
             prettier:
                 specifier: ^3.8.1
                 version: 3.8.1
@@ -1508,6 +1511,14 @@ packages:
                 integrity: sha512-n6l5uca7/y5joxZ3LUePhzmBFUJ+U2YWzhMa8XUTecSeSlQiZdF5XAd/Q3/WUl0VsXgUwWi8I7CNIwdI5WN1SQ==,
             }
         engines: { node: '>=20.10' }
+
+    husky@9.1.7:
+        resolution:
+            {
+                integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==,
+            }
+        engines: { node: '>=18' }
+        hasBin: true
 
     ieee754@1.2.1:
         resolution:
@@ -3274,6 +3285,8 @@ snapshots:
     hookified@1.15.1: {}
 
     html-tags@5.1.0: {}
+
+    husky@9.1.7: {}
 
     ieee754@1.2.1: {}
 
