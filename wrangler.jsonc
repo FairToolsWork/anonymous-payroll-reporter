@@ -9,8 +9,8 @@
     },
     "routes": [
         {
-            "pattern": "payroll-beta.fairworktools.org/*",
-            "zone_name": "fairworktools.org",
+            "pattern": "payroll-beta.fairtools.work/*",
+            "zone_name": "fairtools.work",
         },
     ],
 }

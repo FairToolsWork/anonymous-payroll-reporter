@@ -122,7 +122,7 @@ pnpm cf:preview
 
 ### Custom domain
 
-The app is served at `https://payroll-beta.fairworktools.org`. The `routes` entry in `wrangler.jsonc` binds this to the `fairworktools.org` zone in Cloudflare — the domain must be active in your Cloudflare account before deploying.
+The app is served at `https://payroll-beta.fairtools.work`. The `routes` entry in `wrangler.jsonc` binds this to the `fairtools.work` zone in Cloudflare — the domain must be active in your Cloudflare account before deploying.
 
 ## Releases
 
