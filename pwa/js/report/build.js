@@ -150,6 +150,9 @@ export function buildReport(
     failedPayPeriods = [],
     contributionData = null
 ) {
+    if (!records.length) {
+        throw new Error('No payroll records provided')
+    }
     const reportRunDate = new Date()
     /** @type {ReportEntry[]} */
     const entries = records.map((record) => {

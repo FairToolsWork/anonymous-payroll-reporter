@@ -157,4 +157,54 @@ describe('contribution workbook parsing', () => {
         expect(dates).toEqual([expectedNumeric, '2025-02-01'])
         expect(result.entries.length).toBe(2)
     })
+
+    it('throws when the contribution sheet is missing', () => {
+        const workbook = { Sheets: {} }
+        expect(() =>
+            parseContributionWorkbook(workbook, 'missing-sheet.xlsx', XLSX)
+        ).toThrow('CONTRIBUTION_SHEET_MISSING')
+    })
+
+    it('throws when no valid rows are found', () => {
+        const rows = [
+            ['Date', 'Type', 'Amount', 'Employer'],
+            ['not-a-date', 'From your salary', null, 'Test Co'],
+            [null, 'From your employer', '£12.00', 'Test Co'],
+        ]
+        const sheet = XLSX.utils.aoa_to_sheet(rows)
+        const workbook = { Sheets: { 'Contribution Details': sheet } }
+        expect(() =>
+            parseContributionWorkbook(workbook, 'no-rows.xlsx', XLSX)
+        ).toThrow('CONTRIBUTION_NO_ROWS')
+    })
+
+    it('throws when employer values are missing', () => {
+        const rows = [
+            ['Date', 'Type', 'Amount', 'Employer'],
+            ['01/02/25', 'From your salary', 10, null],
+            ['01/02/25', 'From your employer', 12, null],
+        ]
+        const sheet = XLSX.utils.aoa_to_sheet(rows)
+        const workbook = { Sheets: { 'Contribution Details': sheet } }
+        expect(() =>
+            parseContributionWorkbook(workbook, 'missing-employer.xlsx', XLSX)
+        ).toThrow('CONTRIBUTION_HEADER_INVALID')
+    })
+
+    it('normalizes contribution type labels', () => {
+        const rows = [
+            ['Date', 'Type', 'Amount', 'Employer'],
+            ['01/02/25', 'FROM YOUR SALARY', 10, 'Test Co'],
+            ['01/02/25', 'From Your Employer', 12, 'Test Co'],
+        ]
+        const sheet = XLSX.utils.aoa_to_sheet(rows)
+        const workbook = { Sheets: { 'Contribution Details': sheet } }
+        const result = parseContributionWorkbook(
+            workbook,
+            'type-normalization.xlsx',
+            XLSX
+        )
+        const types = result.entries.map((entry) => entry.type)
+        expect(types).toEqual(['ee', 'er'])
+    })
 })

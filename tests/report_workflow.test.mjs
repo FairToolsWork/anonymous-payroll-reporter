@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { describe, expect, it } from 'vitest'
 import {
+    buildReport,
     formatBreakdownCell,
     formatContributionDifference,
 } from '../pwa/js/report/build.js'
@@ -28,6 +29,35 @@ const EXCEL_FIXTURE = path.resolve(
     './test_files/excel-contribution/fixtures/nest-contribution-history-correct.xlsx'
 )
 const NET_PAY_TOLERANCE = 0.05
+
+const buildRecord = (overrides = {}) => ({
+    employee: { name: 'Test Person', natInsNumber: 'AB123456C' },
+    payrollDoc: {
+        processDate: { date: '01/01/24 - 31/01/24' },
+        payments: {
+            hourly: {
+                basic: { units: 0, rate: 0, amount: 0 },
+                holiday: { units: 0, rate: 0, amount: 0 },
+            },
+            salary: {
+                basic: { amount: 0 },
+                holiday: { units: 0, rate: 0, amount: 0 },
+            },
+            misc: [],
+        },
+        deductions: {
+            payeTax: { amount: 0 },
+            natIns: { amount: 0 },
+            pensionEE: { amount: 0 },
+            pensionER: { amount: 0 },
+            misc: [],
+        },
+        taxCode: { code: '1257L' },
+        thisPeriod: { totalGrossPay: { amount: 0 } },
+        netPay: { amount: 0 },
+    },
+    ...overrides,
+})
 
 describe('report workflow', () => {
     it('builds report output from fixtures', async () => {
@@ -277,5 +307,63 @@ describe('report workflow', () => {
         expect(result.report.html).toContain(payrollBreakdown)
         expect(result.report.html).toContain(reportedBreakdown)
         expect(result.report.html).toContain(differenceLabel)
+    })
+
+    it('throws when no payroll records are provided', () => {
+        expect(() => buildReport([])).toThrow('No payroll records provided')
+    })
+
+    it('handles entries with no parsed dates', () => {
+        const record = buildRecord({
+            payrollDoc: {
+                ...buildRecord().payrollDoc,
+                processDate: { date: 'Not a date' },
+            },
+        })
+        const report = buildReport([record])
+        expect(report.stats.dateRangeLabel).toBe('Unknown')
+    })
+
+    it('treats failed pay periods as present months', () => {
+        const record = buildRecord()
+        const report = buildReport([record], ['01/02/24 - 28/02/24'])
+        expect(report.stats.missingMonthsByYear['2024']).not.toContain(
+            'February'
+        )
+    })
+
+    it('labels contribution range as unknown when dates are missing', () => {
+        const record = buildRecord()
+        const report = buildReport([record], [], {
+            entries: [{ date: null, type: 'ee', amount: 25 }],
+            sourceFiles: ['fixture.xlsx'],
+        })
+        expect(report.stats.contributionMeta.dateRangeLabel).toBe('Unknown')
+    })
+
+    it('renders salary-only rows without basic hours', () => {
+        const record = buildRecord({
+            payrollDoc: {
+                ...buildRecord().payrollDoc,
+                payments: {
+                    ...buildRecord().payrollDoc.payments,
+                    salary: {
+                        basic: { amount: 2000 },
+                        holiday: { units: 0, rate: 0, amount: 0 },
+                    },
+                },
+            },
+        })
+        const report = buildReport([record])
+        expect(report.html).toContain('£2000.00')
+        expect(report.html).not.toContain('Basic Hours')
+    })
+
+    it('uses N/A for reported totals when reconciliation is missing', () => {
+        const record = buildRecord()
+        const report = buildReport([record])
+        expect(report.html).toContain('<th>Reported (EE+ER)</th>')
+        expect(report.html).toContain('<td>N/A</td>')
+        expect(report.html).not.toContain('N/A EE / N/A ER')
     })
 })

@@ -6,7 +6,7 @@ import { createRequire } from 'module'
 import path from 'path'
 import pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -162,5 +162,59 @@ describe('pdf parse', () => {
             expect(debug?.text).toBeDefined()
             expect(debug?.lines).toBeDefined()
         }
+    })
+
+    it('throws when no file is provided', async () => {
+        const { parsePayrollPdf } = await import(
+            pathToFileURL(
+                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+            )
+        )
+        await expect(parsePayrollPdf(null, '')).rejects.toMatchObject({
+            message: 'PDF_FILE_MISSING',
+        })
+    })
+
+    it('handles empty extracted PDF data', async () => {
+        const extractPath = path.resolve(__dirname, '../pwa/js/pdf/extract.js')
+        const parserPath = path.resolve(
+            __dirname,
+            '../pwa/js/parse/formats/sage-uk/parser.js'
+        )
+        const validationPath = path.resolve(
+            __dirname,
+            '../pwa/js/parse/pdf_validation.js'
+        )
+        vi.resetModules()
+        vi.doMock(pathToFileURL(extractPath).href, () => ({
+            extractPdfData: async () => ({
+                text: '',
+                imageData: null,
+                lines: null,
+                lineItems: null,
+            }),
+        }))
+        const buildPayrollDocument = vi.fn(async (payload) => ({
+            ok: true,
+            payload,
+        }))
+        vi.doMock(pathToFileURL(parserPath).href, () => ({
+            buildPayrollDocument,
+        }))
+        const { parsePayrollPdf } = await import(pathToFileURL(validationPath))
+        const file = { arrayBuffer: async () => new ArrayBuffer(0) }
+        const result = await parsePayrollPdf(file, '')
+        expect(buildPayrollDocument).toHaveBeenCalledWith({
+            text: '',
+            lines: [],
+            lineItems: [],
+            imageData: null,
+        })
+        expect(result.debug).toEqual({
+            text: '',
+            lines: [],
+            lineItems: [],
+            imageData: null,
+        })
     })
 })

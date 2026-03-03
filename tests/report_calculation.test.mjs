@@ -8,7 +8,9 @@ import {
     formatDateLabel,
     formatMonthYearLabel,
     parsePayPeriodStart,
+    sumDeductionsForNetPay,
     sumMiscAmounts,
+    sumPayments,
 } from '../pwa/js/report/report_calculations.js'
 
 function buildRecord({
@@ -410,5 +412,176 @@ describe('report calculations', () => {
             year2025End: 5,
             overall: 5,
         })
+    })
+
+    it('flags gross_mismatch and sets lowConfidence when payments total differs from totalGrossPay', () => {
+        const entry = {
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 50 },
+                        pensionER: { amount: 30 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: { amount: 1000 },
+                            holiday: { amount: 0 },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: 0 },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 1100 } },
+                    netPay: { amount: 770 },
+                },
+            },
+            parsedDate: new Date(2025, 0, 1),
+            year: 2025,
+            monthIndex: 1,
+            monthLabel: 'January',
+        }
+        const validation = buildValidation(entry)
+        const flagIds = validation.flags.map((flag) => flag.id)
+        expect(flagIds).toContain('gross_mismatch')
+        expect(validation.lowConfidence).toBe(true)
+    })
+
+    it('sums all payment types correctly', () => {
+        const hourlyRecord = {
+            payrollDoc: {
+                payments: {
+                    hourly: {
+                        basic: { amount: 800 },
+                        holiday: { amount: 120 },
+                    },
+                    salary: { basic: { amount: 0 }, holiday: { amount: 0 } },
+                    misc: [{ amount: 50 }, { amount: null }],
+                },
+            },
+        }
+        expect(sumPayments(hourlyRecord)).toBe(970)
+
+        const salaryRecord = {
+            payrollDoc: {
+                payments: {
+                    hourly: { basic: { amount: 0 }, holiday: { amount: 0 } },
+                    salary: {
+                        basic: { amount: 2000 },
+                        holiday: { amount: 200 },
+                    },
+                    misc: [],
+                },
+            },
+        }
+        expect(sumPayments(salaryRecord)).toBe(2200)
+
+        expect(sumPayments(null)).toBe(0)
+        expect(sumPayments({})).toBe(0)
+    })
+
+    it('sums deductions for net pay, excluding pensionER', () => {
+        const record = {
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 300 },
+                    natIns: { amount: 150 },
+                    pensionEE: { amount: 75 },
+                    pensionER: { amount: 100 },
+                    misc: [{ amount: 25 }],
+                },
+            },
+        }
+        expect(sumDeductionsForNetPay(record)).toBe(550)
+        expect(sumDeductionsForNetPay(null)).toBe(0)
+        expect(sumDeductionsForNetPay({})).toBe(0)
+    })
+
+    it('shows surplus delta when NEST contributions exist for months with no payslip', () => {
+        const entries = [
+            {
+                record: buildRecord({
+                    nestEE: 50,
+                    nestER: 30,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 3, 20),
+                year: 2025,
+                monthIndex: 4,
+                monthLabel: 'April',
+            },
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2025, 3, 20), type: 'ee', amount: 50 },
+                { date: new Date(2025, 3, 20), type: 'er', amount: 30 },
+                { date: new Date(2025, 4, 20), type: 'ee', amount: 60 },
+                { date: new Date(2025, 4, 20), type: 'er', amount: 40 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+        const summary = buildContributionSummary(
+            entries,
+            contributionData,
+            [2025]
+        )
+        const year = summary?.years.get(2025)
+        const aprilMonth = year?.months.get(4)
+        const mayMonth = year?.months.get(5)
+
+        expect(aprilMonth?.delta).toBe(0)
+        expect(aprilMonth?.balance).toBe(0)
+        expect(mayMonth?.expectedEE).toBe(0)
+        expect(mayMonth?.expectedER).toBe(0)
+        expect(mayMonth?.actualEE).toBe(60)
+        expect(mayMonth?.actualER).toBe(40)
+        expect(mayMonth?.delta).toBe(100)
+        expect(year?.yearEndBalance).toBe(100)
+        expect(summary?.balance).toBe(100)
+    })
+
+    it('returns null when no contribution data is provided', () => {
+        const entries = [
+            {
+                record: buildRecord({
+                    nestEE: 50,
+                    nestER: 30,
+                    grossPay: 1000,
+                    netPay: 900,
+                }),
+                parsedDate: new Date(2025, 3, 20),
+                year: 2025,
+                monthIndex: 4,
+                monthLabel: 'April',
+            },
+        ]
+        expect(buildContributionSummary(entries, null, [2025])).toBeNull()
+        expect(
+            buildContributionSummary(
+                entries,
+                { entries: [], sourceFiles: [] },
+                [2025]
+            )
+        ).toBeNull()
+        expect(buildContributionSummary(entries, undefined, [2025])).toBeNull()
+    })
+
+    it('parses month-year date format and two-digit years', () => {
+        const parsedMonthYear = parsePayPeriodStart('April 2024')
+        expect(parsedMonthYear?.getFullYear()).toBe(2024)
+        expect(parsedMonthYear?.getMonth()).toBe(3)
+        expect(parsedMonthYear?.getDate()).toBe(1)
+
+        const parsedShortYear = parsePayPeriodStart('01/06/99 - 30/06/99')
+        expect(parsedShortYear?.getFullYear()).toBe(2099)
+        expect(parsedShortYear?.getMonth()).toBe(5)
+        expect(parsedShortYear?.getDate()).toBe(1)
     })
 })

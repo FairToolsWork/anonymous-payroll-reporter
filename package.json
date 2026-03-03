@@ -34,20 +34,19 @@
         "singleQuote": true
     },
     "dependencies": {
-        "canvas": "^3.2.1",
+        "canvas": "3.2.1",
         "pdfjs-dist": "^3.11.174"
     },
     "devDependencies": {
-        "@eslint/js": "^9.24.0",
-        "@typescript-eslint/eslint-plugin": "^8.56.0",
-        "@typescript-eslint/parser": "^8.56.0",
-        "eslint": "^10.0.1",
+        "@eslint/js": "^9.39.3",
+        "@typescript-eslint/eslint-plugin": "^8.56.1",
+        "@typescript-eslint/parser": "^8.56.1",
+        "eslint": "^10.0.2",
         "eslint-config-prettier": "^10.1.8",
         "husky": "^9.1.7",
         "prettier": "^3.8.1",
         "pwa-asset-generator": "^8.1.2",
-        "stylelint": "^17.3.0",
-        "stylelint-config-prettier": "^9.0.5",
+        "stylelint": "^17.4.0",
         "stylelint-config-standard": "^40.0.0",
         "typescript": "^5.9.3",
         "vitest": "4.0.18",
@@ -56,6 +55,9 @@
     "pnpm": {
         "overrides": {
             "canvas": "3.2.1"
+        },
+        "patchedDependencies": {
+            "pwa-asset-generator": "patches/pwa-asset-generator.patch"
         }
     }
 }

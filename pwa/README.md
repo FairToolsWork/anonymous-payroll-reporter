@@ -44,10 +44,10 @@ Whenever JS, CSS, HTML, or any other cached asset changes, the Service Worker ca
 
 Use [conventional commits](https://www.conventionalcommits.org/) to drive version increments:
 
-| Commit prefix | Version bump |
-| ------------- | ------------ |
-| `fix:` | patch — `1.0.0` → `1.0.1` |
-| `feat:` | minor — `1.0.0` → `1.1.0` |
+| Commit prefix                 | Version bump              |
+| ----------------------------- | ------------------------- |
+| `fix:`                        | patch — `1.0.0` → `1.0.1` |
+| `feat:`                       | minor — `1.0.0` → `1.1.0` |
 | `feat!:` / `BREAKING CHANGE:` | major — `1.0.0` → `2.0.0` |
 
 The `CACHE_NAME` bump causes the new SW to delete the old cache on activate and re-fetch all assets fresh. Without a changed `CACHE_NAME`, users may be served stale cached files indefinitely.
