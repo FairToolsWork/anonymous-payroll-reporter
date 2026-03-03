@@ -32,6 +32,8 @@ jobs:
             - uses: pnpm/action-setup@v4
               with:
                   version: 9
+            - name: Allow pnpm root installs
+              run: pnpm config set ignore-workspace-root-check true
             - uses: cloudflare/wrangler-action@v3
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
