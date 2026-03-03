@@ -1,10 +1,14 @@
 {
     "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-    "release-type": "node",
-    "extra-files": [
-        {
-            "type": "generic",
-            "path": "pwa/sw.js"
+    "packages": {
+        ".": {
+            "release-type": "node",
+            "extra-files": [
+                {
+                    "type": "generic",
+                    "path": "pwa/sw.js"
+                }
+            ]
         }
-    ]
+    }
 }
