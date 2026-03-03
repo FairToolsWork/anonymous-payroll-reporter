@@ -28,7 +28,7 @@ export async function extractPdfData(file, password) {
         data,
         password: password || undefined,
         disableFontFace: isTestEnv,
-        useSystemFonts: isTestEnv,
+        useSystemFonts: true,
         verbosity: isTestEnv ? 0 : undefined,
     })
     let pdf
