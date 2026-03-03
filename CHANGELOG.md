@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.1.0...anonymous-payroll-reporter-v1.1.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* **ci:deploy:** install node and pnpm before wrangler action ([2b4a7d8](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/2b4a7d80694acda123adb310f09f6bd20e46ae02))
+
 ## [1.1.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.0.0...anonymous-payroll-reporter-v1.1.0) (2026-03-03)
 
 
