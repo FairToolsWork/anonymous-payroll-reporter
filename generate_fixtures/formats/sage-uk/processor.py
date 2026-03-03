@@ -482,8 +482,10 @@ def apply_fixture(
     if employee_address is not None and address_line_count > 0:
         sorted_tops = sorted(line_map)
         anchor_top = find_line_containing(line_text, address_block["anchor"])
+        this_period_top = find_line_containing(line_text, this_period["anchor"])
         anchor_pos = sorted_tops.index(anchor_top)
-        address_tops = sorted_tops[anchor_pos: anchor_pos + address_line_count]
+        candidate_tops = sorted_tops[anchor_pos: anchor_pos + address_line_count]
+        address_tops = [t for t in candidate_tops if t < this_period_top]
         for line_top, replacement in zip(address_tops, employee_address):
             for idx in line_map[line_top]:
                 update_text(words, idx, "")
@@ -498,7 +500,7 @@ def apply_fixture(
                         "bottom": anchor_word["bottom"],
                     }
                 )
-        for line_top in sorted_tops[anchor_pos + len(employee_address): anchor_pos + address_line_count]:
+        for line_top in address_tops[len(employee_address):]:
             for idx in line_map[line_top]:
                 update_text(words, idx, "")
 

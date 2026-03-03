@@ -59,6 +59,17 @@ export default [
         },
     },
     {
+        files: ['generate_fixtures/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                Buffer: 'readonly',
+                URL: 'readonly',
+                console: 'readonly',
+                process: 'readonly',
+            },
+        },
+    },
+    {
         files: ['logic_test/**/*.mjs'],
         languageOptions: {
             globals: {

@@ -80,6 +80,35 @@
             }
         },
         {
+            "id": "demo",
+            "output_dir": "pwa/demo",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employee": {
+                "name": "Alex Sample",
+                "employer": "Example Employer Ltd",
+                "address": [
+                    "1 Sample Street",
+                    "Sample Town",
+                    "Sampleshire",
+                    "SA1 1AA"
+                ]
+            }
+        },
+        {
             "id": "pdf-parse-edge-cases",
             "output_dir": "tests/test_files/pdf-parse/edge-fixtures",
             "months": ["2024-04", "2024-05", "2024-06"],
@@ -161,6 +190,27 @@
             "employer_name": "The Better Place Catering Company Limited",
             "variant": "malformed",
             "output_file": "tests/test_files/excel-contribution/fixtures/malformed.xlsx"
+        },
+        {
+            "id": "nest-demo",
+            "provider": "nest",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employer_name": "Example Employer Ltd",
+            "output_file": "pwa/demo/nest-contribution-history.xlsx"
         },
         {
             "id": "nest-mixed-employers-report-workflow",
