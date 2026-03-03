@@ -653,8 +653,15 @@ export function initPayrollApp() {
                     } else if (err?.message === 'CONTRIBUTION_NO_ROWS') {
                         this.error =
                             'Excel file contains no valid contribution rows. Check the sheet formatting.'
+                    } else if (err?.message === 'PAYROLL_EMPLOYEE_MIXED') {
+                        this.error =
+                            'The uploaded payslips contain more than one employee. Please upload payslips for a single employee only.'
+                    } else if (err?.message === 'PAYROLL_EMPLOYER_MIXED') {
+                        this.error =
+                            'The uploaded payslips contain more than one employer. Please upload payslips for a single employer only.'
                     } else {
-                        this.error = `Failed to read the following files:`
+                        this.error =
+                            'An unexpected error occurred while processing the files. Please try again.'
                     }
                     this.status = 'idle'
                     return
