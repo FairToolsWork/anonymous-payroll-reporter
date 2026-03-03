@@ -1,0 +1,236 @@
+{
+    "fill": {
+        "automatic-gradient": "extended-srgb:0.00000,0.47843,1.00000,1.00000"
+    },
+    "groups": [
+        {
+            "hidden": false,
+            "layers": [
+                {
+                    "blend-mode-specializations": [
+                        {
+                            "value": "multiply"
+                        },
+                        {
+                            "appearance": "dark",
+                            "value": "darken"
+                        },
+                        {
+                            "appearance": "tinted",
+                            "value": "soft-light"
+                        }
+                    ],
+                    "fill-specializations": [
+                        {
+                            "value": {
+                                "linear-gradient": [
+                                    "display-p3:0.50068,0.58567,0.90317,0.50000",
+                                    "display-p3:0.96611,0.94030,0.96126,0.00000"
+                                ],
+                                "orientation": {
+                                    "start": {
+                                        "x": 0.5,
+                                        "y": 0.8705244755244755
+                                    },
+                                    "stop": {
+                                        "x": 0.5,
+                                        "y": 0.7622694493006993
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "appearance": "tinted",
+                            "value": {
+                                "automatic-gradient": "display-p3:0.76413,0.30332,0.37575,1.00000"
+                            }
+                        }
+                    ],
+                    "glass": false,
+                    "hidden": false,
+                    "image-name": "icon-orig 6.svg",
+                    "name": "icon-orig 6",
+                    "opacity": 0.45,
+                    "position": {
+                        "scale": 1.43,
+                        "translation-in-points": [0, 24.495000000000005]
+                    }
+                },
+                {
+                    "blend-mode-specializations": [
+                        {
+                            "appearance": "tinted",
+                            "value": "normal"
+                        }
+                    ],
+                    "fill-specializations": [
+                        {
+                            "appearance": "tinted",
+                            "value": "automatic"
+                        }
+                    ],
+                    "glass": false,
+                    "hidden": false,
+                    "image-name": "icon-orig-spy-glass.svg",
+                    "name": "icon-orig-spy-glass",
+                    "position": {
+                        "scale": 1.45,
+                        "translation-in-points": [0, 0]
+                    }
+                },
+                {
+                    "blend-mode": "normal",
+                    "fill-specializations": [
+                        {
+                            "value": {
+                                "linear-gradient": [
+                                    "display-p3:0.71369,0.64583,0.22738,1.00000",
+                                    "display-p3:0.19824,0.20804,0.07666,1.00000"
+                                ],
+                                "orientation": {
+                                    "start": {
+                                        "x": 0.5,
+                                        "y": 0.6443338049505517
+                                    },
+                                    "stop": {
+                                        "x": 0.5,
+                                        "y": 0.8789187103412794
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "appearance": "dark",
+                            "value": {
+                                "linear-gradient": [
+                                    "display-p3:0.71369,0.64583,0.22738,1.00000",
+                                    "display-p3:0.19824,0.20804,0.07666,1.00000"
+                                ],
+                                "orientation": {
+                                    "start": {
+                                        "x": 0.5,
+                                        "y": 0.43011418853255595
+                                    },
+                                    "stop": {
+                                        "x": 0.5,
+                                        "y": 0.8493979734751044
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "glass": false,
+                    "hidden": false,
+                    "image-name": "icon-orig-sheild 2.svg",
+                    "name": "icon-orig-sheild 2",
+                    "opacity-specializations": [
+                        {
+                            "value": 0.16
+                        },
+                        {
+                            "appearance": "dark",
+                            "value": 0.16
+                        }
+                    ],
+                    "position": {
+                        "scale": 1.47,
+                        "translation-in-points": [0, 0]
+                    }
+                },
+                {
+                    "blend-mode": "normal",
+                    "glass": false,
+                    "hidden": false,
+                    "image-name": "icon-orig-sheild 2.svg",
+                    "name": "icon-orig-sheild 2",
+                    "position": {
+                        "scale": 1.47,
+                        "translation-in-points": [0, 0]
+                    }
+                },
+                {
+                    "blend-mode-specializations": [
+                        {
+                            "value": "plus-darker"
+                        },
+                        {
+                            "appearance": "dark",
+                            "value": "darken"
+                        },
+                        {
+                            "appearance": "tinted",
+                            "value": "plus-darker"
+                        }
+                    ],
+                    "fill-specializations": [
+                        {
+                            "value": {
+                                "linear-gradient": [
+                                    "display-p3:0.90317,0.52728,0.33532,0.50000",
+                                    "display-p3:0.96611,0.94030,0.96126,0.00000"
+                                ],
+                                "orientation": {
+                                    "start": {
+                                        "x": 0.5,
+                                        "y": 0.9194233500874126
+                                    },
+                                    "stop": {
+                                        "x": 0.5,
+                                        "y": 0.8339229130244755
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "appearance": "tinted",
+                            "value": {
+                                "automatic-gradient": "display-p3:0.76413,0.30332,0.37575,1.00000"
+                            }
+                        }
+                    ],
+                    "glass": false,
+                    "hidden": true,
+                    "image-name": "icon-orig 6.svg",
+                    "name": "icon-orig 6",
+                    "opacity": 0.53,
+                    "position": {
+                        "scale": 1.43,
+                        "translation-in-points": [0, 27.3046875]
+                    }
+                },
+                {
+                    "glass": false,
+                    "hidden": false,
+                    "image-name": "icon-orig-bg 2.svg",
+                    "name": "icon-orig-bg 2",
+                    "opacity-specializations": [
+                        {
+                            "value": 1
+                        },
+                        {
+                            "appearance": "dark",
+                            "value": 0.21
+                        }
+                    ],
+                    "position": {
+                        "scale": 1.43,
+                        "translation-in-points": [0, 0]
+                    }
+                }
+            ],
+            "shadow": {
+                "kind": "neutral",
+                "opacity": 0.5
+            },
+            "specular": true,
+            "translucency": {
+                "enabled": true,
+                "value": 0.5
+            }
+        }
+    ],
+    "supported-platforms": {
+        "circles": ["watchOS"],
+        "squares": "shared"
+    }
+}

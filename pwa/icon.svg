@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Payroll">
-  <rect width="256" height="256" rx="48" fill="#2b2a27" />
-  <rect x="48" y="48" width="160" height="160" rx="16" fill="#f2f2f2" />
-  <rect x="72" y="84" width="112" height="16" rx="8" fill="#2b2a27" />
-  <rect x="72" y="118" width="96" height="12" rx="6" fill="#59554f" />
-  <rect x="72" y="144" width="72" height="12" rx="6" fill="#59554f" />
-  <rect x="72" y="170" width="48" height="12" rx="6" fill="#59554f" />
-</svg>

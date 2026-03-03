@@ -1,0 +1,32 @@
+{
+    "sheet_name": "Contribution Details",
+    "columns": [
+        "CONTRIBUTION RECEIVED DATE",
+        "CONTRIBUTION TYPE",
+        "EMPLOYER NAME",
+        "AMOUNT (£)",
+        "LESS CONTRIBUTION CHARGE (£)",
+        "CONTRIBUTION STATUS",
+        "TAX RELIEF (£)",
+        "TAX RELIEF INVESTMENT DATE",
+        "TAX RELIEF STATUS",
+        "LESS CONTRIBUTION CHARGE ON TAX RELIEF (£)",
+        "AMOUNT INVESTED (£)"
+    ],
+    "column_roles": {
+        "date": "CONTRIBUTION RECEIVED DATE",
+        "type": "CONTRIBUTION TYPE",
+        "employer": "EMPLOYER NAME",
+        "amount": "AMOUNT (£)"
+    },
+    "type_strings": {
+        "ee": "From your salary",
+        "er": "From your employer"
+    },
+    "ee_tax_relief_rate": 0.25,
+    "ee_tax_relief_charge_rate": 0.009,
+    "er_charge_rate": 0.018,
+    "contribution_status": "Invested",
+    "er_tax_relief_status": "Not eligible",
+    "pay_day": 20
+}

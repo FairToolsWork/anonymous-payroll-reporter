@@ -1,0 +1,220 @@
+/* global setTimeout, clearTimeout, console */
+
+import { createCanvas } from 'canvas'
+import fs from 'fs'
+import { createRequire } from 'module'
+import path from 'path'
+import pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { describe, expect, it, vi } from 'vitest'
+
+const require = createRequire(import.meta.url)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js')
+
+const FIXTURE_DIRS = [
+    path.resolve(__dirname, './test_files/pdf-parse/fixtures'),
+    path.resolve(__dirname, './test_files/pdf-parse/edge-fixtures'),
+]
+const EXPECTED_DIR = path.resolve(__dirname, './test_files/pdf-parse/expected')
+
+function buildBrowserShims() {
+    const pdfjsLibForTests = {
+        ...pdfjsLib,
+        getDocument: (args) =>
+            pdfjsLib.getDocument({ ...args, disableWorker: true }),
+    }
+    globalThis.window = {
+        pdfjsLib: pdfjsLibForTests,
+        pdfjsDebug: true,
+        requestAnimationFrame: (callback) => setTimeout(callback, 0),
+        cancelAnimationFrame: (id) => clearTimeout(id),
+    }
+    globalThis.document = {
+        createElement: (tag) => {
+            if (tag !== 'canvas') {
+                throw new Error(`Unsupported element: ${tag}`)
+            }
+            return createCanvas(1, 1)
+        },
+    }
+}
+
+function formatDiffValue(value) {
+    if (value === null) {
+        return 'null'
+    }
+    if (value === undefined) {
+        return 'undefined'
+    }
+    if (typeof value === 'string') {
+        return JSON.stringify(value)
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value)
+    }
+    try {
+        return JSON.stringify(value)
+    } catch {
+        return String(value)
+    }
+}
+
+function diffValues(expected, actual, pathLabel = '', extraKeys = []) {
+    const diffs = []
+    if (expected === actual) {
+        return { diffs, extraKeys }
+    }
+    if (typeof expected !== typeof actual) {
+        diffs.push(
+            `${pathLabel}: expected (${typeof expected}) ${formatDiffValue(expected)}, got (${typeof actual}) ${formatDiffValue(actual)}`
+        )
+        return { diffs, extraKeys }
+    }
+    if (expected && typeof expected === 'object' && actual) {
+        const expectedKeys = Object.keys(expected)
+        const actualKeys = Object.keys(actual)
+        expectedKeys.forEach((key) => {
+            const result = diffValues(
+                expected[key],
+                actual[key],
+                `${pathLabel}.${key}`,
+                extraKeys
+            )
+            diffs.push(...result.diffs)
+        })
+        actualKeys.forEach((key) => {
+            if (!expectedKeys.includes(key)) {
+                extraKeys.push(`${pathLabel}.${key}`)
+            }
+        })
+        return { diffs, extraKeys }
+    }
+    diffs.push(
+        `${pathLabel}: expected ${formatDiffValue(expected)}, got ${formatDiffValue(actual)}`
+    )
+    return { diffs, extraKeys }
+}
+
+function buildDiffError(diffs, extraKeys, actual) {
+    const lines = ['Parse test failed:']
+    diffs.forEach((diff) => lines.push(`- ${diff}`))
+    if (extraKeys.length) {
+        lines.push('', 'Extra keys found (not used for failure):')
+        extraKeys.forEach((key) => lines.push(`- ${key}`))
+    }
+    lines.push('', 'Actual output:', JSON.stringify(actual, null, 2))
+    return new Error(lines.join('\n'))
+}
+
+describe('pdf parse', () => {
+    it('matches fixture expected outputs', async () => {
+        buildBrowserShims()
+        const { parsePayrollPdf } = await import(
+            pathToFileURL(
+                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+            )
+        )
+        expect(typeof parsePayrollPdf).toBe('function')
+        const fixtureFiles = FIXTURE_DIRS.flatMap((fixturesDir) =>
+            fs
+                .readdirSync(fixturesDir)
+                .filter((file) => file.endsWith('.pdf'))
+                .map((file) => ({ file, fixturesDir }))
+        )
+
+        for (const { file: filename, fixturesDir } of fixtureFiles) {
+            const pdfPath = path.resolve(fixturesDir, filename)
+            const isEdgeFixture = path.basename(fixturesDir) === 'edge-fixtures'
+            const expectedFilename = isEdgeFixture
+                ? filename.replace(/\.pdf$/i, '.edge.json')
+                : filename.replace(/\.pdf$/i, '.json')
+            const expectedPath = path.resolve(EXPECTED_DIR, expectedFilename)
+            const buffer = fs.readFileSync(pdfPath)
+            const file = {
+                arrayBuffer: async () =>
+                    buffer.buffer.slice(
+                        buffer.byteOffset,
+                        buffer.byteOffset + buffer.byteLength
+                    ),
+            }
+            const { record: actual, debug } = await parsePayrollPdf(file, '')
+            if (actual && typeof actual === 'object' && 'imageData' in actual) {
+                delete actual.imageData
+            }
+            const expected = JSON.parse(fs.readFileSync(expectedPath, 'utf8'))
+
+            const { diffs, extraKeys } = diffValues(
+                expected,
+                actual,
+                `result (${filename})`,
+                []
+            )
+            if (diffs.length) {
+                throw buildDiffError(diffs, extraKeys, actual)
+            }
+            if (extraKeys.length) {
+                console.warn('\nParse test warning: extra keys found:')
+                extraKeys.forEach((key) => console.warn(`- ${key}`))
+            }
+            expect(debug?.text).toBeDefined()
+            expect(debug?.lines).toBeDefined()
+        }
+    })
+
+    it('throws when no file is provided', async () => {
+        const { parsePayrollPdf } = await import(
+            pathToFileURL(
+                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+            )
+        )
+        await expect(parsePayrollPdf(null, '')).rejects.toMatchObject({
+            message: 'PDF_FILE_MISSING',
+        })
+    })
+
+    it('handles empty extracted PDF data', async () => {
+        const extractPath = path.resolve(__dirname, '../pwa/js/pdf/extract.js')
+        const parserPath = path.resolve(
+            __dirname,
+            '../pwa/js/parse/formats/sage-uk/parser.js'
+        )
+        const validationPath = path.resolve(
+            __dirname,
+            '../pwa/js/parse/pdf_validation.js'
+        )
+        vi.resetModules()
+        vi.doMock(pathToFileURL(extractPath).href, () => ({
+            extractPdfData: async () => ({
+                text: '',
+                imageData: null,
+                lines: null,
+                lineItems: null,
+            }),
+        }))
+        const buildPayrollDocument = vi.fn(async (payload) => ({
+            ok: true,
+            payload,
+        }))
+        vi.doMock(pathToFileURL(parserPath).href, () => ({
+            buildPayrollDocument,
+        }))
+        const { parsePayrollPdf } = await import(pathToFileURL(validationPath))
+        const file = { arrayBuffer: async () => new ArrayBuffer(0) }
+        const result = await parsePayrollPdf(file, '')
+        expect(buildPayrollDocument).toHaveBeenCalledWith({
+            text: '',
+            lines: [],
+            lineItems: [],
+            imageData: null,
+        })
+        expect(result.debug).toEqual({
+            text: '',
+            lines: [],
+            lineItems: [],
+            imageData: null,
+        })
+    })
+})

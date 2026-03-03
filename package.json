@@ -1,11 +1,64 @@
 {
-  "name": "payroll-pwa-tools",
-  "private": true,
-  "scripts": {
-    "test:parse": "node logic_test/run_parse_test.js"
-  },
-  "dependencies": {
-    "pdfjs-dist": "^3.11.174",
-    "canvas": "^2.11.2"
-  }
+    "name": "anonymous-payroll-reporter",
+    "version": "1.0.0",
+    "type": "module",
+    "private": true,
+    "author": "bnjmnrsh",
+    "license": "MIT",
+    "description": "Payroll PDF Processor PWA and test/fixture tooling",
+    "scripts": {
+        "fixtures:pdf": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_pdf_fixtures.py",
+        "fixtures:expected-pdf": "node tests/utils/regenerate_expected_payslips.mjs",
+        "fixtures:print-pdf-text": "./generate_fixtures/.venv/bin/python generate_fixtures/print_pdf_text.py",
+        "fixtures:excel": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_excel_fixtures.py",
+        "fixtures:expected-excel": "node tests/utils/regenerate_expected_contributions.mjs",
+        "fixtures:print-excel-text": "./generate_fixtures/.venv/bin/python generate_fixtures/print_excel_text.py",
+        "fixtures:generate": "pnpm fixtures:pdf && pnpm fixtures:expected-pdf && pnpm fixtures:excel && pnpm fixtures:expected-excel",
+        "test:pdf_parse": "vitest run tests/pdf_parse.test.mjs",
+        "test:excel_contribution": "vitest run tests/excel_contribution.test.mjs",
+        "test:report_calc": "vitest run tests/report_calculation.test.mjs",
+        "test:all": "vitest run",
+        "check:js": "tsc -p tsconfig.json",
+        "jslint": "eslint .",
+        "jslint:fix": "eslint . --fix",
+        "csslint": "stylelint .",
+        "csslint:fix": "stylelint . --fix",
+        "format": "prettier --write .",
+        "precommit": "pnpm format && pnpm jslint && pnpm csslint && pnpm check:js && pnpm test:all",
+        "prepare": "husky install",
+        "pwa:generate": "node node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/cli.js pwa/icons/icon.svg pwa/icons --scrape false --type png --padding \"12%\" --background \"#f4ebd4\" --manifest pwa/site.webmanifest --index pwa/index.html --path-override \"/icons\""
+    },
+    "prettier": {
+        "trailingComma": "es5",
+        "tabWidth": 4,
+        "semi": false,
+        "singleQuote": true
+    },
+    "dependencies": {
+        "canvas": "3.2.1",
+        "pdfjs-dist": "^3.11.174"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.3",
+        "@typescript-eslint/eslint-plugin": "^8.56.1",
+        "@typescript-eslint/parser": "^8.56.1",
+        "eslint": "^10.0.2",
+        "eslint-config-prettier": "^10.1.8",
+        "husky": "^9.1.7",
+        "prettier": "^3.8.1",
+        "pwa-asset-generator": "^8.1.2",
+        "stylelint": "^17.4.0",
+        "stylelint-config-standard": "^40.0.0",
+        "typescript": "^5.9.3",
+        "vitest": "4.0.18",
+        "xlsx": "^0.18.5"
+    },
+    "pnpm": {
+        "overrides": {
+            "canvas": "3.2.1"
+        },
+        "patchedDependencies": {
+            "pwa-asset-generator": "patches/pwa-asset-generator.patch"
+        }
+    }
 }

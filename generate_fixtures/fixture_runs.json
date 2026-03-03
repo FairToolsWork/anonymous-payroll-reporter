@@ -1,0 +1,174 @@
+{
+    "default_structure": "generate_fixtures/formats/sage-uk/structure.json",
+    "runs": [
+        {
+            "id": "baseline",
+            "output_dir": "tests/test_files/pdf-parse/fixtures",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employee": {}
+        },
+        {
+            "id": "report-workflow-baseline",
+            "output_dir": "tests/test_files/report-workflow/fixtures",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employee": {}
+        },
+        {
+            "id": "missing-employee",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/missing-employee",
+            "months": ["2024-04"],
+            "employee": {
+                "name": "",
+                "employer": ""
+            }
+        },
+        {
+            "id": "missing-months",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/missing-months",
+            "months": ["2024-04", "2024-05", "2024-07", "2024-09"],
+            "employee": {}
+        },
+        {
+            "id": "mixed-employee",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/mixed-employee",
+            "months": ["2024-04", "2024-05"],
+            "employee": {},
+            "employee_overrides": {
+                "2024-05": {
+                    "name": "Alex Carter",
+                    "employer": "Better Place Catering Company Ltd"
+                }
+            }
+        },
+        {
+            "id": "mixed-employer",
+            "output_dir": "tests/test_files/report-workflow-errors/fixtures/mixed-employer",
+            "months": ["2024-04", "2024-05"],
+            "employee": {},
+            "employee_overrides": {
+                "2024-05": {
+                    "employer": "Different Employer Ltd"
+                }
+            }
+        },
+        {
+            "id": "pdf-parse-edge-cases",
+            "output_dir": "tests/test_files/pdf-parse/edge-fixtures",
+            "months": ["2024-04", "2024-05", "2024-06"],
+            "employee": {},
+            "fixture_overrides": {
+                "2024-04": {
+                    "omit_tax_code": true
+                },
+                "2024-05": {
+                    "omit_process_date": true
+                },
+                "2024-06": {
+                    "omit_pay_run": true
+                }
+            }
+        }
+    ],
+    "excel_runs": [
+        {
+            "id": "nest-correct",
+            "provider": "nest",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03",
+                "2025-04"
+            ],
+            "employer_name": "The Better Place Catering Company Limited",
+            "output_file": "tests/test_files/excel-contribution/fixtures/nest-contribution-history-correct.xlsx",
+            "expected_file": "tests/test_files/excel-contribution/expected/nest_contribution_target_summary.js"
+        },
+        {
+            "id": "nest-missing-ee",
+            "provider": "nest",
+            "months": ["2024-04", "2024-05", "2024-06", "2024-07"],
+            "employer_name": "The Better Place Catering Company Limited",
+            "variant": "omit_ee",
+            "output_file": "tests/test_files/excel-contribution/fixtures/nest-contribution-history-missing-EE.xlsx"
+        },
+        {
+            "id": "nest-missing-er",
+            "provider": "nest",
+            "months": ["2024-04", "2024-05", "2024-06", "2024-07"],
+            "employer_name": "The Better Place Catering Company Limited",
+            "variant": "omit_er",
+            "output_file": "tests/test_files/excel-contribution/fixtures/nest-contribution-history-missing-ER.xlsx"
+        },
+        {
+            "id": "nest-mixed-companies",
+            "provider": "nest",
+            "months": [
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09"
+            ],
+            "variant": "mixed_employers",
+            "mixed_employer_names": [
+                "Some Other Company Limited",
+                "The Better Place Catering Company Limited"
+            ],
+            "output_file": "tests/test_files/excel-contribution/fixtures/nest-contribution-history-mixed-companies.xlsx"
+        },
+        {
+            "id": "nest-malformed",
+            "provider": "nest",
+            "months": ["2024-04"],
+            "employer_name": "The Better Place Catering Company Limited",
+            "variant": "malformed",
+            "output_file": "tests/test_files/excel-contribution/fixtures/malformed.xlsx"
+        },
+        {
+            "id": "nest-mixed-employers-report-workflow",
+            "provider": "nest",
+            "months": ["2024-04"],
+            "variant": "mixed_employers",
+            "mixed_employer_names": ["Employer One Ltd", "Employer Two Ltd"],
+            "output_file": "tests/test_files/excel-contribution/fixtures/nest-contribution-history-mixed-employers-report-workflow.xlsx"
+        }
+    ]
+}
