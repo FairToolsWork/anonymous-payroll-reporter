@@ -73,7 +73,7 @@ export function buildMissingMonthsHtml(missingByYear) {
     return entries
         .map(([year, months]) => {
             const pills = months
-                .map((month) => `<span class="missing-pill">${month}</span>`)
+                .map((month) => `<span class="pill">${month}</span>`)
                 .join('')
             return `<span class="missing-group"><span class="missing-year">${year}</span>${pills}</span>`
         })
@@ -88,7 +88,5 @@ export function buildMissingMonthsHtmlForYear(months) {
     if (!months.length) {
         return '<span class="missing-none">None</span>'
     }
-    return months
-        .map((month) => `<span class="missing-pill">${month}</span>`)
-        .join('')
+    return months.map((month) => `<span class="pill">${month}</span>`).join('')
 }
