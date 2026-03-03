@@ -1,0 +1,125 @@
+diff --git a/dist/helpers/puppets.js b/dist/helpers/puppets.js
+index f36c18c91da2458ef032e0cfc6b56aa9b1f1ec30..f10a5755a041574e918192694a93b279f8db4317 100644
+--- a/dist/helpers/puppets.js
++++ b/dist/helpers/puppets.js
+@@ -1,9 +1,9 @@
+ import constants from '../config/constants.js';
+-import url from './url.js';
++import browserHelper from './browser.js';
+ import file from './file.js';
+ import images from './images.js';
+-import browserHelper from './browser.js';
+ import preLogger from './logger.js';
++import url from './url.js';
+ const getAppleSplashScreenData = async (browser, options) => {
+     const logger = preLogger(getAppleSplashScreenData.name, options);
+     const page = await browser.newPage();
+@@ -115,56 +115,62 @@ const saveImages = async (imageList, source, output, options, browser) => {
+     else {
+         shellHtml = await url.getShellHtml(source, options);
+     }
+-    return Promise.all(imageList.map(async ({ name, width, height, scaleFactor, orientation }) => {
+-        const { quality } = options;
+-        const isIcon = name.includes('icon');
+-        const isManifestIcon = name.includes('manifest-icon');
+-        const type = isIcon ? 'png' : options.type;
+-        const path = file.getImageSavePath(name, output, type, options.maskable, isManifestIcon);
+-        try {
+-            const browserContext = await browser.createBrowserContext();
+-            const page = await browserContext.newPage();
+-            await page.emulate({
+-                userAgent: constants.EMULATED_USER_AGENT,
+-                viewport: {
+-                    width: width / scaleFactor,
+-                    height: height / scaleFactor,
+-                    deviceScaleFactor: scaleFactor,
+-                    isLandscape: orientation === 'landscape',
+-                },
+-            });
+-            if (address) {
+-                // Emulate dark mode media feature when html source is provided and darkMode is enabled
+-                if (options.darkMode) {
+-                    await page.emulateMediaFeatures([
+-                        {
+-                            name: 'prefers-color-scheme',
+-                            value: 'dark',
+-                        },
+-                    ]);
++    const results = [];
++    const browserContext = await browser.createBrowserContext();
++    const page = await browserContext.newPage();
++    try {
++        for (const { name, width, height, scaleFactor, orientation } of imageList) {
++            const { quality } = options;
++            const isIcon = name.includes('icon');
++            const isManifestIcon = name.includes('manifest-icon');
++            const type = isIcon ? 'png' : options.type;
++            const path = file.getImageSavePath(name, output, type, options.maskable, isManifestIcon);
++            try {
++                await page.emulate({
++                    userAgent: constants.EMULATED_USER_AGENT,
++                    viewport: {
++                        width: width / scaleFactor,
++                        height: height / scaleFactor,
++                        deviceScaleFactor: scaleFactor,
++                        isLandscape: orientation === 'landscape',
++                    },
++                });
++                if (address) {
++                    // Emulate dark mode media feature when html source is provided and darkMode is enabled
++                    if (options.darkMode) {
++                        await page.emulateMediaFeatures([
++                            {
++                                name: 'prefers-color-scheme',
++                                value: 'dark',
++                            },
++                        ]);
++                    }
++                    await page.goto(address, { waitUntil: 'networkidle0' });
+                 }
+-                await page.goto(address, { waitUntil: 'networkidle0' });
++                else if (shellHtml) {
++                    await page.setContent(shellHtml);
++                }
++                await page.bringToFront();
++                await page.screenshot({
++                    path: path,
++                    omitBackground: !options.opaque,
++                    ...(type !== 'png' ? { quality } : {}),
++                });
++                logger.success(`Saved image ${name}`);
++                results.push({ name, width, height, scaleFactor, path, orientation });
+             }
+-            else if (shellHtml) {
+-                await page.setContent(shellHtml);
++            catch (e) {
++                const error = e;
++                logger.error(error.message);
++                throw Error(`Failed to save image ${name}`);
+             }
+-            await page.bringToFront();
+-            await page.screenshot({
+-                path: path,
+-                omitBackground: !options.opaque,
+-                ...(type !== 'png' ? { quality } : {}),
+-            });
+-            await page.close();
+-            await browserContext.close();
+-            logger.success(`Saved image ${name}`);
+-            return { name, width, height, scaleFactor, path, orientation };
+-        }
+-        catch (e) {
+-            const error = e;
+-            logger.error(error.message);
+-            throw Error(`Failed to save image ${name}`);
+         }
+-    }));
++    }
++    finally {
++        await page.close();
++        await browserContext.close();
++    }
++    return results;
+ };
+ const generateImages = async (source, output, options) => {
+     const logger = preLogger(generateImages.name, options);

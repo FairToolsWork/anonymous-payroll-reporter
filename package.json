@@ -25,7 +25,8 @@
         "csslint:fix": "stylelint . --fix",
         "format": "prettier --write .",
         "precommit": "pnpm format && pnpm jslint && pnpm csslint && pnpm check:js && pnpm test:all",
-        "prepare": "husky install"
+        "prepare": "husky install",
+        "pwa:generate": "node node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/cli.js pwa/icons/icon.svg pwa/icons --scrape false --type png --padding \"12%\" --background \"#f4ebd4\" --manifest pwa/site.webmanifest --index pwa/index.html --path-override \"/icons\""
     },
     "prettier": {
         "trailingComma": "es5",
