@@ -88,6 +88,42 @@ pnpm pwa:generate
 >    node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/helpers/puppets.js
 > ```
 
+## Deployment
+
+The PWA is deployed to Cloudflare Workers using [Wrangler](https://developers.cloudflare.com/workers/wrangler/). A minimal Worker script (`src/worker.js`) sets `Cache-Control: no-cache` on `sw.js`, `index.html`, and `site.webmanifest` so browsers always check for PWA/service worker updates; all other static assets in `pwa/` are served directly from Cloudflare's edge.
+
+### First-time setup
+
+Install Wrangler globally (one-time):
+
+```bash
+npm install -g wrangler
+```
+
+Authenticate with Cloudflare (one-time):
+
+```bash
+wrangler login
+```
+
+### Deploy to production
+
+```bash
+pnpm cf:deploy
+```
+
+Wrangler bundles `src/worker.js`, uploads the `pwa/` directory as static assets, and prints the live URL on success.
+
+### Upload a preview version (no live traffic)
+
+```bash
+pnpm cf:preview
+```
+
+### Custom domain
+
+The app is served at `https://payroll-beta.fairworktools.org`. The `routes` entry in `wrangler.jsonc` binds this to the `fairworktools.org` zone in Cloudflare — the domain must be active in your Cloudflare account before deploying.
+
 ## Releases
 
 This repo uses [release-please](https://github.com/googleapis/release-please) for automated versioning. On every push to `main`, the release-please GitHub Action maintains an open release PR. Merging it:

@@ -79,6 +79,19 @@ export default [
         },
     },
     {
+        files: ['src/worker.js'],
+        languageOptions: {
+            globals: {
+                URL: 'readonly',
+                Headers: 'readonly',
+                Response: 'readonly',
+                Request: 'readonly',
+                fetch: 'readonly',
+                console: 'readonly',
+            },
+        },
+    },
+    {
         files: ['pwa/js/global.d.ts'],
         rules: {
             '@typescript-eslint/no-explicit-any': 'off',

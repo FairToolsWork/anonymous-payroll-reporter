@@ -36,6 +36,8 @@ index.html?debug=2
 
 ## Deploying changes
 
+> For hosting setup, Wrangler commands, and Cloudflare Workers configuration see the [Deployment section in the root README](../README.md#deployment).
+
 Whenever JS, CSS, HTML, or any other cached asset changes, the Service Worker cache must be invalidated so users receive the updated files. The SW uses a versioned cache name to control this.
 
 ### Releases and `CACHE_NAME` versioning

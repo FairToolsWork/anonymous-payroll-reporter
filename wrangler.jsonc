@@ -1,0 +1,16 @@
+{
+    "$schema": "node_modules/.pnpm/wrangler@4.69.0/node_modules/wrangler/config-schema.json",
+    "name": "anonymous-payroll-reporter",
+    "main": "src/worker.js",
+    "compatibility_date": "2025-03-03",
+    "assets": {
+        "directory": "./pwa",
+        "binding": "ASSETS",
+    },
+    "routes": [
+        {
+            "pattern": "payroll-beta.fairworktools.org/*",
+            "zone_name": "fairworktools.org",
+        },
+    ],
+}
