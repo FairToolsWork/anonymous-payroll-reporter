@@ -867,6 +867,35 @@ export function initPayrollApp() {
             scrollToTop() {
                 window.scrollTo({ top: 0, behavior: 'smooth' })
             },
+            /** @returns {void} */
+            openAbout() {
+                this.$refs.aboutDialog?.showModal()
+                document.body.classList.add('scroll-locked')
+            },
+            /** @returns {void} */
+            closeAbout() {
+                this.$refs.aboutDialog?.close()
+                document.body.classList.remove('scroll-locked')
+            },
+            /** @returns {void} */
+            onAboutDialogClose() {
+                document.body.classList.remove('scroll-locked')
+            },
+            /** @param {MouseEvent} event @returns {void} */
+            onAboutBackdropClick(event) {
+                const rect = this.$refs.aboutDialog?.getBoundingClientRect()
+                if (!rect) {
+                    return
+                }
+                if (
+                    event.clientX < rect.left ||
+                    event.clientX > rect.right ||
+                    event.clientY < rect.top ||
+                    event.clientY > rect.bottom
+                ) {
+                    this.closeAbout()
+                }
+            },
         },
         /** @returns {void} */
         beforeUnmount() {
