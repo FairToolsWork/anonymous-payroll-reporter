@@ -3,11 +3,7 @@ __pycache__
 *.pyc
 .venv
 ~$*
-tests/test_files/**/fixtures/
-tests/test_files/**/expected/
 !tests/test_files/excel-contribution/expected/nest_contribution_target_summary.js
-tests/test_files/**/edge-fixtures/
-tests/test_files/**/source/
 tests/test_files/.DS_Store
 pwa/demo/*
 !pwa/demo/.gitkeep

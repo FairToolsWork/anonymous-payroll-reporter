@@ -1,0 +1,118 @@
+{
+    "employee": {
+        "id": null,
+        "name": "Jane Doe",
+        "natInsNumber": "AA000000A",
+        "address": {
+            "street": "Some Apartment",
+            "city": "SOMETOWN",
+            "administrativeArea": "SOMEWHERE National Insurance TD 615.12",
+            "postalCode": "XX0 0XX Ee Pension TD (inc AVC) 414.71"
+        }
+    },
+    "employer": "The Better Place Catering Company Limited",
+    "payrollDoc": {
+        "processDate": {
+            "title": "Process Date",
+            "date": "20 Sep 2024"
+        },
+        "taxCode": {
+            "title": "Tax Code",
+            "code": "S1257L"
+        },
+        "payMethod": {
+            "title": "Pay Method",
+            "method": "Bank Transfer"
+        },
+        "payRun": {
+            "title": "Pay Run",
+            "run": "Month 6"
+        },
+        "payments": {
+            "hourly": {
+                "basic": {
+                    "title": "Basic Hours",
+                    "units": 246.68,
+                    "rate": 10,
+                    "amount": 2466.8
+                },
+                "holiday": {
+                    "title": "Holiday Hours",
+                    "units": null,
+                    "rate": null,
+                    "amount": null
+                }
+            },
+            "salary": {
+                "basic": {
+                    "title": "Salary",
+                    "amount": null
+                },
+                "holiday": {
+                    "title": "Holiday",
+                    "units": null,
+                    "rate": null,
+                    "amount": null
+                }
+            },
+            "misc": []
+        },
+        "deductions": {
+            "payeTax": {
+                "title": "PAYE Tax",
+                "amount": 0
+            },
+            "natIns": {
+                "title": "National Insurance",
+                "amount": 170.26
+            },
+            "pensionEE": {
+                "title": "NEST Corporation - EE",
+                "amount": 97.34
+            },
+            "pensionER": {
+                "title": "NEST Corporation - ER",
+                "amount": 58.4
+            },
+            "misc": [
+                {
+                    "title": "PAYETax",
+                    "units": null,
+                    "rate": null,
+                    "amount": 262.72
+                }
+            ]
+        },
+        "thisPeriod": {
+            "earningsNI": {
+                "title": "Earnings for NI",
+                "amount": 2466.8
+            },
+            "grossForTax": {
+                "title": "Gross for Tax",
+                "amount": 2369.46
+            },
+            "totalGrossPay": {
+                "title": "Total Gross Pay",
+                "amount": 2462.5
+            },
+            "payCycle": {
+                "title": "Pay Cycle",
+                "cycle": "Monthly"
+            }
+        },
+        "yearToDate": {
+            "totalGrossPayTD": 11413.94,
+            "grossForTaxTD": 10999.23,
+            "taxPaidTD": 828.59,
+            "earningsForNITD": 11413.94,
+            "nationalInsuranceTD": 615.12,
+            "employeePensionTD_AVC": 414.71,
+            "employerPensionTD": 248.8
+        },
+        "netPay": {
+            "title": "Net Pay",
+            "amount": 1936.48
+        }
+    }
+}

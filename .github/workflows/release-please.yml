@@ -36,15 +36,8 @@ jobs:
               run: pnpm config set ignore-workspace-root-check true
             - name: Install Node dependencies
               run: pnpm install
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: '3.12'
-            - name: Install Python fixture dependencies
-              run: pip install -r generate_fixtures/requirements.txt
-            - name: Generate fixtures and demo files
-              run: pnpm fixtures:generate
-            - name: Zip demo files
-              run: pnpm fixtures:demo:zip
+            - name: Run tests
+              run: pnpm test:all
             - uses: cloudflare/wrangler-action@v3
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
