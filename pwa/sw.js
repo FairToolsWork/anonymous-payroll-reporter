@@ -1,4 +1,4 @@
-const CACHE_NAME = 'payroll-pwa-v1.1.1' // x-release-please-version
+const CACHE_NAME = 'payroll-pwa-v1.2.0' // x-release-please-version
 const CORE_ASSETS = [
     './index.html',
     './styles.css',

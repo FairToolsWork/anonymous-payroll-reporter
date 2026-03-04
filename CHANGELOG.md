@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.1.1...anonymous-payroll-reporter-v1.2.0) (2026-03-04)
+
+
+### Features
+
+* **fixtures:** add demo zip generation and refine fixture parsing ([44ad299](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/44ad2990d15b0749ddb23eeeda16c009b07f9b8a))
+* **pwa:** add about dialog and demo download entry ([c2ace29](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/c2ace29ad2d40a638bcbb03df4f8187ddbf832ee))
+
+
+### Bug Fixes
+
+* **ci:deploy:** allow pnpm workspace installs for wrangler setup ([7ea8609](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7ea8609b3feeea20b3f3c82295ff4260b1006a3d))
+* **pdf:** force system fonts for consistent rendering ([805ce84](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/805ce84c1d6556692b294b212a3d926f936c398e))
+* **ui:** improve upload error messaging for payroll parsing ([7cfb46c](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7cfb46c1fafe5f6feb75e319cf47634e05a0a167))
+
 ## [1.1.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.1.0...anonymous-payroll-reporter-v1.1.1) (2026-03-03)
 
 
