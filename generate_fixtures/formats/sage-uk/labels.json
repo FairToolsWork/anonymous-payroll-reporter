@@ -1,0 +1,168 @@
+[
+    {
+        "key": "payeTax",
+        "label": "PAYE Tax",
+        "structureSection": "deductions_table",
+        "structureKey": "payeTaxLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "PAYE tax deduction amount."
+    },
+    {
+        "key": "natIns",
+        "label": "National Insurance",
+        "structureSection": "deductions_table",
+        "structureKey": "natInsLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "patternOverride": "/National\\s+Insurance\\s+(?!TD)([\\d,]+\\.\\d{2})/i",
+        "comment": "National Insurance deduction amount (current period). Negative lookahead (?!TD) prevents matching the TD variant on the same line."
+    },
+    {
+        "key": "pensionEe",
+        "label": "NEST Corporation - EE",
+        "structureSection": "deductions_table",
+        "structureKey": "pensionEeLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Employee pension contribution."
+    },
+    {
+        "key": "pensionEr",
+        "label": "NEST Corporation - ER",
+        "structureSection": "deductions_table",
+        "structureKey": "pensionErLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Employer pension contribution."
+    },
+    {
+        "key": "taxCode",
+        "label": "Tax Code:",
+        "structureSection": "footer",
+        "structureKey": "taxCodeLabel",
+        "patternSuffix": "\\s*([A-Z0-9]+)",
+        "patternFlags": "i",
+        "comment": "Tax code."
+    },
+    {
+        "key": "payRun",
+        "label": "Pay Run:",
+        "structureSection": "footer",
+        "structureKey": "payRunLabel",
+        "patternSuffix": "\\s*([A-Za-z]+\\s+\\d+)",
+        "patternFlags": "i",
+        "comment": "Pay run label."
+    },
+    {
+        "key": "payMethod",
+        "label": "Pay Method:",
+        "structureSection": "footer",
+        "structureKey": "payMethodLabel",
+        "patternSuffix": "\\s*([A-Za-z\\s]+)",
+        "patternFlags": "i",
+        "comment": "Pay method label."
+    },
+    {
+        "key": "earningsNi",
+        "label": "Earnings for NI",
+        "structureSection": "this_period",
+        "structureKey": "earningsNiLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "patternOverride": "/Earnings\\s+for\\s+NI\\s+(?!TD)([\\d,]+\\.\\d{2})/i",
+        "comment": "Earnings for NI (current period). Negative lookahead (?!TD) prevents matching the TD variant."
+    },
+    {
+        "key": "grossTax",
+        "label": "Gross for Tax",
+        "structureSection": "this_period",
+        "structureKey": "grossTaxLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "patternOverride": "/Gross\\s+for\\s+Tax\\s+(?!TD)([\\d,]+\\.\\d{2})/i",
+        "comment": "Gross for tax (current period). Negative lookahead (?!TD) prevents matching the TD variant."
+    },
+    {
+        "key": "totalGrossPay",
+        "label": "Total Gross Pay",
+        "structureSection": "this_period",
+        "structureKey": "totalGrossPayLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "patternOverride": "/Total\\s+Gross\\s+Pay\\s+(?!TD)([\\d,]+\\.\\d{2})/i",
+        "comment": "Total gross pay (current period). Negative lookahead (?!TD) prevents matching the TD variant."
+    },
+    {
+        "key": "payCycle",
+        "label": "Pay Cycle",
+        "structureSection": "this_period",
+        "structureKey": "payCycleLabel",
+        "patternSuffix": "\\s+([A-Za-z]+)",
+        "patternFlags": "i",
+        "comment": "Pay cycle label."
+    },
+    {
+        "key": "totalGrossPayTd",
+        "label": "Total Gross Pay TD",
+        "structureSection": "year_to_date",
+        "structureKey": "totalGrossPayTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Total gross pay TD."
+    },
+    {
+        "key": "grossTaxTd",
+        "label": "Gross for Tax TD",
+        "structureSection": "year_to_date",
+        "structureKey": "grossTaxTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Gross for tax TD."
+    },
+    {
+        "key": "taxPaidTd",
+        "label": "Tax Paid TD",
+        "structureSection": "year_to_date",
+        "structureKey": "taxPaidTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Tax paid TD."
+    },
+    {
+        "key": "earningsNiTd",
+        "label": "Earnings for NI TD",
+        "structureSection": "year_to_date",
+        "structureKey": "earningsNiTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Earnings for NI TD."
+    },
+    {
+        "key": "niTd",
+        "label": "National Insurance TD",
+        "structureSection": "year_to_date",
+        "structureKey": "niTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "National Insurance TD."
+    },
+    {
+        "key": "pensionEeTd",
+        "label": "Ee Pension TD",
+        "structureSection": "year_to_date",
+        "structureKey": "pensionEeTdLabel",
+        "patternSuffix": "\\s+\\(inc\\s+AVC\\)\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Employee pension TD (inc AVC)."
+    },
+    {
+        "key": "pensionErTd",
+        "label": "Employers Pension TD",
+        "structureSection": "year_to_date",
+        "structureKey": "pensionErTdLabel",
+        "patternSuffix": "\\s+([\\d,]+\\.\\d{2})",
+        "patternFlags": "i",
+        "comment": "Employer pension TD."
+    }
+]

@@ -3,6 +3,7 @@ __pycache__
 *.pyc
 .venv
 ~$*
+coverage/
 !tests/test_files/excel-contribution/expected/nest_contribution_target_summary.js
 tests/test_files/.DS_Store
 pwa/demo/*

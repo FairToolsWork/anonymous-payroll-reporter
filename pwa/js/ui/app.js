@@ -693,6 +693,26 @@ export function initPayrollApp() {
                     if (!this.debugText) {
                         this.debugText = workflowResult.debug.text
                     }
+                    if (workflowResult?.excelDebug) {
+                        if (!this.debugInfo.excelSource) {
+                            this.debugInfo.excelSource =
+                                workflowResult.excelDebug.source || 'Unknown'
+                        }
+                        if (!this.debugInfo.excelRows) {
+                            this.debugInfo.excelRows = JSON.stringify(
+                                workflowResult.excelDebug.rows || [],
+                                null,
+                                2
+                            )
+                        }
+                        if (!this.debugInfo.excelParsed) {
+                            this.debugInfo.excelParsed = JSON.stringify(
+                                workflowResult.excelDebug.entries || [],
+                                null,
+                                2
+                            )
+                        }
+                    }
                     if (!this.debugInfo.parsed) {
                         const debugRecord = { ...records[0] }
                         if (
@@ -726,23 +746,23 @@ export function initPayrollApp() {
                                     )?.[0] || null,
                                 nationalInsurance:
                                     this.debugText.match(
-                                        PATTERNS.nationalInsurance
+                                        PATTERNS.natIns
                                     )?.[0] || null,
                                 pensionEmployee:
                                     this.debugText.match(
-                                        PATTERNS.pensionEmployee
+                                        PATTERNS.pensionEe
                                     )?.[0] || null,
                                 pensionEmployer:
                                     this.debugText.match(
-                                        PATTERNS.pensionEmployer
+                                        PATTERNS.pensionEr
                                     )?.[0] || null,
                                 earningsForNI:
                                     this.debugText.match(
-                                        PATTERNS.earningsForNI
+                                        PATTERNS.earningsNi
                                     )?.[0] || null,
                                 grossForTax:
                                     this.debugText.match(
-                                        PATTERNS.grossForTax
+                                        PATTERNS.grossTax
                                     )?.[0] || null,
                                 totalGrossPay:
                                     this.debugText.match(
@@ -754,31 +774,30 @@ export function initPayrollApp() {
                                     )?.[0] || null,
                                 totalGrossPayTD:
                                     this.debugText.match(
-                                        PATTERNS.totalGrossPayTD
+                                        PATTERNS.totalGrossPayTd
                                     )?.[0] || null,
                                 grossForTaxTD:
                                     this.debugText.match(
-                                        PATTERNS.grossForTaxTD
+                                        PATTERNS.grossTaxTd
                                     )?.[0] || null,
                                 taxPaidTD:
                                     this.debugText.match(
-                                        PATTERNS.taxPaidTD
+                                        PATTERNS.taxPaidTd
                                     )?.[0] || null,
                                 earningsForNITD:
                                     this.debugText.match(
-                                        PATTERNS.earningsForNITD
+                                        PATTERNS.earningsNiTd
                                     )?.[0] || null,
                                 nationalInsuranceTD:
-                                    this.debugText.match(
-                                        PATTERNS.nationalInsuranceTD
-                                    )?.[0] || null,
+                                    this.debugText.match(PATTERNS.niTd)?.[0] ||
+                                    null,
                                 employeePensionTD:
                                     this.debugText.match(
-                                        PATTERNS.employeePensionTD
+                                        PATTERNS.pensionEeTd
                                     )?.[0] || null,
                                 employerPensionTD:
                                     this.debugText.match(
-                                        PATTERNS.employerPensionTD
+                                        PATTERNS.pensionErTd
                                     )?.[0] || null,
                                 netPay:
                                     this.debugText.match(

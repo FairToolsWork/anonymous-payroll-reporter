@@ -607,7 +607,7 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
     }
 
     if (!payments.hourly.holiday.units) {
-        const holidayMatch = text.match(PATTERNS.holidayLine)
+        const holidayMatch = text.match(PATTERNS.holidayLabel)
         if (holidayMatch) {
             payments.hourly.holiday = {
                 title: 'Holiday Hours',
@@ -620,13 +620,13 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
 
     const payeTax = parseNumericValue(extractField(text, PATTERNS.payeTax))
     const nationalInsurance = parseNumericValue(
-        extractField(text, PATTERNS.nationalInsurance)
+        extractField(text, PATTERNS.natIns)
     )
     const nestEmployee = parseNumericValue(
-        extractField(text, PATTERNS.pensionEmployee)
+        extractField(text, PATTERNS.pensionEe)
     )
     const nestEmployer = parseNumericValue(
-        extractField(text, PATTERNS.pensionEmployer)
+        extractField(text, PATTERNS.pensionEr)
     )
 
     if (!deductions.payeTax.amount && payeTax) {
@@ -643,33 +643,31 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
     }
 
     const earningsForNI = parseNumericValue(
-        extractField(text, PATTERNS.earningsForNI)
+        extractField(text, PATTERNS.earningsNi)
     )
-    const grossForTax = parseNumericValue(
-        extractField(text, PATTERNS.grossForTax)
-    )
+    const grossForTax = parseNumericValue(extractField(text, PATTERNS.grossTax))
     const totalGrossPay = parseNumericValue(
         extractField(text, PATTERNS.totalGrossPay)
     )
     const payCycle = extractField(text, PATTERNS.payCycle)
     const totalGrossPayTD = parseNumericValue(
-        extractField(text, PATTERNS.totalGrossPayTD)
+        extractField(text, PATTERNS.totalGrossPayTd)
     )
     const grossForTaxTD = parseNumericValue(
-        extractField(text, PATTERNS.grossForTaxTD)
+        extractField(text, PATTERNS.grossTaxTd)
     )
-    const taxPaidTD = parseNumericValue(extractField(text, PATTERNS.taxPaidTD))
+    const taxPaidTD = parseNumericValue(extractField(text, PATTERNS.taxPaidTd))
     const earningsForNITD = parseNumericValue(
-        extractField(text, PATTERNS.earningsForNITD)
+        extractField(text, PATTERNS.earningsNiTd)
     )
     const nationalInsuranceTD = parseNumericValue(
-        extractField(text, PATTERNS.nationalInsuranceTD)
+        extractField(text, PATTERNS.niTd)
     )
     const employeePensionTD = parseNumericValue(
-        extractField(text, PATTERNS.employeePensionTD)
+        extractField(text, PATTERNS.pensionEeTd)
     )
     const employerPensionTD = parseNumericValue(
-        extractField(text, PATTERNS.employerPensionTD)
+        extractField(text, PATTERNS.pensionErTd)
     )
 
     let netPay = parseNumericValue(extractField(text, PATTERNS.netPay))

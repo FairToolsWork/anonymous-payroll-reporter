@@ -105,7 +105,7 @@ def group_words(words, line_map, line_text, structure):
     address_top = find_line_containing(line_text, address_block["anchor"])
     this_period_top = find_line_containing(line_text, this_period["anchor"])
     ytd_top = find_line_containing(line_text, year_to_date["anchor"])
-    footer_top = find_line_containing(line_text, footer["anchor"])
+    footer_top = find_line_containing(line_text, footer["anchor"])  # noqa: F841 kept for symmetry
 
     deductions_anchor_indices = _find_phrase_indices(
         _label_tokens(deductions_table["anchor"]),
@@ -286,7 +286,7 @@ def apply_fixture(
     def _align_right(word_list, indices, target_x1):
         align_right(word_list, indices, target_x1, _FONT_NAME, _FONT_NAME_BOLD)
 
-    basic_top = find_line(line_text, header_bar["basic_line_anchor"])
+    basic_top = find_line(line_text, header_bar["basicLineAnchor"])
     basic_indices = line_map[basic_top]
     basic_numeric = find_numeric_indices(words, basic_indices)
     sorted_tops = sorted(line_map)
@@ -319,7 +319,7 @@ def apply_fixture(
     makeup_numeric = find_numeric_indices(words, makeup_indices)
 
     if len(data["basic_lines"]) > 1:
-        hours_tokens = payments_table["hours_label"].split()
+        hours_tokens = payments_table["hoursLabel"].split()
         hours_display = hours_tokens[0].replace("-make", "")
         for idx in makeup_indices:
             text = words[idx]["text"]
@@ -379,7 +379,7 @@ def apply_fixture(
         numeric_indices = [
             idx for idx in payment_indices if is_numeric_token(words[idx]["text"])
         ]
-        holiday_label = payments_table["holiday_label"]
+        holiday_label = payments_table["holidayLineAnchor"]
         holiday_values = [
             fmt_units(holiday_hours),
             fmt_money(holiday_rate),
@@ -432,15 +432,15 @@ def apply_fixture(
             if words[idx]["x1"] <= payment_right_edge:
                 update_text(words, idx, "")
 
-    pens_ee_top = find_line(line_text, deductions_table["pension_ee_label"])
+    pens_ee_top = find_line(line_text, deductions_table["pensionEeLabel"])
     pens_ee_idx = find_numeric_indices(words, line_map[pens_ee_top])[0]
     update_text(words, pens_ee_idx, fmt_money(data["ee"]))
 
-    pens_er_top = find_line(line_text, deductions_table["pension_er_label"])
+    pens_er_top = find_line(line_text, deductions_table["pensionErLabel"])
     pens_er_idx = find_numeric_indices(words, line_map[pens_er_top])[0]
     update_text(words, pens_er_idx, fmt_money(data["er"]))
 
-    other_ded_top = find_line(line_text, deductions_table["other_net_ded_label"])
+    other_ded_top = find_line(line_text, deductions_table["otherNetDedLabel"])
     other_ded_idx = find_numeric_indices(words, line_map[other_ded_top])[0]
     if data["other_deduction"]:
         update_text(words, other_ded_idx, fmt_money(data["other_deduction"]))
@@ -461,7 +461,7 @@ def apply_fixture(
         _align_right(words, deduction_amount_indices, deduction_target_x1)
 
     address_block = structure["address_block"]
-    address_name_anchor = address_block.get("name_anchor")
+    address_name_anchor = address_block.get("nameAnchor")
     address_line_count = address_block.get("address_lines", 0)
     if employee_name is not None and address_name_anchor:
         name_top = find_line_containing(line_text, address_name_anchor)
@@ -504,7 +504,7 @@ def apply_fixture(
             for idx in line_map[line_top]:
                 update_text(words, idx, "")
 
-    employer_top = find_line(line_text, footer["employer_anchor"])
+    employer_top = find_line(line_text, footer["employerAnchor"])
     employer_indices = line_map[employer_top]
     for idx in employer_indices:
         update_text(words, idx, "")
@@ -523,34 +523,34 @@ def apply_fixture(
             }
         )
 
-    earnings_top = find_line(line_text, this_period["earnings_ni_label"])
+    earnings_top = find_line(line_text, this_period["earningsNiLabel"])
     earnings_numeric = find_numeric_indices(words, line_map[earnings_top])
     update_text(words, earnings_numeric[0], fmt_money(data["gross"]))
     update_text(words, earnings_numeric[1], fmt_money(data["ytd_gross"]))
 
-    gross_tax_top = find_line(line_text, this_period["gross_tax_label"])
+    gross_tax_top = find_line(line_text, this_period["grossTaxLabel"])
     gross_tax_numeric = find_numeric_indices(words, line_map[gross_tax_top])
     update_text(words, gross_tax_numeric[0], fmt_money(round(data["gross"] - data["ee"], 2)))
     update_text(words, gross_tax_numeric[1], fmt_money(data["ytd_gross_tax"]))
 
-    gross_pay_top = find_line(line_text, this_period["total_gross_pay_label"])
+    gross_pay_top = find_line(line_text, this_period["totalGrossPayLabel"])
     gross_pay_numeric = find_numeric_indices(words, line_map[gross_pay_top])
     update_text(words, gross_pay_numeric[0], fmt_money(data["gross"]))
     update_text(words, gross_pay_numeric[1], fmt_money(data["ytd_gross"]))
 
-    pay_cycle_top = find_line(line_text, this_period["pay_cycle_label"])
+    pay_cycle_top = find_line(line_text, this_period["payCycleLabel"])
     pay_cycle_numeric = find_numeric_indices(words, line_map[pay_cycle_top])
     update_text(words, pay_cycle_numeric[0], fmt_money(data["ytd_gross"]))
 
-    ni_td_top = find_line(line_text, year_to_date["ni_td_label"])
+    ni_td_top = find_line(line_text, year_to_date["niTdLabel"])
     ni_td_idx = find_numeric_indices(words, line_map[ni_td_top])[0]
     update_text(words, ni_td_idx, fmt_money(data["ytd_ni"]))
 
-    ee_td_top = find_line(line_text, year_to_date["pension_ee_td_label"])
+    ee_td_top = find_line(line_text, year_to_date["pensionEeTdLabel"])
     ee_td_idx = find_numeric_indices(words, line_map[ee_td_top])[0]
     update_text(words, ee_td_idx, fmt_money(data["ytd_ee"]))
 
-    er_td_top = find_line(line_text, year_to_date["pension_er_td_label"])
+    er_td_top = find_line(line_text, year_to_date["pensionErTdLabel"])
     er_td_idx = find_numeric_indices(words, line_map[er_td_top])[0]
     update_text(words, er_td_idx, fmt_money(data["ytd_er"]))
 
@@ -567,7 +567,7 @@ def apply_fixture(
         ytd_target_x1 = max(words[idx]["x1"] for idx in ytd_amount_indices)
         _align_right(words, ytd_amount_indices, ytd_target_x1)
 
-    net_top = find_line(line_text, header_bar["net_amount_anchor"])
+    net_top = find_line(line_text, header_bar["netAmountAnchor"])
     net_idx = find_numeric_indices(words, line_map[net_top])[0]
     update_text(words, net_idx, fmt_money(data["net"]))
     words[net_idx]["bold"] = True
@@ -575,7 +575,7 @@ def apply_fixture(
 
     month_number = 1 if reset_payrun else (month_index + 1)
     group_shift = 0
-    tax_line = find_line_containing(line_text, footer["tax_code_label"])
+    tax_line = find_line_containing(line_text, footer["taxCodeLabel"])
     tax_indices = line_map[tax_line]
     for idx in tax_indices:
         update_text(words, idx, "")
@@ -583,14 +583,14 @@ def apply_fixture(
     if not omit_tax_code:
         words.append(
             {
-                "text": f"{footer['tax_code_label']} {payroll_constants['tax_code_value']}",
+                "text": f"{footer['taxCodeLabel']} {payroll_constants['tax_code_value']}",
                 "x0": max(0, tax_anchor["x0"] - group_shift),
                 "x1": max(0, tax_anchor["x1"] - group_shift),
                 "top": tax_anchor["top"],
                 "bottom": tax_anchor["bottom"],
             }
         )
-    pay_line = find_line_containing(line_text, footer["pay_run_label"])
+    pay_line = find_line_containing(line_text, footer["payRunLabel"])
     pay_indices = line_map[pay_line]
     for idx in pay_indices:
         update_text(words, idx, "")
@@ -603,8 +603,8 @@ def apply_fixture(
                 return idx
         return None
 
-    pay_run_tokens = footer["pay_run_label"].split()
-    pay_method_tokens = footer["pay_method_label"].split()
+    pay_run_tokens = footer["payRunLabel"].split()
+    pay_method_tokens = footer["payMethodLabel"].split()
     pay_run_idx = find_phrase_index(pay_run_tokens, pay_tokens)
     pay_method_idx = find_phrase_index(pay_method_tokens, pay_tokens)
 
@@ -617,10 +617,10 @@ def apply_fixture(
         pay_method_anchor = words[pay_sorted_indices[-1]]
     else:
         pay_method_anchor = words[pay_sorted_indices[pay_method_idx]]
-    pay_run_text = footer["pay_run_text_template"].format(month_number)
+    pay_run_text = footer["payRunTextTemplate"].format(month_number)
     pay_method_width = pay_method_anchor["x1"] - pay_method_anchor["x0"]
     pay_run_end_x1 = pay_anchor["x1"]
-    month_token = footer["pay_run_text_template"].format("").split()[-1]
+    month_token = footer["payRunTextTemplate"].format("").split()[-1]
     month_idx = find_phrase_index([month_token], pay_tokens)
     if month_idx is not None:
         month_token_idx = pay_sorted_indices[month_idx]
@@ -647,7 +647,7 @@ def apply_fixture(
         )
     words.append(
         {
-            "text": f"{footer['pay_method_label']} {payroll_constants['pay_method_value']}",
+            "text": f"{footer['payMethodLabel']} {payroll_constants['pay_method_value']}",
             "x0": max(0, pay_method_x0 - group_shift),
             "x1": max(0, pay_method_x0 + pay_method_width - group_shift),
             "top": pay_method_anchor["top"],
@@ -655,7 +655,7 @@ def apply_fixture(
         }
     )
 
-    copyright_top = find_line_containing(line_text, footer["copyright_line"])
+    copyright_top = find_line_containing(line_text, footer["copyrightLine"])
     copyright_indices = line_map[copyright_top]
     for idx in copyright_indices:
         update_text(words, idx, "")
@@ -663,7 +663,7 @@ def apply_fixture(
     shift_left = _SHIFT_LEFT
     words.append(
         {
-            "text": footer["copyright_line"],
+            "text": footer["copyrightLine"],
             "x0": max(0, copyright_anchor["x0"] - shift_left),
             "x1": max(0, copyright_anchor["x1"] - shift_left),
             "top": copyright_anchor["top"],
@@ -671,7 +671,7 @@ def apply_fixture(
         }
     )
 
-    header_top = find_line(line_text, header_bar["ni_anchor"])
+    header_top = find_line(line_text, header_bar["niAnchor"])
     header_indices = line_map[header_top]
     header_words = [words[i]["text"] for i in header_indices]
     if len(header_words) >= 6:
@@ -706,7 +706,7 @@ def apply_fixture(
             year_word["x1"] = year_word["x0"] + year_width
 
     if not omit_pay_run:
-        payrun_top = find_line(line_text, footer["pay_run_label"])
+        payrun_top = find_line(line_text, footer["payRunLabel"])
         payrun_indices = line_map[payrun_top]
         for idx in payrun_indices:
             if words[idx]["text"] == month_token:

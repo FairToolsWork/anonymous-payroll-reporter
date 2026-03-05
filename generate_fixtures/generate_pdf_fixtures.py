@@ -168,6 +168,30 @@ def load_structure(structure_path):
     if not isinstance(payload, dict):
         raise ValueError("Payslip structure must be a JSON object")
 
+    labels_path = path.parent / "labels.json"
+    if labels_path.exists():
+        with labels_path.open("r", encoding="utf-8") as handle:
+            labels = json.load(handle)
+        if not isinstance(labels, list):
+            raise ValueError("labels.json must be a JSON array")
+        for entry in labels:
+            section = entry.get("structureSection")
+            key = entry.get("structureKey")
+            label = entry.get("label")
+            if not isinstance(section, str) or not isinstance(key, str) or not isinstance(label, str):
+                raise ValueError(f"labels.json entry missing structureSection, structureKey, or label: {entry}")
+            if section not in payload:
+                raise ValueError(
+                    f"labels.json entry '{key}' references structureSection '{section}' "
+                    f"which does not exist in structure.json"
+                )
+            if not isinstance(payload.get(section), dict):
+                raise ValueError(
+                    f"labels.json entry '{key}' references structureSection '{section}' "
+                    f"which is not an object in structure.json"
+                )
+            payload[section][key] = label
+
     schema_path = path.parent / "schema.json"
     if not schema_path.exists():
         raise FileNotFoundError(f"Missing schema file: {schema_path}")

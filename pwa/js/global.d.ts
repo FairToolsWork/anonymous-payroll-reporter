@@ -21,27 +21,27 @@ declare const PATTERNS: {
     employeeNo: RegExp
     employerLine: RegExp
     basicLine: RegExp
-    holidayLine: RegExp
+    holidayLabel: RegExp
     basicSalaryLine: RegExp
     holidaySalaryLine: RegExp
     payeTax: RegExp
-    nationalInsurance: RegExp
-    pensionEmployee: RegExp
-    pensionEmployer: RegExp
+    natIns: RegExp
+    pensionEe: RegExp
+    pensionEr: RegExp
     taxCode: RegExp
     payRun: RegExp
     payMethod: RegExp
-    earningsForNI: RegExp
-    grossForTax: RegExp
+    earningsNi: RegExp
+    grossTax: RegExp
     totalGrossPay: RegExp
     payCycle: RegExp
-    totalGrossPayTD: RegExp
-    grossForTaxTD: RegExp
-    taxPaidTD: RegExp
-    earningsForNITD: RegExp
-    nationalInsuranceTD: RegExp
-    employeePensionTD: RegExp
-    employerPensionTD: RegExp
+    totalGrossPayTd: RegExp
+    grossTaxTd: RegExp
+    taxPaidTd: RegExp
+    earningsNiTd: RegExp
+    niTd: RegExp
+    pensionEeTd: RegExp
+    pensionErTd: RegExp
     netPay: RegExp
 }
 
