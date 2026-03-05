@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.4.0...anonymous-payroll-reporter-v1.5.0) (2026-03-05)
+
+
+### Features
+
+* **fixtures:** align Sage UK PDF generation with updated period and employee fields ([a42cbf6](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/a42cbf6db23c3aa339ea936b6f22df3c5767da97))
+* **fixtures:** refresh demo and PDF fixtures after payroll layout updates ([16429ef](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/16429efd857a1f2e5e4ff8830a8cb90c9b60a014))
+* **sage-uk:** generate label-driven patterns and align parser debug workflow ([4da3d20](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/4da3d20939d63e0aa97b62fcd6b4ad422e7e7168))
+
 ## [1.4.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.3.0...anonymous-payroll-reporter-v1.4.0) (2026-03-05)
 
 
