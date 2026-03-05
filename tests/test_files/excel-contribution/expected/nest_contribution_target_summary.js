@@ -8,6 +8,6 @@ export default {
     erCount: 13,
     eeTotal: 928.63,
     erTotal: 557.15,
-    startDate: '2024-04-19',
-    endDate: '2025-04-19',
+    startDate: '2024-04-20',
+    endDate: '2025-04-20',
 }

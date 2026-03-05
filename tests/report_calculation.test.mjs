@@ -164,8 +164,10 @@ describe('report calculations', () => {
     it('formats dates and keys', () => {
         const parsedNumeric = parsePayPeriodStart('01/02/25 - 28/02/25')
         const parsedLong = parsePayPeriodStart('15 March 2024 - 31 March 2024')
-        expect(parsedNumeric?.toISOString().slice(0, 10)).toBe('2025-02-01')
-        expect(parsedLong?.toISOString().slice(0, 10)).toBe('2024-03-15')
+        const localDateString = (d) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        expect(localDateString(parsedNumeric)).toBe('2025-02-01')
+        expect(localDateString(parsedLong)).toBe('2024-03-15')
         expect(parsePayPeriodStart(null)).toBeNull()
 
         const sampleDate = new Date(2025, 0, 5)

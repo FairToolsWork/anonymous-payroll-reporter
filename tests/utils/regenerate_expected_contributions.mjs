@@ -59,10 +59,17 @@ result.entries.forEach((entry) => {
     }
 })
 
+function localDateString(date) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+
 summary.eeTotal = Number(summary.eeTotal.toFixed(2))
 summary.erTotal = Number(summary.erTotal.toFixed(2))
-summary.startDate = new Date(summary.startDate).toISOString().slice(0, 10)
-summary.endDate = new Date(summary.endDate).toISOString().slice(0, 10)
+summary.startDate = localDateString(new Date(summary.startDate))
+summary.endDate = localDateString(new Date(summary.endDate))
 
 const content =
     `/**\n` +

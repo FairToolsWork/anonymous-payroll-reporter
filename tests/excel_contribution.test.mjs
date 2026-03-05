@@ -43,6 +43,13 @@ const FIXTURES = {
     },
 }
 
+function localDateString(date) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+
 function readWorkbook(filename) {
     const filePath = path.join(FIXTURE_DIR, filename)
     const buffer = fs.readFileSync(filePath)
@@ -80,11 +87,11 @@ function buildSummary(entries) {
     summary.startDate =
         summary.startDate === null
             ? null
-            : new Date(summary.startDate).toISOString().slice(0, 10)
+            : localDateString(new Date(summary.startDate))
     summary.endDate =
         summary.endDate === null
             ? null
-            : new Date(summary.endDate).toISOString().slice(0, 10)
+            : localDateString(new Date(summary.endDate))
     return summary
 }
 
