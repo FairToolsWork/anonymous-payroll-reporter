@@ -217,4 +217,49 @@ describe('pdf parse', () => {
             imageData: null,
         })
     })
+
+    it('returns full image when no content is detected', async () => {
+        const extractPath = path.resolve(__dirname, '../pwa/js/pdf/extract.js')
+        vi.resetModules()
+        vi.doUnmock(pathToFileURL(extractPath).href)
+        const originalWindow = globalThis.window
+        const originalDocument = globalThis.document
+
+        const fakePage = {
+            getViewport: () => ({ width: 2, height: 2 }),
+            getTextContent: async () => ({ items: [] }),
+            render: () => ({ promise: Promise.resolve() }),
+            view: [0, 0, 2, 2],
+        }
+        const fakePdf = {
+            numPages: 1,
+            getPage: async () => fakePage,
+        }
+        const fakePdfjs = {
+            GlobalWorkerOptions: { workerSrc: '' },
+            getDocument: () => ({ promise: Promise.resolve(fakePdf) }),
+        }
+        const fakeCanvas = {
+            width: 0,
+            height: 0,
+            getContext: () => ({
+                getImageData: (x, y, width, height) => ({
+                    data: new Uint8ClampedArray(width * height * 4).fill(255),
+                }),
+                drawImage: () => {},
+            }),
+            toDataURL: () => 'data:image/png;base64,full',
+        }
+
+        globalThis.window = { pdfjsLib: fakePdfjs, pdfjsDebug: true }
+        globalThis.document = { createElement: () => fakeCanvas }
+
+        const { extractPdfData } = await import(pathToFileURL(extractPath))
+        const file = { arrayBuffer: async () => new ArrayBuffer(0) }
+        const result = await extractPdfData(file, '')
+        expect(result.imageData).toBe('data:image/png;base64,full')
+
+        globalThis.window = originalWindow
+        globalThis.document = originalDocument
+    })
 })
