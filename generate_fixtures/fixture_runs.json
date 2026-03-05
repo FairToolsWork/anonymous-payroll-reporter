@@ -84,7 +84,6 @@
             "id": "demo",
             "output_dir": "demo_files",
             "months": [
-                "2024-04",
                 "2024-05",
                 "2024-06",
                 "2024-07",
@@ -95,11 +94,11 @@
                 "2024-12",
                 "2025-01",
                 "2025-02",
-                "2025-03",
-                "2025-04"
+                "2025-03"
             ],
             "employee": {
                 "name": "Alex Sample",
+                "nat_ins_number": "QQ123456C",
                 "employer": "Example Employer Ltd",
                 "address": [
                     "1 Sample Street",
@@ -190,7 +189,6 @@
         {
             "id": "nest-demo",
             "months": [
-                "2024-04",
                 "2024-05",
                 "2024-06",
                 "2024-07",
@@ -201,8 +199,7 @@
                 "2024-12",
                 "2025-01",
                 "2025-02",
-                "2025-03",
-                "2025-04"
+                "2025-03"
             ],
             "employer_name": "Example Employer Ltd",
             "output_file": "demo_files/nest-contribution-history.xlsx"

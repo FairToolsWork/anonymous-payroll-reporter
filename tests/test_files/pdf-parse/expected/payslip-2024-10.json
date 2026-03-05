@@ -60,7 +60,7 @@
         "deductions": {
             "payeTax": {
                 "title": "PAYE Tax",
-                "amount": 0
+                "amount": 135.74
             },
             "natIns": {
                 "title": "National Insurance",
@@ -74,14 +74,7 @@
                 "title": "NEST Corporation - ER",
                 "amount": 38.48
             },
-            "misc": [
-                {
-                    "title": "PAYETax",
-                    "units": null,
-                    "rate": null,
-                    "amount": 135.74
-                }
-            ]
+            "misc": []
         },
         "thisPeriod": {
             "earningsNI": {
@@ -94,7 +87,7 @@
             },
             "totalGrossPay": {
                 "title": "Total Gross Pay",
-                "amount": 2462.5
+                "amount": 1802.6
             },
             "payCycle": {
                 "title": "Pay Cycle",
@@ -104,7 +97,7 @@
         "yearToDate": {
             "totalGrossPayTD": 13216.54,
             "grossForTaxTD": 12737.7,
-            "taxPaidTD": 828.59,
+            "taxPaidTD": 1064.63,
             "earningsForNITD": 13216.54,
             "nationalInsuranceTD": 705.67,
             "employeePensionTD_AVC": 478.84,

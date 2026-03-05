@@ -67,7 +67,7 @@
         "deductions": {
             "payeTax": {
                 "title": "PAYE Tax",
-                "amount": 0
+                "amount": 227.83
             },
             "natIns": {
                 "title": "National Insurance",
@@ -82,12 +82,6 @@
                 "amount": 53.02
             },
             "misc": [
-                {
-                    "title": "PAYETax",
-                    "units": null,
-                    "rate": null,
-                    "amount": 227.83
-                },
                 {
                     "title": "Other Net Deduction",
                     "units": null,
@@ -107,7 +101,7 @@
             },
             "totalGrossPay": {
                 "title": "Total Gross Pay",
-                "amount": 2462.5
+                "amount": 2287.3
             },
             "payCycle": {
                 "title": "Pay Cycle",
@@ -117,7 +111,7 @@
         "yearToDate": {
             "totalGrossPayTD": 15503.84,
             "grossForTaxTD": 14936.63,
-            "taxPaidTD": 828.59,
+            "taxPaidTD": 1292.46,
             "earningsForNITD": 15503.84,
             "nationalInsuranceTD": 854.39,
             "employeePensionTD_AVC": 567.21,
