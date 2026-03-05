@@ -1,11 +1,27 @@
 {
     "name": "Anonymous Payroll Reporter",
     "short_name": "Pay Reporter",
+    "description": "Forensic payroll analysis for employees",
+    "id": "./index.html",
     "start_url": "./index.html",
     "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone"],
     "orientation": "portrait-primary",
     "background_color": "#F0ECE4",
     "theme_color": "#C2552E",
+    "screenshots": [
+        {
+            "src": "icons/apple-splash-2160-1620.png",
+            "sizes": "2160x1620",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "icons/apple-splash-1668-2224.png",
+            "sizes": "1668x2224",
+            "type": "image/png"
+        }
+    ],
     "icons": [
         {
             "src": "icons/manifest-icon-192.maskable.png",
