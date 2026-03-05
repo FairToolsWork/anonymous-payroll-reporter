@@ -14,10 +14,11 @@ def build_line_map(words):
     return lines, line_text
 
 
-def find_line(line_text, needle):
+def find_line(line_text, needle, exclude=None):
     for top, text in line_text.items():
         if needle in text:
-            return top
+            if exclude is None or exclude not in text:
+                return top
     raise ValueError(f"Line not found for {needle}")
 
 

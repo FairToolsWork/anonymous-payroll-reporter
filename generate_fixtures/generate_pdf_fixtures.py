@@ -445,6 +445,7 @@ def apply_fixture(
     year,
     reset_payrun,
     employee_name=None,
+    employee_nat_ins=None,
     employer_name=None,
     employee_address=None,
     overrides=None,
@@ -461,6 +462,7 @@ def apply_fixture(
         year,
         reset_payrun,
         employee_name=employee_name,
+        employee_nat_ins=employee_nat_ins,
         employer_name=employer_name,
         employee_address=employee_address,
         overrides=overrides,
@@ -628,6 +630,7 @@ def main():
         if not isinstance(employee, dict):
             raise ValueError("employee must be an object when provided")
         employee_name = employee.get("name") if "name" in employee else None
+        employee_nat_ins = employee.get("nat_ins_number") if "nat_ins_number" in employee else None
         employer_name = employee.get("employer") if "employer" in employee else None
         employee_address = employee.get("address") if "address" in employee else None
         if employee_address is not None and not isinstance(employee_address, list):
@@ -654,6 +657,9 @@ def main():
             month_employee_name = (
                 overrides.get("name") if "name" in overrides else employee_name
             )
+            month_employee_nat_ins = (
+                overrides.get("nat_ins_number") if "nat_ins_number" in overrides else employee_nat_ins
+            )
             month_employer_name = (
                 overrides.get("employer") if "employer" in overrides else employer_name
             )
@@ -677,6 +683,7 @@ def main():
                 year,
                 reset_payrun=(year == 2025 and month_number == 4),
                 employee_name=month_employee_name,
+                employee_nat_ins=month_employee_nat_ins,
                 employer_name=month_employer_name,
                 employee_address=month_employee_address,
                 overrides=month_fixture_overrides,

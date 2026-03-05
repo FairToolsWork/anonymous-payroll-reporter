@@ -268,6 +268,7 @@ def apply_fixture(
     year,
     reset_payrun,
     employee_name=None,
+    employee_nat_ins=None,
     employer_name=None,
     employee_address=None,
     overrides=None,
@@ -285,6 +286,29 @@ def apply_fixture(
 
     def _align_right(word_list, indices, target_x1):
         align_right(word_list, indices, target_x1, _FONT_NAME, _FONT_NAME_BOLD)
+
+    ytd_anchor_top = find_line_containing(line_text, year_to_date["anchor"])
+    ytd_anchor_indices = _find_phrase_indices(
+        _label_tokens(year_to_date["anchor"]),
+        line_map[ytd_anchor_top],
+        words,
+    )
+    ytd_left = min(words[idx]["x0"] for idx in ytd_anchor_indices)
+    this_period_anchor_top = find_line_containing(line_text, this_period["anchor"])
+    this_period_right = max(
+        words[idx]["x1"]
+        for idx in line_map[this_period_anchor_top]
+        if words[idx]["x0"] < ytd_left
+    )
+    period_split_x = (this_period_right + ytd_left) / 2
+
+    def _period_numeric(line_top):
+        left_indices = [i for i in line_map[line_top] if words[i]["x0"] < period_split_x]
+        return find_numeric_indices(words, left_indices)
+
+    def _ytd_numeric(line_top):
+        right_indices = [i for i in line_map[line_top] if words[i]["x0"] >= period_split_x]
+        return find_numeric_indices(words, right_indices)
 
     basic_top = find_line(line_text, header_bar["basicLineAnchor"])
     basic_indices = line_map[basic_top]
@@ -314,6 +338,30 @@ def apply_fixture(
     for idx, value in zip(basic_numeric, replacements):
         update_text(words, idx, value)
     paye_idx = basic_numeric[-1]
+    if len(basic_numeric) >= 3:
+        sorted_basic = sorted(basic_indices, key=lambda i: words[i]["x0"])
+        amount_idx = basic_numeric[2]
+        if amount_idx in sorted_basic and paye_idx in sorted_basic:
+            amount_pos = sorted_basic.index(amount_idx)
+            paye_pos = sorted_basic.index(paye_idx)
+            label_indices = sorted_basic[amount_pos + 1: paye_pos]
+            paye_label = deductions_table.get("payeTaxLabel")
+            if len(label_indices) >= 2 and paye_label:
+                tokens = paye_label.split()
+                if len(tokens) >= 2:
+                    gap = 2
+                    label_a = words[label_indices[0]]
+                    label_b = words[label_indices[1]]
+                    label_size = max(6, round(label_a["bottom"] - label_a["top"], 1))
+                    update_text(words, label_indices[0], tokens[0])
+                    update_text(words, label_indices[1], tokens[1])
+                    width_a = stringWidth(tokens[0], _FONT_NAME, label_size)
+                    width_b = stringWidth(tokens[1], _FONT_NAME, label_size)
+                    label_a["x1"] = label_a["x0"] + width_a
+                    label_b["x0"] = max(label_b["x0"], label_a["x1"] + gap)
+                    label_b["x1"] = label_b["x0"] + width_b
+                    for idx in label_indices[2:]:
+                        update_text(words, idx, "")
     makeup_top = basic_top + line_offset
     makeup_indices = line_map[makeup_top]
     makeup_numeric = find_numeric_indices(words, makeup_indices)
@@ -523,24 +571,32 @@ def apply_fixture(
             }
         )
 
-    earnings_top = find_line(line_text, this_period["earningsNiLabel"])
-    earnings_numeric = find_numeric_indices(words, line_map[earnings_top])
+    earnings_top = find_line_containing(line_text, this_period["anchor"])
+    earnings_numeric = _period_numeric(earnings_top)
     update_text(words, earnings_numeric[0], fmt_money(data["gross"]))
-    update_text(words, earnings_numeric[1], fmt_money(data["ytd_gross"]))
+    earnings_ytd_numeric = _ytd_numeric(earnings_top)
+    update_text(words, earnings_ytd_numeric[0], fmt_money(data["ytd_gross"]))
 
-    gross_tax_top = find_line(line_text, this_period["grossTaxLabel"])
-    gross_tax_numeric = find_numeric_indices(words, line_map[gross_tax_top])
+    period_sorted_tops = [
+        t for t in sorted(line_map)
+        if t >= earnings_top and find_numeric_indices(words, line_map[t])
+    ]
+    gross_tax_top = period_sorted_tops[1]
+    gross_tax_numeric = _period_numeric(gross_tax_top)
     update_text(words, gross_tax_numeric[0], fmt_money(round(data["gross"] - data["ee"], 2)))
-    update_text(words, gross_tax_numeric[1], fmt_money(data["ytd_gross_tax"]))
+    gross_tax_ytd_numeric = _ytd_numeric(gross_tax_top)
+    update_text(words, gross_tax_ytd_numeric[0], fmt_money(data["ytd_gross_tax"]))
 
-    gross_pay_top = find_line(line_text, this_period["totalGrossPayLabel"])
-    gross_pay_numeric = find_numeric_indices(words, line_map[gross_pay_top])
+    gross_pay_top = period_sorted_tops[2]
+    gross_pay_numeric = _period_numeric(gross_pay_top)
     update_text(words, gross_pay_numeric[0], fmt_money(data["gross"]))
-    update_text(words, gross_pay_numeric[1], fmt_money(data["ytd_gross"]))
 
-    pay_cycle_top = find_line(line_text, this_period["payCycleLabel"])
-    pay_cycle_numeric = find_numeric_indices(words, line_map[pay_cycle_top])
-    update_text(words, pay_cycle_numeric[0], fmt_money(data["ytd_gross"]))
+    tax_paid_td_idx = _ytd_numeric(gross_pay_top)[0]
+    update_text(words, tax_paid_td_idx, fmt_money(data["ytd_paye"]))
+
+    pay_cycle_top = period_sorted_tops[3]
+    pay_cycle_ytd_numeric = _ytd_numeric(pay_cycle_top)
+    update_text(words, pay_cycle_ytd_numeric[0], fmt_money(data["ytd_gross"]))
 
     ni_td_top = find_line(line_text, year_to_date["niTdLabel"])
     ni_td_idx = find_numeric_indices(words, line_map[ni_td_top])[0]
@@ -555,10 +611,10 @@ def apply_fixture(
     update_text(words, er_td_idx, fmt_money(data["ytd_er"]))
 
     ytd_amount_indices = [
-        earnings_numeric[1],
-        gross_tax_numeric[1],
-        gross_pay_numeric[1],
-        pay_cycle_numeric[0],
+        earnings_ytd_numeric[0],
+        gross_tax_ytd_numeric[0],
+        tax_paid_td_idx,
+        pay_cycle_ytd_numeric[0],
         ni_td_idx,
         ee_td_idx,
         er_td_idx,
@@ -680,6 +736,9 @@ def apply_fixture(
         name_width = name_word["x1"] - name_word["x0"]
         if employee_name is not None:
             update_text(words, header_entries[0], employee_name)
+            update_text(words, header_entries[1], "")
+        if employee_nat_ins is not None:
+            update_text(words, header_entries[5], employee_nat_ins)
         employee_x0 = max(0, name_word["x0"] - _EMPLOYEE_ID_OFFSET)
         words.append(
             {
