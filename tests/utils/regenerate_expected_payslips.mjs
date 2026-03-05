@@ -44,6 +44,6 @@ for (const fixturesDir of fixtureDirs) {
             ? filename.replace(/\.pdf$/i, '.edge.json')
             : filename.replace(/\.pdf$/i, '.json')
         const expectedPath = path.join(expectedDir, expectedFilename)
-        fs.writeFileSync(expectedPath, `${JSON.stringify(record, null, 2)}\n`)
+        fs.writeFileSync(expectedPath, `${JSON.stringify(record, null, 4)}\n`)
     }
 }

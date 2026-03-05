@@ -445,7 +445,7 @@ def apply_fixture(
 
 def draw_pdf(words, width, height, output_path, background_image, word_groups=None):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    c = canvas.Canvas(str(output_path), pagesize=(width, height))
+    c = canvas.Canvas(str(output_path), pagesize=(width, height), invariant=1)
     if background_image is not None:
         c.drawImage(background_image, 0, 0, width=width, height=height)
 

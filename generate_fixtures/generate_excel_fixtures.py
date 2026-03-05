@@ -1,8 +1,10 @@
 import importlib.util
 import calendar
 import json
+import re
 import sys
-from datetime import date
+import zipfile
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,6 +16,49 @@ PENS_QUAL_LOWER_MONTHLY = 0.0
 PENS_QUAL_UPPER_MONTHLY = 0.0
 PENS_EMPLOYEE_RATE = 0.0
 PENS_EMPLOYER_RATE = 0.0
+FIXED_METADATA_DT = datetime(2024, 1, 1, tzinfo=timezone.utc)
+FIXED_METADATA_ISO = "2024-01-01T00:00:00Z"
+FIXED_ZIP_TIMESTAMP = (2024, 1, 1, 0, 0, 0)
+
+
+def normalize_workbook_metadata(workbook):
+    props = workbook.properties
+    props.created = FIXED_METADATA_DT
+    props.modified = FIXED_METADATA_DT
+    props.lastModifiedBy = "fixtures"
+
+
+def normalize_xlsx_archive(output_path):
+    temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    with zipfile.ZipFile(output_path, "r") as source:
+        with zipfile.ZipFile(temp_path, "w") as dest:
+            for info in sorted(source.infolist(), key=lambda item: item.filename):
+                data = source.read(info.filename)
+                if info.filename == "docProps/core.xml":
+                    text = data.decode("utf-8")
+                    text = re.sub(
+                        r"<dcterms:created[^>]*>.*?</dcterms:created>",
+                        f"<dcterms:created xsi:type=\"dcterms:W3CDTF\">{FIXED_METADATA_ISO}</dcterms:created>",
+                        text,
+                    )
+                    text = re.sub(
+                        r"<dcterms:modified[^>]*>.*?</dcterms:modified>",
+                        f"<dcterms:modified xsi:type=\"dcterms:W3CDTF\">{FIXED_METADATA_ISO}</dcterms:modified>",
+                        text,
+                    )
+                    data = text.encode("utf-8")
+                new_info = zipfile.ZipInfo(info.filename, date_time=FIXED_ZIP_TIMESTAMP)
+                new_info.compress_type = info.compress_type
+                new_info.external_attr = info.external_attr
+                new_info.internal_attr = info.internal_attr
+                new_info.flag_bits = info.flag_bits
+                new_info.create_system = info.create_system
+                new_info.create_version = info.create_version
+                new_info.extract_version = info.extract_version
+                new_info.volume = info.volume
+                new_info.comment = info.comment
+                dest.writestr(new_info, data)
+    temp_path.replace(output_path)
 
 
 def load_inputs():
@@ -187,7 +232,9 @@ def main():
             ws = wb.active
             ws.title = structure["sheet_name"]
             ws.append(["Totally ", "Wrong", "Document", "Not ", "A ", "Correct ", "Report"])
+            normalize_workbook_metadata(wb)
             wb.save(output_path)
+            normalize_xlsx_archive(output_path)
         elif variant == "mixed_employers":
             mixed_employers = run.get("mixed_employer_names", [employer_name, "Some Other Company Ltd"])
             import openpyxl
@@ -201,10 +248,14 @@ def main():
                 emp = mixed_employers[i % len(mixed_employers)]
                 row = generator._build_row(entry, structure, emp)
                 ws.append(row)
+            normalize_workbook_metadata(wb)
             wb.save(output_path)
+            normalize_xlsx_archive(output_path)
         else:
             wb = generator.generate_workbook(transformed, structure, employer_name)
+            normalize_workbook_metadata(wb)
             wb.save(output_path)
+            normalize_xlsx_archive(output_path)
 
 
 if __name__ == "__main__":
