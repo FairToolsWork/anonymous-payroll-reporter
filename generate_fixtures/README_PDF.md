@@ -27,8 +27,10 @@ All commands are run from the repo root (or the `pwa/` folder — both resolve t
 
 | Command                        | What it does                                                                                                                                                      |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm fixtures:generate`       | Runs `generate_pdf_fixtures.py` — generates all fixture PDFs defined in `fixture_runs.json`                                                                       |
-| `pnpm fixtures:expected`       | Runs `regenerate_expected_payslips.mjs` — snapshots the current fixture parse output as the expected baseline for `pdf_parse.test.mjs`                            |
+| `pnpm fixtures:patterns`       | Runs `generate_patterns.mjs` — regenerates the label-derived section of `patterns.js` from `labels.json`                                                          |
+| `pnpm fixtures:generate`       | Runs `fixtures:patterns`, then PDF generation, expected snapshot regeneration, and Excel generation in sequence                                                   |
+| `pnpm fixtures:expected-pdf`   | Runs `regenerate_expected_payslips.mjs` — snapshots the current fixture parse output as the expected baseline for `pdf_parse.test.mjs`                            |
+| `pnpm fixtures:expected-excel` | Runs `regenerate_expected_contributions.mjs` — snapshots the current contribution parse output as the expected baseline for `excel_contribution.test.mjs`         |
 | `pnpm fixtures:print-pdf-text` | Runs `print_pdf_text.py` — prints all text lines from the current format's base PDF with vertical positions, for use when configuring anchors in `structure.json` |
 | `pnpm test:all`                | Runs the full vitest suite                                                                                                                                        |
 
@@ -36,7 +38,7 @@ Typical workflow after changing payroll inputs or structure:
 
 ```bash
 pnpm fixtures:generate
-pnpm fixtures:expected
+pnpm fixtures:expected-pdf
 pnpm test:all
 ```
 
@@ -46,18 +48,18 @@ pnpm test:all
 | ----------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Sage UK** | `generate_fixtures/formats/sage-uk/structure.json` | - `generate_fixtures/formats/sage-uk/test-payslip-no-pw.pdf` (data) <br> - `generate_fixtures/formats/sage-uk/test-payslip-blank-©sage-(uk)-limited.pdf` (background) |
 
-To add a new format, create a new directory under `generate_fixtures/formats/`, add the two source PDFs, a `structure.json`, and a `schema.json` (see the file reference below), then point `default_structure` in `fixture_runs.json` at it or set `structure` on individual runs.
+To add a new format, create a new directory under `generate_fixtures/formats/`, add the two source PDFs, a `structure.json`, a `schema.json`, and a `labels.json` (see the file reference below), then point `default_payroll_structure` in `fixture_runs.json` at it or set `structure` on individual entries in `payroll_runs`.
 
 > **Note:** `generate_pdf_fixtures.py` currently contains Sage UK-specific processing logic — it knows the exact semantics of each section (which fields are numeric, how many YTD columns each row has, how the pay run token is structured, etc.). Adding a genuinely different format would require updates to `apply_fixture()` in addition to the config files.
 
 ## Switching formats
 
-Fixture generation is deployed for one payroll format at a time. Switching format means changing **one value** in `fixture_runs.json` — the `default_structure` field (or the `structure` field on a specific run):
+Fixture generation is deployed for one payroll format at a time. Switching format means changing **one value** in `fixture_runs.json` — the `default_payroll_structure` field (or the `structure` field on a specific run in `payroll_runs`):
 
 ```json
 {
-    "default_structure": "generate_fixtures/formats/<name>/structure.json",
-    "runs": [ ... ]
+    "default_payroll_structure": "generate_fixtures/formats/<name>/structure.json",
+    "payroll_runs": [ ... ]
 }
 ```
 
@@ -65,7 +67,7 @@ The rest of the pipeline (fixture generation, expected snapshot regeneration, te
 
 ```bash
 pnpm fixtures:generate
-pnpm fixtures:expected
+pnpm fixtures:expected-pdf
 pnpm test:all
 ```
 
@@ -73,21 +75,27 @@ You must also switch the PWA parser to match — see `pwa/README.md` for the par
 
 ## Adding a new format
 
-A new format requires a directory under `generate_fixtures/formats/<name>/` containing four files:
+A new format requires a directory under `generate_fixtures/formats/<name>/` containing five files:
 
-1. **`structure.json`** — layout config: source PDF paths, anchor strings, position nudges. See the [File reference](#file-reference) below for the full schema.
+1. **`labels.json`** — the single source of truth for all label strings shared between the PDF generator and the PWA parser. Each entry defines a label as it appears in the PDF, which section and key of `structure.json` it populates at runtime, and the regex suffix used to generate the corresponding pattern in `patterns.js`. See [`labels.json`](#labelsjson) in the file reference below.
 
-2. **`schema.json`** — declares which sections and string keys `structure.json` must contain. Validated automatically by `load_structure()`. Copy from `formats/sage-uk/schema.json` and adapt to match your section names.
+2. **`structure.json`** — layout config: source PDF paths, anchor strings, position nudges. Label strings are _not_ stored here directly — they are injected from `labels.json` at load time by `load_structure()`. See the [File reference](#file-reference) below for the full schema.
 
-3. **`processor.py`** — format-specific processing logic. `generate_pdf_fixtures.py` loads this at runtime via `importlib`. Must expose:
+3. **`schema.json`** — declares which sections and string keys `structure.json` must contain. Validated automatically by `load_structure()` after `labels.json` has been merged in. Copy from `formats/sage-uk/schema.json` and adapt to match your section names.
+
+4. **`processor.py`** — format-specific processing logic. `generate_pdf_fixtures.py` loads this at runtime via `importlib`. Must expose:
     - `configure(structure)` — called once per run; read layout config from `structure.json` into module state
     - `apply_fixture(words, line_map, line_text, structure, payroll_constants, data, month_index, month_label, year, reset_payrun, ...)` — mutates the word list for one month and returns the grouped word dict for rendering
 
     Import generic PDF utilities from `pdf_utils.py` (shared, format-agnostic helpers). See `formats/sage-uk/processor.py` as a reference implementation.
 
-4. **Source PDFs** — a base PDF with real data (for extracting word positions and anchor strings) and a blank background PDF (rendered as the visual layer). See [Why two source PDFs](#why-two-source-pdfs).
+5. **Source PDFs** — a base PDF with real data (for extracting word positions and anchor strings) and a blank background PDF (rendered as the visual layer). See [Why two source PDFs](#why-two-source-pdfs).
 
-Once the directory is in place, point `default_structure` in `fixture_runs.json` at `generate_fixtures/formats/<name>/structure.json` and run `pnpm fixtures:generate` to test.
+Once the directory is in place:
+
+1. Point `default_payroll_structure` in `fixture_runs.json` at `generate_fixtures/formats/<name>/structure.json`
+2. Run `pnpm fixtures:patterns` to generate the label-derived section of `pwa/js/parse/formats/<name>/patterns.js`
+3. Run `pnpm fixtures:generate` to generate the fixture PDFs
 
 ### Sage UK layout
 
@@ -215,20 +223,18 @@ Defines the payroll data to calculate from. Two top-level keys:
 
 ### `fixture_runs.json`
 
-Defines all fixture generation runs. Each entry in `runs` produces a set of PDFs in its `output_dir`.
+Defines all fixture generation runs. Each entry in `payroll_runs` produces a set of PDFs in its `output_dir`.
 
 **Run fields:**
 
-| Field                | Required | Description                                                                                             |
-| -------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| `id`                 | yes      | Human-readable identifier (for reference only)                                                          |
-| `structure`          | no       | Path to the format structure JSON, relative to repo root. Falls back to `default_structure` if omitted. |
-| `output_dir`         | yes      | Output directory for generated PDFs, relative to repo root                                              |
-| `months`             | yes      | Array of `YYYY-MM` strings to generate                                                                  |
-| `missing_months`     | no       | Months to skip even if listed in `months`                                                               |
-| `employee`           | no       | Default employee override for the run (see below)                                                       |
-| `employee_overrides` | no       | Per-month employee overrides keyed by `YYYY-MM`                                                         |
-| `fixture_overrides`  | no       | Per-month fixture flags keyed by `YYYY-MM`                                                              |
+- `id` (required): Human-readable identifier (for reference only)
+- `structure` (optional): Path to the format structure JSON, relative to repo root. Uses `default_payroll_structure` when omitted.
+- `output_dir` (required): Output directory for generated PDFs, relative to repo root
+- `months` (required): Array of `YYYY-MM` strings to generate
+- `missing_months` (optional): Months to skip even if listed in `months`
+- `employee` (optional): Default employee override for the run (see below)
+- `employee_overrides` (optional): Per-month employee overrides keyed by `YYYY-MM`
+- `fixture_overrides` (optional): Per-month fixture flags keyed by `YYYY-MM`
 
 **`employee` / `employee_overrides` fields:**
 
@@ -268,9 +274,28 @@ A processor module must expose:
 
 It may also expose `DEBUG_BOX_COLOURS` (a dict mapping group names to RGB tuples) for debug box rendering.
 
+### `labels.json`
+
+Lives alongside `structure.json` in the format's directory (e.g. `generate_fixtures/formats/sage-uk/labels.json`). This is the **single source of truth** for all label strings shared between the PDF generator and the PWA parser. `load_structure()` reads this file and merges each label string into the appropriate section of the structure dict before validation — the label strings never need to be duplicated in `structure.json`.
+
+Each entry in the array defines one label:
+
+| Field              | Required | Description                                                                                                                                                                                                                               |
+| ------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `key`              | yes      | Camelcase key name — used as the `patterns.js` property name and as the base for `structureKey`                                                                                                                                           |
+| `label`            | yes      | The exact string as it appears in the PDF                                                                                                                                                                                                 |
+| `structureSection` | yes      | Which top-level section of `structure.json` this label belongs to (e.g. `"deductions_table"`)                                                                                                                                             |
+| `structureKey`     | yes      | The key name under that section where the label string will be injected (e.g. `"pensionEeLabel"`)                                                                                                                                         |
+| `patternSuffix`    | yes      | The regex capture group appended after the label prefix when generating the pattern (e.g. `"\\s+([\\d,]+\\.\\d{2})"`)                                                                                                                     |
+| `patternFlags`     | yes      | Regex flags (e.g. `"i"`)                                                                                                                                                                                                                  |
+| `patternOverride`  | no       | If present, this literal regex string is used verbatim instead of the auto-generated one. Use this when the label alone cannot fully describe the pattern (e.g. a negative lookahead is needed). Always document the reason in `comment`. |
+| `comment`          | no       | Explains the purpose of the entry and, if `patternOverride` is set, why it deviates from the auto-generated form                                                                                                                          |
+
+`pnpm fixtures:patterns` reads this file and writes the generated section of `pwa/js/parse/formats/<name>/patterns.js`. Entries with `patternOverride` are used verbatim and reported in the script output so overrides are always visible.
+
 ### `schema.json`
 
-Lives alongside `structure.json` in the format's directory (e.g. `generate_fixtures/formats/sage-uk/schema.json`). Declares which sections are required and which string keys each section must have. `load_structure()` loads this file automatically from the same directory as `structure.json` and validates every listed key is present as a non-empty string in the corresponding section.
+Lives alongside `structure.json` in the format's directory (e.g. `generate_fixtures/formats/sage-uk/schema.json`). Declares which sections are required and which string keys each section must have. `load_structure()` loads this file automatically from the same directory as `structure.json` and validates every listed key is present as a non-empty string in the corresponding section — this runs _after_ `labels.json` has been merged in, so label keys populated from `labels.json` do not need to be listed here.
 
 A different format can declare completely different sections and keys here without touching the core script.
 
@@ -297,12 +322,12 @@ Lives in the format's directory (e.g. `generate_fixtures/formats/sage-uk/structu
 
 **Section objects** (`header_bar`, `payments_table`, `deductions_table`, `address_block`, `this_period`, `year_to_date`, `footer`) — each has:
 
-- String keys matching what `schema` declares (used as text anchors to locate lines in the source PDF)
+- String keys matching what `schema` declares (used as text anchors to locate lines in the source PDF). Label strings from `labels.json` are merged into these sections automatically at load time and do not need to be duplicated in `structure.json`.
 - A `position` object with `anchor_point [x, y]`, `max_width`, `nudge [x, y]`, and optional section-specific spacing keys
 
 **`address_block`** additionally has:
 
-- `name_anchor` — a string uniquely identifying the employee name line in the address column
+- `nameAnchor` — a string uniquely identifying the employee name line in the address column
 - `address_lines` — how many lines of address follow the anchor (used when replacing address content)
 
 **`header_bar.position`** additional keys:
