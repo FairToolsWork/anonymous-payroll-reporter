@@ -30,8 +30,6 @@ jobs:
               with:
                   node-version: 20
             - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
             - name: Allow pnpm root installs
               run: pnpm config set ignore-workspace-root-check true
             - name: Install Node dependencies
