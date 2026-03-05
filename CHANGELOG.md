@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.3.0...anonymous-payroll-reporter-v1.4.0) (2026-03-05)
+
+
+### Features
+
+* **fixtures:** generate demo instructions and expand attribution notices for demo assets ([b2a5c5e](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b2a5c5eab92a2c826090442765ff3532e22a0811))
+
 ## [1.3.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.2.0...anonymous-payroll-reporter-v1.3.0) (2026-03-05)
 
 
