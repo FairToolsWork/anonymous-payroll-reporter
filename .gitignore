@@ -6,4 +6,5 @@ __pycache__
 !tests/test_files/excel-contribution/expected/nest_contribution_target_summary.js
 tests/test_files/.DS_Store
 pwa/demo/*
+!pwa/demo/anonymous-payroll-reporter-demo-files.zip
 !pwa/demo/.gitkeep

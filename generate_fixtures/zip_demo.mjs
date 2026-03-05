@@ -10,7 +10,8 @@ import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const BASE_DIR = resolve(__dirname, '..')
 const DEMO_DIR = join(BASE_DIR, 'pwa', 'demo')
-const ZIP_PATH = join(DEMO_DIR, 'demo-files.zip')
+const ZIP_PATH = join(DEMO_DIR, 'anonymous-payroll-reporter-demo-files.zip')
+const FIXED_MTIME = new Date('2024-01-01T00:00:00Z')
 
 const INCLUDE = [
     /^payslip-\d{4}-\d{2}\.pdf$/,
@@ -180,7 +181,7 @@ async function main() {
         files.map(async ({ name, dataPromise }) => ({
             name,
             data: await dataPromise,
-            mtime: new Date(),
+            mtime: FIXED_MTIME,
         }))
     )
 
