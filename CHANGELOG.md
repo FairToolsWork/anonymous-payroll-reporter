@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.2.0...anonymous-payroll-reporter-v1.3.0) (2026-03-05)
+
+
+### Features
+
+* **demo:** publish demo zip and keep links versioned ([cc09df8](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/cc09df88ed44dadfb3dbbfcfbbf94b31d3af2020))
+
+
+### Bug Fixes
+
+* **fixtures:** stabilize generated outputs across runs ([d40dd8c](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/d40dd8c94607528ca42d61b7733bc800fec4d4ea))
+
 ## [1.2.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.1.1...anonymous-payroll-reporter-v1.2.0) (2026-03-04)
 
 
