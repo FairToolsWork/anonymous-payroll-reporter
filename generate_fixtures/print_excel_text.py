@@ -18,11 +18,11 @@ def main():
             raise FileNotFoundError(f"fixture_runs.json not found: {CONFIG_PATH}")
         with CONFIG_PATH.open("r", encoding="utf-8") as fh:
             config = json.load(fh)
-        excel_runs = config.get("excel_runs") or []
-        if not excel_runs:
-            print("No excel_runs defined in fixture_runs.json")
+        pension_runs = config.get("pension_runs") or []
+        if not pension_runs:
+            print("No pension_runs defined in fixture_runs.json")
             return
-        first_run = excel_runs[0]
+        first_run = pension_runs[0]
         output_file = first_run.get("output_file")
         if not output_file:
             raise ValueError("First excel run has no output_file")

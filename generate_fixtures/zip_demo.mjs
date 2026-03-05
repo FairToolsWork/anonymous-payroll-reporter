@@ -2,21 +2,85 @@ import {
     createReadStream,
     createWriteStream,
     readdirSync,
+    readFileSync,
     unlinkSync,
+    writeFileSync,
 } from 'fs'
+import { parse } from 'jsonc-parser'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const BASE_DIR = resolve(__dirname, '..')
-const DEMO_DIR = join(BASE_DIR, 'pwa', 'demo')
+const DEMO_DIR = join(BASE_DIR, 'demo_files')
 const ZIP_PATH = join(DEMO_DIR, 'anonymous-payroll-reporter-demo-files.zip')
 const FIXED_MTIME = new Date('2024-01-01T00:00:00Z')
 
-const INCLUDE = [
-    /^payslip-\d{4}-\d{2}\.pdf$/,
-    /^nest-contribution-history\.xlsx$/,
-]
+const INCLUDE = [/^DEMO-INSTRUCTIONS\.txt$/, /\.pdf$/i, /\.xlsx$/i]
+
+const CONFIG_PATH = join(BASE_DIR, 'generate_fixtures', 'fixture_runs.json')
+const TEMPLATE_PATH = join(
+    BASE_DIR,
+    'generate_fixtures',
+    'instructions_template.md'
+)
+const WRANGLER_PATH = join(BASE_DIR, 'wrangler.jsonc')
+const INSTRUCTIONS_FILENAME = 'DEMO-INSTRUCTIONS.txt'
+
+function stripMarkdown(text) {
+    return text
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/^>\s?/gm, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\r/g, '')
+        .trim()
+}
+
+function readFormatNotice(formatName) {
+    const source = join(
+        BASE_DIR,
+        'generate_fixtures',
+        'formats',
+        formatName,
+        'README.md'
+    )
+    return stripMarkdown(readFileSync(source, 'utf8'))
+}
+
+function getProductionUrl() {
+    const contents = readFileSync(WRANGLER_PATH, 'utf8')
+    const config = parse(contents)
+    const pattern = config?.routes?.[0]?.pattern
+    if (!pattern) {
+        return ''
+    }
+    const host = pattern.replace(/\/\*$/, '')
+    return host ? `https://${host}` : ''
+}
+
+function buildInstructions() {
+    const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'))
+    const payrollStructure = config.default_payroll_structure
+    const pensionStructure = config.default_pension_structure
+    const payrollFormat = payrollStructure?.split('/formats/')[1]?.split('/')[0]
+    const pensionFormat = pensionStructure?.split('/formats/')[1]?.split('/')[0]
+    const template = stripMarkdown(readFileSync(TEMPLATE_PATH, 'utf8')).replace(
+        '{{PRODUCTION_URL}}',
+        getProductionUrl()
+    )
+    const notices = []
+
+    if (payrollFormat) {
+        notices.push(readFormatNotice(payrollFormat))
+    }
+    if (pensionFormat && pensionFormat !== payrollFormat) {
+        notices.push(readFormatNotice(pensionFormat))
+    }
+
+    return [template, ...notices].filter(Boolean).join('\n\n') + '\n'
+}
 
 /**
  * Minimal ZIP writer — no dependencies beyond Node built-ins.
@@ -145,12 +209,17 @@ async function buildZip(files) {
 async function main() {
     let filenames
     try {
-        filenames = readdirSync(DEMO_DIR)
+        readdirSync(DEMO_DIR)
     } catch {
         console.error(`Demo directory not found: ${DEMO_DIR}`)
         console.error('Run fixtures:generate first.')
         process.exit(1)
     }
+
+    const instructionsPath = join(DEMO_DIR, INSTRUCTIONS_FILENAME)
+    writeFileSync(instructionsPath, buildInstructions(), 'utf8')
+
+    filenames = readdirSync(DEMO_DIR)
 
     const toInclude = filenames
         .filter((f) => INCLUDE.some((re) => re.test(f)))
@@ -158,7 +227,7 @@ async function main() {
 
     if (!toInclude.length) {
         console.error(
-            'No demo files found in pwa/demo/. Run fixtures:generate first.'
+            'No demo files found in demo_files/. Run fixtures:generate first.'
         )
         process.exit(1)
     }

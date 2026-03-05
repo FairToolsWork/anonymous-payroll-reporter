@@ -1,6 +1,7 @@
 {
-    "default_structure": "generate_fixtures/formats/sage-uk/structure.json",
-    "runs": [
+    "default_payroll_structure": "generate_fixtures/formats/sage-uk/structure.json",
+    "default_pension_structure": "generate_fixtures/formats/nest/excel_structure.json",
+    "payroll_runs": [
         {
             "id": "baseline",
             "output_dir": "tests/test_files/pdf-parse/fixtures",
@@ -81,7 +82,7 @@
         },
         {
             "id": "demo",
-            "output_dir": "pwa/demo",
+            "output_dir": "demo_files",
             "months": [
                 "2024-04",
                 "2024-05",
@@ -126,10 +127,9 @@
             }
         }
     ],
-    "excel_runs": [
+    "pension_runs": [
         {
             "id": "nest-correct",
-            "provider": "nest",
             "months": [
                 "2024-04",
                 "2024-05",
@@ -151,7 +151,6 @@
         },
         {
             "id": "nest-missing-ee",
-            "provider": "nest",
             "months": ["2024-04", "2024-05", "2024-06", "2024-07"],
             "employer_name": "The Better Place Catering Company Limited",
             "variant": "omit_ee",
@@ -159,7 +158,6 @@
         },
         {
             "id": "nest-missing-er",
-            "provider": "nest",
             "months": ["2024-04", "2024-05", "2024-06", "2024-07"],
             "employer_name": "The Better Place Catering Company Limited",
             "variant": "omit_er",
@@ -167,7 +165,6 @@
         },
         {
             "id": "nest-mixed-companies",
-            "provider": "nest",
             "months": [
                 "2024-04",
                 "2024-05",
@@ -185,7 +182,6 @@
         },
         {
             "id": "nest-malformed",
-            "provider": "nest",
             "months": ["2024-04"],
             "employer_name": "The Better Place Catering Company Limited",
             "variant": "malformed",
@@ -193,7 +189,6 @@
         },
         {
             "id": "nest-demo",
-            "provider": "nest",
             "months": [
                 "2024-04",
                 "2024-05",
@@ -210,11 +205,10 @@
                 "2025-04"
             ],
             "employer_name": "Example Employer Ltd",
-            "output_file": "pwa/demo/nest-contribution-history.xlsx"
+            "output_file": "demo_files/nest-contribution-history.xlsx"
         },
         {
             "id": "nest-mixed-employers-report-workflow",
-            "provider": "nest",
             "months": ["2024-04"],
             "variant": "mixed_employers",
             "mixed_employer_names": ["Employer One Ltd", "Employer Two Ltd"],

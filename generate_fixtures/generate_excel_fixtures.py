@@ -141,8 +141,8 @@ def load_generator(provider_dir):
     return module
 
 
-def load_excel_structure(provider_dir):
-    path = Path(provider_dir) / "excel_structure.json"
+def load_excel_structure(structure_path):
+    path = Path(structure_path)
     if not path.exists():
         raise FileNotFoundError(f"Missing excel_structure.json: {path}")
     with path.open("r", encoding="utf-8") as fh:
@@ -186,28 +186,35 @@ def main():
     with CONFIG_PATH.open("r", encoding="utf-8") as fh:
         config = json.load(fh)
 
-    excel_runs = config.get("excel_runs")
-    if not excel_runs:
+    pension_runs = config.get("pension_runs")
+    if not pension_runs:
         return
 
-    for run in excel_runs:
+    default_pension_structure = config.get("default_pension_structure")
+    if default_pension_structure is not None and not isinstance(default_pension_structure, str):
+        raise ValueError("Run config default_pension_structure must be a string path")
+
+    for run in pension_runs:
         if not isinstance(run, dict):
             raise ValueError("Each excel run must be a JSON object")
 
         run_id = run.get("id", "?")
-        provider = run.get("provider")
-        if not provider:
-            raise ValueError(f"Run '{run_id}' missing 'provider'")
+        structure_ref = run.get("structure") or default_pension_structure
+        if not structure_ref:
+            raise ValueError(f"Run '{run_id}' has no 'structure' and no 'default_pension_structure' is set in fixture_runs.json")
 
-        provider_dir = FORMATS_DIR / provider
+        structure_path = Path(structure_ref)
+        if not structure_path.is_absolute():
+            structure_path = BASE_DIR / structure_path
+        provider_dir = structure_path.parent
         generator = load_generator(provider_dir)
-        structure = load_excel_structure(provider_dir)
+        structure = load_excel_structure(structure_path)
         required_keys = ("sheet_name", "columns", "type_strings")
         missing_keys = [key for key in required_keys if key not in structure]
         if missing_keys:
             missing = ", ".join(missing_keys)
             raise ValueError(
-                f"excel_structure.json for provider '{provider}' is missing: {missing}"
+                f"excel_structure.json at '{structure_path}' is missing: {missing}"
             )
 
         pay_day = int(structure.get("pay_day", 20))

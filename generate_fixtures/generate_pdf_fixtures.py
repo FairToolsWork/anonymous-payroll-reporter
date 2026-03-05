@@ -517,12 +517,12 @@ def load_run_config():
         payload = json.load(handle)
     if not isinstance(payload, dict):
         raise ValueError("Run config must be a JSON object")
-    runs = payload.get("runs")
+    runs = payload.get("payroll_runs")
     if not isinstance(runs, list):
-        raise ValueError("Run config must include a 'runs' array")
-    default_structure = payload.get("default_structure")
+        raise ValueError("Run config must include a 'payroll_runs' array")
+    default_structure = payload.get("default_payroll_structure")
     if default_structure is not None and not isinstance(default_structure, str):
-        raise ValueError("Run config default_structure must be a string path")
+        raise ValueError("Run config default_payroll_structure must be a string path")
     return runs, default_structure
 
 
@@ -565,7 +565,7 @@ def main():
         structure_ref = run.get("structure") or default_structure_ref
         if not structure_ref:
             raise ValueError(
-                f"Run '{run.get('id', '?')}' has no 'structure' and no 'default_structure' is set in fixture_runs.json"
+                f"Run '{run.get('id', '?')}' has no 'structure' and no 'default_payroll_structure' is set in fixture_runs.json"
             )
         structure_path = resolve_source_path(structure_ref)
         structure_payload = load_structure(structure_path)
