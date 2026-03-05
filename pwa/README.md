@@ -1,4 +1,4 @@
-# Payroll PDF Processor (PWA)
+# Anonymous Payroll Reporter (PWA)
 
 A client-side PWA that extracts payroll data from PDF payslips and renders a printable report.
 All processing happens locally in the browser — no uploads or server calls, privacy focused.
