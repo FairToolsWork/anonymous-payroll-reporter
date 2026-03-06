@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.5.0...anonymous-payroll-reporter-v1.5.1) (2026-03-06)
+
+
+### Performance Improvements
+
+* **pwa:** add CORS metadata to external script tags, reduceing memory load ([76ee5bf](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/76ee5bfa179f30b6120d8b4e8471b5b3e061f423))
+
 ## [1.5.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.4.0...anonymous-payroll-reporter-v1.5.0) (2026-03-05)
 
 
