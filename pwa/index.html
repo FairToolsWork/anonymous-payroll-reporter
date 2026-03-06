@@ -4,6 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="Offline payroll PDF processor" />
+        <meta name="app-version" content="1.5.1" />
         <meta
             name="robots"
             content="noindex, nofollow, noarchive, nosnippet, noimageindex"
@@ -311,7 +312,12 @@
                     </button>
                 </div>
                 <div class="about-content">
-                    <p class="eyebrow">Anonymous Payroll Reporter</p>
+                    <p class="eyebrow">
+                        Anonymous Payroll Reporter
+                        <span class="pill inline ghost"
+                            >Release {{ appVersion }}</span
+                        >
+                    </p>
                     <h3>About The Project</h3>
                     <p>
                         This tool was created for a group of UK hospitality
@@ -345,7 +351,7 @@
                         Download, unzip, and upload the files to follow along
                         with the walkthrough.
                         <a
-                            href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/anonymous-payroll-reporter-v1.2.0/demo_files/anonymous-payroll-reporter-demo-files.zip"
+                            href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/main/demo_files/anonymous-payroll-reporter-demo-files.zip"
                             download="anonymous-payroll-reporter-demo-files.zip"
                             class="demo-download-link"
                             >Download sample files</a
@@ -1011,6 +1017,7 @@
                 >
                     {{ debugCopySuccess ? "Copied ✓" : "Copy debug output" }}
                 </button>
+                <p class="debug-app-version">App version: {{ appVersion }}</p>
                 <h2>Debug: Extracted Text (first PDF)</h2>
                 <pre v-if="debugText">{{ debugText }}</pre>
                 <p v-else="">No debug text captured yet.</p>

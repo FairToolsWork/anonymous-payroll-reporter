@@ -40,6 +40,7 @@
  * @property {boolean} showScrollTop
  * @property {boolean} parsingExcel
  * @property {boolean} staleInstance
+ * @property {string} appVersion
  */
 
 import { parseContributionWorkbook } from '../parse/contribution_validation.js'
@@ -64,6 +65,68 @@ const SESSION_TTL_MS = 30 * 60 * 1000
 const LAST_LOADED_AT_KEY = 'last_loaded_at'
 /** @type {number} */
 const STALE_INSTANCE_TTL_MS = 24 * 60 * 60 * 1000
+/** @type {RegExp} */
+const RELEASE_TAG_PATTERN = /anonymous-payroll-reporter-v(\d+\.\d+\.\d+)/i
+/** @type {string} */
+const UNKNOWN_APP_VERSION = 'Unknown'
+
+/**
+ * @returns {string}
+ */
+function getAppVersionFromDemoLink() {
+    const metaVersion = document
+        .querySelector('meta[name="app-version"]')
+        ?.getAttribute('content')
+    if (metaVersion) {
+        return `v${metaVersion}`
+    }
+    const demoHref =
+        document.querySelector('.demo-download-link')?.getAttribute('href') ||
+        ''
+    const hrefMatch = demoHref.match(RELEASE_TAG_PATTERN)
+    if (hrefMatch) {
+        return `v${hrefMatch[1]}`
+    }
+    const pageMarkup = document.documentElement?.innerHTML || ''
+    const pageMatch = pageMarkup.match(RELEASE_TAG_PATTERN)
+    return pageMatch ? `v${pageMatch[1]}` : UNKNOWN_APP_VERSION
+}
+
+/**
+ * @param {string} reportHtml
+ * @param {string} appVersion
+ * @returns {string}
+ */
+function injectReportVersionFootnote(reportHtml, appVersion) {
+    if (!reportHtml) {
+        return reportHtml
+    }
+    const firstPageMarker = '<div class="page">'
+    const firstPageIndex = reportHtml.indexOf(firstPageMarker)
+    if (firstPageIndex === -1) {
+        return reportHtml
+    }
+    const nextPageIndex = reportHtml.indexOf(
+        firstPageMarker,
+        firstPageIndex + firstPageMarker.length
+    )
+    const insertionBoundary =
+        nextPageIndex === -1 ? reportHtml.length : nextPageIndex
+    const pageCloseIndex = reportHtml.lastIndexOf('</div>', insertionBoundary)
+    if (pageCloseIndex === -1) {
+        return reportHtml
+    }
+    const versionLabel =
+        appVersion && appVersion !== UNKNOWN_APP_VERSION
+            ? appVersion
+            : UNKNOWN_APP_VERSION
+    const versionMarkup = `<p class="report-footnote">App version: ${versionLabel}</p>`
+    return (
+        reportHtml.slice(0, pageCloseIndex) +
+        versionMarkup +
+        reportHtml.slice(pageCloseIndex)
+    )
+}
 
 /** @returns {void} */
 export function initPayrollApp() {
@@ -125,6 +188,7 @@ export function initPayrollApp() {
                 },
                 showScrollTop: false,
                 parsingExcel: false,
+                appVersion: UNKNOWN_APP_VERSION,
             }
         },
         computed: {
@@ -393,6 +457,7 @@ export function initPayrollApp() {
             /** @returns {Promise<void>} */
             async copyDebugOutput() {
                 const payload = [
+                    `App version: ${this.appVersion || UNKNOWN_APP_VERSION}`,
                     '=== Debug: Extracted Text ===',
                     this.debugText || '<empty>',
                     '=== Debug: Parsed Values ===',
@@ -818,7 +883,10 @@ export function initPayrollApp() {
                 }
 
                 this.status = 'rendering'
-                this.reportHtml = report.html
+                this.reportHtml = injectReportVersionFootnote(
+                    report.html,
+                    this.appVersion
+                )
                 this.reportReady = true
                 this.status = 'done'
                 this.reportTimestamp = new Date().toLocaleString('en-GB')
@@ -922,6 +990,7 @@ export function initPayrollApp() {
         },
         /** @returns {void} */
         mounted() {
+            this.appVersion = getAppVersionFromDemoLink()
             if (DEBUG_LEVEL === '2') {
                 this.updateAvailable = true
             }

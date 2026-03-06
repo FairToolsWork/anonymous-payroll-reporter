@@ -13,8 +13,8 @@
                     "path": "pwa/index.html",
                     "replace": [
                         {
-                            "search": "anonymous-payroll-reporter-v\\d+\\.\\d+\\.\\d+",
-                            "replace": "anonymous-payroll-reporter-v${version}"
+                            "search": "<meta name=\"app-version\" content=\"\\d+\\.\\d+\\.\\d+\" />",
+                            "replace": "<meta name=\"app-version\" content=\"${version}\" />"
                         }
                     ]
                 }
