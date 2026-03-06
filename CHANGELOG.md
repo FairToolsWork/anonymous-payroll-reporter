@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.5.1...anonymous-payroll-reporter-v2.0.0) (2026-03-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **report:** move report context to April tax-year fiscal grouping
+
+### Features
+
+* **pwa:** surface app version in about dialog and report output ([eacfd9f](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/eacfd9f27769349944a97980a27e91f95b1fe1cd))
+* **report:** move report context to April tax-year fiscal grouping ([8b00700](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8b0070043d5a3d047f9db8ffb419ea89ca414cf2))
+
 ## [1.5.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.5.0...anonymous-payroll-reporter-v1.5.1) (2026-03-06)
 
 

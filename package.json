@@ -1,6 +1,6 @@
 {
     "name": "anonymous-payroll-reporter",
-    "version": "1.5.1",
+    "version": "2.0.0",
     "type": "module",
     "private": true,
     "author": "bnjmnrsh",
