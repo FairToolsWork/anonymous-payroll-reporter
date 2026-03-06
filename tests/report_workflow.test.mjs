@@ -9,6 +9,7 @@ import {
 } from '../pwa/js/report/build.js'
 import {
     buildContributionSummary,
+    getTaxYearKey,
     sumDeductionsForNetPay,
     sumPayments,
 } from '../pwa/js/report/report_calculations.js'
@@ -29,6 +30,12 @@ const EXCEL_FIXTURE = path.resolve(
     './test_files/excel-contribution/fixtures/nest-contribution-history-correct.xlsx'
 )
 const NET_PAY_TOLERANCE = 0.05
+
+const formatYearAnchor = (yearKey) =>
+    String(yearKey || 'unknown')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
 
 const buildRecord = (overrides = {}) => ({
     employee: { name: 'Test Person', natInsNumber: 'AB123456C' },
@@ -102,14 +109,17 @@ describe('report workflow', () => {
             expectedContributionSummary
         )
 
-        /** @type {Map<number, { expectedEE: number, expectedER: number, actualEE: number, actualER: number }>} */
+        /** @type {Map<string, { expectedEE: number, expectedER: number, actualEE: number, actualER: number }>} */
         const expectedAnnualTotals = new Map()
         result.reportContext.entries.forEach((entry) => {
             if (!(entry.parsedDate instanceof Date)) {
                 return
             }
-            const year = entry.parsedDate.getFullYear()
-            const totals = expectedAnnualTotals.get(year) || {
+            const yearKey = getTaxYearKey(entry.parsedDate)
+            if (!yearKey || yearKey === 'Unknown') {
+                return
+            }
+            const totals = expectedAnnualTotals.get(yearKey) || {
                 expectedEE: 0,
                 expectedER: 0,
                 actualEE: 0,
@@ -119,15 +129,18 @@ describe('report workflow', () => {
                 entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
             totals.expectedER +=
                 entry.record.payrollDoc?.deductions?.pensionER?.amount || 0
-            expectedAnnualTotals.set(year, totals)
+            expectedAnnualTotals.set(yearKey, totals)
         })
         const contributionEntries = result.contributionData?.entries || []
         contributionEntries.forEach((entry) => {
             if (!(entry.date instanceof Date)) {
                 return
             }
-            const year = entry.date.getFullYear()
-            const totals = expectedAnnualTotals.get(year) || {
+            const yearKey = getTaxYearKey(entry.date)
+            if (!yearKey || yearKey === 'Unknown') {
+                return
+            }
+            const totals = expectedAnnualTotals.get(yearKey) || {
                 expectedEE: 0,
                 expectedER: 0,
                 actualEE: 0,
@@ -138,7 +151,7 @@ describe('report workflow', () => {
             } else if (entry.type === 'er') {
                 totals.actualER += entry.amount || 0
             }
-            expectedAnnualTotals.set(year, totals)
+            expectedAnnualTotals.set(yearKey, totals)
         })
         const assertTotalsWithinTolerance = (actual, expected) => {
             if (!actual || !expected) {
@@ -163,11 +176,10 @@ describe('report workflow', () => {
         }
 
         result.reportContext.yearKeys.forEach((yearKey) => {
-            const numericYear = Number(yearKey)
-            if (!Number.isFinite(numericYear)) {
+            if (!yearKey || yearKey === 'Unknown') {
                 return
             }
-            const expectedTotals = expectedAnnualTotals.get(numericYear) || {
+            const expectedTotals = expectedAnnualTotals.get(yearKey) || {
                 expectedEE: 0,
                 expectedER: 0,
                 actualEE: 0,
@@ -190,11 +202,10 @@ describe('report workflow', () => {
         })
         const expectedBalance = result.reportContext.yearKeys.reduce(
             (acc, yearKey) => {
-                const numericYear = Number(yearKey)
-                if (!Number.isFinite(numericYear)) {
+                if (!yearKey || yearKey === 'Unknown') {
                     return acc
                 }
-                const totals = expectedAnnualTotals.get(numericYear) || {
+                const totals = expectedAnnualTotals.get(yearKey) || {
                     expectedEE: 0,
                     expectedER: 0,
                     actualEE: 0,
@@ -245,7 +256,7 @@ describe('report workflow', () => {
         })
 
         expect(result.report.html).toContain('Payroll Report -')
-        expect(result.report.html).toContain('<th>Year</th>')
+        expect(result.report.html).toContain('<th>Tax Year</th>')
         expect(result.report.html).toContain('<th>Hours</th>')
         expect(result.report.html).toContain('<th>Payroll Cont. (EE+ER)</th>')
         expect(result.report.html).toContain('<th>Reported (EE+ER)</th>')
@@ -264,15 +275,15 @@ describe('report workflow', () => {
                 return
             }
             const yearLabel = String(yearKey)
-            const numericYear = Number(yearLabel)
+            const yearAnchor = formatYearAnchor(yearLabel)
             expect(result.report.html).toContain(
-                `<a href="#year-summary-${yearLabel}">${yearLabel}</a>`
+                `<a href="#year-summary-${yearAnchor}">${yearLabel}</a>`
             )
             expect(result.report.html).toContain(
-                `<h2 id="year-summary-${yearLabel}">${yearLabel} Summary:`
+                `<h2 id="year-summary-${yearAnchor}">${yearLabel} Summary:`
             )
             expect(result.report.html).toContain(
-                `<h2 class="year-header" id="year-monthly-${yearLabel}">${yearLabel}</h2>`
+                `<h2 class="year-header" id="year-monthly-${yearAnchor}">${yearLabel}</h2>`
             )
             const yearMissing =
                 result.reportContext.missingMonths.missingMonthsByYear[
@@ -289,14 +300,14 @@ describe('report workflow', () => {
                 result.reportContext.entries
                     .filter(
                         (entry) =>
-                            entry.year === numericYear &&
+                            entry.yearKey === yearKey &&
                             entry.monthIndex >= 1 &&
                             entry.monthIndex <= 12
                     )
                     .map((entry) => entry.monthIndex)
             )
             monthAnchors.forEach((monthIndex) => {
-                const monthAnchor = `year-monthly-${yearLabel}-${String(
+                const monthAnchor = `year-monthly-${yearAnchor}-${String(
                     monthIndex
                 ).padStart(2, '0')}`
                 expect(result.report.html).toContain(
@@ -327,7 +338,8 @@ describe('report workflow', () => {
     it('treats failed pay periods as present months', () => {
         const record = buildRecord()
         const report = buildReport([record], ['01/02/24 - 28/02/24'])
-        expect(report.stats.missingMonthsByYear['2024']).not.toContain(
+        const taxYearKey = getTaxYearKey(new Date(2024, 1, 1))
+        expect(report.stats.missingMonthsByYear[taxYearKey]).not.toContain(
             'February'
         )
     })
@@ -365,5 +377,26 @@ describe('report workflow', () => {
         expect(report.html).toContain('<th>Reported (EE+ER)</th>')
         expect(report.html).toContain('<td>N/A</td>')
         expect(report.html).not.toContain('N/A EE / N/A ER')
+    })
+
+    it('includes April boundary note when an April payslip is present', () => {
+        const record = buildRecord({
+            payrollDoc: {
+                ...buildRecord().payrollDoc,
+                processDate: { date: '06/04/24 - 05/05/24' },
+            },
+        })
+        const report = buildReport([record])
+        const aprilNoteFragment =
+            'April payslips may include pay accrued across the 6 April tax year boundary'
+        expect(report.html).toContain(aprilNoteFragment)
+    })
+
+    it('omits April boundary note when no April payslip is present', () => {
+        const record = buildRecord()
+        const report = buildReport([record])
+        const aprilNoteFragment =
+            'April payslips may include pay accrued across the 6 April tax year boundary'
+        expect(report.html).not.toContain(aprilNoteFragment)
     })
 })

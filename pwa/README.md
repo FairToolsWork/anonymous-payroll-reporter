@@ -18,6 +18,27 @@ All processing happens locally in the browser — no uploads or server calls, pr
 2. The app extracts text, parses payroll fields, and builds an HTML report.
 3. Use **Print / Save as PDF** to export.
 
+## Report tax-year internals
+
+The report logic uses UK tax-year rules (not calendar-year rules) when grouping entries and calculating month coverage.
+
+- **Tax-year boundary:** Tax years start on **6 April**.
+    - Example: `2026-04-05` is in tax year `2025/26`
+    - Example: `2026-04-06` is in tax year `2026/27`
+- **Tax-year key format:** `YYYY/YY` (or `YYYY/YYYY` across century rollover).
+    - Example: `2024/25`, `2099/2100`
+- **Fiscal month index:** `1..12` where `1 = April`, `2 = May`, ..., `12 = March`.
+    - Dates from **1–5 April** are treated as fiscal month `12` of the previous tax year.
+- **Missing months:** calculated per tax year using fiscal month indexes.
+    - For the current tax year, checks run up to the last fully completed fiscal month.
+    - For past tax years, checks run through fiscal month `12`.
+    - Failed pay periods are treated as present so they are not reported as missing.
+- **Contribution reconciliation:** payroll and contribution rows are aggregated by the same composite key:
+    - `taxYearKey + fiscalMonthIndex`
+    - This keeps expected/actual contribution comparisons aligned at month level.
+
+When `includeReportContext` is enabled in the report workflow, `yearGroups` and `yearKeys` are keyed by these tax-year strings.
+
 ## Local usage
 
 Open `pwa/index.html` in a browser or serve the folder with any static server.

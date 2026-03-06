@@ -249,21 +249,37 @@ function parsePaymentsFromLines(lines) {
             return
         }
 
-        if (/^Basic\s+Hours$/i.test(parsed.label)) {
+        if (/^(Basic\s+Hours|Hours)$/i.test(parsed.label)) {
+            const prev = result.hourly.basic
+            const sameRate = prev.units === null || prev.rate === parsed.rate
             result.hourly.basic = {
                 title: 'Basic Hours',
-                units: parsed.units,
-                rate: parsed.rate,
-                amount: parsed.amount,
+                units:
+                    Math.round(
+                        ((parsed.units ?? 0) + (prev.units ?? 0)) * 100
+                    ) / 100,
+                rate: sameRate ? parsed.rate : null,
+                amount:
+                    Math.round(
+                        ((parsed.amount ?? 0) + (prev.amount ?? 0)) * 100
+                    ) / 100,
             }
             return
         }
-        if (/^(Holiday\s+Hours|Holidays?)$/i.test(parsed.label)) {
+        if (/^(Holiday\s+Hours|Holidays?|Holiday)$/i.test(parsed.label)) {
+            const prev = result.hourly.holiday
+            const sameRate = prev.units === null || prev.rate === parsed.rate
             result.hourly.holiday = {
                 title: 'Holiday Hours',
-                units: parsed.units,
-                rate: parsed.rate,
-                amount: parsed.amount,
+                units:
+                    Math.round(
+                        ((parsed.units ?? 0) + (prev.units ?? 0)) * 100
+                    ) / 100,
+                rate: sameRate ? parsed.rate : null,
+                amount:
+                    Math.round(
+                        ((parsed.amount ?? 0) + (prev.amount ?? 0)) * 100
+                    ) / 100,
             }
             return
         }
@@ -595,25 +611,43 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
     }
 
     if (!payments.hourly.basic.units) {
-        const basicMatch = text.match(PATTERNS.basicLine)
-        if (basicMatch) {
+        const basicPattern =
+            /^(?:Basic\s+Hours|Hours)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/gim
+        for (const m of text.matchAll(basicPattern)) {
+            const prev = payments.hourly.basic
+            const units = parseNumericValue(m[1])
+            const rate = parseNumericValue(m[2])
+            const amount = parseNumericValue(m[3])
+            const sameRate = prev.units === null || prev.rate === rate
             payments.hourly.basic = {
                 title: 'Basic Hours',
-                units: parseNumericValue(basicMatch[1]),
-                rate: parseNumericValue(basicMatch[2]),
-                amount: parseNumericValue(basicMatch[3]),
+                units:
+                    Math.round(((units ?? 0) + (prev.units ?? 0)) * 100) / 100,
+                rate: sameRate ? rate : null,
+                amount:
+                    Math.round(((amount ?? 0) + (prev.amount ?? 0)) * 100) /
+                    100,
             }
         }
     }
 
     if (!payments.hourly.holiday.units) {
-        const holidayMatch = text.match(PATTERNS.holidayLabel)
-        if (holidayMatch) {
+        const holidayPattern =
+            /^(?:Holiday\s+Hours|Holidays?|Holiday)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/gim
+        for (const m of text.matchAll(holidayPattern)) {
+            const prev = payments.hourly.holiday
+            const units = parseNumericValue(m[1])
+            const rate = parseNumericValue(m[2])
+            const amount = parseNumericValue(m[3])
+            const sameRate = prev.units === null || prev.rate === rate
             payments.hourly.holiday = {
                 title: 'Holiday Hours',
-                units: parseNumericValue(holidayMatch[1]),
-                rate: parseNumericValue(holidayMatch[2]),
-                amount: parseNumericValue(holidayMatch[3]),
+                units:
+                    Math.round(((units ?? 0) + (prev.units ?? 0)) * 100) / 100,
+                rate: sameRate ? rate : null,
+                amount:
+                    Math.round(((amount ?? 0) + (prev.amount ?? 0)) * 100) /
+                    100,
             }
         }
     }

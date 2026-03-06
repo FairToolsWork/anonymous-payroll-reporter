@@ -32,9 +32,9 @@
             "hourly": {
                 "basic": {
                     "title": "Basic Hours",
-                    "units": 75.9,
-                    "rate": 10,
-                    "amount": 759
+                    "units": 151.8,
+                    "rate": null,
+                    "amount": 1411.74
                 },
                 "holiday": {
                     "title": "Holiday Hours",

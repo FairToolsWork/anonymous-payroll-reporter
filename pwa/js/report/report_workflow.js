@@ -1,20 +1,6 @@
-/**
- * @typedef {import('./build.js').YearEntries} YearEntries
- */
-
 import { parseContributionWorkbook } from '../parse/contribution_validation.js'
 import { parsePayrollPdf } from '../parse/pdf_validation.js'
-import {
-    buildContributionTotals,
-    buildMissingMonths,
-    buildReport,
-    buildValidationSummary,
-} from './build.js'
-import {
-    buildContributionSummary,
-    buildValidation,
-    parsePayPeriodStart,
-} from './report_calculations.js'
+import { buildReport } from './build.js'
 
 /**
  * @param {{
@@ -39,8 +25,8 @@ import {
  *  excelDebug: { source: string, rows: unknown[], entries: Array<{ date: Date, type: "ee" | "er", amount: number }> } | null,
  *  reportContext?: {
  *      entries: any[],
- *      yearGroups: Map<string | number, any[]>,
- *      yearKeys: Array<string | number>,
+ *      yearGroups: Map<string, any[]>,
+ *      yearKeys: Array<string>,
  *      contributionSummary: any | null,
  *      missingMonths: any,
  *      validationSummary: any,
@@ -201,81 +187,7 @@ export async function runPayrollReportWorkflow(options) {
         records.length > 0
             ? buildReport(records, failedPayPeriods, contributionData)
             : null
-    let reportContext = null
-    if (includeReportContext && records.length) {
-        const entries = records.map((record) => {
-            const parsedDate = parsePayPeriodStart(
-                record.payrollDoc?.processDate?.date
-            )
-            const year = parsedDate ? parsedDate.getFullYear() : null
-            const monthIndex = parsedDate ? parsedDate.getMonth() + 1 : 13
-            const monthLabel = parsedDate
-                ? parsedDate.toLocaleDateString('en-GB', { month: 'long' })
-                : 'Unknown'
-            return {
-                record,
-                parsedDate,
-                year,
-                monthIndex,
-                monthLabel,
-            }
-        })
-        entries.forEach((entry) => {
-            const anyEntry = /** @type {any} */ (entry)
-            anyEntry.validation = buildValidation(entry)
-        })
-        entries.sort((a, b) => {
-            const yearA = a.year ?? 9999
-            const yearB = b.year ?? 9999
-            if (yearA !== yearB) {
-                return yearA - yearB
-            }
-            if (a.monthIndex !== b.monthIndex) {
-                return a.monthIndex - b.monthIndex
-            }
-            const fallbackA =
-                a.record.payrollDoc?.processDate?.date || 'Unknown'
-            const fallbackB =
-                b.record.payrollDoc?.processDate?.date || 'Unknown'
-            return fallbackA.localeCompare(fallbackB)
-        })
-        const yearGroups = new Map()
-        entries.forEach((entry) => {
-            const key = entry.year ?? 'Unknown'
-            if (!yearGroups.has(key)) {
-                yearGroups.set(key, [])
-            }
-            yearGroups.get(key).push(entry)
-        })
-        const yearKeys = Array.from(yearGroups.keys())
-        const contributionSummary = buildContributionSummary(
-            entries,
-            contributionData,
-            yearKeys
-        )
-        yearGroups.forEach((entriesForYear, yearKey) => {
-            /** @type {YearEntries} */ entriesForYear.reconciliation =
-                contributionSummary?.years.get(yearKey) || null
-        })
-        const failedDates = failedPayPeriods
-            .map((period) => parsePayPeriodStart(period))
-            .filter((date) => date instanceof Date)
-        const missingMonths = buildMissingMonths(yearGroups, failedDates)
-        const validationSummary = buildValidationSummary(entries)
-        const contributionTotals = buildContributionTotals(
-            entries,
-            contributionSummary
-        )
-        reportContext = {
-            entries,
-            yearGroups,
-            yearKeys,
-            contributionSummary,
-            missingMonths,
-            validationSummary,
-            contributionTotals,
-        }
-    }
+    const reportContext = includeReportContext && report ? report.context : null
 
     return {
         records,

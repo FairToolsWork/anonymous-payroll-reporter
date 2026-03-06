@@ -97,6 +97,95 @@ describe('sage-uk parser fallbacks', () => {
     })
 })
 
+describe('sage-uk parser hourly accumulation', () => {
+    it('accumulates two Basic Hours lines with different rates', async () => {
+        const { buildPayrollDocument } = await loadParser()
+        const text = [
+            ...baseTextLines,
+            'Basic Hours 75.90 8.60 652.74',
+            'Hours 75.90 10.00 759.00',
+            'PAYE Tax 61.47',
+        ].join('\n')
+        const record = await buildPayrollDocument({
+            text,
+            lines: [],
+            lineItems: [],
+        })
+        expect(record.payrollDoc.payments.hourly.basic).toEqual({
+            title: 'Basic Hours',
+            units: 151.8,
+            rate: null,
+            amount: 1411.74,
+        })
+        expect(record.payrollDoc.payments.misc).toEqual([])
+    })
+
+    it('accumulates two Basic Hours lines with the same rate', async () => {
+        const { buildPayrollDocument } = await loadParser()
+        const text = [
+            ...baseTextLines,
+            'Basic Hours 40.00 10.00 400.00',
+            'Hours 20.00 10.00 200.00',
+        ].join('\n')
+        const record = await buildPayrollDocument({
+            text,
+            lines: [],
+            lineItems: [],
+        })
+        expect(record.payrollDoc.payments.hourly.basic).toEqual({
+            title: 'Basic Hours',
+            units: 60,
+            rate: 10,
+            amount: 600,
+        })
+        expect(record.payrollDoc.payments.misc).toEqual([])
+    })
+
+    it('accumulates multiple Holiday lines with different rates', async () => {
+        const { buildPayrollDocument } = await loadParser()
+        const text = [
+            ...baseTextLines,
+            'Basic Hours 100.00 10.00 1000.00',
+            'Holiday Hours 8.00 8.60 68.80',
+            'Holiday 4.00 10.00 40.00',
+        ].join('\n')
+        const record = await buildPayrollDocument({
+            text,
+            lines: [],
+            lineItems: [],
+        })
+        expect(record.payrollDoc.payments.hourly.holiday).toEqual({
+            title: 'Holiday Hours',
+            units: 12,
+            rate: null,
+            amount: 108.8,
+        })
+        expect(record.payrollDoc.payments.misc).toEqual([])
+    })
+
+    it('accumulates multiple Holiday lines with the same rate', async () => {
+        const { buildPayrollDocument } = await loadParser()
+        const text = [
+            ...baseTextLines,
+            'Basic Hours 100.00 10.00 1000.00',
+            'Holiday Hours 4.00 10.00 40.00',
+            'Holidays 4.00 10.00 40.00',
+        ].join('\n')
+        const record = await buildPayrollDocument({
+            text,
+            lines: [],
+            lineItems: [],
+        })
+        expect(record.payrollDoc.payments.hourly.holiday).toEqual({
+            title: 'Holiday Hours',
+            units: 8,
+            rate: 10,
+            amount: 80,
+        })
+        expect(record.payrollDoc.payments.misc).toEqual([])
+    })
+})
+
 describe('sage-uk parser line splitting', () => {
     it('keeps lines on the left when there are too few points', async () => {
         const { buildPayrollDocument } = await loadParser()

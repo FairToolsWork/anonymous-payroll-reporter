@@ -18,8 +18,13 @@ import { formatMonthLabel } from '../parse/parser_config.js'
  * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number }} ContributionYearTotals
  * @typedef {{ months: Map<number, ContributionMonthSummary>, totals: ContributionYearTotals, yearEndBalance: number }} ContributionYearSummary
  * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
- * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, year: number | null, monthIndex: number, monthLabel: string, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
+ * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
  */
+
+/** @type {number} */
+const TAX_YEAR_START_MONTH_INDEX = 3
+/** @type {number} */
+const TAX_YEAR_START_DAY = 6
 
 /** @type {Record<string, number>} */
 const DATE_MONTHS = {
@@ -47,6 +52,108 @@ const DATE_MONTHS = {
     november: 10,
     dec: 11,
     december: 11,
+}
+
+/**
+ * @param {Date | null} date
+ * @returns {number | null}
+ */
+function getTaxYearStartYear(date) {
+    if (!date) {
+        return null
+    }
+    const year = date.getFullYear()
+    const monthIndex = date.getMonth()
+    const day = date.getDate()
+    const isAfterStart =
+        monthIndex > TAX_YEAR_START_MONTH_INDEX ||
+        (monthIndex === TAX_YEAR_START_MONTH_INDEX && day >= TAX_YEAR_START_DAY)
+    return isAfterStart ? year : year - 1
+}
+
+/**
+ * @param {number | null} startYear
+ * @returns {string}
+ */
+function formatTaxYearLabel(startYear) {
+    if (!startYear && startYear !== 0) {
+        return 'Unknown'
+    }
+    const endYear = startYear + 1
+    const nextYearSuffix = String(endYear % 100).padStart(2, '0')
+    const suffix = endYear % 100 === 0 ? String(endYear) : nextYearSuffix
+    return `${startYear}/${suffix}`
+}
+
+/**
+ * @param {Date | null} date
+ * @returns {string}
+ */
+function getTaxYearKey(date) {
+    const startYear = getTaxYearStartYear(date)
+    return formatTaxYearLabel(startYear)
+}
+
+/**
+ * @param {string | number} yearKey
+ * @returns {number | null}
+ */
+function parseTaxYearStartYear(yearKey) {
+    if (!yearKey || yearKey === 'Unknown') {
+        return null
+    }
+    const match = String(yearKey).match(/^(\d{4})\//)
+    if (!match) {
+        return null
+    }
+    const parsed = Number.parseInt(match[1], 10)
+    return Number.isNaN(parsed) ? null : parsed
+}
+
+/**
+ * @param {string | number} yearKey
+ * @returns {number}
+ */
+function getTaxYearSortKey(yearKey) {
+    const startYear = parseTaxYearStartYear(yearKey)
+    return startYear ?? 9999
+}
+
+/**
+ * @param {Date | null} date
+ * @returns {number | null}
+ */
+function getFiscalMonthIndex(date) {
+    if (!date) {
+        return null
+    }
+    const monthIndex = date.getMonth()
+    const day = date.getDate()
+    const isAfterTaxYearStart =
+        monthIndex > TAX_YEAR_START_MONTH_INDEX ||
+        (monthIndex === TAX_YEAR_START_MONTH_INDEX && day >= TAX_YEAR_START_DAY)
+    const calendarMonthIndex = monthIndex + 1
+    if (isAfterTaxYearStart) {
+        return calendarMonthIndex - 3
+    }
+    return Math.min(calendarMonthIndex + 9, 12)
+}
+
+/**
+ * @param {number} fiscalMonthIndex
+ * @returns {number | null}
+ */
+function getCalendarMonthFromFiscalIndex(fiscalMonthIndex) {
+    if (!Number.isFinite(fiscalMonthIndex)) {
+        return null
+    }
+    if (fiscalMonthIndex >= 1 && fiscalMonthIndex <= 9) {
+        return fiscalMonthIndex + 3
+    }
+    if (fiscalMonthIndex >= 10 && fiscalMonthIndex <= 12) {
+        return fiscalMonthIndex - 9
+    }
+    return null
 }
 
 /** @type {number} */
@@ -163,9 +270,9 @@ function buildMonthKey(year, monthIndex) {
 }
 
 /**
- * @param {number[]} presentMonths
- * @param {number | null} minMonth
- * @param {number | null} maxMonth
+ * @param {number[]} presentMonths - Fiscal month indices (1=April … 12=March)
+ * @param {number | null} minMonth - Fiscal month index lower bound (inclusive)
+ * @param {number | null} maxMonth - Fiscal month index upper bound (inclusive)
  * @returns {string[]}
  */
 function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
@@ -176,7 +283,10 @@ function buildMissingMonthsWithRange(presentMonths, minMonth, maxMonth) {
     const missing = []
     for (let month = minMonth; month <= maxMonth; month += 1) {
         if (!present.has(month)) {
-            missing.push(formatMonthLabel(month))
+            const calendarMonth = getCalendarMonthFromFiscalIndex(month)
+            if (calendarMonth) {
+                missing.push(formatMonthLabel(calendarMonth))
+            }
         }
     }
     return missing
@@ -280,6 +390,30 @@ function buildValidation(entry) {
         })
     }
 
+    const hourly = record?.payrollDoc?.payments?.hourly
+    const salaryHoliday = record?.payrollDoc?.payments?.salary?.holiday
+    const hourlyItems = [hourly?.basic, hourly?.holiday, salaryHoliday]
+    for (const item of hourlyItems) {
+        if (
+            item &&
+            item.units !== null &&
+            item.units !== undefined &&
+            item.rate !== null &&
+            item.rate !== undefined &&
+            item.amount !== null &&
+            item.amount !== undefined
+        ) {
+            const expected = Math.round(item.units * item.rate * 100) / 100
+            if (!isWithinTolerance(expected, item.amount)) {
+                flags.push({
+                    id: 'payment_line_mismatch',
+                    label: 'A payment line units × rate does not match its amount',
+                })
+                break
+            }
+        }
+    }
+
     let grossMismatch = false
     if (totalGrossPay !== null) {
         grossMismatch = !isWithinTolerance(paymentsTotal, totalGrossPay)
@@ -312,7 +446,7 @@ function buildValidation(entry) {
 /**
  * @param {ReportEntry[]} entries
  * @param {ContributionData | null | undefined} contributionData
- * @param {Array<string | number>} yearKeys
+ * @param {string[]} yearKeys
  * @returns {ContributionSummary | null}
  */
 function buildContributionSummary(entries, contributionData, yearKeys) {
@@ -328,9 +462,12 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
         if (!(entry.parsedDate instanceof Date)) {
             return
         }
-        const year = entry.parsedDate.getFullYear()
-        const monthIndex = entry.parsedDate.getMonth() + 1
-        const key = buildMonthKey(year, monthIndex)
+        const yearKey = getTaxYearKey(entry.parsedDate)
+        const fiscalMonthIndex = getFiscalMonthIndex(entry.parsedDate)
+        if (!yearKey || yearKey === 'Unknown' || !fiscalMonthIndex) {
+            return
+        }
+        const key = buildMonthKey(yearKey, fiscalMonthIndex)
         const expected = expectedByMonth.get(key) || { ee: 0, er: 0 }
         expected.ee +=
             entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
@@ -344,9 +481,12 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
         if (!(entry.date instanceof Date)) {
             return
         }
-        const year = entry.date.getFullYear()
-        const monthIndex = entry.date.getMonth() + 1
-        const key = buildMonthKey(year, monthIndex)
+        const yearKey = getTaxYearKey(entry.date)
+        const fiscalMonthIndex = getFiscalMonthIndex(entry.date)
+        if (!yearKey || yearKey === 'Unknown' || !fiscalMonthIndex) {
+            return
+        }
+        const key = buildMonthKey(yearKey, fiscalMonthIndex)
         const actual = actualByMonth.get(key) || { ee: 0, er: 0 }
         if (entry.type === 'ee') {
             actual.ee += entry.amount || 0
@@ -360,7 +500,7 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
     actualByMonth.forEach((_, key) => {
         const year = key.split('-')[0]
         if (year && year !== 'Unknown') {
-            contributionYears.add(isNaN(Number(year)) ? year : Number(year))
+            contributionYears.add(year)
         }
     })
     const allYearKeys = Array.from(
@@ -368,7 +508,7 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
             ...yearKeys.filter((k) => k && k !== 'Unknown'),
             ...contributionYears,
         ])
-    ).sort((a, b) => Number(a) - Number(b))
+    ).sort((a, b) => getTaxYearSortKey(a) - getTaxYearSortKey(b))
 
     const summaryByYear = new Map()
     let overallBalance = 0
@@ -422,13 +562,39 @@ function buildContributionSummary(entries, contributionData, yearKeys) {
     }
 }
 
+/**
+ * @param {PayrollRecordWithImage[]} records
+ * @returns {ReportEntry[]}
+ * @note monthIndex is a fiscal month index (1=April … 12=March).
+ */
+function buildReportEntries(records) {
+    return records.map((record) => {
+        const parsedDate = parsePayPeriodStart(
+            record.payrollDoc?.processDate?.date
+        )
+        const yearKey = parsedDate ? getTaxYearKey(parsedDate) : null
+        const monthIndex = getFiscalMonthIndex(parsedDate) ?? 13
+        return {
+            record,
+            parsedDate,
+            yearKey,
+            monthIndex,
+        }
+    })
+}
+
 export {
     buildContributionSummary,
     buildMissingMonthsWithRange,
+    buildReportEntries,
     buildValidation,
     formatDateKey,
     formatDateLabel,
     formatMonthYearLabel,
+    getCalendarMonthFromFiscalIndex,
+    getFiscalMonthIndex,
+    getTaxYearKey,
+    getTaxYearSortKey,
     parsePayPeriodStart,
     sumDeductionsForNetPay,
     sumMiscAmounts,

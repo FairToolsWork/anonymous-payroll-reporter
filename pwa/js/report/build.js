@@ -13,10 +13,15 @@ import {
 } from '../parse/parser_config.js'
 import {
     buildContributionSummary,
+    buildReportEntries,
     buildValidation,
     formatDateKey,
     formatDateLabel,
     formatMonthYearLabel,
+    getCalendarMonthFromFiscalIndex,
+    getFiscalMonthIndex,
+    getTaxYearKey,
+    getTaxYearSortKey,
     parsePayPeriodStart,
 } from './report_calculations.js'
 
@@ -30,12 +35,13 @@ import {
  * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number }} ContributionYearTotals
  * @typedef {{ months: Map<number, ContributionMonthSummary>, totals: ContributionYearTotals, yearEndBalance: number }} ContributionYearSummary
  * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
- * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, year: number | null, monthIndex: number, monthLabel: string, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
- * @typedef {ReportEntry[] & { yearKey?: string | number, reconciliation?: ContributionYearSummary | null }} YearEntries
+ * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
+ * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null } }} ReportContext
  */
 
 /** @type {number} Update this each tax year if the personal allowance changes */
@@ -46,9 +52,26 @@ const PERSONAL_ALLOWANCE_TAX_YEARS = '2025/26 and 2026/27'
 const PERSONAL_ALLOWANCE_MONTHLY = Math.round(PERSONAL_ALLOWANCE_ANNUAL / 12)
 
 /** @type {string} */
+const APRIL_BOUNDARY_NOTE =
+    `<b>Note:</b> <i>April payslips may include pay accrued across the 6 April tax year boundary. ` +
+    `This tool cannot determine how the employer has attributed hours or amounts between tax years, ` +
+    `which may cause discrepancies in year-end figures.</i>`
+
+/** @type {string} */
 const ZERO_TAX_ALLOWANCE_NOTE =
     `<b>Note:</b> <i>PAYE Tax / National Insurance may be £0 when monthly pay is below £${PERSONAL_ALLOWANCE_MONTHLY.toLocaleString('en-GB')} ` +
     `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year for ${PERSONAL_ALLOWANCE_TAX_YEARS})</i>.`
+
+/**
+ * @param {string | number} yearKey
+ * @returns {string}
+ */
+function formatYearAnchor(yearKey) {
+    return String(yearKey || 'unknown')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+}
 
 /**
  * @param {Date} date
@@ -143,7 +166,7 @@ function formatMiscLabel(item) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @returns {{ html: string, filename: string, stats: ReportStats }}
+ * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
     records,
@@ -155,31 +178,15 @@ export function buildReport(
     }
     const reportRunDate = new Date()
     /** @type {ReportEntry[]} */
-    const entries = records.map((record) => {
-        const parsedDate = parsePayPeriodStart(
-            record.payrollDoc?.processDate?.date
-        )
-        const year = parsedDate ? parsedDate.getFullYear() : null
-        const monthIndex = parsedDate ? parsedDate.getMonth() + 1 : 13
-        const monthLabel = parsedDate
-            ? parsedDate.toLocaleDateString('en-GB', { month: 'long' })
-            : 'Unknown'
-        return {
-            record,
-            parsedDate,
-            year,
-            monthIndex,
-            monthLabel,
-        }
-    })
+    const entries = buildReportEntries(records)
 
     entries.forEach((entry) => {
         entry.validation = buildValidation(entry)
     })
 
     entries.sort((a, b) => {
-        const yearA = a.year ?? 9999
-        const yearB = b.year ?? 9999
+        const yearA = getTaxYearSortKey(a.yearKey ?? 'Unknown')
+        const yearB = getTaxYearSortKey(b.yearKey ?? 'Unknown')
         if (yearA !== yearB) {
             return yearA - yearB
         }
@@ -193,7 +200,7 @@ export function buildReport(
 
     const yearGroups = new Map()
     entries.forEach((entry) => {
-        const key = entry.year ?? 'Unknown'
+        const key = entry.yearKey ?? 'Unknown'
         if (!yearGroups.has(key)) {
             yearGroups.set(key, [])
         }
@@ -293,6 +300,10 @@ export function buildReport(
         return typeof totalGrossPay === 'number' && totalGrossPay < 1048
     })
 
+    const contributionTotalsResult = buildContributionTotals(
+        entries,
+        contributionSummary
+    )
     const {
         payrollEE,
         payrollER,
@@ -301,7 +312,7 @@ export function buildReport(
         pensionER,
         reportedContribution,
         contributionDifference,
-    } = buildContributionTotals(entries, contributionSummary)
+    } = contributionTotalsResult
     const daysThreshold = 30
     const { daysSinceContribution, lastContributionLabel } =
         buildContributionRecency(
@@ -400,7 +411,7 @@ export function buildReport(
                 yearPayrollContribution === 0 &&
                 yearReportedContribution === 0
             const flagIcon = hasFlags ? '⚠︎' : '—'
-            const yearSummaryAnchor = `year-summary-${yearKey}`
+            const yearSummaryAnchor = `year-summary-${formatYearAnchor(yearKey)}`
             return (
                 '<tr>' +
                 `<th><a href="#${yearSummaryAnchor}">${yearKey}</a></th>` +
@@ -421,7 +432,7 @@ export function buildReport(
     if (yearSummaryRows) {
         reportSections.push(
             '<table class="summary-table"><thead><tr>' +
-                '<th>Year</th><th>Hours</th>' +
+                '<th>Tax Year</th><th>Hours</th>' +
                 '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
                 '<th>YE Over / Under</th><th>Flags</th>' +
                 '</tr></thead>' +
@@ -479,6 +490,16 @@ export function buildReport(
         )
     }
 
+    const hasAprilEntry = entries.some(
+        (entry) =>
+            entry.parsedDate instanceof Date &&
+            entry.parsedDate.getMonth() === 3
+    )
+    if (hasAprilEntry) {
+        reportSections.push(
+            `<div class="report-footnote">${APRIL_BOUNDARY_NOTE}</div>`
+        )
+    }
     if (hasLowPretaxPay) {
         reportSections.push(
             `<div class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</div>`
@@ -490,12 +511,12 @@ export function buildReport(
         const entriesForYear = yearGroups.get(yearKey)
         const yearLabel = yearKey === 'Unknown' ? 'Unknown Year' : yearKey
         const yearMissing = missingMonthsByYear[yearKey] || []
-        const yearAnchor = `year-monthly-${yearKey}`
+        const yearAnchor = `year-monthly-${formatYearAnchor(yearKey)}`
         entriesForYear.yearKey = yearKey
 
         reportSections.push('<div class="page">')
         reportSections.push(
-            `<h2 id="year-summary-${yearKey}">${yearLabel} Summary: ${employeeName}</h2>`
+            `<h2 id="year-summary-${formatYearAnchor(yearKey)}">${yearLabel} Summary: ${employeeName}</h2>`
         )
         if (yearMissing.length) {
             const yearMissingPill = `Missing months: <span class="missing-months">${yearMissing.join(', ')}</span>`
@@ -537,6 +558,16 @@ export function buildReport(
                 entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
             return typeof totalGrossPay === 'number' && totalGrossPay < 1048
         })
+        const yearHasAprilEntry = entriesForYear.some(
+            (entry) =>
+                entry.parsedDate instanceof Date &&
+                entry.parsedDate.getMonth() === 3
+        )
+        if (yearHasAprilEntry) {
+            reportSections.push(
+                `<p class="report-footnote">${APRIL_BOUNDARY_NOTE}</p>`
+            )
+        }
         if (yearLowPretaxPay) {
             reportSections.push(
                 `<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`
@@ -548,7 +579,7 @@ export function buildReport(
     Array.from(yearGroups.keys()).forEach((yearKey) => {
         const entriesForYear = yearGroups.get(yearKey)
         const yearLabel = yearKey === 'Unknown' ? 'Unknown Year' : yearKey
-        const yearAnchor = `year-monthly-${yearKey}`
+        const yearAnchor = `year-monthly-${formatYearAnchor(yearKey)}`
         const monthAnchors = new Set()
 
         entriesForYear.forEach((entry, index) => {
@@ -564,7 +595,9 @@ export function buildReport(
                 monthIndex <= 12 &&
                 !monthAnchors.has(monthIndex)
             ) {
-                const monthAnchor = `year-monthly-${yearKey}-${String(monthIndex).padStart(2, '0')}`
+                const monthAnchor = `year-monthly-${formatYearAnchor(
+                    yearKey
+                )}-${String(monthIndex).padStart(2, '0')}`
                 reportSections.push(`<div id="${monthAnchor}"></div>`)
                 monthAnchors.add(monthIndex)
             }
@@ -579,6 +612,18 @@ export function buildReport(
     const employeeSlug = employeeName.trim().replace(/\s+/g, '-')
     const filename = `${timestamp}-${employeeSlug}_${dateStart}-${dateFinish}.pdf`
 
+    const validationSummaryResult = {
+        flaggedEntries,
+        lowConfidenceEntries,
+        flaggedPeriods,
+        validationPill,
+    }
+    const missingMonthsResult = {
+        missingMonthsByYear,
+        hasMissingMonths,
+        missingMonthsLabel,
+        missingMonthsHtml,
+    }
     return {
         html: reportSections.join('\n'),
         filename,
@@ -594,6 +639,15 @@ export function buildReport(
                 flaggedPeriods,
             },
         },
+        context: {
+            entries,
+            yearGroups,
+            yearKeys,
+            contributionSummary,
+            missingMonths: missingMonthsResult,
+            validationSummary: validationSummaryResult,
+            contributionTotals: contributionTotalsResult,
+        },
     }
 }
 
@@ -606,8 +660,11 @@ function buildMissingMonths(yearGroups, failedDates) {
     /** @type {Record<string, number[]>} */
     const failedMonthsByYear = {}
     failedDates.forEach((date) => {
-        const yearKey = date.getFullYear()
-        const monthIndex = date.getMonth() + 1
+        const yearKey = getTaxYearKey(date)
+        const monthIndex = getFiscalMonthIndex(date)
+        if (!yearKey || yearKey === 'Unknown' || !monthIndex) {
+            return
+        }
         if (!failedMonthsByYear[yearKey]) {
             failedMonthsByYear[yearKey] = []
         }
@@ -617,20 +674,25 @@ function buildMissingMonths(yearGroups, failedDates) {
     })
 
     const currentDate = new Date()
-    const currentYear = currentDate.getFullYear()
-    const currentMonthIndex = currentDate.getMonth() + 1
+    const currentYearKey = getTaxYearKey(currentDate)
+    const currentMonthIndex = getFiscalMonthIndex(currentDate)
     /** @type {Record<string, string[]>} */
     const missingMonthsByYear = {}
     yearGroups.forEach((entriesForYear, yearKey) => {
-        const numericYear = Number(yearKey)
         const presentMonths = entriesForYear
             .map((entry) => entry.monthIndex)
             .filter((month) => month >= 1 && month <= 12)
         const failedMonths = failedMonthsByYear[yearKey] || []
         const combinedMonths = presentMonths.concat(failedMonths)
         const maxMonth =
-            numericYear === currentYear ? currentMonthIndex - 1 : 12
-        if (!combinedMonths.length || maxMonth <= 0) {
+            yearKey === currentYearKey && currentMonthIndex
+                ? currentMonthIndex - 1
+                : 12
+        if (maxMonth <= 0) {
+            missingMonthsByYear[yearKey] = []
+            return
+        }
+        if (!combinedMonths.length) {
             missingMonthsByYear[yearKey] = []
             return
         }
@@ -638,7 +700,10 @@ function buildMissingMonths(yearGroups, failedDates) {
         const missing = []
         for (let month = 1; month <= maxMonth; month += 1) {
             if (!present.has(month)) {
-                missing.push(formatMonthLabel(month))
+                const calendarMonth = getCalendarMonthFromFiscalIndex(month)
+                if (calendarMonth) {
+                    missing.push(formatMonthLabel(calendarMonth))
+                }
             }
         }
         missingMonthsByYear[yearKey] = missing
@@ -940,11 +1005,16 @@ function renderReportCell(entry) {
         'Employer contribution — paid by the employer on top of your salary, ' +
         'not deducted from your net pay.' +
         '</p>'
+    const aprilBoundaryFootnote =
+        parsedDate instanceof Date && parsedDate.getMonth() === 3
+            ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE}</p>`
+            : ''
     return `
     <div class="${cellClass}">
       ${imageHtml}
       ${rows.join('\n')}
       ${erFootnote}
+      ${aprilBoundaryFootnote}
     </div>
   `
 }
@@ -1016,12 +1086,10 @@ function renderYearSummary(entriesForYear) {
     }, [])
 
     for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
-        const monthName = new Date(2024, monthIndex - 1, 1).toLocaleDateString(
-            'en-GB',
-            {
-                month: 'long',
-            }
-        )
+        const calendarMonth = getCalendarMonthFromFiscalIndex(monthIndex)
+        const monthName = calendarMonth
+            ? formatMonthLabel(calendarMonth)
+            : 'Unknown'
         const entries = (monthEntries.get(monthIndex) || [])
             .slice()
             .sort((a, b) => {
@@ -1044,7 +1112,9 @@ function renderYearSummary(entriesForYear) {
                 }
                 return new Date(aDate).getTime() - new Date(bDate).getTime()
             })
-        const monthAnchor = `year-monthly-${yearKey}-${String(monthIndex).padStart(2, '0')}`
+        const monthAnchor = `year-monthly-${formatYearAnchor(
+            yearKey
+        )}-${String(monthIndex).padStart(2, '0')}`
         const reconMonth = showReconciliation
             ? reconciliation.months.get(monthIndex)
             : null

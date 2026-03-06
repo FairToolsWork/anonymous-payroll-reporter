@@ -7,6 +7,9 @@ import {
     formatDateKey,
     formatDateLabel,
     formatMonthYearLabel,
+    getFiscalMonthIndex,
+    getTaxYearKey,
+    getTaxYearSortKey,
     parsePayPeriodStart,
     sumDeductionsForNetPay,
     sumMiscAmounts,
@@ -60,9 +63,8 @@ describe('report calculations', () => {
                     netPay: 100,
                 }),
                 parsedDate: new Date(2025, 0, 15),
-                year: 2025,
-                monthIndex: 1,
-                monthLabel: 'January',
+                yearKey: '2024/25',
+                monthIndex: 10,
             },
             {
                 record: buildRecord({
@@ -72,9 +74,8 @@ describe('report calculations', () => {
                     netPay: 100,
                 }),
                 parsedDate: new Date(2025, 1, 15),
-                year: 2025,
-                monthIndex: 2,
-                monthLabel: 'February',
+                yearKey: '2024/25',
+                monthIndex: 11,
             },
         ]
         const contributionData = {
@@ -86,12 +87,10 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2025]
-        )
-        const totals = summary?.years.get(2025)?.totals
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2024/25',
+        ])
+        const totals = summary?.years.get('2024/25')?.totals
         expect(totals).toEqual({
             expectedEE: 110,
             expectedER: 70,
@@ -110,9 +109,8 @@ describe('report calculations', () => {
                 netPay: 90,
             }),
             parsedDate: new Date(2025, 0, 1),
-            year: 2025,
-            monthIndex: 1,
-            monthLabel: 'January',
+            yearKey: '2024/25',
+            monthIndex: 10,
         }
         const validation = buildValidation(entry)
         const flagIds = validation.flags.map((flag) => flag.id)
@@ -132,9 +130,8 @@ describe('report calculations', () => {
                 netPay: 99.96,
             }),
             parsedDate: new Date(2025, 0, 1),
-            year: 2025,
-            monthIndex: 1,
-            monthLabel: 'January',
+            yearKey: '2024/25',
+            monthIndex: 10,
         }
         const outsideToleranceEntry = {
             record: buildRecord({
@@ -144,9 +141,8 @@ describe('report calculations', () => {
                 netPay: 99.9,
             }),
             parsedDate: new Date(2025, 0, 1),
-            year: 2025,
-            monthIndex: 1,
-            monthLabel: 'January',
+            yearKey: '2024/25',
+            monthIndex: 10,
         }
         const withinValidation = buildValidation(withinToleranceEntry)
         const outsideValidation = buildValidation(outsideToleranceEntry)
@@ -158,7 +154,51 @@ describe('report calculations', () => {
 
     it('builds missing months', () => {
         const missing = buildMissingMonthsWithRange([1, 3], 1, 3)
-        expect(missing).toEqual([formatMonthLabel(2)])
+        expect(missing).toEqual([formatMonthLabel(5)])
+    })
+
+    it('returns empty array from buildMissingMonthsWithRange when maxMonth is 0 (first month of tax year not yet started)', () => {
+        expect(buildMissingMonthsWithRange([], 1, 0)).toEqual([])
+        expect(buildMissingMonthsWithRange([1], 1, 0)).toEqual([])
+    })
+
+    it('formats tax year labels correctly across century boundary', () => {
+        expect(getTaxYearKey(new Date(2024, 3, 6))).toBe('2024/25')
+        expect(getTaxYearKey(new Date(2024, 2, 5))).toBe('2023/24')
+        expect(getTaxYearKey(new Date(2099, 3, 6))).toBe('2099/2100')
+        expect(getTaxYearKey(null)).toBe('Unknown')
+    })
+
+    it('getFiscalMonthIndex respects the April 6 tax year boundary', () => {
+        expect(getFiscalMonthIndex(new Date(2026, 3, 5))).toBe(12)
+        expect(getFiscalMonthIndex(new Date(2026, 3, 1))).toBe(12)
+        expect(getFiscalMonthIndex(new Date(2026, 3, 6))).toBe(1)
+        expect(getFiscalMonthIndex(new Date(2026, 3, 7))).toBe(1)
+        expect(getFiscalMonthIndex(new Date(2026, 2, 31))).toBe(12)
+        expect(getFiscalMonthIndex(new Date(2026, 4, 1))).toBe(2)
+        expect(getFiscalMonthIndex(null)).toBeNull()
+    })
+
+    it('getTaxYearKey and getFiscalMonthIndex are consistent on Apr 1-5 boundary', () => {
+        const apr3 = new Date(2026, 3, 3)
+        expect(getTaxYearKey(apr3)).toBe('2025/26')
+        expect(getFiscalMonthIndex(apr3)).toBe(12)
+
+        const apr6 = new Date(2026, 3, 6)
+        expect(getTaxYearKey(apr6)).toBe('2026/27')
+        expect(getFiscalMonthIndex(apr6)).toBe(1)
+
+        const mar31 = new Date(2026, 2, 31)
+        expect(getTaxYearKey(mar31)).toBe('2025/26')
+        expect(getFiscalMonthIndex(mar31)).toBe(12)
+    })
+
+    it('getTaxYearSortKey returns null sentinel for malformed or non-YYYY/ prefixed keys', () => {
+        expect(getTaxYearSortKey('2024/25')).toBe(2024)
+        expect(getTaxYearSortKey('Unknown')).toBe(9999)
+        expect(getTaxYearSortKey('1234abcd5678')).toBe(9999)
+        expect(getTaxYearSortKey('')).toBe(9999)
+        expect(getTaxYearSortKey(null)).toBe(9999)
     })
 
     it('formats dates and keys', () => {
@@ -197,9 +237,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 3, 20),
-                year: 2025,
-                monthIndex: 4,
-                monthLabel: 'April',
+                yearKey: '2025/26',
+                monthIndex: 1,
             },
             {
                 record: buildRecord({
@@ -209,9 +248,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 4, 20),
-                year: 2025,
-                monthIndex: 5,
-                monthLabel: 'May',
+                yearKey: '2025/26',
+                monthIndex: 2,
             },
         ]
         const contributionData = {
@@ -223,14 +261,12 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2025]
-        )
-        const year = summary?.years.get(2025)
-        const aprilMonth = year?.months.get(4)
-        const mayMonth = year?.months.get(5)
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2025/26',
+        ])
+        const year = summary?.years.get('2025/26')
+        const aprilMonth = year?.months.get(1)
+        const mayMonth = year?.months.get(2)
 
         expect(aprilMonth?.delta).toBe(-10)
         expect(aprilMonth?.balance).toBe(-10)
@@ -251,9 +287,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 3, 20),
-                year: 2025,
-                monthIndex: 4,
-                monthLabel: 'April',
+                yearKey: '2025/26',
+                monthIndex: 1,
             },
             {
                 record: buildRecord({
@@ -263,9 +298,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 4, 20),
-                year: 2025,
-                monthIndex: 5,
-                monthLabel: 'May',
+                yearKey: '2025/26',
+                monthIndex: 2,
             },
         ]
         const contributionData = {
@@ -277,14 +311,12 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2025]
-        )
-        const year = summary?.years.get(2025)
-        const aprilMonth = year?.months.get(4)
-        const mayMonth = year?.months.get(5)
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2025/26',
+        ])
+        const year = summary?.years.get('2025/26')
+        const aprilMonth = year?.months.get(1)
+        const mayMonth = year?.months.get(2)
 
         expect(aprilMonth?.delta).toBe(15)
         expect(aprilMonth?.balance).toBe(15)
@@ -305,9 +337,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 3, 20),
-                year: 2025,
-                monthIndex: 4,
-                monthLabel: 'April',
+                yearKey: '2025/26',
+                monthIndex: 1,
             },
             {
                 record: buildRecord({
@@ -317,9 +348,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 4, 20),
-                year: 2025,
-                monthIndex: 5,
-                monthLabel: 'May',
+                yearKey: '2025/26',
+                monthIndex: 2,
             },
             {
                 record: buildRecord({
@@ -329,9 +359,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 5, 20),
-                year: 2025,
-                monthIndex: 6,
-                monthLabel: 'June',
+                yearKey: '2025/26',
+                monthIndex: 3,
             },
         ]
         const contributionData = {
@@ -345,19 +374,17 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2025]
-        )
-        const year = summary?.years.get(2025)
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2025/26',
+        ])
+        const year = summary?.years.get('2025/26')
 
-        expect(year?.months.get(4)?.delta).toBe(-10)
-        expect(year?.months.get(4)?.balance).toBe(-10)
-        expect(year?.months.get(5)?.delta).toBe(10)
-        expect(year?.months.get(5)?.balance).toBe(0)
-        expect(year?.months.get(6)?.delta).toBe(0)
-        expect(year?.months.get(6)?.balance).toBe(0)
+        expect(year?.months.get(1)?.delta).toBe(-10)
+        expect(year?.months.get(1)?.balance).toBe(-10)
+        expect(year?.months.get(2)?.delta).toBe(10)
+        expect(year?.months.get(2)?.balance).toBe(0)
+        expect(year?.months.get(3)?.delta).toBe(0)
+        expect(year?.months.get(3)?.balance).toBe(0)
         expect(year?.yearEndBalance).toBe(0)
         expect(year?.totals.delta).toBe(0)
     })
@@ -372,9 +399,8 @@ describe('report calculations', () => {
                     netPay: 90,
                 }),
                 parsedDate: new Date(2024, 0, 15),
-                year: 2024,
-                monthIndex: 1,
-                monthLabel: 'January',
+                yearKey: '2023/24',
+                monthIndex: 10,
             },
             {
                 record: buildRecord({
@@ -384,9 +410,8 @@ describe('report calculations', () => {
                     netPay: 90,
                 }),
                 parsedDate: new Date(2025, 0, 15),
-                year: 2025,
-                monthIndex: 1,
-                monthLabel: 'January',
+                yearKey: '2024/25',
+                monthIndex: 10,
             },
         ]
         const contributionData = {
@@ -398,13 +423,12 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2024, 2025]
-        )
-        const year2024 = summary?.years.get(2024)
-        const year2025 = summary?.years.get(2025)
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2023/24',
+            '2024/25',
+        ])
+        const year2024 = summary?.years.get('2023/24')
+        const year2025 = summary?.years.get('2024/25')
         expect({
             year2024End: year2024?.yearEndBalance,
             year2025End: year2025?.yearEndBalance,
@@ -445,9 +469,8 @@ describe('report calculations', () => {
                 },
             },
             parsedDate: new Date(2025, 0, 1),
-            year: 2025,
-            monthIndex: 1,
-            monthLabel: 'January',
+            yearKey: '2024/25',
+            monthIndex: 10,
         }
         const validation = buildValidation(entry)
         const flagIds = validation.flags.map((flag) => flag.id)
@@ -515,9 +538,8 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 3, 20),
-                year: 2025,
-                monthIndex: 4,
-                monthLabel: 'April',
+                yearKey: '2025/26',
+                monthIndex: 1,
             },
         ]
         const contributionData = {
@@ -529,14 +551,12 @@ describe('report calculations', () => {
             ],
             sourceFiles: ['fixture.xlsx'],
         }
-        const summary = buildContributionSummary(
-            entries,
-            contributionData,
-            [2025]
-        )
-        const year = summary?.years.get(2025)
-        const aprilMonth = year?.months.get(4)
-        const mayMonth = year?.months.get(5)
+        const summary = buildContributionSummary(entries, contributionData, [
+            '2025/26',
+        ])
+        const year = summary?.years.get('2025/26')
+        const aprilMonth = year?.months.get(1)
+        const mayMonth = year?.months.get(2)
 
         expect(aprilMonth?.delta).toBe(0)
         expect(aprilMonth?.balance).toBe(0)
@@ -559,20 +579,189 @@ describe('report calculations', () => {
                     netPay: 900,
                 }),
                 parsedDate: new Date(2025, 3, 20),
-                year: 2025,
-                monthIndex: 4,
-                monthLabel: 'April',
+                yearKey: '2025/26',
+                monthIndex: 1,
             },
         ]
-        expect(buildContributionSummary(entries, null, [2025])).toBeNull()
+        expect(buildContributionSummary(entries, null, ['2025/26'])).toBeNull()
         expect(
             buildContributionSummary(
                 entries,
                 { entries: [], sourceFiles: [] },
-                [2025]
+                ['2025/26']
             )
         ).toBeNull()
-        expect(buildContributionSummary(entries, undefined, [2025])).toBeNull()
+        expect(
+            buildContributionSummary(entries, undefined, ['2025/26'])
+        ).toBeNull()
+    })
+
+    it('flags payment_line_mismatch when units * rate does not match amount', () => {
+        const entry = {
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: {
+                                title: 'Basic Hours',
+                                units: 75.9,
+                                rate: 8.6,
+                                amount: 759,
+                            },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 759 } },
+                    netPay: { amount: 579 },
+                },
+            },
+            parsedDate: new Date(2024, 3, 20),
+            yearKey: '2024/25',
+            monthIndex: 1,
+        }
+        const validation = buildValidation(entry)
+        const flagIds = validation.flags.map((f) => f.id)
+        expect(flagIds).toContain('payment_line_mismatch')
+    })
+
+    it('does not flag payment_line_mismatch when units * rate matches amount', () => {
+        const entry = {
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: {
+                                title: 'Basic Hours',
+                                units: 75.9,
+                                rate: 10,
+                                amount: 759,
+                            },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 759 } },
+                    netPay: { amount: 579 },
+                },
+            },
+            parsedDate: new Date(2024, 3, 20),
+            yearKey: '2024/25',
+            monthIndex: 1,
+        }
+        const validation = buildValidation(entry)
+        const flagIds = validation.flags.map((f) => f.id)
+        expect(flagIds).not.toContain('payment_line_mismatch')
+    })
+
+    it('does not flag payment_line_mismatch when rate is null (multi-rate accumulated line)', () => {
+        const entry = {
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 61.47 },
+                        natIns: { amount: 43.65 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: {
+                                title: 'Basic Hours',
+                                units: 151.8,
+                                rate: null,
+                                amount: 1411.74,
+                            },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: 'S1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 1411.74 } },
+                    netPay: { amount: 1262.03 },
+                },
+            },
+            parsedDate: new Date(2024, 3, 20),
+            yearKey: '2024/25',
+            monthIndex: 1,
+        }
+        const validation = buildValidation(entry)
+        const flagIds = validation.flags.map((f) => f.id)
+        expect(flagIds).not.toContain('payment_line_mismatch')
+    })
+
+    it('does not flag payment_line_mismatch when difference is within tolerance', () => {
+        const entry = {
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: {
+                                title: 'Basic Hours',
+                                units: 10,
+                                rate: 10,
+                                amount: 100.03,
+                            },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: null, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 100.03 } },
+                    netPay: { amount: -79.97 },
+                },
+            },
+            parsedDate: new Date(2025, 0, 20),
+            yearKey: '2024/25',
+            monthIndex: 10,
+        }
+        const validation = buildValidation(entry)
+        const flagIds = validation.flags.map((f) => f.id)
+        expect(flagIds).not.toContain('payment_line_mismatch')
     })
 
     it('parses month-year date format and two-digit years', () => {
