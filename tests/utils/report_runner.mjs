@@ -1,29 +1,63 @@
 /* global setTimeout, clearTimeout */
 
-import { createCanvas } from 'canvas'
+import { createCanvas, Image, ImageData } from 'canvas'
 import fs from 'fs'
 import { createRequire } from 'module'
 import path from 'path'
-import pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js')
+pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(
+    require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+).toString()
+
+class TestCanvasFactory {
+    constructor({ ownerDocument } = {}) {
+        this.ownerDocument = ownerDocument || globalThis.document
+    }
+
+    create(width, height) {
+        const canvas = createCanvas(width, height)
+        const context = canvas.getContext('2d')
+        return { canvas, context }
+    }
+
+    reset(canvasEntry, width, height) {
+        canvasEntry.canvas.width = width
+        canvasEntry.canvas.height = height
+    }
+
+    destroy(canvasEntry) {
+        canvasEntry.canvas.width = 0
+        canvasEntry.canvas.height = 0
+        canvasEntry.canvas = null
+        canvasEntry.context = null
+    }
+}
 
 export function buildBrowserShims() {
     const pdfjsLibForTests = {
         ...pdfjsLib,
         getDocument: (args) =>
-            pdfjsLib.getDocument({ ...args, disableWorker: true }),
+            pdfjsLib.getDocument({
+                ...args,
+                disableWorker: true,
+                CanvasFactory: TestCanvasFactory,
+            }),
     }
     globalThis.window = {
         pdfjsLib: pdfjsLibForTests,
         pdfjsDebug: true,
         requestAnimationFrame: (callback) => setTimeout(callback, 0),
         cancelAnimationFrame: (id) => clearTimeout(id),
+    }
+    globalThis.Image = Image
+    if (ImageData) {
+        globalThis.ImageData = ImageData
     }
     globalThis.document = {
         createElement: (tag) => {
