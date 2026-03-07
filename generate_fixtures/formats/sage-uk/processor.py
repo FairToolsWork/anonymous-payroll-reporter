@@ -512,21 +512,27 @@ def apply_fixture(
     address_name_anchor = address_block.get("nameAnchor")
     address_line_count = address_block.get("address_lines", 0)
     if employee_name is not None and address_name_anchor:
-        name_top = find_line_containing(line_text, address_name_anchor)
-        name_indices = line_map[name_top]
-        for idx in name_indices:
-            update_text(words, idx, "")
-        if employee_name:
-            name_anchor_word = words[name_indices[0]]
-            words.append(
-                {
-                    "text": employee_name,
-                    "x0": name_anchor_word["x0"],
-                    "x1": name_anchor_word["x1"],
-                    "top": name_anchor_word["top"],
-                    "bottom": name_anchor_word["bottom"],
-                }
-            )
+        header_anchor = header_bar["anchor"]
+        name_top = find_line(line_text, address_name_anchor, exclude=header_anchor)
+        name_indices = [
+            idx
+            for idx in line_map[name_top]
+            if words[idx]["x0"] < period_split_x
+        ]
+        if name_indices:
+            for idx in name_indices:
+                update_text(words, idx, "")
+            if employee_name:
+                name_anchor_word = words[name_indices[0]]
+                words.append(
+                    {
+                        "text": employee_name,
+                        "x0": name_anchor_word["x0"],
+                        "x1": name_anchor_word["x1"],
+                        "top": name_anchor_word["top"],
+                        "bottom": name_anchor_word["bottom"],
+                    }
+                )
     if employee_address is not None and address_line_count > 0:
         sorted_tops = sorted(line_map)
         anchor_top = find_line_containing(line_text, address_block["anchor"])
