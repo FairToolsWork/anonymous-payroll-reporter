@@ -1,4 +1,5 @@
 const CACHE_NAME = 'payroll-pwa-v2.0.0' // x-release-please-version
+const CDN_CACHE_LIMIT = 8
 const CORE_ASSETS = [
     './index.html',
     './styles.css',
@@ -43,6 +44,18 @@ function isCdnRequest(url) {
     )
 }
 
+async function pruneCdnCache(cache) {
+    const requests = await cache.keys()
+    const cdnRequests = requests.filter((request) => isCdnRequest(request.url))
+    if (cdnRequests.length <= CDN_CACHE_LIMIT) {
+        return
+    }
+    const excess = cdnRequests.length - CDN_CACHE_LIMIT
+    for (const request of cdnRequests.slice(0, excess)) {
+        await cache.delete(request)
+    }
+}
+
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') {
         return
@@ -70,7 +83,11 @@ self.addEventListener('fetch', (event) => {
                 const fetchPromise = fetch(event.request).then((response) => {
                     const responseClone = response.clone()
                     caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone)
+                        if (response.ok) {
+                            cache.put(event.request, responseClone).then(() => {
+                                pruneCdnCache(cache)
+                            })
+                        }
                     })
                     return response
                 })
