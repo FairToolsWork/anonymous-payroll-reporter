@@ -31,6 +31,10 @@
     font-family: 'Space Grotesk', Arial, sans-serif;
 }
 
+[hidden] {
+    display: none;
+}
+
 @font-face {
     /* Space adjusted for Arial */
     font-family: 'Space Grotesk';
@@ -152,7 +156,8 @@ body {
     background: #2b2a27;
     color: #fff;
     padding: 12px 18px;
-    border-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
     margin-bottom: 18px;
     box-shadow: var(--shadow);
 }
@@ -246,6 +251,15 @@ button:disabled.primary:hover {
     transform: none;
     background: var(--ink);
     box-shadow: none;
+}
+
+body.update-resources-ready .update-banner button.primary {
+    background: var(--accent-green-dark);
+    color: var(--paper);
+}
+
+body.update-resources-ready .update-banner button.primary:hover {
+    background: var(--accent);
 }
 
 button.ghost {

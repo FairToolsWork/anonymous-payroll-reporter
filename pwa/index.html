@@ -275,21 +275,18 @@
                 </div>
             </div>
         </section>
-        <main id="app" class="app-shell">
-            <div
-                class="update-banner"
-                v-if="updateAvailable || staleInstance"
-                v-cloak=""
+        <div class="update-banner" id="update-banner" hidden>
+            <p>Update available. Refresh to load the latest version.</p>
+            <button
+                class="primary on-dk"
+                type="button"
+                id="update-banner-button"
+                disabled
             >
-                <p>Update available. Refresh to load the latest version.</p>
-                <button
-                    class="primary on-dk"
-                    type="button"
-                    @click="applyUpdate"
-                >
-                    Refresh
-                </button>
-            </div>
+                Downloading resources...
+            </button>
+        </div>
+        <main id="app" class="app-shell">
             <header class="app-header">
                 <div>
                     <p class="eyebrow">Offline &amp; Anonymous</p>
@@ -1061,6 +1058,136 @@
                 <p v-else="">No Excel parsed entries captured yet.</p>
             </section>
         </main>
+        <script>
+            ;(() => {
+                const banner = document.getElementById('update-banner')
+                const button = document.getElementById('update-banner-button')
+                if (!banner || !button) {
+                    return
+                }
+                banner.style.display = 'none'
+                const resourceUrls = [
+                    'https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js',
+                    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs',
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs',
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs',
+                ]
+                const retryDelaysMs = [400, 800]
+                const wait = (delayMs) =>
+                    new Promise((resolve) => {
+                        setTimeout(resolve, delayMs)
+                    })
+                const fetchWithRetry = async (url) => {
+                    for (
+                        let attempt = 0;
+                        attempt <= retryDelaysMs.length;
+                        attempt += 1
+                    ) {
+                        try {
+                            await window.fetch(url, {
+                                cache: 'reload',
+                                mode: 'cors',
+                            })
+                            return true
+                        } catch {
+                            if (attempt >= retryDelaysMs.length) {
+                                return false
+                            }
+                            await wait(retryDelaysMs[attempt])
+                        }
+                    }
+                    return false
+                }
+                const applyUpdate = async () => {
+                    if (!('serviceWorker' in navigator)) {
+                        window.location.reload()
+                        return
+                    }
+                    const registration =
+                        await navigator.serviceWorker.getRegistration()
+                    if (registration?.waiting) {
+                        registration.waiting.postMessage({
+                            type: 'SKIP_WAITING',
+                        })
+                        return
+                    }
+                    if (registration) {
+                        registration.update()
+                    }
+                    window.location.reload()
+                }
+
+                const bannerDismissKey = 'payroll_sw_updated'
+                if (localStorage.getItem(bannerDismissKey) === 'true') {
+                    banner.style.display = 'none'
+                    localStorage.removeItem(bannerDismissKey)
+                }
+
+                const showBanner = () => {
+                    banner.hidden = false
+                    banner.style.display = ''
+                    Promise.all(
+                        resourceUrls.map((url) => fetchWithRetry(url))
+                    ).then(() => {
+                        document.body.classList.add('update-resources-ready')
+                        button.disabled = false
+                        button.textContent = 'Refresh'
+                    })
+                }
+
+                const debugLevel = new URLSearchParams(
+                    window.location.search
+                ).get('debug')
+                if (debugLevel === '2') {
+                    showBanner()
+                }
+
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.addEventListener(
+                        'controllerchange',
+                        () => {
+                            banner.style.display = 'none'
+                            localStorage.setItem(bannerDismissKey, 'true')
+                        }
+                    )
+                    navigator.serviceWorker
+                        .getRegistration()
+                        .then((registration) => {
+                            if (!registration) {
+                                return
+                            }
+                            if (registration.waiting) {
+                                showBanner()
+                                return
+                            }
+                            registration.addEventListener('updatefound', () => {
+                                const newWorker = registration.installing
+                                if (!newWorker) {
+                                    return
+                                }
+                                newWorker.addEventListener(
+                                    'statechange',
+                                    () => {
+                                        if (
+                                            newWorker.state === 'installed' &&
+                                            navigator.serviceWorker.controller
+                                        ) {
+                                            showBanner()
+                                        }
+                                    }
+                                )
+                            })
+                        })
+                }
+
+                button.addEventListener('click', () => {
+                    if (button.disabled) {
+                        return
+                    }
+                    applyUpdate()
+                })
+            })()
+        </script>
         <script type="module" src="app.js"></script>
     </body>
 </html>
