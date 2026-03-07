@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v2.0.0...anonymous-payroll-reporter-v2.0.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* **fixtures:** correct address name anchor in Sage UK PDF generation ([0ed2812](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/0ed281261e13ad1eb0894914a21d0d399d699172))
+* **report:** normalize currency rounding to avoid negative zero labels ([5a3a94e](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/5a3a94e47719e23ae5d171d3b76457ca597aaeeb))
+
+
+### Performance Improvements
+
+* **pwa:** cap CDN cache entries in service worker ([523f4a2](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/523f4a2a670d894697a248b8893e794e65b809ba))
+
 ## [2.0.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v1.5.1...anonymous-payroll-reporter-v2.0.0) (2026-03-06)
 
 
