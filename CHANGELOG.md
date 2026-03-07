@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v2.0.1...anonymous-payroll-reporter-v2.1.0) (2026-03-07)
+
+
+### Features
+
+* **pwa:** move update banner outside Vue and preload refresh resources ([85c8a7f](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/85c8a7f54073fbf8e2b2a82adc97162401ac65df))
+
 ## [2.0.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v2.0.0...anonymous-payroll-reporter-v2.0.1) (2026-03-07)
 
 
