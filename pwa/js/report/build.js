@@ -92,7 +92,9 @@ function formatTimestamp(date) {
  * @returns {string}
  */
 function formatCurrency(value) {
-    return `£${value.toFixed(2)}`
+    const roundedValue = Number(value.toFixed(2))
+    const normalizedValue = Object.is(roundedValue, -0) ? 0 : roundedValue
+    return `£${normalizedValue.toFixed(2)}`
 }
 
 /**
@@ -138,10 +140,11 @@ function formatContributionDifference(value) {
     if (value === null) {
         return 'N/A'
     }
+    const roundedValue = Number(value.toFixed(2))
     const diffClass =
-        value === 0
+        roundedValue === 0
             ? 'diff--neutral'
-            : value > 0
+            : roundedValue > 0
               ? 'diff--positive'
               : 'diff--negative'
     return `<span class="${diffClass}">${formatCurrency(value)}</span>`
@@ -1099,11 +1102,12 @@ function renderYearSummary(entriesForYear) {
         if (value === null) {
             return 'N/A'
         }
+        const roundedValue = Number(value.toFixed(2))
         const diffClass = isZeroReview
             ? 'diff--zero-review'
-            : value === 0
+            : roundedValue === 0
               ? 'diff--neutral'
-              : value > 0
+              : roundedValue > 0
                 ? 'diff--positive'
                 : 'diff--negative'
         return `<span class="${diffClass}">${formatCurrency(value)}</span>`
