@@ -1,5 +1,3 @@
-declare const Vue: any
-
 declare namespace pdfjsLib {
     interface PDFPageProxy {
         getViewport(args: { scale: number }): { width: number; height: number }
@@ -12,6 +10,18 @@ declare namespace pdfjsLib {
             viewport: { width: number; height: number }
         }): { promise: Promise<void> }
     }
+}
+
+declare module 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js' {
+    export * from 'vue'
+}
+
+declare module 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs' {
+    export * from 'pdfjs-dist'
+}
+
+declare module 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs' {
+    export * from 'xlsx'
 }
 
 type PDFPageProxy = pdfjsLib.PDFPageProxy
@@ -106,8 +116,3 @@ declare function parsePayrollPdf(
         imageData: string | null
     }
 }>
-
-interface Window {
-    XLSX?: any
-    pdfjsLib?: typeof pdfjsLib
-}

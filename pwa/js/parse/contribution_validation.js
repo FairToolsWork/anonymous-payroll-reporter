@@ -65,11 +65,13 @@ function parseContributionWorkbook(workbook, sourceName, xlsx) {
     if (!sheet) {
         throw new Error('CONTRIBUTION_SHEET_MISSING')
     }
-    const rows = xlsx.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: null,
-    })
-    const headerRow = rows[0] || []
+    const rows = /** @type {any[][]} */ (
+        xlsx.utils.sheet_to_json(sheet, {
+            header: 1,
+            defval: null,
+        })
+    )
+    const headerRow = /** @type {any[]} */ (rows[0] || [])
     const headerCells = headerRow.map((cell) =>
         String(cell || '')
             .trim()
@@ -163,10 +165,11 @@ function parseContributionWorkbook(workbook, sourceName, xlsx) {
         const error = /** @type {Error & { missingTypes?: string[] }} */ (
             new Error('CONTRIBUTION_MISSING_EE_ER')
         )
-        error.missingTypes = [
-            !hasEE ? 'Employee' : null,
-            !hasER ? 'Employer' : null,
-        ].filter((entry) => entry)
+        error.missingTypes = /** @type {string[]} */ (
+            [!hasEE ? 'Employee' : null, !hasER ? 'Employer' : null].filter(
+                (entry) => entry !== null
+            )
+        )
         throw error
     }
 

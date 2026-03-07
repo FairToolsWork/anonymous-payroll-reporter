@@ -5,14 +5,19 @@
  * @typedef {{ text: string, imageData: string | null, lines: string[], lineItems: PageLineItemRow[] }} ExtractedPdfData
  */
 
-/** @type {typeof window.pdfjsLib} */
-const pdfjsLib =
-    typeof window !== 'undefined'
-        ? window.pdfjsLib
-        : globalThis.window?.pdfjsLib
+const PDFJS_CDN_SRC =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs'
+const PDFJS_CDN_WORKER_SRC =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+async function getPdfjsLib() {
+    if (globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib) {
+        return /** @type {any} */ (globalThis.window).pdfjsLib
+    }
+    const pdfjsLib = await import(PDFJS_CDN_SRC)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_CDN_WORKER_SRC
+    return pdfjsLib
+}
 
 /**
  * @param {File} file
@@ -20,6 +25,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
  * @returns {Promise<ExtractedPdfData>}
  */
 export async function extractPdfData(file, password) {
+    const pdfjsLib = await getPdfjsLib()
     const data = await file.arrayBuffer()
     const isTestEnv = Boolean(
         globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsDebug
@@ -35,23 +41,31 @@ export async function extractPdfData(file, password) {
     try {
         pdf = await loadingTask.promise
     } catch (error) {
-        if (error && error.name === 'PasswordException') {
+        const e = /** @type {any} */ (error)
+        if (e && e.name === 'PasswordException') {
             const reason =
-                error.code === 2 ? 'INCORRECT_PASSWORD' : 'PASSWORD_REQUIRED'
+                e.code === 2 ? 'INCORRECT_PASSWORD' : 'PASSWORD_REQUIRED'
             throw new Error(reason)
         }
         throw error
     }
     let text = ''
-    const allLines = []
+    const allLines = /** @type {string[]} */ ([])
+    /** @type {PageLineItemRow[]} */
     const allLineItems = []
     let imageData = null
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
         const page = await pdf.getPage(pageNum)
         const viewport = page.getViewport({ scale: 1 })
-        const content = await page.getTextContent()
-        const pageLineItems = buildLineItemsFromTextItems(content.items).map(
+        const textContent = await page.getTextContent()
+        const items =
+            /** @type {Array<{ transform: number[], str: string }>} */ (
+                textContent.items.filter(
+                    (/** @type {any} */ item) => 'str' in item
+                )
+            )
+        const pageLineItems = buildLineItemsFromTextItems(items).map(
             (line) => ({
                 ...line,
                 pageNumber: pageNum,
@@ -65,7 +79,9 @@ export async function extractPdfData(file, password) {
         text += `${pageLines.join('\n')}\n`
 
         if (pageNum === 1) {
-            imageData = await renderPageImage(page)
+            imageData = await renderPageImage(
+                /** @type {PDFPageProxy} */ (/** @type {any} */ (page))
+            )
         }
     }
 
@@ -77,6 +93,7 @@ export async function extractPdfData(file, password) {
  * @returns {LineItemRow[]}
  */
 function buildLineItemsFromTextItems(items) {
+    /** @type {LineItemRow[]} */
     const lines = []
     const lineTolerance = 2
 
@@ -101,7 +118,12 @@ function buildLineItemsFromTextItems(items) {
         .sort((a, b) => b.y - a.y)
         .map((line) => ({
             ...line,
-            items: line.items.sort((a, b) => a.x - b.x),
+            items: line.items.sort(
+                (
+                    /** @type {LineItemText} */ a,
+                    /** @type {LineItemText} */ b
+                ) => a.x - b.x
+            ),
         }))
 }
 
@@ -128,7 +150,9 @@ function buildLinesFromLineItems(lineItems) {
 async function renderPageImage(page) {
     const viewport = page.getViewport({ scale: 1.1 })
     const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
+    const context = /** @type {CanvasRenderingContext2D} */ (
+        canvas.getContext('2d')
+    )
     canvas.width = viewport.width
     canvas.height = viewport.height
     await page.render({ canvasContext: context, viewport }).promise
@@ -171,7 +195,9 @@ async function renderPageImage(page) {
             const cropBottom = Math.min(height, contentBottom + 1 + extraPixels)
 
             const croppedCanvas = document.createElement('canvas')
-            const croppedContext = croppedCanvas.getContext('2d')
+            const croppedContext = /** @type {CanvasRenderingContext2D} */ (
+                croppedCanvas.getContext('2d')
+            )
             croppedCanvas.width = width
             croppedCanvas.height = cropBottom
             croppedContext.drawImage(

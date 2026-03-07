@@ -41,7 +41,7 @@
     },
     "dependencies": {
         "canvas": "3.2.1",
-        "pdfjs-dist": "^3.11.174"
+        "pdfjs-dist": "5.4.149"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.3",
@@ -57,6 +57,7 @@
         "stylelint": "^17.4.0",
         "stylelint-config-standard": "^40.0.0",
         "typescript": "^5.9.3",
+        "vue": "3.5.22",
         "vitest": "4.0.18",
         "xlsx": "^0.18.5"
     },

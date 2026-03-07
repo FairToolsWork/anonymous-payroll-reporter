@@ -22,12 +22,29 @@
         </script>
         <link rel="manifest" href="site.webmanifest" />
         <link rel="stylesheet" href="styles.css" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
             rel="preconnect"
-            href="https://fonts.gstatic.com"
-            crossorigin=""
+            href="https://cdnjs.cloudflare.com"
+            crossorigin
         />
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+        <link
+            rel="modulepreload"
+            href="https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js"
+            crossorigin
+        />
+        <link
+            rel="modulepreload"
+            href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs"
+            crossorigin
+        />
+        <link
+            rel="modulepreload"
+            href="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs"
+            crossorigin
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;display=swap"
             rel="stylesheet"
@@ -1044,21 +1061,6 @@
                 <p v-else="">No Excel parsed entries captured yet.</p>
             </section>
         </main>
-        <script
-            src="https://unpkg.com/vue@3/dist/vue.global.prod.js"
-            crossorigin="anonymous"
-            referrerpolicy="no-referrer"
-        ></script>
-        <script
-            src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
-            crossorigin="anonymous"
-            referrerpolicy="no-referrer"
-        ></script>
-        <script
-            src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
-            crossorigin="anonymous"
-            referrerpolicy="no-referrer"
-        ></script>
         <script type="module" src="app.js"></script>
     </body>
 </html>

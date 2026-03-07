@@ -41,9 +41,9 @@
 /**
  * @typedef {Object} PayrollSalaryHoliday
  * @property {string} title
- * @property {number} units
- * @property {number} rate
- * @property {number} amount
+ * @property {number|null} units
+ * @property {number|null} rate
+ * @property {number|null} amount
  */
 
 /**

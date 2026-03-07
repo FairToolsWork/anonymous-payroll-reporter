@@ -74,8 +74,10 @@ function selectPaymentsBand(bands) {
         'i'
     )
 
+    /** @type {number | null} */
     let bestByHint = null
     let bestByHintCount = -1
+    /** @type {number | null} */
     let bestByNumeric = null
     let bestByNumericCount = -1
 
@@ -113,8 +115,10 @@ function selectBandByHints(bands, hints, fallbackIndex) {
         hints.map((term) => term.replace(/\s+/g, '\\s+')).join('|'),
         'i'
     )
+    /** @type {number | null} */
     let bestByHint = null
     let bestByHintCount = -1
+    /** @type {number | null} */
     let bestByNumeric = null
     let bestByNumericCount = -1
 
@@ -217,27 +221,30 @@ function parsePaymentsFromLines(lines) {
         hourly: {
             basic: {
                 title: 'Basic Hours',
-                units: null,
-                rate: null,
-                amount: null,
+                units: /** @type {number|null} */ (null),
+                rate: /** @type {number|null} */ (null),
+                amount: /** @type {number|null} */ (null),
             },
             holiday: {
                 title: 'Holiday Hours',
-                units: null,
-                rate: null,
-                amount: null,
+                units: /** @type {number|null} */ (null),
+                rate: /** @type {number|null} */ (null),
+                amount: /** @type {number|null} */ (null),
             },
         },
         salary: {
-            basic: { title: 'Salary', amount: null },
+            basic: {
+                title: 'Salary',
+                amount: /** @type {number|null} */ (null),
+            },
             holiday: {
                 title: 'Holiday',
-                units: null,
-                rate: null,
-                amount: null,
+                units: /** @type {number|null} */ (null),
+                rate: /** @type {number|null} */ (null),
+                amount: /** @type {number|null} */ (null),
             },
         },
-        misc: [],
+        misc: /** @type {PayrollPayItem[]} */ ([]),
     }
 
     lines.forEach((line) => {
@@ -324,6 +331,7 @@ function parsePaymentsFromLines(lines) {
  */
 function findDeductionSplitX(lineItems) {
     const deductionRegex = /(PAYE\s+Tax|National\s+Insurance|NEST\b|Deduction)/i
+    /** @type {number | null} */
     let minX = null
     lineItems.forEach((line) => {
         line.items.forEach((item) => {
@@ -340,8 +348,11 @@ function findDeductionSplitX(lineItems) {
  * @returns {SplitLines}
  */
 function splitLineItemsByGlobalSplit(lineItems) {
+    /** @type {string[]} */
     const leftLines = []
+    /** @type {string[]} */
     const rightLines = []
+    /** @type {number[]} */
     const points = []
     lineItems.forEach((line) => {
         line.items.forEach((item) => {
@@ -365,7 +376,9 @@ function splitLineItemsByGlobalSplit(lineItems) {
             : (centroids[1] + centroids[2]) / 2
 
     lineItems.forEach((line) => {
+        /** @type {LineItemText[]} */
         const leftItems = []
+        /** @type {LineItemText[]} */
         const rightItems = []
         line.items.forEach((item) => {
             if (item.x <= splitX) {
@@ -411,7 +424,7 @@ function parseDeductionsFromLines(lines) {
         natIns: { title: 'National Insurance', amount: 0 },
         pensionEE: { title: 'NEST Corporation - EE', amount: 0 },
         pensionER: { title: 'NEST Corporation - ER', amount: 0 },
-        misc: [],
+        misc: /** @type {PayrollMiscDeduction[]} */ ([]),
     }
 
     lines.forEach((line) => {
@@ -445,7 +458,7 @@ function parseDeductionsFromLines(lines) {
             title: parsed.label,
             units: parsed.units,
             rate: parsed.rate,
-            amount: parsed.amount,
+            amount: parsed.amount || 0,
         })
     })
 
@@ -539,12 +552,12 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
         findEmployerLine(lineItemsText) ||
         extractField(text, PATTERNS.employerLine)
 
-    let address = {
+    let address = /** @type {PayrollAddress} */ ({
         street: null,
         city: null,
         administrativeArea: null,
         postalCode: null,
-    }
+    })
 
     if (positionalLines.length) {
         const bands = splitLineItemsIntoBands(positionalLines, 4)
@@ -571,7 +584,7 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
         }
     }
 
-    let payments = {
+    let payments = /** @type {PayrollPayments} */ ({
         hourly: {
             basic: {
                 title: 'Basic Hours',
@@ -591,14 +604,14 @@ export async function buildPayrollDocument({ text, lines, lineItems }) {
             holiday: { title: 'Holiday Salary', units: 0, rate: 0, amount: 0 },
         },
         misc: [],
-    }
-    let deductions = {
+    })
+    let deductions = /** @type {PayrollDeductions} */ ({
         payeTax: { title: 'PAYE Tax', amount: 0 },
         natIns: { title: 'National Insurance', amount: 0 },
         pensionEE: { title: 'NEST Corporation - EE', amount: 0 },
         pensionER: { title: 'NEST Corporation - ER', amount: 0 },
         misc: [],
-    }
+    })
 
     if (positionalLines.length) {
         const bands = splitLineItemsIntoBands(positionalLines, 4)

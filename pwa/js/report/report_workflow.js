@@ -88,7 +88,8 @@ export async function runPayrollReportWorkflow(options) {
 
             records.push(payrollRecord)
         } catch (err) {
-            if (err?.message === 'PASSWORD_REQUIRED') {
+            const e = /** @type {any} */ (err)
+            if (e?.message === 'PASSWORD_REQUIRED') {
                 const passwordError =
                     /** @type {Error & { fileName?: string }} */ (
                         new Error('PASSWORD_REQUIRED')
@@ -96,7 +97,7 @@ export async function runPayrollReportWorkflow(options) {
                 passwordError.fileName = file.name
                 throw passwordError
             }
-            if (err?.message === 'INCORRECT_PASSWORD') {
+            if (e?.message === 'INCORRECT_PASSWORD') {
                 const passwordError =
                     /** @type {Error & { fileName?: string }} */ (
                         new Error('INCORRECT_PASSWORD')
@@ -162,11 +163,12 @@ export async function runPayrollReportWorkflow(options) {
                     }
                 }
             } catch (err) {
+                const e = /** @type {any} */ (err)
                 failures.push({
                     name: file.name || 'Unknown',
-                    code: err?.message || 'UNKNOWN',
-                    employers: err?.employers || [],
-                    missingTypes: err?.missingTypes || [],
+                    code: e?.message || 'UNKNOWN',
+                    employers: e?.employers || [],
+                    missingTypes: e?.missingTypes || [],
                 })
             }
         }

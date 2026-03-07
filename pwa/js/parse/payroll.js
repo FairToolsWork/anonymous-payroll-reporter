@@ -93,7 +93,10 @@ export function buildLinesFromLineItems(lineItems) {
 export function splitLineItemsIntoBands(lineItems, bandCount) {
     const sorted = lineItems.slice().sort((a, b) => b.y - a.y)
     if (!sorted.length) {
-        return Array.from({ length: bandCount }, () => [])
+        return Array.from(
+            { length: bandCount },
+            () => /** @type {LineItemRow[]} */ ([])
+        )
     }
 
     const gaps = []
@@ -139,6 +142,7 @@ export function splitLineItemsIntoBands(lineItems, bandCount) {
  * @returns {number[]}
  */
 export function computeColumnCentroids(lineItems, columnCount) {
+    /** @type {number[]} */
     const points = []
     lineItems.forEach((line) => {
         line.items.forEach((item) => {
@@ -159,7 +163,10 @@ export function computeColumnCentroids(lineItems, columnCount) {
     )
 
     for (let iteration = 0; iteration < 4; iteration += 1) {
-        const buckets = Array.from({ length: columnCount }, () => [])
+        const buckets = Array.from(
+            { length: columnCount },
+            () => /** @type {number[]} */ ([])
+        )
         points.forEach((x) => {
             let nearestIndex = 0
             let nearestDistance = Math.abs(x - centroids[0])
@@ -205,7 +212,10 @@ export function computeCentroidsFromValues(values, columnCount) {
     )
 
     for (let iteration = 0; iteration < 4; iteration += 1) {
-        const buckets = Array.from({ length: columnCount }, () => [])
+        const buckets = Array.from(
+            { length: columnCount },
+            () => /** @type {number[]} */ ([])
+        )
         values.forEach((value) => {
             let nearestIndex = 0
             let nearestDistance = Math.abs(value - centroids[0])
@@ -241,7 +251,10 @@ export function computeCentroidsFromValues(values, columnCount) {
  */
 export function bucketLinesByColumn(lineItems, columnCount, splitX) {
     const centroids = computeColumnCentroids(lineItems, columnCount)
-    const columns = Array.from({ length: columnCount }, () => [])
+    const columns = Array.from(
+        { length: columnCount },
+        () => /** @type {string[]} */ ([])
+    )
     if (!centroids.length) {
         return columns
     }
@@ -251,7 +264,7 @@ export function bucketLinesByColumn(lineItems, columnCount, splitX) {
         typeof splitX === 'number' &&
         Number.isFinite(splitX)
 
-    const nearestIndexForX = (xValue) => {
+    const nearestIndexForX = (/** @type {number} */ xValue) => {
         let nearestIndex = 0
         let nearestDistance = Math.abs(xValue - centroids[0])
         for (let i = 1; i < centroids.length; i += 1) {
@@ -265,10 +278,13 @@ export function bucketLinesByColumn(lineItems, columnCount, splitX) {
     }
 
     lineItems.forEach((line) => {
-        const itemsByColumn = Array.from({ length: columnCount }, () => [])
+        const itemsByColumn = Array.from(
+            { length: columnCount },
+            () => /** @type {LineItemText[]} */ ([])
+        )
         line.items.forEach((item) => {
             const columnIndex = useSplit
-                ? item.x <= splitX
+                ? item.x <= /** @type {number} */ (splitX)
                     ? 0
                     : 1
                 : nearestIndexForX(item.x)
@@ -308,9 +324,16 @@ export function bucketLinesByLineLeft(lineItems, columnCount) {
             const leftX = Math.min(...line.items.map((item) => item.x))
             return { leftX, line }
         })
-        .filter((entry) => entry)
+        .filter(
+            /** @returns {entry is { leftX: number, line: LineItemRow }} */ (
+                entry
+            ) => entry !== null
+        )
 
-    const columns = Array.from({ length: columnCount }, () => [])
+    const columns = Array.from(
+        { length: columnCount },
+        () => /** @type {string[]} */ ([])
+    )
     if (!lineEntries.length) {
         return columns
     }
@@ -323,7 +346,7 @@ export function bucketLinesByLineLeft(lineItems, columnCount) {
         return columns
     }
 
-    const nearestIndexForValue = (value) => {
+    const nearestIndexForValue = (/** @type {number} */ value) => {
         let nearestIndex = 0
         let nearestDistance = Math.abs(value - centroids[0])
         for (let i = 1; i < centroids.length; i += 1) {
@@ -336,7 +359,9 @@ export function bucketLinesByLineLeft(lineItems, columnCount) {
         return nearestIndex
     }
 
-    lineEntries.forEach(({ leftX, line }) => {
+    lineEntries.forEach((entry) => {
+        const { leftX, line } =
+            /** @type {{ leftX: number, line: LineItemRow }} */ (entry)
         const columnIndex = nearestIndexForValue(leftX)
         const text = line.items
             .slice()
