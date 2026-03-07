@@ -10,13 +10,7 @@
                 },
                 {
                     "type": "generic",
-                    "path": "pwa/index.html",
-                    "replace": [
-                        {
-                            "search": "<meta name=\"app-version\" content=\"\\d+\\.\\d+\\.\\d+\" />",
-                            "replace": "<meta name=\"app-version\" content=\"${version}\" />"
-                        }
-                    ]
+                    "path": "pwa/index.html"
                 }
             ]
         }
