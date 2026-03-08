@@ -89,6 +89,11 @@ export async function runPayrollReportWorkflow(options) {
             records.push(payrollRecord)
         } catch (err) {
             const e = /** @type {any} */ (err)
+            console.error('Payroll: PDF parse failed', {
+                file: file?.name || 'Unknown',
+                message: e?.message,
+                error: e,
+            })
             if (e?.message === 'PASSWORD_REQUIRED') {
                 const passwordError =
                     /** @type {Error & { fileName?: string }} */ (

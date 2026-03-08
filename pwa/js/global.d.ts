@@ -12,16 +12,13 @@ declare namespace pdfjsLib {
     }
 }
 
-declare module 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js' {
-    export * from 'vue'
-}
-
-declare module 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs' {
+declare module 'pdfjs-dist/build/pdf.mjs' {
     export * from 'pdfjs-dist'
 }
 
-declare module 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs' {
-    export * from 'xlsx'
+declare module 'pdfjs-dist/build/pdf.worker.min.mjs?url' {
+    const url: string
+    export default url
 }
 
 type PDFPageProxy = pdfjsLib.PDFPageProxy

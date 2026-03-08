@@ -4,6 +4,12 @@ const CORE_ASSETS = [
     './index.html',
     './styles.css',
     './app.js',
+    './pdfjs.js',
+    './pdf.js',
+    './report.js',
+    './parse.js',
+    './pdf.worker.min.mjs',
+    './xlsx.js',
     './site.webmanifest',
 ]
 

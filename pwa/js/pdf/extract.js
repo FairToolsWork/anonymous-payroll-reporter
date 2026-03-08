@@ -1,3 +1,6 @@
+import * as pdfjsBrowser from 'pdfjs-dist/build/pdf.mjs'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
 /**
  * @typedef {{ x: number, text: string }} LineItemText
  * @typedef {{ y: number, items: LineItemText[] }} LineItemRow
@@ -5,18 +8,28 @@
  * @typedef {{ text: string, imageData: string | null, lines: string[], lineItems: PageLineItemRow[] }} ExtractedPdfData
  */
 
-const PDFJS_CDN_SRC =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs'
-const PDFJS_CDN_WORKER_SRC =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs'
+const PDFJS_WORKER_SRC = pdfjsWorkerUrl
+const PDFJS_LEGACY_WORKER_SRC = new globalThis.URL(
+    'pdfjs-dist/legacy/build/pdf.worker.mjs',
+    import.meta.url
+)
 
 async function getPdfjsLib() {
-    if (globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib) {
-        return /** @type {any} */ (globalThis.window).pdfjsLib
+    const windowPdfjs =
+        globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib
+    /** @type {{ versions?: { node?: string } } | undefined} */
+    const nodeProcess = /** @type {any} */ (globalThis).process
+    const isNode = Boolean(nodeProcess?.versions?.node)
+    const pdfjsModule = windowPdfjs
+        ? windowPdfjs
+        : isNode
+          ? await import('pdfjs-dist/legacy/build/pdf.mjs')
+          : pdfjsBrowser
+    const workerSrc = isNode ? PDFJS_LEGACY_WORKER_SRC : PDFJS_WORKER_SRC
+    if (!pdfjsModule.GlobalWorkerOptions?.workerSrc) {
+        pdfjsModule.GlobalWorkerOptions.workerSrc = workerSrc.toString()
     }
-    const pdfjsLib = await import(PDFJS_CDN_SRC)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_CDN_WORKER_SRC
-    return pdfjsLib
+    return pdfjsModule
 }
 
 /**

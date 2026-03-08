@@ -63,7 +63,7 @@ Whenever JS, CSS, HTML, or any other cached asset changes, the Service Worker ca
 
 ### Releases and `CACHE_NAME` versioning
 
-`CACHE_NAME` in `pwa/sw.js` is managed automatically by [release-please](https://github.com/googleapis/release-please). On every push to `main`, the release-please GitHub Action maintains an open release PR. When that PR is merged, `CACHE_NAME` is bumped to match the new semver version and a GitHub release is tagged.
+`CACHE_NAME` in `pwa/public/sw.js` is managed automatically by [release-please](https://github.com/googleapis/release-please). On every push to `main`, the release-please GitHub Action maintains an open release PR. When that PR is merged, `CACHE_NAME` is bumped to match the new semver version and a GitHub release is tagged.
 
 Use [conventional commits](https://www.conventionalcommits.org/) to drive version increments:
 
@@ -85,14 +85,25 @@ The `CACHE_NAME` bump causes the new SW to delete the old cache on activate and 
 
 4. **Orphaned instances** (tabs open for more than 24 hours without a reload) will show the update banner automatically via the `staleInstance` flag, prompting the user to refresh.
 
+## Local development
+
+For local iteration with hot reload, run:
+
+```bash
+pnpm pwa:dev
+```
+
+This starts the Vite dev server from `pwa/`. The service worker is still registered by the app, so if you hit cache oddities during development, use the reset steps below.
+
 ### If the cache is stuck during development
 
 Open DevTools → **Application** → **Storage** → **Clear site data**, then hard-reload (`Cmd+Shift+R`). This bypasses the SW entirely and fetches fresh files.
 
 ## Tech
 
-- Vue 3 (CDN)
-- PDF.js (CDN)
+- Vue 3 (bundled with Vite)
+- PDF.js (bundled with Vite)
+- XLSX (bundled with Vite)
 - Service Worker + Web Manifest
 
 ## Parser architecture

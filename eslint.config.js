@@ -41,7 +41,7 @@ export default [
         },
     },
     {
-        files: ['pwa/sw.js'],
+        files: ['pwa/public/sw.js'],
         languageOptions: {
             globals: {
                 self: 'readonly',

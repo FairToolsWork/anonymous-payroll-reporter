@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path fill="#fff" stroke="#000" stroke-linejoin="round" stroke-width="2.5" d="M10 4h34l10 10v46H10Z"/>
+  <path fill="none" stroke="#000" stroke-linejoin="round" stroke-width="2.5" d="M44 4v10h10"/>
+  <text x="32" y="34" font-family="Georgia, serif" font-size="18" font-weight="bold" text-anchor="middle">£</text>
+  <path stroke="#000" stroke-width="1.5" d="M16 42h32m-32 6h22m-22 6h28"/>
+</svg>

@@ -1,11 +1,4 @@
-import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs'
-import {
-    createApp,
-    defineComponent,
-} from 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js'
-import { parseContributionWorkbook } from '../parse/contribution_validation.js'
-import { PATTERNS } from '../parse/formats/sage-uk/patterns.js'
-import { runPayrollReportWorkflow } from '../report/report_workflow.js'
+import { createApp, defineComponent } from 'vue'
 
 /**
  * @typedef {import("../parse/payroll.types").PayrollRecord} PayrollRecord
@@ -82,13 +75,63 @@ const SECTION_COLLAPSED_KEY = 'section_collapsed'
 /** @type {number} */
 const SESSION_TTL_MS = 30 * 60 * 1000
 /** @type {string} */
-const LAST_LOADED_AT_KEY = 'last_loaded_at'
+const LAST_LOADED_AT_KEY = 'payroll_last_loaded'
 /** @type {number} */
 const STALE_INSTANCE_TTL_MS = 24 * 60 * 60 * 1000
-/** @type {RegExp} */
-const RELEASE_TAG_PATTERN = /anonymous-payroll-reporter-v(\d+\.\d+\.\d+)/i
 /** @type {string} */
 const UNKNOWN_APP_VERSION = 'Unknown'
+
+/** @type {Promise<any> | null} */
+let xlsxPromise = null
+/** @type {any | null} */
+let cachedXlsx = null
+/** @type {Promise<any> | null} */
+let reportWorkflowPromise = null
+/** @type {Promise<any> | null} */
+let patternsPromise = null
+/** @type {Promise<any> | null} */
+let contributionParserPromise = null
+
+function loadXlsx() {
+    if (!xlsxPromise) {
+        xlsxPromise = import('xlsx').then((module) => {
+            cachedXlsx = module
+            return module
+        })
+    }
+    return xlsxPromise
+}
+
+function loadReportWorkflow() {
+    if (!reportWorkflowPromise) {
+        reportWorkflowPromise = import('../report/report_workflow.js')
+    }
+    return reportWorkflowPromise
+}
+
+function loadPatterns() {
+    if (!patternsPromise) {
+        patternsPromise = import('../parse/formats/sage-uk/patterns.js')
+    }
+    return patternsPromise
+}
+
+function loadContributionParser() {
+    if (!contributionParserPromise) {
+        contributionParserPromise =
+            import('../parse/contribution_validation.js')
+    }
+    return contributionParserPromise
+}
+
+/** @param {() => void} callback */
+function scheduleIdle(callback) {
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => callback())
+        return
+    }
+    window.setTimeout(() => callback(), 0)
+}
 
 /**
  * @returns {string}
@@ -100,16 +143,7 @@ function getAppVersionFromDemoLink() {
     if (metaVersion) {
         return `v${metaVersion}`
     }
-    const demoHref =
-        document.querySelector('.demo-download-link')?.getAttribute('href') ||
-        ''
-    const hrefMatch = demoHref.match(RELEASE_TAG_PATTERN)
-    if (hrefMatch) {
-        return `v${hrefMatch[1]}`
-    }
-    const pageMarkup = document.documentElement?.innerHTML || ''
-    const pageMatch = pageMarkup.match(RELEASE_TAG_PATTERN)
-    return pageMatch ? `v${pageMatch[1]}` : UNKNOWN_APP_VERSION
+    return UNKNOWN_APP_VERSION
 }
 
 /**
@@ -382,6 +416,7 @@ export function initPayrollApp() {
                     if (value instanceof Date) {
                         return value
                     }
+                    const XLSX = cachedXlsx
                     if (
                         typeof value === 'number' &&
                         /** @type {any} */ (XLSX).SSF?.parse_date_code
@@ -431,9 +466,12 @@ export function initPayrollApp() {
                     if (!files || !files.length) {
                         return null
                     }
+                    const XLSX = await loadXlsx()
                     if (!XLSX) {
                         throw new Error('XLSX_NOT_AVAILABLE')
                     }
+                    const { parseContributionWorkbook } =
+                        await loadContributionParser()
                     const XLSXReader = /** @type {any} */ (XLSX)
                     /** @type {ContributionEntry[]} */
                     const entries = []
@@ -676,6 +714,9 @@ export function initPayrollApp() {
 
                     let workflowResult = null
                     try {
+                        const XLSX = await loadXlsx()
+                        const { runPayrollReportWorkflow } =
+                            await loadReportWorkflow()
                         this.parsingExcel = this.contributionFiles.length > 0
                         if (this.parsingExcel) {
                             console.info(
@@ -696,7 +737,10 @@ export function initPayrollApp() {
                             failedPayPeriods: this.failedPayPeriods,
                             failedFiles: this.failedFiles,
                             captureDebug: this.debugEnabled,
-                            onProgress: ({ current, total, file }) => {
+                            onProgress: (
+                                /** @type {{ current: number, total: number, file: File }} */
+                                { current, total, file }
+                            ) => {
                                 this.progress.current = current
                                 this.progress.total = total
                                 console.info('Payroll: extracting', {
@@ -864,6 +908,7 @@ export function initPayrollApp() {
                                 null,
                                 2
                             )
+                            const { PATTERNS } = await loadPatterns()
                             this.debugInfo.matches = JSON.stringify(
                                 {
                                     nameDateId:
@@ -1151,7 +1196,24 @@ export function initPayrollApp() {
                     this.staleInstance = true
                 }
 
-                if ('serviceWorker' in navigator) {
+                scheduleIdle(() => {
+                    void loadXlsx()
+                    void loadReportWorkflow()
+                    void loadPatterns()
+                    void loadContributionParser()
+                })
+
+                const isDevHost =
+                    window.location.hostname === 'localhost' ||
+                    window.location.hostname === '127.0.0.1'
+                const debugLevel = new URLSearchParams(
+                    window.location.search
+                ).get('debug')
+                const allowDevServiceWorker = isDevHost && debugLevel === '2'
+                if (
+                    (!isDevHost || allowDevServiceWorker) &&
+                    'serviceWorker' in navigator
+                ) {
                     const hadController = !!navigator.serviceWorker.controller
                     let reloadPending = false
                     navigator.serviceWorker.addEventListener(
@@ -1165,7 +1227,7 @@ export function initPayrollApp() {
                     )
 
                     navigator.serviceWorker
-                        .register('sw.js')
+                        .register('/sw.js')
                         .then((registration) => {
                             this.swRegistration = registration
                             registration.update()

@@ -21,7 +21,6 @@
             })()
         </script>
         <link rel="manifest" href="/site.webmanifest" />
-        <link rel="stylesheet" href="styles.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -232,6 +231,10 @@
             href="/icons/apple-splash-1136-640.png"
             media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
         />
+      <script type="module" crossorigin src="/app.js"></script>
+      <link rel="modulepreload" crossorigin href="/pdfjs.js">
+      <link rel="modulepreload" crossorigin href="/pdf.js">
+      <link rel="stylesheet" crossorigin href="/styles.css">
     </head>
     <body>
         <section class="no-esm-screen" aria-live="polite">
@@ -1132,6 +1135,5 @@
                 })
             })()
         </script>
-        <script type="module" src="app.js"></script>
     </body>
 </html>
