@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v2.1.0...anonymous-payroll-reporter-v3.0.0) (2026-03-09)
+
+
+### Features
+
+* **pwa:** add Vite build output, manifest, and service worker caching ([2d73901](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/2d7390197406bcc1174bca08f7a88def1f677bd7))
+* **pwa:** optimize loading, service worker caching, and PDF cleanup ([b36ac9d](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b36ac9dc1f08197eb82ca219264e9c471fac513b))
+
+
+### Miscellaneous Chores
+
+* prepare major release ([415134a](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/415134a55c240696aea1e5886aec1fa31ca26997))
+
 ## [2.1.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v2.0.1...anonymous-payroll-reporter-v2.1.0) (2026-03-07)
 
 
