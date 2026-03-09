@@ -1,4 +1,4 @@
-const CACHE_NAME = 'payroll-pwa-v3.0.0-beta' // x-release-please-version
+const CACHE_NAME = 'payroll-pwa-v3.0.0' // x-release-please-version
 const CDN_CACHE_LIMIT = 8
 const CORE_ASSETS = [
     './index.html',
