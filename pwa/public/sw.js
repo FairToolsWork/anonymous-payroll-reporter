@@ -42,9 +42,6 @@ self.addEventListener('message', (event) => {
 
 function isCdnRequest(url) {
     return (
-        url.startsWith('https://cdnjs.cloudflare.com') ||
-        url.startsWith('https://unpkg.com') ||
-        url.startsWith('https://cdn.jsdelivr.net') ||
         url.startsWith('https://fonts.googleapis.com') ||
         url.startsWith('https://fonts.gstatic.com')
     )
@@ -86,17 +83,23 @@ self.addEventListener('fetch', (event) => {
     if (isCdnRequest(requestUrl)) {
         event.respondWith(
             caches.match(event.request).then((cachedResponse) => {
-                const fetchPromise = fetch(event.request).then((response) => {
-                    const responseClone = response.clone()
-                    caches.open(CACHE_NAME).then((cache) => {
-                        if (response.ok) {
-                            cache.put(event.request, responseClone).then(() => {
-                                pruneCdnCache(cache)
-                            })
-                        }
+                const fetchPromise = fetch(event.request)
+                    .then((response) => {
+                        const responseClone = response.clone()
+                        caches.open(CACHE_NAME).then((cache) => {
+                            if (response.ok) {
+                                cache.delete(event.request).then(() => {
+                                    cache
+                                        .put(event.request, responseClone)
+                                        .then(() => {
+                                            pruneCdnCache(cache)
+                                        })
+                                })
+                            }
+                        })
+                        return response
                     })
-                    return response
-                })
+                    .catch(() => cachedResponse || Response.error())
                 return cachedResponse || fetchPromise
             })
         )

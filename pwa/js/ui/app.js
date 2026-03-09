@@ -62,8 +62,14 @@ import { createApp, defineComponent } from 'vue'
 
 /** @type {string | null} */
 const DEBUG_LEVEL = new URLSearchParams(window.location.search).get('debug')
+/** @type {string | null} */
+const MEMORY_LEVEL = new URLSearchParams(window.location.search).get('mem')
 /** @type {boolean} */
 const DEBUG_ENABLED = DEBUG_LEVEL === '1' || DEBUG_LEVEL === '2'
+/** @type {boolean} */
+const MEMORY_LOG_ENABLED = MEMORY_LEVEL === '1'
+/** @type {number} */
+const MEMORY_LOG_EVERY = 5
 /** @type {string} */
 const PDF_PASSWORD_KEY = 'pdf_password'
 /** @type {string} */
@@ -91,6 +97,8 @@ let reportWorkflowPromise = null
 let patternsPromise = null
 /** @type {Promise<any> | null} */
 let contributionParserPromise = null
+/** @type {boolean} */
+let memoryAttributionUnavailableLogged = false
 
 function loadXlsx() {
     if (!xlsxPromise) {
@@ -131,6 +139,56 @@ function scheduleIdle(callback) {
         return
     }
     window.setTimeout(() => callback(), 0)
+}
+
+/** @param {string} label */
+function logMemoryUsage(label) {
+    if (!MEMORY_LOG_ENABLED) {
+        return
+    }
+    const memory = /** @type {any} */ (globalThis).performance?.memory
+    if (!memory) {
+        console.info('Payroll: memory metrics unavailable', { label })
+        return
+    }
+    const toMb = (/** @type {number} */ value) =>
+        Math.round((value / (1024 * 1024)) * 10) / 10
+    console.info('Payroll: memory usage', {
+        label,
+        usedMb: toMb(memory.usedJSHeapSize),
+        totalMb: toMb(memory.totalJSHeapSize),
+        limitMb: toMb(memory.jsHeapSizeLimit),
+    })
+    void logUserAgentMemory(label)
+}
+
+/** @param {string} label */
+async function logUserAgentMemory(label) {
+    if (!MEMORY_LOG_ENABLED) {
+        return
+    }
+    const perf = /** @type {any} */ (globalThis).performance
+    if (typeof perf?.measureUserAgentSpecificMemory !== 'function') {
+        if (!memoryAttributionUnavailableLogged) {
+            console.info('Payroll: memory attribution unavailable', { label })
+            memoryAttributionUnavailableLogged = true
+        }
+        return
+    }
+    try {
+        const result = await perf.measureUserAgentSpecificMemory()
+        const toMb = (/** @type {number} */ value) =>
+            Math.round((value / (1024 * 1024)) * 10) / 10
+        console.info('Payroll: memory attribution', {
+            label,
+            totalMb: toMb(result.bytes),
+            breakdownCount: Array.isArray(result.breakdown)
+                ? result.breakdown.length
+                : 0,
+        })
+    } catch {
+        // ignore measurement errors
+    }
 }
 
 /**
@@ -708,11 +766,13 @@ export function initPayrollApp() {
                         current: 0,
                         total: files.length + this.contributionFiles.length,
                     }
+                    logMemoryUsage('run-start')
                     console.info('Payroll: starting processing', {
                         files: files.length,
                     })
 
                     let workflowResult = null
+                    let loggedExcelStart = false
                     try {
                         const XLSX = await loadXlsx()
                         const { runPayrollReportWorkflow } =
@@ -743,10 +803,21 @@ export function initPayrollApp() {
                             ) => {
                                 this.progress.current = current
                                 this.progress.total = total
+                                if (
+                                    !loggedExcelStart &&
+                                    this.contributionFiles.length &&
+                                    current === files.length + 1
+                                ) {
+                                    logMemoryUsage('run-excel-start')
+                                    loggedExcelStart = true
+                                }
                                 console.info('Payroll: extracting', {
                                     index: current,
                                     name: file.name,
                                 })
+                                if (current % MEMORY_LOG_EVERY === 0) {
+                                    logMemoryUsage(`run-progress-${current}`)
+                                }
                             },
                         })
                         if (this.debugEnabled && workflowResult?.debug) {
@@ -845,6 +916,9 @@ export function initPayrollApp() {
                         this.parsingExcel = false
                     }
 
+                    this.failedFiles = workflowResult?.failedFiles || []
+                    this.failedPayPeriods =
+                        workflowResult?.failedPayPeriods || []
                     console.info('Payroll: failed files summary', {
                         count: this.failedFiles.length,
                         files: [...this.failedFiles],
@@ -1019,7 +1093,12 @@ export function initPayrollApp() {
                     console.info('Payroll: report ready', {
                         filename: report.filename,
                     })
+                    this.stagedFiles = []
+                    this.stagedPdfCount = 0
+                    this.stagedExcelCount = 0
+                    this.contributionFiles = []
                     this.$nextTick(() => {
+                        logMemoryUsage('run-finished')
                         document
                             .getElementById('report-summary')
                             ?.scrollIntoView({
@@ -1047,6 +1126,7 @@ export function initPayrollApp() {
                         return
                     }
                     this.waitingWorker.postMessage({ type: 'SKIP_WAITING' })
+                    setTimeout(() => window.location.reload(), 300)
                 },
                 /** @this {PayrollAppInstance} @returns {void} */
                 handleScroll() {
@@ -1188,13 +1268,13 @@ export function initPayrollApp() {
                 const lastLoadedAt = Number(
                     localStorage.getItem(LAST_LOADED_AT_KEY) || 0
                 )
-                localStorage.setItem(LAST_LOADED_AT_KEY, String(Date.now()))
                 if (
                     lastLoadedAt &&
                     Date.now() - lastLoadedAt > STALE_INSTANCE_TTL_MS
                 ) {
                     this.staleInstance = true
                 }
+                localStorage.setItem(LAST_LOADED_AT_KEY, String(Date.now()))
 
                 scheduleIdle(() => {
                     void loadXlsx()

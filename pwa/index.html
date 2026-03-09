@@ -991,8 +991,12 @@
                     ></button>
                 </div>
             </section>
-            <section class="report-output" v-if="reportHtml" v-cloak="">
-                <div class="report-root" v-html="reportHtml"></div>
+            <section class="report-output" v-if="reportReady" v-cloak="">
+                <div
+                    class="report-root"
+                    id="report-root"
+                    v-html="reportHtml"
+                ></div>
             </section>
             <button
                 class="scroll-top"

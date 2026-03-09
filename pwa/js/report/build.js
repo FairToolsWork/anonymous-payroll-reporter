@@ -508,7 +508,7 @@ export function buildReport(
                     entry.item.title ||
                     ''
                 const detailLabel =
-                    entry.item.units === null || entry.item.rate === null
+                    entry.item.units == null || entry.item.rate == null
                         ? 'flat'
                         : `${Number(entry.item.units).toFixed(2)} @ ${formatCurrency(Number(entry.item.rate))}`
                 return (
@@ -905,9 +905,14 @@ function renderReportCell(entry) {
     const combined =
         (record.payrollDoc?.deductions?.pensionEE?.amount || 0) +
         (record.payrollDoc?.deductions?.pensionER?.amount || 0)
-    const imageHtml = record.imageData
-        ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
-        : ''
+    const noImages = Boolean(
+        globalThis?.location &&
+        new URLSearchParams(globalThis.location.search).get('noimg') === '1'
+    )
+    const imageHtml =
+        !noImages && record.imageData
+            ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
+            : ''
     const hourlyPayments = /** @type {PayrollPayments["hourly"]} */ (
         record.payrollDoc?.payments?.hourly || {}
     )
@@ -1340,7 +1345,7 @@ function renderYearSummary(entriesForYear) {
                     entry.item.title ||
                     ''
                 const detailLabel =
-                    entry.item.units === null || entry.item.rate === null
+                    entry.item.units == null || entry.item.rate == null
                         ? 'flat'
                         : `${Number(entry.item.units).toFixed(2)} @ ${formatCurrency(Number(entry.item.rate))}`
                 return (

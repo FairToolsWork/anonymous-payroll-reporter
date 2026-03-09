@@ -42,10 +42,10 @@ export async function runPayrollReportWorkflow(options) {
     const pdfPassword = options?.pdfPassword || ''
     const xlsx = options?.xlsx || null
     const failedPayPeriods = Array.isArray(options?.failedPayPeriods)
-        ? options.failedPayPeriods
+        ? [...options.failedPayPeriods]
         : []
     const failedFiles = Array.isArray(options?.failedFiles)
-        ? options.failedFiles
+        ? [...options.failedFiles]
         : []
     const captureDebug = Boolean(options?.captureDebug)
     const onProgress = options?.onProgress

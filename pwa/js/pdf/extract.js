@@ -9,25 +9,13 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
  */
 
 const PDFJS_WORKER_SRC = pdfjsWorkerUrl
-const PDFJS_LEGACY_WORKER_SRC = new globalThis.URL(
-    'pdfjs-dist/legacy/build/pdf.worker.mjs',
-    import.meta.url
-)
 
 async function getPdfjsLib() {
     const windowPdfjs =
         globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib
-    /** @type {{ versions?: { node?: string } } | undefined} */
-    const nodeProcess = /** @type {any} */ (globalThis).process
-    const isNode = Boolean(nodeProcess?.versions?.node)
-    const pdfjsModule = windowPdfjs
-        ? windowPdfjs
-        : isNode
-          ? await import('pdfjs-dist/legacy/build/pdf.mjs')
-          : pdfjsBrowser
-    const workerSrc = isNode ? PDFJS_LEGACY_WORKER_SRC : PDFJS_WORKER_SRC
+    const pdfjsModule = windowPdfjs ? windowPdfjs : pdfjsBrowser
     if (!pdfjsModule.GlobalWorkerOptions?.workerSrc) {
-        pdfjsModule.GlobalWorkerOptions.workerSrc = workerSrc.toString()
+        pdfjsModule.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC
     }
     return pdfjsModule
 }
@@ -40,6 +28,10 @@ async function getPdfjsLib() {
 export async function extractPdfData(file, password) {
     const pdfjsLib = await getPdfjsLib()
     const data = await file.arrayBuffer()
+    const noImages = Boolean(
+        globalThis?.location &&
+        new URLSearchParams(globalThis.location.search).get('noimg') === '1'
+    )
     const isTestEnv = Boolean(
         globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsDebug
     )
@@ -51,6 +43,7 @@ export async function extractPdfData(file, password) {
         verbosity: isTestEnv ? 0 : undefined,
     })
     let pdf
+    let loadingError = null
     try {
         pdf = await loadingTask.promise
     } catch (error) {
@@ -58,9 +51,19 @@ export async function extractPdfData(file, password) {
         if (e && e.name === 'PasswordException') {
             const reason =
                 e.code === 2 ? 'INCORRECT_PASSWORD' : 'PASSWORD_REQUIRED'
-            throw new Error(reason)
+            loadingError = new Error(reason)
+            throw loadingError
         }
+        loadingError = error
         throw error
+    } finally {
+        if (loadingError) {
+            try {
+                await loadingTask.destroy()
+            } catch {
+                // ignore cleanup errors
+            }
+        }
     }
     let text = ''
     const allLines = /** @type {string[]} */ ([])
@@ -91,11 +94,21 @@ export async function extractPdfData(file, password) {
         allLines.push(...pageLines)
         text += `${pageLines.join('\n')}\n`
 
-        if (pageNum === 1) {
+        if (pageNum === 1 && !noImages) {
             imageData = await renderPageImage(
                 /** @type {PDFPageProxy} */ (/** @type {any} */ (page))
             )
         }
+        if (typeof page.cleanup === 'function') {
+            page.cleanup()
+        }
+    }
+
+    if (typeof pdf.cleanup === 'function') {
+        pdf.cleanup()
+    }
+    if (typeof loadingTask.destroy === 'function') {
+        await loadingTask.destroy()
     }
 
     return { text, imageData, lines: allLines, lineItems: allLineItems }
@@ -224,9 +237,17 @@ async function renderPageImage(page) {
                 width,
                 cropBottom
             )
-            return croppedCanvas.toDataURL('image/png')
+            const dataUrl = croppedCanvas.toDataURL('image/png')
+            canvas.width = 0
+            canvas.height = 0
+            croppedCanvas.width = 0
+            croppedCanvas.height = 0
+            return dataUrl
         }
     }
 
-    return canvas.toDataURL('image/png')
+    const dataUrl = canvas.toDataURL('image/png')
+    canvas.width = 0
+    canvas.height = 0
+    return dataUrl
 }
