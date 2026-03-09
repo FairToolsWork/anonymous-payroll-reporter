@@ -28,19 +28,20 @@ export default defineConfig({
                     return '[name][extname]'
                 },
                 manualChunks: (id) => {
-                    if (id.includes('pdfjs-dist')) {
+                    const normId = id.replace(/\\/g, '/')
+                    if (normId.includes('pdfjs-dist')) {
                         return 'pdfjs'
                     }
-                    if (id.includes('/pwa/js/pdf/')) {
+                    if (normId.includes('/pwa/js/pdf/')) {
                         return 'pdf'
                     }
-                    if (id.includes('/pwa/js/report/')) {
+                    if (normId.includes('/pwa/js/report/')) {
                         return 'report'
                     }
-                    if (id.includes('/pwa/js/parse/')) {
+                    if (normId.includes('/pwa/js/parse/')) {
                         return 'parse'
                     }
-                    if (id.includes('/node_modules/xlsx')) {
+                    if (normId.includes('/node_modules/xlsx')) {
                         return 'xlsx'
                     }
                     return null

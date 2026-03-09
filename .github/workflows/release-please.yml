@@ -36,6 +36,8 @@ jobs:
               run: pnpm install
             - name: Run tests
               run: pnpm test:all
+            - name: Build PWA
+              run: pnpm pwa:build
             - uses: cloudflare/wrangler-action@v3
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
