@@ -32,13 +32,13 @@ export default defineConfig({
                     if (normId.includes('pdfjs-dist')) {
                         return 'pdfjs'
                     }
-                    if (normId.includes('/pwa/js/pdf/')) {
+                    if (normId.includes('/pwa/src/pdf/')) {
                         return 'pdf'
                     }
-                    if (normId.includes('/pwa/js/report/')) {
+                    if (normId.includes('/pwa/src/report/')) {
                         return 'report'
                     }
-                    if (normId.includes('/pwa/js/parse/')) {
+                    if (normId.includes('/pwa/src/parse/')) {
                         return 'parse'
                     }
                     if (normId.includes('/node_modules/xlsx')) {

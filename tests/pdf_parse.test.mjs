@@ -148,7 +148,7 @@ describe('pdf parse', () => {
         buildBrowserShims()
         const { parsePayrollPdf } = await import(
             pathToFileURL(
-                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+                path.resolve(__dirname, '../pwa/src/parse/pdf_validation.js')
             )
         )
         expect(typeof parsePayrollPdf).toBe('function')
@@ -201,7 +201,7 @@ describe('pdf parse', () => {
     it('throws when no file is provided', async () => {
         const { parsePayrollPdf } = await import(
             pathToFileURL(
-                path.resolve(__dirname, '../pwa/js/parse/pdf_validation.js')
+                path.resolve(__dirname, '../pwa/src/parse/pdf_validation.js')
             )
         )
         await expect(parsePayrollPdf(null, '')).rejects.toMatchObject({
@@ -210,14 +210,14 @@ describe('pdf parse', () => {
     })
 
     it('handles empty extracted PDF data', async () => {
-        const extractPath = path.resolve(__dirname, '../pwa/js/pdf/extract.js')
+        const extractPath = path.resolve(__dirname, '../pwa/src/pdf/extract.js')
         const parserPath = path.resolve(
             __dirname,
-            '../pwa/js/parse/formats/sage-uk/parser.js'
+            '../pwa/src/parse/formats/sage-uk/parser.js'
         )
         const validationPath = path.resolve(
             __dirname,
-            '../pwa/js/parse/pdf_validation.js'
+            '../pwa/src/parse/pdf_validation.js'
         )
         vi.resetModules()
         vi.doMock(pathToFileURL(extractPath).href, () => ({
@@ -253,7 +253,7 @@ describe('pdf parse', () => {
     })
 
     it('returns full image when no content is detected', async () => {
-        const extractPath = path.resolve(__dirname, '../pwa/js/pdf/extract.js')
+        const extractPath = path.resolve(__dirname, '../pwa/src/pdf/extract.js')
         vi.resetModules()
         vi.doUnmock(pathToFileURL(extractPath).href)
         const originalWindow = globalThis.window

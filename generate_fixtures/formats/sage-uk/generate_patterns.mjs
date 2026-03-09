@@ -1,6 +1,6 @@
 /**
  * Reads labels.json and writes the generated portion of
- * pwa/js/parse/formats/sage-uk/patterns.js.
+ * pwa/src/parse/formats/sage-uk/patterns.js.
  *
  * Usage:
  *   node generate_fixtures/formats/sage-uk/generate_patterns.mjs

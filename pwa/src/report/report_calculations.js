@@ -1,9 +1,9 @@
 /**
- * @typedef {import("../parse/payroll.types").PayrollRecord} PayrollRecord
- * @typedef {import("../parse/payroll.types").PayrollPayItem} PayrollPayItem
- * @typedef {import("../parse/payroll.types").PayrollMiscDeduction} PayrollMiscDeduction
- * @typedef {import("../parse/payroll.types").PayrollDeductions} PayrollDeductions
- * @typedef {import("../parse/payroll.types").PayrollPayments} PayrollPayments
+ * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
+ * @typedef {import("../parse/payroll.types.js").PayrollPayItem} PayrollPayItem
+ * @typedef {import("../parse/payroll.types.js").PayrollMiscDeduction} PayrollMiscDeduction
+ * @typedef {import("../parse/payroll.types.js").PayrollDeductions} PayrollDeductions
+ * @typedef {import("../parse/payroll.types.js").PayrollPayments} PayrollPayments
  */
 
 import { formatMonthLabel } from '../parse/parser_config.js'

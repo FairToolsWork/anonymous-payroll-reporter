@@ -33,7 +33,9 @@
         "pwa:build": "vite build",
         "pwa:generate": "node node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/cli.js pwa/public/icons/icon.svg pwa/public/icons --scrape false --type png --padding \"12%\" --background \"#f4ebd4\" --manifest pwa/public/site.webmanifest --index pwa/index.html --path-override \"/icons\"",
         "cf:deploy": "wrangler deploy",
-        "cf:preview": "wrangler versions upload"
+        "cf:deploy:build": "pnpm pwa:build && wrangler deploy",
+        "cf:preview": "wrangler versions upload",
+        "cf:preview:build": "pnpm pwa:build && wrangler versions upload"
     },
     "prettier": {
         "trailingComma": "es5",

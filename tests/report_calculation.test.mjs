@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMonthLabel } from '../pwa/js/parse/parser_config.js'
+import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
 import {
     buildContributionSummary,
     buildMissingMonthsWithRange,
@@ -14,7 +14,7 @@ import {
     sumDeductionsForNetPay,
     sumMiscAmounts,
     sumPayments,
-} from '../pwa/js/report/report_calculations.js'
+} from '../pwa/src/report/report_calculations.js'
 
 function buildRecord({
     nestEE,

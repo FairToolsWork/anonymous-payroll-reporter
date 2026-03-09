@@ -24,7 +24,7 @@ export default [
         },
     },
     {
-        files: ['pwa/**/*.js'],
+        files: ['pwa/src/**/*.js'],
         languageOptions: {
             globals: {
                 window: 'readonly',
@@ -72,21 +72,7 @@ export default [
         },
     },
     {
-        files: ['logic_test/**/*.mjs'],
-        languageOptions: {
-            globals: {
-                process: 'readonly',
-                console: 'readonly',
-                setTimeout: 'readonly',
-                clearTimeout: 'readonly',
-            },
-        },
-        rules: {
-            '@typescript-eslint/no-unused-vars': 'off',
-        },
-    },
-    {
-        files: ['pwa/js/report/build.js', 'pwa/js/parse/payroll.js'],
+        files: ['pwa/src/report/build.js', 'pwa/src/parse/payroll.js'],
         rules: {
             '@typescript-eslint/no-unused-vars': 'off',
         },
@@ -105,7 +91,7 @@ export default [
         },
     },
     {
-        files: ['pwa/js/global.d.ts'],
+        files: ['pwa/src/global.d.ts'],
         rules: {
             '@typescript-eslint/no-explicit-any': 'off',
             'no-undef': 'off',

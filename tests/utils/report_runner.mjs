@@ -97,7 +97,7 @@ function buildFileFromPath(filePath) {
 export async function runReportFromFixtures(options) {
     const { runPayrollReportWorkflow } = await import(
         pathToFileURL(
-            path.resolve(__dirname, '../../pwa/js/report/report_workflow.js')
+            path.resolve(__dirname, '../../pwa/src/report/report_workflow.js')
         )
     )
     const pdfPaths = Array.isArray(options?.pdfPaths) ? options.pdfPaths : []

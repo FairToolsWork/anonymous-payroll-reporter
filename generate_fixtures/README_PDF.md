@@ -94,7 +94,7 @@ A new format requires a directory under `generate_fixtures/formats/<name>/` cont
 Once the directory is in place:
 
 1. Point `default_payroll_structure` in `fixture_runs.json` at `generate_fixtures/formats/<name>/structure.json`
-2. Run `pnpm fixtures:patterns` to generate the label-derived section of `pwa/js/parse/formats/<name>/patterns.js`
+2. Run `pnpm fixtures:patterns` to generate the label-derived section of `pwa/src/parse/formats/<name>/patterns.js`
 3. Run `pnpm fixtures:generate` to generate the fixture PDFs
 
 ### Sage UK layout
@@ -291,7 +291,7 @@ Each entry in the array defines one label:
 | `patternOverride`  | no       | If present, this literal regex string is used verbatim instead of the auto-generated one. Use this when the label alone cannot fully describe the pattern (e.g. a negative lookahead is needed). Always document the reason in `comment`. |
 | `comment`          | no       | Explains the purpose of the entry and, if `patternOverride` is set, why it deviates from the auto-generated form                                                                                                                          |
 
-`pnpm fixtures:patterns` reads this file and writes the generated section of `pwa/js/parse/formats/<name>/patterns.js`. Entries with `patternOverride` are used verbatim and reported in the script output so overrides are always visible.
+`pnpm fixtures:patterns` reads this file and writes the generated section of `pwa/src/parse/formats/<name>/patterns.js`. Entries with `patternOverride` are used verbatim and reported in the script output so overrides are always visible.
 
 ### `schema.json`
 

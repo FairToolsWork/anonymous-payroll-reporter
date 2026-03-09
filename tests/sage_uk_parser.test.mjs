@@ -6,9 +6,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const parserPath = path.resolve(
     __dirname,
-    '../pwa/js/parse/formats/sage-uk/parser.js'
+    '../pwa/src/parse/formats/sage-uk/parser.js'
 )
-const payrollPath = path.resolve(__dirname, '../pwa/js/parse/payroll.js')
+const payrollPath = path.resolve(__dirname, '../pwa/src/parse/payroll.js')
 
 const buildLine = (y, entries) => ({
     y,

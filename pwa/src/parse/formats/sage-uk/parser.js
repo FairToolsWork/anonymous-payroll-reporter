@@ -1,10 +1,10 @@
 /**
- * @typedef {import("../../payroll.types").PayrollRecord} PayrollRecord
- * @typedef {import("../../payroll.types").PayrollPayments} PayrollPayments
- * @typedef {import("../../payroll.types").PayrollDeductions} PayrollDeductions
- * @typedef {import("../../payroll.types").PayrollPayItem} PayrollPayItem
- * @typedef {import("../../payroll.types").PayrollMiscDeduction} PayrollMiscDeduction
- * @typedef {import("../../payroll.types").PayrollAddress} PayrollAddress
+ * @typedef {import("../../payroll.types.js").PayrollRecord} PayrollRecord
+ * @typedef {import("../../payroll.types.js").PayrollPayments} PayrollPayments
+ * @typedef {import("../../payroll.types.js").PayrollDeductions} PayrollDeductions
+ * @typedef {import("../../payroll.types.js").PayrollPayItem} PayrollPayItem
+ * @typedef {import("../../payroll.types.js").PayrollMiscDeduction} PayrollMiscDeduction
+ * @typedef {import("../../payroll.types.js").PayrollAddress} PayrollAddress
  */
 
 import {

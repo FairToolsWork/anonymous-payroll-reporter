@@ -1,7 +1,7 @@
 import { createApp, defineComponent } from 'vue'
 
 /**
- * @typedef {import("../parse/payroll.types").PayrollRecord} PayrollRecord
+ * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData | null }} PayrollRecordCollection
  * @typedef {{ date: Date, type: "ee" | "er", amount: number }} ContributionEntry

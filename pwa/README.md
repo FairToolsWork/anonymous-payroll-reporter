@@ -113,7 +113,7 @@ Open DevTools → **Application** → **Storage** → **Clear site data**, then 
 The PDF parsing layer is split into three tiers:
 
 ```bash
-pwa/js/parse/
+pwa/src/parse/
 ├── payroll.js                      ← generic layout/parsing utilities (shared)
 ├── payroll.types.js                ← PayrollRecord JSDoc type definitions
 ├── parser_config.js                ← formatting utilities + re-exports PATTERNS
@@ -159,9 +159,9 @@ export { PATTERNS } from './formats/<name>/patterns.js'
 
 ## Adding a new format
 
-1. Create `pwa/js/parse/formats/<name>/patterns.js` — export a `PATTERNS` object with `RegExp` values for every field the parser needs to extract from raw PDF text.
+1. Create `pwa/src/parse/formats/<name>/patterns.js` — export a `PATTERNS` object with `RegExp` values for every field the parser needs to extract from raw PDF text.
 
-2. Create `pwa/js/parse/formats/<name>/parser.js` — implement `buildPayrollDocument({ text, lines, lineItems })` returning a `PayrollRecord`. Import generic utilities from `../../payroll.js` and your patterns from `./patterns.js`.
+2. Create `pwa/src/parse/formats/<name>/parser.js` — implement `buildPayrollDocument({ text, lines, lineItems })` returning a `PayrollRecord`. Import generic utilities from `../../payroll.js` and your patterns from `./patterns.js`.
 
 3. In `pdf_validation.js`, change the import to point at your new parser.
 
@@ -173,7 +173,7 @@ See `generate_fixtures/README.md` for the parallel steps on the fixture generati
 
 ## `PayrollRecord` shape
 
-All format parsers must return a `PayrollRecord` as defined in `pwa/js/parse/payroll.types.js`. The key fields consumed by the report builder are:
+All format parsers must return a `PayrollRecord` as defined in `pwa/src/parse/payroll.types.js`. The key fields consumed by the report builder are:
 
 | Path                                     | Description                                                |
 | ---------------------------------------- | ---------------------------------------------------------- |

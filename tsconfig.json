@@ -11,5 +11,5 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
-    "include": ["pwa/js/**/*.js", "pwa/js/**/*.d.ts"]
+    "include": ["pwa/src/**/*.js", "pwa/src/**/*.d.ts"]
 }

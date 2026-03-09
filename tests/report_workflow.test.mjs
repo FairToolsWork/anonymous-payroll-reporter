@@ -6,13 +6,13 @@ import {
     buildReport,
     formatBreakdownCell,
     formatContributionDifference,
-} from '../pwa/js/report/build.js'
+} from '../pwa/src/report/build.js'
 import {
     buildContributionSummary,
     getTaxYearKey,
     sumDeductionsForNetPay,
     sumPayments,
-} from '../pwa/js/report/report_calculations.js'
+} from '../pwa/src/report/report_calculations.js'
 import {
     buildBrowserShims,
     runReportFromFixtures,

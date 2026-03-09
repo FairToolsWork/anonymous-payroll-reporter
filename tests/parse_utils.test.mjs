@@ -5,7 +5,7 @@ import {
     buildMissingMonthsLabel,
     formatMonthLabel,
     getMissingMonths,
-} from '../pwa/js/parse/parser_config.js'
+} from '../pwa/src/parse/parser_config.js'
 import {
     bucketLinesByColumn,
     bucketLinesByLineLeft,
@@ -13,7 +13,7 @@ import {
     computeColumnCentroids,
     extractNetPayFromText,
     splitLineItemsIntoBands,
-} from '../pwa/js/parse/payroll.js'
+} from '../pwa/src/parse/payroll.js'
 
 describe('parser config helpers', () => {
     it('returns empty missing months when no valid entries are present', () => {

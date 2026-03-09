@@ -28,7 +28,7 @@ generate_fixtures/formats/<name>/
     schema.json              ← declares required keys in structure.json
     processor.py             ← format-specific PDF mutation logic
 
-pwa/js/parse/formats/<name>/
+pwa/src/parse/formats/<name>/
     patterns.js              ← generated from labels.json + hand-authored patterns
     parser.js                ← format-specific parsing logic
 ```
@@ -175,13 +175,13 @@ Run the codegen script to create the label-derived portion of `patterns.js`:
 pnpm fixtures:patterns
 ```
 
-This reads `labels.json` and writes the generated section of `pwa/js/parse/formats/sage-uk/patterns.js`. It will fail with a clear error if the marker comments are missing — see step 7.
+This reads `labels.json` and writes the generated section of `pwa/src/parse/formats/sage-uk/patterns.js`. It will fail with a clear error if the marker comments are missing — see step 7.
 
 > The `fixtures:patterns` script currently targets the sage-uk format path. When adding a second format, update `generate_fixtures/formats/sage-uk/generate_patterns.mjs` (or create a parallel script for the new format) to point at the correct `patterns.js` output path.
 
 ### Step 7 — Create `patterns.js`
 
-Create `pwa/js/parse/formats/<name>/patterns.js`. It has two sections:
+Create `pwa/src/parse/formats/<name>/patterns.js`. It has two sections:
 
 ```js
 export const PATTERNS = {
@@ -202,11 +202,11 @@ export const PATTERNS = {
 
 The generated section between the marker comments is overwritten by `pnpm fixtures:patterns`. Everything outside the markers is preserved. Hand-author only the patterns that cannot be derived from a label string.
 
-Copy `pwa/js/parse/formats/sage-uk/patterns.js` as a starting point and adapt the hand-authored section to your new format's structural patterns.
+Copy `pwa/src/parse/formats/sage-uk/patterns.js` as a starting point and adapt the hand-authored section to your new format's structural patterns.
 
 ### Step 8 — Create `parser.js`
 
-Create `pwa/js/parse/formats/<name>/parser.js`. It must export:
+Create `pwa/src/parse/formats/<name>/parser.js`. It must export:
 
 ```js
 export function buildPayrollDocument({ text, lines, lineItems }) {
@@ -216,19 +216,19 @@ export function buildPayrollDocument({ text, lines, lineItems }) {
 
 Import generic utilities from `../../payroll.js` and your patterns from `./patterns.js`.
 
-The returned `PayrollRecord` shape must match what `pwa/js/parse/payroll.types.js` defines — the report builder depends on this shape regardless of format. See `pwa/README.md` for the full field reference.
+The returned `PayrollRecord` shape must match what `pwa/src/parse/payroll.types.js` defines — the report builder depends on this shape regardless of format. See `pwa/README.md` for the full field reference.
 
-Copy `pwa/js/parse/formats/sage-uk/parser.js` as a reference implementation.
+Copy `pwa/src/parse/formats/sage-uk/parser.js` as a reference implementation.
 
 ### Step 9 — Wire the new format into the PWA
 
-In `pwa/js/parse/pdf_validation.js`, change the import to point at your new parser:
+In `pwa/src/parse/pdf_validation.js`, change the import to point at your new parser:
 
 ```js
 import { buildPayrollDocument } from './formats/<name>/parser.js'
 ```
 
-In `pwa/js/parse/parser_config.js`, update the `PATTERNS` re-export:
+In `pwa/src/parse/parser_config.js`, update the `PATTERNS` re-export:
 
 ```js
 export { PATTERNS } from './formats/<name>/patterns.js'
@@ -262,7 +262,7 @@ A pension contribution provider touches the fixture generator and, if the file f
 
 ### Current state of the contribution parser
 
-`pwa/js/parse/contribution_validation.js` is currently format-agnostic for Excel files — it uses fuzzy header matching (`.includes('date')`, `.includes('type')`, etc.) rather than exact strings, so it works across providers without knowing column names in advance.
+`pwa/src/parse/contribution_validation.js` is currently format-agnostic for Excel files — it uses fuzzy header matching (`.includes('date')`, `.includes('type')`, etc.) rather than exact strings, so it works across providers without knowing column names in advance.
 
 **If the new provider delivers an xlsx file** — you only need to create the generator-side files (steps 1–3 below). The existing parser will handle it automatically provided the column headers contain the expected keywords.
 
@@ -297,7 +297,7 @@ Create `generate_fixtures/formats/<name>/excel_structure.json`:
 
 Copy `generate_fixtures/formats/nest/excel_structure.json` and adapt to the new provider's column layout. Use `pnpm fixtures:print-excel-text` to inspect a real export from the provider.
 
-> **No `labels.json` here (yet):** The `labels.json` / codegen pattern used on the PDF side has not been applied to the pension side because future providers may not deliver Excel files at all. If and when a second provider arrives with a known file format, refactor the contribution parser into per-provider modules (mirroring `pwa/js/parse/formats/<name>/`) and adopt `labels.json` at that point. See `README_EXCEL.md` for the full rationale.
+> **No `labels.json` here (yet):** The `labels.json` / codegen pattern used on the PDF side has not been applied to the pension side because future providers may not deliver Excel files at all. If and when a second provider arrives with a known file format, refactor the contribution parser into per-provider modules (mirroring `pwa/src/parse/formats/<name>/`) and adopt `labels.json` at that point. See `README_EXCEL.md` for the full rationale.
 
 ### Step 2 — Create `generator.py`
 
@@ -339,7 +339,7 @@ pnpm test:all
 
 If the provider delivers something other than xlsx, the contribution parser needs extending. The recommended approach is:
 
-1. Create `pwa/js/parse/formats/<name>/parser.js` with a function that accepts the raw file and returns a `ContributionParseResult` (same shape as `parseContributionWorkbook` returns).
+1. Create `pwa/src/parse/formats/<name>/parser.js` with a function that accepts the raw file and returns a `ContributionParseResult` (same shape as `parseContributionWorkbook` returns).
 
 2. In `contribution_validation.js`, dispatch to the right parser based on file type or a provider hint passed from `app.js`.
 
@@ -360,9 +360,9 @@ This work is deferred until a second provider exists — do not pre-build it spe
 - [ ] `generate_fixtures/formats/<name>/structure.json` created
 - [ ] `generate_fixtures/formats/<name>/schema.json` created
 - [ ] `generate_fixtures/formats/<name>/processor.py` created
-- [ ] `pwa/js/parse/formats/<name>/patterns.js` created (with marker comments)
+- [ ] `pwa/src/parse/formats/<name>/patterns.js` created (with marker comments)
 - [ ] `pnpm fixtures:patterns` run successfully
-- [ ] `pwa/js/parse/formats/<name>/parser.js` created
+- [ ] `pwa/src/parse/formats/<name>/parser.js` created
 - [ ] `pdf_validation.js` import updated
 - [ ] `parser_config.js` re-export updated
 - [ ] `fixture_runs.json` `default_payroll_structure` updated

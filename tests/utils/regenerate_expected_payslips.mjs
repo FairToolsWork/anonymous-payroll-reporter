@@ -17,7 +17,7 @@ const { buildBrowserShims } = await import(
 buildBrowserShims()
 
 const { parsePayrollPdf } = await import(
-    pathToFileURL(path.join(root, 'pwa/js/parse/pdf_validation.js'))
+    pathToFileURL(path.join(root, 'pwa/src/parse/pdf_validation.js'))
 )
 
 for (const fixturesDir of fixtureDirs) {
