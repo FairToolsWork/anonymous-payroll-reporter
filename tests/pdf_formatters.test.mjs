@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 vi.mock('jspdf', () => {
     class MockJsPDF {
         constructor() {
+            this._page = 1
             this.internal = {
                 pageSize: { getWidth: () => 595, getHeight: () => 842 },
             }
@@ -14,9 +15,20 @@ vi.mock('jspdf', () => {
         setLineWidth() {}
         text() {}
         rect() {}
-        addPage() {}
+        addPage() {
+            this._page += 1
+        }
+        setPage(n) {
+            this._page = n
+        }
+        getCurrentPageInfo() {
+            return { pageNumber: this._page }
+        }
+        insertPage() {}
+        deletePage() {}
+        link() {}
         getNumberOfPages() {
-            return 1
+            return this._page
         }
         splitTextToSize(t) {
             return [t]

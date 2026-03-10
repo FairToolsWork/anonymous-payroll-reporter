@@ -228,7 +228,7 @@ function writeHeading(doc, text, cursorY, opts = {}) {
  * @param {jsPDF} doc
  * @param {{ head: string[][], body: string[][], foot?: string[][] }} tableData
  * @param {number} cursorY
- * @param {{ didParseCell?: (data: any) => void }} [opts]
+ * @param {{ didParseCell?: (data: any) => void, didDrawCell?: (data: any) => void }} [opts]
  * @returns {number}
  */
 function writeTable(doc, tableData, cursorY, opts = {}) {
@@ -268,6 +268,7 @@ function writeTable(doc, tableData, cursorY, opts = {}) {
         },
         columnStyles: {},
         didParseCell: opts.didParseCell,
+        didDrawCell: opts.didDrawCell,
     })
     const finalY = /** @type {any} */ (doc).lastAutoTable?.finalY ?? cursorY
     return finalY + SECTION_GAP
@@ -352,8 +353,9 @@ function collectMiscFootnotes(entries) {
  * @param {jsPDF} doc
  * @param {any} context
  * @param {{ filename: string, appVersion: string, employeeName: string, dateRangeLabel: string }} meta
+ * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
  */
-function renderSummaryPage(doc, context, meta) {
+function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
 
     /**
@@ -467,6 +469,11 @@ function renderSummaryPage(doc, context, meta) {
         }
     )
 
+    const yearKeys = /** @type {string[]} */ ([])
+    context.yearGroups.forEach(
+        (/** @type {any} */ _v, /** @type {string} */ k) => yearKeys.push(k)
+    )
+
     y = writeTable(
         doc,
         {
@@ -492,6 +499,24 @@ function renderSummaryPage(doc, context, meta) {
                         data.cell.styles.fontStyle = 'bold'
                     }
                 }
+                if (data.section === 'body' && data.column.index === 0) {
+                    data.cell.styles.textColor = '#1a5fa8'
+                }
+            },
+            didDrawCell(data) {
+                if (data.section !== 'body' || data.column.index !== 0) return
+                const key = yearKeys[data.row.index]
+                if (!key) return
+                const pageNumber = pageNumbers.yearPageNumbers.get(key)
+                if (!pageNumber) return
+                /** @type {any} */
+                doc.link(
+                    data.cell.x,
+                    data.cell.y,
+                    data.cell.width,
+                    data.cell.height,
+                    { pageNumber }
+                )
             },
         }
     )
@@ -618,9 +643,12 @@ function renderSummaryPage(doc, context, meta) {
  * @param {any} entriesForYear
  * @param {string} yearKey
  * @param {any} context
+ * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
+ * @returns {number}
  */
-function renderYearPage(doc, entriesForYear, yearKey, context) {
+function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
     doc.addPage()
+    const pageNumber = doc.getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
 
     y = writeHeading(doc, `${String(yearKey || 'Unknown')} Summary`, y, {
@@ -650,6 +678,8 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
     const bodyRows = []
     /** @type {Array<string | null>} */
     const diffColorByRow = []
+    /** @type {Array<number | null>} */
+    const payslipIndexByRow = []
     let totalHours = 0
     let totalHolidayUnits = 0
     let totalPayEE = 0
@@ -674,6 +704,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
 
         if (entries.length) {
             entries.forEach((entry, entryIndex) => {
+                const globalEntryIndex = context.entries.indexOf(entry)
                 const rec = entry.record || null
                 const hours =
                     rec?.payrollDoc?.payments?.hourly?.basic?.units || 0
@@ -714,6 +745,9 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
                     flagSummary,
                 ])
                 diffColorByRow.push(rowDiff.color)
+                payslipIndexByRow.push(
+                    globalEntryIndex >= 0 ? globalEntryIndex : null
+                )
 
                 totalHours += hours
                 totalHolidayUnits += holidayUnits
@@ -734,6 +768,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
                 '-',
             ])
             diffColorByRow.push(emptyDiff.color)
+            payslipIndexByRow.push(null)
         }
     }
 
@@ -784,17 +819,39 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
         y,
         {
             didParseCell(data) {
-                if (data.column.index !== 5 || data.section === 'head') {
-                    return
+                if (data.section === 'head') return
+                if (data.column.index === 5) {
+                    const color =
+                        data.section === 'foot'
+                            ? totalOverUnderDiff.color
+                            : (diffColorByRow[data.row.index] ?? null)
+                    if (color) {
+                        data.cell.styles.textColor = color
+                        data.cell.styles.fontStyle = 'bold'
+                    }
                 }
-                const color =
-                    data.section === 'foot'
-                        ? totalOverUnderDiff.color
-                        : (diffColorByRow[data.row.index] ?? null)
-                if (color) {
-                    data.cell.styles.textColor = color
-                    data.cell.styles.fontStyle = 'bold'
+                if (
+                    data.section === 'body' &&
+                    data.column.index === 0 &&
+                    payslipIndexByRow[data.row.index] !== null
+                ) {
+                    data.cell.styles.textColor = '#1a5fa8'
                 }
+            },
+            didDrawCell(data) {
+                if (data.section !== 'body' || data.column.index !== 0) return
+                const idx = payslipIndexByRow[data.row.index]
+                if (idx === null || idx === undefined) return
+                const pageNumber = pageNumbers.payslipPageNumbers.get(idx)
+                if (!pageNumber) return
+                /** @type {any} */
+                doc.link(
+                    data.cell.x,
+                    data.cell.y,
+                    data.cell.width,
+                    data.cell.height,
+                    { pageNumber }
+                )
             },
         }
     )
@@ -851,14 +908,17 @@ function renderYearPage(doc, entriesForYear, yearKey, context) {
             { fontSize: FONT_SMALL }
         )
     }
+    return pageNumber
 }
 
 /**
  * @param {jsPDF} doc
  * @param {any} entry
+ * @returns {number}
  */
 function renderPayslipPage(doc, entry) {
     doc.addPage()
+    const pageNumber = /** @type {any} */ (doc).getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
 
     const record = entry.record
@@ -999,6 +1059,7 @@ function renderPayslipPage(doc, entry) {
             { fontSize: FONT_SMALL }
         )
     }
+    return pageNumber
 }
 
 /**
@@ -1027,19 +1088,34 @@ export async function exportReportPdf(context, meta) {
 
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
-    renderSummaryPage(doc, context, meta)
+    /** @type {Map<string, number>} */
+    const yearPageNumbers = new Map()
+    /** @type {Map<number, number>} */
+    const payslipPageNumbers = new Map()
+
+    context.entries.forEach((entry, index) => {
+        const pageNumber = renderPayslipPage(doc, entry)
+        payslipPageNumbers.set(index, pageNumber)
+    })
 
     context.yearGroups.forEach((entriesForYear, yearKey) => {
-        renderYearPage(
+        const pageNumber = renderYearPage(
             doc,
             entriesForYear,
             String(yearKey || 'Unknown'),
-            context
+            context,
+            { yearPageNumbers, payslipPageNumbers }
         )
+        yearPageNumbers.set(String(yearKey || 'Unknown'), pageNumber)
     })
 
-    context.entries.forEach((entry) => {
-        renderPayslipPage(doc, entry)
+    const docAny = /** @type {any} */ (doc)
+    docAny.insertPage(1)
+    docAny.deletePage(2)
+    doc.setPage(1)
+    renderSummaryPage(doc, context, meta, {
+        yearPageNumbers,
+        payslipPageNumbers,
     })
 
     const arrayBuffer = doc.output('arraybuffer')
