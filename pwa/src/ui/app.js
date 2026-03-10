@@ -87,8 +87,6 @@ const PDF_PASSWORD_KEY = 'pdf_password'
 const DISCLAIMER_ACCEPTED_KEY = 'disclaimer_accepted'
 /** @type {string} */
 const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
-/** @type {string} */
-const SECTION_COLLAPSED_KEY = 'section_collapsed'
 /** @type {number} */
 const SESSION_TTL_MS = 30 * 60 * 1000
 /** @type {string} */
@@ -311,7 +309,7 @@ export function initPayrollApp() {
                     debugCopyResetTimer: null,
                     acceptedDisclaimer: false,
                     collapsedSections: {
-                        prep: false,
+                        prep: true,
                         nextSteps: true,
                     },
                     showScrollTop: false,
@@ -380,16 +378,6 @@ export function initPayrollApp() {
                     if (!this.pdfPassword) {
                         sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
                     }
-                },
-                collapsedSections: {
-                    /** @this {PayrollAppInstance} @param {Record<string, boolean>} value */
-                    handler(value) {
-                        sessionStorage.setItem(
-                            SECTION_COLLAPSED_KEY,
-                            JSON.stringify(value || {})
-                        )
-                    },
-                    deep: true,
                 },
             },
             methods: {
@@ -1344,42 +1332,11 @@ export function initPayrollApp() {
                     sessionStorage.removeItem(PDF_PASSWORD_KEY)
                     sessionStorage.removeItem(DISCLAIMER_ACCEPTED_KEY)
                     sessionStorage.removeItem(SESSION_PERSISTED_AT_KEY)
-                    sessionStorage.removeItem(SECTION_COLLAPSED_KEY)
                 }
                 this.pdfPassword =
                     sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
                 this.acceptedDisclaimer =
                     sessionStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === 'true'
-                const storedSections = sessionStorage.getItem(
-                    SECTION_COLLAPSED_KEY
-                )
-                if (storedSections) {
-                    try {
-                        const parsed = JSON.parse(storedSections)
-                        if (
-                            parsed &&
-                            typeof parsed === 'object' &&
-                            !Array.isArray(parsed)
-                        ) {
-                            this.collapsedSections = {
-                                prep: false,
-                                nextSteps: true,
-                                ...parsed,
-                            }
-                        }
-                    } catch {
-                        this.collapsedSections = {
-                            prep: false,
-                            nextSteps: true,
-                        }
-                    }
-                }
-                if (
-                    !this.collapsedSections ||
-                    typeof this.collapsedSections !== 'object'
-                ) {
-                    this.collapsedSections = { prep: false, nextSteps: true }
-                }
                 const lastLoadedAt = Number(
                     localStorage.getItem(LAST_LOADED_AT_KEY) || 0
                 )
