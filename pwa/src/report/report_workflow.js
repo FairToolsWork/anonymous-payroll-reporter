@@ -1,4 +1,4 @@
-import { parseContributionWorkbook } from '../parse/contribution_validation.js'
+import { ACTIVE_PENSION_FORMAT } from '../parse/active_format.js'
 import { parsePayrollPdf } from '../parse/pdf_validation.js'
 import { buildReport } from './build.js'
 
@@ -138,6 +138,7 @@ export async function runPayrollReportWorkflow(options) {
         if (!xlsx) {
             throw new Error('XLSX_NOT_AVAILABLE')
         }
+        const parseContributionWorkbook = await ACTIVE_PENSION_FORMAT.parser()
         /** @type {Array<{ date: Date, type: "ee" | "er", amount: number }>} */
         const entries = []
         const failures = []

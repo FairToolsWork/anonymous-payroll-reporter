@@ -213,7 +213,7 @@ describe('pdf parse', () => {
         const extractPath = path.resolve(__dirname, '../pwa/src/pdf/extract.js')
         const parserPath = path.resolve(
             __dirname,
-            '../pwa/src/parse/formats/sage-uk/parser.js'
+            '../pwa/src/parse/formats/payroll/sage-uk/parser.js'
         )
         const validationPath = path.resolve(
             __dirname,

@@ -1,10 +1,10 @@
 /**
- * @typedef {import("../../payroll.types.js").PayrollRecord} PayrollRecord
- * @typedef {import("../../payroll.types.js").PayrollPayments} PayrollPayments
- * @typedef {import("../../payroll.types.js").PayrollDeductions} PayrollDeductions
- * @typedef {import("../../payroll.types.js").PayrollPayItem} PayrollPayItem
- * @typedef {import("../../payroll.types.js").PayrollMiscDeduction} PayrollMiscDeduction
- * @typedef {import("../../payroll.types.js").PayrollAddress} PayrollAddress
+ * @typedef {import("../../../payroll.types.js").PayrollRecord} PayrollRecord
+ * @typedef {import("../../../payroll.types.js").PayrollPayments} PayrollPayments
+ * @typedef {import("../../../payroll.types.js").PayrollDeductions} PayrollDeductions
+ * @typedef {import("../../../payroll.types.js").PayrollPayItem} PayrollPayItem
+ * @typedef {import("../../../payroll.types.js").PayrollMiscDeduction} PayrollMiscDeduction
+ * @typedef {import("../../../payroll.types.js").PayrollAddress} PayrollAddress
  */
 
 import {
@@ -16,7 +16,7 @@ import {
     parseAmountValue,
     parseNumericValue,
     splitLineItemsIntoBands,
-} from '../../payroll.js'
+} from '../../../payroll.js'
 
 import { PATTERNS } from './patterns.js'
 

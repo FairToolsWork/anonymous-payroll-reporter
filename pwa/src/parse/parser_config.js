@@ -4,13 +4,6 @@
  */
 
 /**
- * Update this to import the patterns for the active format.
- *
- * @type {typeof import('./formats/sage-uk/patterns.js').PATTERNS}
- */
-export { PATTERNS } from './formats/sage-uk/patterns.js'
-
-/**
  * @param {number} monthIndex
  * @returns {string}
  */

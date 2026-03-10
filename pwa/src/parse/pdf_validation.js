@@ -1,5 +1,5 @@
 import { extractPdfData } from '../pdf/extract.js'
-import { buildPayrollDocument } from './formats/sage-uk/parser.js'
+import { ACTIVE_PAYROLL_FORMAT } from './active_format.js'
 
 /**
  * @param {File} file
@@ -10,10 +10,11 @@ export async function parsePayrollPdf(file, password) {
     if (!file) {
         throw new Error('PDF_FILE_MISSING')
     }
-    const { text, imageData, lines, lineItems } = await extractPdfData(
-        file,
-        password
-    )
+    const [{ text, imageData, lines, lineItems }, buildPayrollDocument] =
+        await Promise.all([
+            extractPdfData(file, password),
+            ACTIVE_PAYROLL_FORMAT.parser(),
+        ])
     const record = await buildPayrollDocument({
         text,
         lines: lines || [],

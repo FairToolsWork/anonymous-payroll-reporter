@@ -20,9 +20,10 @@ const LABELS_PATH = path.join(__dirname, 'labels.json')
 const PATTERNS_PATH = path.join(
     PROJECT_ROOT,
     'pwa',
-    'js',
+    'src',
     'parse',
     'formats',
+    'payroll',
     'sage-uk',
     'patterns.js'
 )

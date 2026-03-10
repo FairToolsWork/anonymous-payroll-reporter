@@ -275,8 +275,22 @@
                         never leaves your computer.
                     </p>
                     <div class="pill-row">
-                        <span class="pill sage">BETA: Sage Payroll</span>
-                        <span class="pill nest">BETA: Nest Pensions</span>
+                        <span
+                            v-if="activePayrollPill"
+                            class="pill"
+                            :class="activePayrollPill.className"
+                            v-cloak
+                        >
+                            {{ activePayrollPill.label }}
+                        </span>
+                        <span
+                            v-if="activePensionPill"
+                            class="pill"
+                            :class="activePensionPill.className"
+                            v-cloak
+                        >
+                            {{ activePensionPill.label }}
+                        </span>
                     </div>
                 </div>
                 <button

@@ -60,7 +60,7 @@ function normalizeContributionType(value) {
  * @param {any} xlsx
  * @returns {ContributionParseResult}
  */
-function parseContributionWorkbook(workbook, sourceName, xlsx) {
+export function parseContributionWorkbook(workbook, sourceName, xlsx) {
     const sheet = workbook?.Sheets?.['Contribution Details']
     if (!sheet) {
         throw new Error('CONTRIBUTION_SHEET_MISSING')
@@ -178,10 +178,4 @@ function parseContributionWorkbook(workbook, sourceName, xlsx) {
         debugRows: rows.slice(0, 20),
         debugEntries,
     }
-}
-
-export { parseContributionWorkbook }
-
-if (typeof window !== 'undefined') {
-    window.parseContributionWorkbook = parseContributionWorkbook
 }

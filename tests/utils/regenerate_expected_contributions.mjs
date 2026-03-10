@@ -17,7 +17,9 @@ const EXPECTED_PATH = path.join(
 )
 
 const { parseContributionWorkbook } = await import(
-    pathToFileURL(path.join(root, 'pwa/src/parse/contribution_validation.js'))
+    pathToFileURL(
+        path.join(root, 'pwa/src/parse/formats/pension/nest/parser.js')
+    )
 )
 
 const buffer = fs.readFileSync(FIXTURE_PATH)

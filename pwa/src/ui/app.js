@@ -1,5 +1,9 @@
 /* global Blob, setInterval, clearInterval, performance */
 import { createApp, defineComponent } from 'vue'
+import {
+    ACTIVE_PAYROLL_FORMAT,
+    ACTIVE_PENSION_FORMAT,
+} from '../parse/active_format.js'
 
 /**
  * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
@@ -47,6 +51,8 @@ import { createApp, defineComponent } from 'vue'
  * @property {boolean} parsingExcel
  * @property {boolean} staleInstance
  * @property {string} appVersion
+ * @property {{ label: string, className: string } | null} activePayrollPill
+ * @property {{ label: string, className: string } | null} activePensionPill
  */
 
 /**
@@ -101,8 +107,6 @@ let reportWorkflowPromise = null
 /** @type {Promise<any> | null} */
 let patternsPromise = null
 /** @type {Promise<any> | null} */
-let contributionParserPromise = null
-/** @type {Promise<any> | null} */
 let pdfExportPromise = null
 /** @type {boolean} */
 let memoryAttributionUnavailableLogged = false
@@ -126,17 +130,11 @@ function loadReportWorkflow() {
 
 function loadPatterns() {
     if (!patternsPromise) {
-        patternsPromise = import('../parse/formats/sage-uk/patterns.js')
+        patternsPromise = ACTIVE_PAYROLL_FORMAT.patterns().then((PATTERNS) => ({
+            PATTERNS,
+        }))
     }
     return patternsPromise
-}
-
-function loadContributionParser() {
-    if (!contributionParserPromise) {
-        contributionParserPromise =
-            import('../parse/contribution_validation.js')
-    }
-    return contributionParserPromise
 }
 
 function loadPdfExport() {
@@ -319,6 +317,18 @@ export function initPayrollApp() {
                     showScrollTop: false,
                     parsingExcel: false,
                     appVersion: UNKNOWN_APP_VERSION,
+                    activePayrollPill: ACTIVE_PAYROLL_FORMAT.label
+                        ? {
+                              label: ACTIVE_PAYROLL_FORMAT.label,
+                              className: ACTIVE_PAYROLL_FORMAT.className,
+                          }
+                        : null,
+                    activePensionPill: ACTIVE_PENSION_FORMAT.label
+                        ? {
+                              label: ACTIVE_PENSION_FORMAT.label,
+                              className: ACTIVE_PENSION_FORMAT.className,
+                          }
+                        : null,
                 }
             },
             computed: {
@@ -545,8 +555,8 @@ export function initPayrollApp() {
                     if (!XLSX) {
                         throw new Error('XLSX_NOT_AVAILABLE')
                     }
-                    const { parseContributionWorkbook } =
-                        await loadContributionParser()
+                    const parseContributionWorkbook =
+                        await ACTIVE_PENSION_FORMAT.parser()
                     const XLSXReader = /** @type {any} */ (XLSX)
                     /** @type {ContributionEntry[]} */
                     const entries = []
@@ -1385,7 +1395,6 @@ export function initPayrollApp() {
                     void loadXlsx()
                     void loadReportWorkflow()
                     void loadPatterns()
-                    void loadContributionParser()
                 })
 
                 const isDevHost =

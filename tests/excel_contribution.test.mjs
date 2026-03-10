@@ -3,7 +3,7 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { beforeAll, describe, expect, it } from 'vitest'
 import XLSX from 'xlsx'
-import { parseContributionWorkbook } from '../pwa/src/parse/contribution_validation.js'
+import { parseContributionWorkbook } from '../pwa/src/parse/formats/pension/nest/parser.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
