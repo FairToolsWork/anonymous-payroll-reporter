@@ -280,7 +280,7 @@
                     </div>
                 </div>
                 <button
-                    class="about-btn"
+                    class="primary accent"
                     type="button"
                     @click="openAbout"
                     aria-haspopup="dialog"
@@ -678,10 +678,10 @@
                             files here or choose multiple files.
                         </p>
                         <p class="notice">
-                            <b>Note:</b> Nest Pension Contribution files (Excel)
-                            are optional, if you don't have them the report will
-                            not compare deductions vs what was submitted to
-                            Nest.
+                            <b>Note:</b> Pension Contribution files are
+                            optional, if you don't have them the report will not
+                            compare deductions vs what was submitted to your
+                            pension.
                         </p>
                     </div>
                     <label class="field password">
@@ -691,7 +691,6 @@
                             type="password"
                             v-model.trim="pdfPassword"
                             name="pdf-password"
-                            autocomplete="off"
                             autocapitalize="off"
                             autocorrect="off"
                             spellcheck="false"
@@ -777,9 +776,6 @@
                         history…
                     </p>
                     <p v-if="status === 'rendering'">Rendering report…</p>
-                    <p v-if="status === 'done'">
-                        Report ready. Use Print to save as PDF.
-                    </p>
                     <p v-if="error" class="error">{{ error }}</p>
                     <p v-if="notice" class="notice">{{ notice }}</p>
                     <ul
@@ -862,15 +858,65 @@
                                 </strong>
                             </li>
                         </ul>
-                        <button
-                            id="print-report-btn"
-                            class="primary"
-                            :class="{ 'next-action': reportReady }"
-                            type="button"
-                            @click="printReport"
-                        >
-                            Print / Save as PDF
-                        </button>
+                        <div class="btn-group">
+                            <button
+                                id="download-pdf-btn"
+                                class="primary"
+                                :class="{ 'next-action': reportReady && !pdfExporting }"
+                                :disabled="pdfExporting"
+                                type="button"
+                                @click="downloadPdf"
+                            >
+                                <svg
+                                    v-if="!pdfExporting"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
+                                        d="M5 20h14q.425 0 .713.288T20 21t-.288.713T19 22H5q-.425 0-.712-.288T4 21t.288-.712T5 20m7-2.625q-.225 0-.437-.1t-.363-.3l-4.95-6.35q-.375-.5-.1-1.062T7.05 9H9V3q0-.425.288-.712T10 2h4q.425 0 .713.288T15 3v6h1.95q.625 0 .9.563t-.1 1.062l-4.95 6.35q-.15.2-.363.3t-.437.1"
+                                    />
+                                </svg>
+                                <svg
+                                    v-else
+                                    class="spinner"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        fill="currentColor"
+                                        d="M12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8V2z"
+                                    />
+                                </svg>
+                                Download
+                            </button>
+                            <button
+                                id="print-report-btn"
+                                class="primary accent"
+                                type="button"
+                                @click="printReport"
+                            >
+                                Print
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="1em"
+                                    height="1em"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
+                                        d="M18 7H6V3h12zm0 5.5q.425 0 .713-.288T19 11.5t-.288-.712T18 10.5t-.712.288T17 11.5t.288.713t.712.287M16 19v-4H8v4zm2 2H6v-4H2v-6q0-1.275.875-2.137T5 8h14q1.275 0 2.138.863T22 11v6h-4z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

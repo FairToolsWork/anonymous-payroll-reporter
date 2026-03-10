@@ -188,66 +188,91 @@ async function renderPageImage(page) {
     const width = canvas.width
     const height = canvas.height
     const threshold = 245
-    let contentBottom = -1
 
-    for (let y = height - 1; y >= 0; y -= 1) {
-        let hasContent = false
-        const rowStart = y * width * 4
+    /** @param {number} x @param {number} y @returns {boolean} */
+    function isNonWhite(x, y) {
+        const i = (y * width + x) * 4
+        return (
+            data[i] < threshold ||
+            data[i + 1] < threshold ||
+            data[i + 2] < threshold
+        )
+    }
+
+    let top = 0
+    outer_top: for (let y = 0; y < height; y += 1) {
         for (let x = 0; x < width; x += 2) {
-            const index = rowStart + x * 4
-            const r = data[index]
-            const g = data[index + 1]
-            const b = data[index + 2]
-            if (r < threshold || g < threshold || b < threshold) {
-                hasContent = true
-                break
+            if (isNonWhite(x, y)) {
+                top = y
+                break outer_top
             }
         }
-        if (hasContent) {
-            contentBottom = y
-            break
+    }
+
+    let bottom = height - 1
+    outer_bottom: for (let y = height - 1; y >= 0; y -= 1) {
+        for (let x = 0; x < width; x += 2) {
+            if (isNonWhite(x, y)) {
+                bottom = y
+                break outer_bottom
+            }
         }
     }
 
-    if (contentBottom >= 0) {
-        const whitespaceRatio = (height - (contentBottom + 1)) / height
-        if (whitespaceRatio > 0.4) {
-            const pointsPerCm = 72 / 2.54
-            const pageHeightPoints = Array.isArray(page.view)
-                ? page.view[3]
-                : height
-            const pixelsPerPoint = height / pageHeightPoints
-            const extraPixels = Math.round(pointsPerCm * 1.5 * pixelsPerPoint)
-            const cropBottom = Math.min(height, contentBottom + 1 + extraPixels)
-
-            const croppedCanvas = document.createElement('canvas')
-            const croppedContext = /** @type {CanvasRenderingContext2D} */ (
-                croppedCanvas.getContext('2d')
-            )
-            croppedCanvas.width = width
-            croppedCanvas.height = cropBottom
-            croppedContext.drawImage(
-                canvas,
-                0,
-                0,
-                width,
-                cropBottom,
-                0,
-                0,
-                width,
-                cropBottom
-            )
-            const dataUrl = croppedCanvas.toDataURL('image/png')
-            canvas.width = 0
-            canvas.height = 0
-            croppedCanvas.width = 0
-            croppedCanvas.height = 0
-            return dataUrl
+    let left = 0
+    outer_left: for (let x = 0; x < width; x += 1) {
+        for (let y = 0; y < height; y += 2) {
+            if (isNonWhite(x, y)) {
+                left = x
+                break outer_left
+            }
         }
     }
 
-    const dataUrl = canvas.toDataURL('image/png')
+    let right = width - 1
+    outer_right: for (let x = width - 1; x >= 0; x -= 1) {
+        for (let y = 0; y < height; y += 2) {
+            if (isNonWhite(x, y)) {
+                right = x
+                break outer_right
+            }
+        }
+    }
+
+    const pad = Math.round(width * 0.02)
+    const cropX = Math.max(0, left - pad)
+    const cropY = Math.max(0, top - pad)
+    const cropW = Math.min(width, right + pad + 1) - cropX
+    const cropH = Math.min(height, bottom + pad + 1) - cropY
+
+    if (cropW <= 0 || cropH <= 0) {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+        canvas.width = 0
+        canvas.height = 0
+        return dataUrl
+    }
+
+    const croppedCanvas = document.createElement('canvas')
+    const croppedContext = /** @type {CanvasRenderingContext2D} */ (
+        croppedCanvas.getContext('2d')
+    )
+    croppedCanvas.width = cropW
+    croppedCanvas.height = cropH
+    croppedContext.drawImage(
+        canvas,
+        cropX,
+        cropY,
+        cropW,
+        cropH,
+        0,
+        0,
+        cropW,
+        cropH
+    )
+    const dataUrl = croppedCanvas.toDataURL('image/jpeg', 0.85)
     canvas.width = 0
     canvas.height = 0
+    croppedCanvas.width = 0
+    croppedCanvas.height = 0
     return dataUrl
 }

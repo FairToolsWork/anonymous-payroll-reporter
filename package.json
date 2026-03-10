@@ -45,6 +45,8 @@
     },
     "dependencies": {
         "canvas": "3.2.1",
+        "jspdf": "^4.2.0",
+        "jspdf-autotable": "^5.0.7",
         "pdfjs-dist": "5.4.149"
     },
     "devDependencies": {

@@ -1,3 +1,4 @@
+/* global Blob, setInterval, clearInterval, performance */
 import { createApp, defineComponent } from 'vue'
 
 /**
@@ -22,7 +23,10 @@ import { createApp, defineComponent } from 'vue'
  * @property {string} reportHtml
  * @property {string} reportTimestamp
  * @property {boolean} reportReady
+ * @property {boolean} pdfExporting
  * @property {string} suggestedFilename
+ * @property {any | null} reportContext
+ * @property {string} employeeName
  * @property {ReportStats} reportStats
  * @property {boolean} dragActive
  * @property {boolean} debugEnabled
@@ -53,6 +57,7 @@ import { createApp, defineComponent } from 'vue'
  *     stageFiles(files: File[]): void,
  *     processFiles(files: File[]): Promise<void>,
  *     resetReportState(): void,
+ *     downloadPdf(): Promise<void>,
  *     handleScroll(): void,
  *     closeAbout(): void,
  *     canRunReport: boolean,
@@ -97,6 +102,8 @@ let reportWorkflowPromise = null
 let patternsPromise = null
 /** @type {Promise<any> | null} */
 let contributionParserPromise = null
+/** @type {Promise<any> | null} */
+let pdfExportPromise = null
 /** @type {boolean} */
 let memoryAttributionUnavailableLogged = false
 
@@ -130,6 +137,13 @@ function loadContributionParser() {
             import('../parse/contribution_validation.js')
     }
     return contributionParserPromise
+}
+
+function loadPdfExport() {
+    if (!pdfExportPromise) {
+        pdfExportPromise = import('../report/pdf_export.js')
+    }
+    return pdfExportPromise
 }
 
 /** @param {() => void} callback */
@@ -258,7 +272,10 @@ export function initPayrollApp() {
                     reportHtml: '',
                     reportTimestamp: '',
                     reportReady: false,
+                    pdfExporting: false,
                     suggestedFilename: '',
+                    reportContext: null,
+                    employeeName: '',
                     reportStats: {
                         dateRangeLabel: '',
                         missingMonthsLabel: '',
@@ -724,6 +741,8 @@ export function initPayrollApp() {
                     this.notice = ''
                     this.reportHtml = ''
                     this.reportReady = false
+                    this.reportContext = null
+                    this.employeeName = ''
                     this.debugText = ''
                     this.debugInfo = {
                         parsed: '',
@@ -797,6 +816,7 @@ export function initPayrollApp() {
                             failedPayPeriods: this.failedPayPeriods,
                             failedFiles: this.failedFiles,
                             captureDebug: this.debugEnabled,
+                            includeReportContext: true,
                             onProgress: (
                                 /** @type {{ current: number, total: number, file: File }} */
                                 { current, total, file }
@@ -1081,6 +1101,8 @@ export function initPayrollApp() {
                     this.status = 'done'
                     this.reportTimestamp = new Date().toLocaleString('en-GB')
                     this.suggestedFilename = report.filename
+                    this.reportContext = report.context || null
+                    this.employeeName = records[0]?.employee?.name || 'Unknown'
                     this.reportStats = /** @type {ReportStats} */ ({
                         ...this.reportStats,
                         ...report.stats,
@@ -1105,9 +1127,92 @@ export function initPayrollApp() {
                                 behavior: 'smooth',
                                 block: 'start',
                             })
-                        document.getElementById('print-report-btn')?.focus()
+                        document.getElementById('download-pdf-btn')?.focus()
                     })
                     this.handleScroll()
+                },
+                /** @this {PayrollAppInstance} @returns {Promise<void>} */
+                async downloadPdf() {
+                    if (
+                        !this.reportReady ||
+                        !this.reportContext ||
+                        this.pdfExporting
+                    ) {
+                        return
+                    }
+                    this.pdfExporting = true
+                    await new Promise((resolve) => setTimeout(resolve, 50))
+                    /** @type {ReturnType<typeof setInterval> | null} */
+                    let memoryPollInterval = null
+                    try {
+                        console.info('Payroll: PDF export started')
+                        logMemoryUsage('pdf-export-start')
+                        const { exportReportPdf } = await loadPdfExport()
+                        logMemoryUsage('pdf-export-library-loaded')
+                        if (MEMORY_LOG_ENABLED) {
+                            memoryPollInterval = setInterval(() => {
+                                logMemoryUsage('pdf-export-poll')
+                            }, 500)
+                        }
+                        const t0 = performance.now()
+                        const pdfBytes = await exportReportPdf(
+                            this.reportContext,
+                            {
+                                filename: this.suggestedFilename,
+                                appVersion: this.appVersion,
+                                employeeName: this.employeeName,
+                                dateRangeLabel: this.reportStats.dateRangeLabel,
+                            }
+                        )
+                        const durationMs = Math.round(performance.now() - t0)
+                        if (memoryPollInterval !== null) {
+                            clearInterval(memoryPollInterval)
+                            memoryPollInterval = null
+                        }
+                        logMemoryUsage('pdf-export-rendered')
+                        console.info('Payroll: PDF export rendered', {
+                            durationMs,
+                            sizeKb: Math.round(pdfBytes.byteLength / 1024),
+                        })
+                        const blob = new Blob([pdfBytes], {
+                            type: 'application/pdf',
+                        })
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        const baseName =
+                            typeof this.suggestedFilename === 'string'
+                                ? this.suggestedFilename.trim()
+                                : ''
+                        const fallbackName = 'payroll-report.pdf'
+                        const normalizedName = baseName
+                            ? baseName.toLowerCase().endsWith('.pdf')
+                                ? baseName
+                                : `${baseName}.pdf`
+                            : fallbackName
+                        link.href = url
+                        link.download = normalizedName
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        URL.revokeObjectURL(url)
+                        console.info('Payroll: PDF download triggered', {
+                            filename: normalizedName,
+                        })
+                        logMemoryUsage('pdf-export-complete')
+                    } catch (err) {
+                        const e = /** @type {any} */ (err)
+                        console.error('Payroll: PDF export failed', {
+                            message: e?.message,
+                            error: e,
+                        })
+                        this.error =
+                            'Failed to generate PDF. Please try again or use the Print button.'
+                    } finally {
+                        if (memoryPollInterval !== null) {
+                            clearInterval(memoryPollInterval)
+                        }
+                        this.pdfExporting = false
+                    }
                 },
                 /** @this {PayrollAppInstance} @returns {void} */
                 printReport() {

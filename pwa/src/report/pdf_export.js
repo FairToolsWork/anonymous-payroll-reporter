@@ -1,0 +1,1047 @@
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { formatMonthLabel } from '../parse/parser_config.js'
+import { getCalendarMonthFromFiscalIndex } from './report_calculations.js'
+import {
+    formatContribution,
+    formatCurrency,
+    formatDeduction,
+    formatMiscLabel,
+} from './report_formatters.js'
+
+/**
+ * Testing constraints: jsPDF requires a DOM constructor and autoTable relies on
+ * jsPDF's font metrics engine (canvas / TTF) to perform layout and fire cell hooks
+ * (didParseCell, willDrawCell). Neither is available in Node without a browser shim.
+ *
+ * What IS testable in Node (via vi.mock stubs):
+ *   - Guard conditions (exportReportPdf throws PDF_CONTEXT_MISSING for null inputs)
+ *   - Pure helpers: formatDiff, sanitizeText, formatBreakdown, formatBreakdownOrNA
+ *   - Code paths through renderSummaryPage / renderYearPage / renderPayslipPage that
+ *     do not depend on autoTable layout callbacks
+ *
+ * What is NOT testable without a real browser or Playwright:
+ *   - didParseCell / willDrawCell hooks (semantic colour application)
+ *   - autoTable column layout and row height calculation
+ *   - Image rendering branches (JPEG/PNG detection, overflow onto new page)
+ */
+
+// ─── Layout constants ────────────────────────────────────────────────────────
+
+const APRIL_BOUNDARY_NOTE =
+    'Note: April payslips may include pay accrued across the 6 April tax year boundary. ' +
+    'This tool cannot determine how the employer has attributed hours or amounts between tax years, ' +
+    'which may cause discrepancies in year-end figures.'
+
+const ZERO_TAX_ALLOWANCE_NOTE =
+    'Note: PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
+    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27).'
+
+const ACCUMULATED_TOTALS_NOTE =
+    'Note: Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). ' +
+    'Positive values indicate an overpayment; negative values indicate an underpayment to your pension.'
+
+const PAGE_MARGIN = 40
+const LINE_GAP = 4
+const SECTION_GAP = 4
+const HEADING_PRE_GAP = 16
+const FONT_TITLE = 16
+const FONT_HEADING = 13
+const FONT_BODY = 10
+const FONT_SMALL = 9
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+
+/**
+ * @param {number | null} value
+ * @returns {string}
+ */
+function formatOrNA(value) {
+    return value === null ? 'N/A' : formatCurrency(value)
+}
+
+/**
+ * Formats a contribution total with its EE/ER breakdown on a second line.
+ * @param {number} total
+ * @param {number} ee
+ * @param {number} er
+ * @returns {string}
+ */
+function formatBreakdown(total, ee, er) {
+    return `${formatCurrency(total)}\n(EE ${formatCurrency(ee)} / ER ${formatCurrency(er)})`
+}
+
+/**
+ * Formats a contribution total with its EE/ER breakdown on a second line,
+ * where EE or ER may be null (shown as N/A).
+ * @param {number | null} total
+ * @param {number | null} ee
+ * @param {number | null} er
+ * @returns {string}
+ */
+function formatBreakdownOrNA(total, ee, er) {
+    if (total === null) return 'N/A'
+    return `${formatCurrency(total)}\n(EE ${formatOrNA(ee)} / ER ${formatOrNA(er)})`
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function stripHtml(value) {
+    return String(value || '').replace(/<[^>]*>/g, '')
+}
+
+/**
+ * @param {string | number | null | undefined} value
+ * @returns {string}
+ */
+export function sanitizeText(value) {
+    const stripped = stripHtml(String(value ?? ''))
+    return stripped
+        .split('\n')
+        .map((line) => {
+            let filtered = ''
+            for (let i = 0; i < line.length; i += 1) {
+                const code = line.charCodeAt(i)
+                if (code === 9 || (code >= 32 && code !== 127)) {
+                    filtered += line[i]
+                }
+            }
+            return filtered.replace(/\s+/g, ' ').trim()
+        })
+        .join('\n')
+}
+
+/**
+ * @param {string | string[]} value
+ * @returns {string | string[]}
+ */
+function sanitizeTextLines(value) {
+    if (Array.isArray(value)) {
+        return value.map((line) => sanitizeText(line))
+    }
+    return sanitizeText(value)
+}
+
+/**
+ * @param {Date | null} date
+ * @returns {string}
+ */
+function formatEntryDateLabel(date) {
+    if (!(date instanceof Date)) {
+        return 'Unknown'
+    }
+    return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    })
+}
+
+/**
+ * @param {string | null} imageData
+ * @returns {string | null}
+ */
+function normalizeImageData(imageData) {
+    if (!imageData) {
+        return null
+    }
+    if (imageData.startsWith('data:image')) {
+        return imageData
+    }
+    return `data:image/png;base64,${imageData}`
+}
+
+// ─── Layout primitives ───────────────────────────────────────────────────────
+// Each function takes cursorY and returns the new cursorY after rendering.
+
+/**
+ * @param {jsPDF} doc
+ * @returns {number}
+ */
+function pageHeight(doc) {
+    return doc.internal.pageSize.getHeight()
+}
+
+/**
+ * @param {jsPDF} doc
+ * @returns {number}
+ */
+function pageWidth(doc) {
+    return doc.internal.pageSize.getWidth()
+}
+
+/**
+ * @param {jsPDF} doc
+ * @returns {number}
+ */
+function maxWidth(doc) {
+    return pageWidth(doc) - PAGE_MARGIN * 2
+}
+
+/**
+ * Writes text and returns updated cursorY.
+ * @param {jsPDF} doc
+ * @param {string | string[]} text
+ * @param {number} cursorY
+ * @param {{ fontSize?: number, bold?: boolean, color?: string }} [opts]
+ * @returns {number}
+ */
+function writeText(doc, text, cursorY, opts = {}) {
+    const fontSize = opts.fontSize ?? FONT_BODY
+    const bold = opts.bold ?? false
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(fontSize)
+    doc.setTextColor(opts.color ?? '#000000')
+    const safeText = sanitizeTextLines(text)
+    const lines = Array.isArray(safeText)
+        ? safeText
+        : doc.splitTextToSize(safeText, maxWidth(doc))
+    doc.text(lines, PAGE_MARGIN, cursorY)
+    const lineHeight = fontSize * 1.3
+    return cursorY + lines.length * lineHeight + LINE_GAP
+}
+
+/**
+ * Writes a heading and returns updated cursorY.
+ * @param {jsPDF} doc
+ * @param {string} text
+ * @param {number} cursorY
+ * @param {{ fontSize?: number, gap?: number, preGap?: number }} [opts]
+ * @returns {number}
+ */
+function writeHeading(doc, text, cursorY, opts = {}) {
+    const fontSize = opts.fontSize ?? FONT_HEADING
+    const gap = opts.gap ?? SECTION_GAP
+    const preGap = opts.preGap ?? HEADING_PRE_GAP
+    const y = cursorY + preGap
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(fontSize)
+    doc.setTextColor('#000000')
+    doc.text(sanitizeText(text), PAGE_MARGIN, y)
+    return y + fontSize * 1.3 + gap
+}
+
+/**
+ * Renders an autoTable and returns updated cursorY.
+ * @param {jsPDF} doc
+ * @param {{ head: string[][], body: string[][], foot?: string[][] }} tableData
+ * @param {number} cursorY
+ * @param {{ didParseCell?: (data: any) => void }} [opts]
+ * @returns {number}
+ */
+function writeTable(doc, tableData, cursorY, opts = {}) {
+    const safeHead = tableData.head.map((row) =>
+        row.map((cell) => sanitizeText(cell))
+    )
+    const safeBody = tableData.body.map((row) =>
+        row.map((cell) => sanitizeText(cell))
+    )
+    const safeFoot = tableData.foot
+        ? tableData.foot.map((row) => row.map((cell) => sanitizeText(cell)))
+        : undefined
+    autoTable(doc, {
+        startY: cursorY,
+        head: safeHead,
+        body: safeBody,
+        foot: safeFoot,
+        theme: 'grid',
+        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        styles: {
+            font: 'helvetica',
+            fontSize: FONT_SMALL,
+            cellPadding: 4,
+            overflow: 'linebreak',
+        },
+        headStyles: {
+            fillColor: [30, 28, 25],
+            textColor: 255,
+            fontStyle: 'bold',
+        },
+        footStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [30, 28, 25],
+            fontStyle: 'bold',
+            lineColor: [30, 28, 25],
+            lineWidth: 0.75,
+        },
+        columnStyles: {},
+        didParseCell: opts.didParseCell,
+    })
+    const finalY = /** @type {any} */ (doc).lastAutoTable?.finalY ?? cursorY
+    return finalY + SECTION_GAP
+}
+
+// ─── Diff colour helpers ─────────────────────────────────────────────────────
+
+const DIFF_POSITIVE_COLOR = '#8a6014'
+const DIFF_NEGATIVE_COLOR = '#c0391a'
+const DIFF_NEUTRAL_COLOR = '#2d7a4f'
+
+/**
+ * Returns the text and a semantic text colour for a diff value.
+ * @param {number | null} value
+ * @returns {{ text: string, color: string | null }}
+ */
+export function formatDiff(value) {
+    if (value === null) {
+        return { text: 'N/A', color: null }
+    }
+    const rounded = Number(value.toFixed(2))
+    const text = formatCurrency(value)
+    if (rounded === 0) return { text, color: DIFF_NEUTRAL_COLOR }
+    if (rounded > 0) return { text, color: DIFF_POSITIVE_COLOR }
+    return { text, color: DIFF_NEGATIVE_COLOR }
+}
+
+/**
+ * Renders one or more notes anchored to the page bottom margin, stacking upward.
+ * @param {jsPDF} doc
+ * @param {string[]} notes
+ */
+function writePageFooterNotes(doc, notes) {
+    if (!notes.length) return
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(FONT_SMALL)
+    doc.setTextColor('#555555')
+    const width = maxWidth(doc)
+    const lineHeight = FONT_SMALL * 1.3
+    const bottom = pageHeight(doc) - PAGE_MARGIN
+    let footerY = bottom
+    for (let i = notes.length - 1; i >= 0; i -= 1) {
+        const lines = doc.splitTextToSize(sanitizeText(notes[i]), width)
+        footerY -= lines.length * lineHeight
+        doc.text(lines, PAGE_MARGIN, footerY)
+        footerY -= LINE_GAP
+    }
+}
+
+// ─── Data helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {{ type: 'payment' | 'deduction', dateLabel: string, item: any }} MiscFootnote
+ */
+
+/**
+ * @param {any[]} entries
+ * @returns {MiscFootnote[]}
+ */
+function collectMiscFootnotes(entries) {
+    /** @type {MiscFootnote[]} */
+    const result = []
+    entries.forEach((entry) => {
+        const dateLabel = entry.parsedDate
+            ? formatEntryDateLabel(entry.parsedDate)
+            : entry.record?.payrollDoc?.processDate?.date || 'Unknown'
+        const miscPayments = entry.record?.payrollDoc?.payments?.misc || []
+        const miscDeductions = entry.record?.payrollDoc?.deductions?.misc || []
+        miscPayments.forEach((/** @type {any} */ item) => {
+            result.push({ type: 'payment', dateLabel, item })
+        })
+        miscDeductions.forEach((/** @type {any} */ item) => {
+            result.push({ type: 'deduction', dateLabel, item })
+        })
+    })
+    return result
+}
+
+// ─── Page sections ────────────────────────────────────────────────────────────
+
+/**
+ * @param {jsPDF} doc
+ * @param {any} context
+ * @param {{ filename: string, appVersion: string, employeeName: string, dateRangeLabel: string }} meta
+ */
+function renderSummaryPage(doc, context, meta) {
+    let y = PAGE_MARGIN
+
+    /**
+     * @param {string | string[]} text
+     * @param {number} cursorY
+     * @param {{ fontSize?: number, bold?: boolean, color?: string }} [opts]
+     * @returns {number}
+     */
+    function writeCenteredText(text, cursorY, opts = {}) {
+        const fontSize = opts.fontSize ?? FONT_BODY
+        const bold = opts.bold ?? false
+        doc.setFont('helvetica', bold ? 'bold' : 'normal')
+        doc.setFontSize(fontSize)
+        doc.setTextColor(opts.color ?? '#000000')
+        const safeText = sanitizeTextLines(text)
+        const lines = Array.isArray(safeText)
+            ? safeText
+            : doc.splitTextToSize(safeText, maxWidth(doc))
+        doc.text(lines, pageWidth(doc) / 2, cursorY, { align: 'center' })
+        const lineHeight = fontSize * 1.3
+        return cursorY + lines.length * lineHeight + LINE_GAP
+    }
+
+    y = writeCenteredText(
+        `Payroll Report - ${meta.employeeName || 'Unknown'}`,
+        y,
+        { fontSize: FONT_TITLE, bold: true }
+    )
+    y = writeCenteredText(`Date range: ${meta.dateRangeLabel || 'Unknown'}`, y)
+    y += LINE_GAP
+
+    if (context.missingMonths?.missingMonthsLabel) {
+        y = writeCenteredText(
+            `Missing months: ${stripHtml(context.missingMonths.missingMonthsLabel)}`,
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
+    if (context.validationSummary?.validationPill) {
+        y = writeCenteredText(
+            stripHtml(context.validationSummary.validationPill),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
+    const footerY = pageHeight(doc) - PAGE_MARGIN
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(FONT_SMALL)
+    doc.setTextColor('#000000')
+    doc.text(
+        sanitizeText(`App version: ${meta.appVersion || 'Unknown'}`),
+        pageWidth(doc) / 2,
+        footerY,
+        { align: 'center' }
+    )
+
+    y += LINE_GAP
+    y = writeHeading(doc, 'Year Summary', y)
+
+    /** @type {Array<Array<string>>} */
+    const yearRows = []
+    /** @type {Array<string | null>} */
+    const yearRowDiffColors = []
+    context.yearGroups.forEach(
+        (/** @type {any} */ entriesForYear, /** @type {string} */ yearKey) => {
+            const yearEntries = /** @type {any[]} */ (entriesForYear)
+            const hours = yearEntries.reduce(
+                (acc, e) =>
+                    acc +
+                    (e.record?.payrollDoc?.payments?.hourly?.basic?.units || 0),
+                0
+            )
+            const payEE = yearEntries.reduce(
+                (acc, e) =>
+                    acc +
+                    (e.record?.payrollDoc?.deductions?.pensionEE?.amount || 0),
+                0
+            )
+            const payER = yearEntries.reduce(
+                (acc, e) =>
+                    acc +
+                    (e.record?.payrollDoc?.deductions?.pensionER?.amount || 0),
+                0
+            )
+            const payTotal = payEE + payER
+            const recon = entriesForYear.reconciliation || null
+            const repEE = recon?.totals?.actualEE ?? null
+            const repER = recon?.totals?.actualER ?? null
+            const repTotal =
+                repEE === null || repER === null ? null : repEE + repER
+            const overUnder = repTotal === null ? null : repTotal - payTotal
+            const zeroReview =
+                repTotal !== null && payTotal === 0 && repTotal === 0
+            const diff = zeroReview
+                ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
+                : formatDiff(overUnder)
+            const hasFlags = yearEntries.some(
+                (e) => e.validation?.flags?.length
+            )
+            yearRows.push([
+                String(yearKey || 'Unknown'),
+                hours.toFixed(2),
+                formatBreakdown(payTotal, payEE, payER),
+                formatBreakdownOrNA(repTotal, repEE, repER),
+                diff.text,
+                hasFlags ? '!' : '-',
+            ])
+            yearRowDiffColors.push(diff.color)
+        }
+    )
+
+    y = writeTable(
+        doc,
+        {
+            head: [
+                [
+                    'Tax Year',
+                    'Hours',
+                    'Payroll Cont. (EE+ER)',
+                    'Reported (EE+ER)',
+                    'YE Over/Under',
+                    'Flags',
+                ],
+            ],
+            body: yearRows,
+        },
+        y,
+        {
+            didParseCell(data) {
+                if (data.section === 'body' && data.column.index === 4) {
+                    const color = yearRowDiffColors[data.row.index] ?? null
+                    if (color) {
+                        data.cell.styles.textColor = color
+                        data.cell.styles.fontStyle = 'bold'
+                    }
+                }
+            },
+        }
+    )
+
+    y = writeHeading(doc, 'Accumulated Totals', y)
+
+    const totals = context.contributionTotals
+    const contributionRecency = context.contributionRecency || null
+    const daysCount =
+        contributionRecency &&
+        typeof contributionRecency.daysSinceContribution === 'number'
+            ? contributionRecency.daysSinceContribution
+            : null
+    const daysThreshold = contributionRecency?.daysThreshold ?? 30
+    const daysSince = daysCount !== null ? `${daysCount} days` : 'N/A'
+    const daysColor =
+        daysCount === null
+            ? null
+            : daysCount > daysThreshold
+              ? '#c0391a'
+              : '#2d7a4f'
+    const lastContributionCell = contributionRecency
+        ? `${contributionRecency.lastContributionLabel}\n${daysSince}`
+        : context.contributionSummary?.years
+          ? 'See year details'
+          : 'N/A'
+    y = writeTable(
+        doc,
+        {
+            head: [
+                [
+                    'Date Range',
+                    'Payroll Cont. (EE+ER)',
+                    'Reported (EE+ER)',
+                    'Accumulated Over/Under',
+                    'Last Contribution Date',
+                ],
+            ],
+            body: [
+                [
+                    meta.dateRangeLabel || 'Unknown',
+                    formatBreakdown(
+                        totals.payrollContribution,
+                        totals.payrollEE,
+                        totals.payrollER
+                    ),
+                    formatBreakdownOrNA(
+                        totals.reportedContribution,
+                        totals.pensionEE,
+                        totals.pensionER
+                    ),
+                    formatDiff(totals.contributionDifference).text,
+                    lastContributionCell,
+                ],
+            ],
+        },
+        y,
+        {
+            didParseCell(data) {
+                if (data.section !== 'body') return
+                if (data.column.index === 3) {
+                    const color = formatDiff(
+                        totals.contributionDifference
+                    ).color
+                    if (color) {
+                        data.cell.styles.textColor = color
+                        data.cell.styles.fontStyle = 'bold'
+                    }
+                }
+                if (data.column.index === 4 && daysColor) {
+                    data.cell.styles.textColor = daysColor
+                    data.cell.styles.fontStyle = 'bold'
+                }
+            },
+        }
+    )
+
+    y += 12
+    y = writeText(doc, ACCUMULATED_TOTALS_NOTE, y, { fontSize: FONT_SMALL })
+
+    const hasAprilEntry = context.entries.some(
+        (/** @type {any} */ e) =>
+            e.parsedDate instanceof Date && e.parsedDate.getMonth() === 3
+    )
+    const hasLowPretaxPay = context.entries.some((/** @type {any} */ e) => {
+        const gross = e.record?.payrollDoc?.thisPeriod?.totalGrossPay?.amount
+        return typeof gross === 'number' && gross < 1048
+    })
+    const summaryPageNotes = []
+    if (hasAprilEntry) summaryPageNotes.push(APRIL_BOUNDARY_NOTE)
+    if (hasLowPretaxPay) summaryPageNotes.push(ZERO_TAX_ALLOWANCE_NOTE)
+    writePageFooterNotes(doc, summaryPageNotes)
+
+    const summaryFootnotes = collectMiscFootnotes(context.entries)
+    if (summaryFootnotes.length) {
+        y = writeHeading(doc, 'Misc entries to review', y)
+        y = writeText(
+            doc,
+            summaryFootnotes.map((f) => {
+                const typeLabel =
+                    f.type === 'deduction' ? 'Deduction' : 'Payment'
+                const amountLabel =
+                    f.type === 'deduction'
+                        ? formatDeduction(f.item.amount || 0)
+                        : formatCurrency(f.item.amount || 0)
+                return `${f.dateLabel}: ${typeLabel}: ${formatMiscLabel(f.item)}: ${amountLabel}`
+            }),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
+    const flaggedPeriods = context.validationSummary?.flaggedPeriods || []
+    if (flaggedPeriods.length) {
+        y = writeHeading(doc, 'Flagged periods', y)
+        writeText(doc, flaggedPeriods.join(', '), y, {
+            fontSize: FONT_SMALL,
+        })
+    }
+}
+
+/**
+ * @param {jsPDF} doc
+ * @param {any} entriesForYear
+ * @param {string} yearKey
+ * @param {any} context
+ */
+function renderYearPage(doc, entriesForYear, yearKey, context) {
+    doc.addPage()
+    let y = PAGE_MARGIN
+
+    y = writeHeading(doc, `${String(yearKey || 'Unknown')} Summary`, y, {
+        preGap: 0,
+    })
+
+    const missingForYear =
+        context.missingMonths?.missingMonthsByYear?.[yearKey] || []
+    if (missingForYear.length) {
+        y = writeText(doc, `Missing months: ${missingForYear.join(', ')}`, y, {
+            fontSize: FONT_SMALL,
+        })
+    }
+
+    const monthEntries = new Map()
+    entriesForYear.forEach((/** @type {any} */ entry) => {
+        if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
+            if (!monthEntries.has(entry.monthIndex)) {
+                monthEntries.set(entry.monthIndex, [])
+            }
+            monthEntries.get(entry.monthIndex).push(entry)
+        }
+    })
+
+    const reconciliation = entriesForYear.reconciliation || null
+    /** @type {Array<Array<string>>} */
+    const bodyRows = []
+    /** @type {Array<string | null>} */
+    const diffColorByRow = []
+    let totalHours = 0
+    let totalHolidayUnits = 0
+    let totalPayEE = 0
+    let totalPayER = 0
+    let totalPayContrib = 0
+    let totalRepEE = null
+    let totalRepER = null
+
+    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
+        const entries = /** @type {any[]} */ (
+            monthEntries.get(monthIndex) || []
+        )
+        const calendarMonthIndex = getCalendarMonthFromFiscalIndex(monthIndex)
+        const calendarMonth = calendarMonthIndex
+            ? formatMonthLabel(calendarMonthIndex)
+            : 'Unknown'
+        const reconMonth = reconciliation?.months?.get(monthIndex) || null
+        const actualEE = reconMonth?.actualEE ?? null
+        const actualER = reconMonth?.actualER ?? null
+        const repContrib =
+            actualEE === null || actualER === null ? null : actualEE + actualER
+
+        if (entries.length) {
+            entries.forEach((entry, entryIndex) => {
+                const rec = entry.record || null
+                const hours =
+                    rec?.payrollDoc?.payments?.hourly?.basic?.units || 0
+                const holidayHourlyUnits =
+                    rec?.payrollDoc?.payments?.hourly?.holiday?.units || 0
+                const holidaySalaryUnits =
+                    rec?.payrollDoc?.payments?.salary?.holiday?.units || 0
+                const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
+                const nestEE =
+                    rec?.payrollDoc?.deductions?.pensionEE?.amount || 0
+                const nestER =
+                    rec?.payrollDoc?.deductions?.pensionER?.amount || 0
+                const payContrib = nestEE + nestER
+                const overUnder =
+                    repContrib === null ? null : repContrib - payContrib
+                const zeroReview =
+                    repContrib !== null && payContrib === 0 && repContrib === 0
+                const rowDiff = zeroReview
+                    ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
+                    : formatDiff(overUnder)
+                const flagSummary = entry.validation?.flags?.length
+                    ? entry.validation.flags
+                          .map((/** @type {any} */ f) => f.noteIndex ?? f.label)
+                          .join('; ')
+                    : '-'
+                const monthLabel =
+                    entries.length > 1
+                        ? `${calendarMonth} (${entryIndex + 1})`
+                        : calendarMonth
+
+                bodyRows.push([
+                    monthLabel,
+                    hours.toFixed(2),
+                    holidayUnits.toFixed(2),
+                    formatBreakdown(payContrib, nestEE, nestER),
+                    formatBreakdownOrNA(repContrib, actualEE, actualER),
+                    rowDiff.text,
+                    flagSummary,
+                ])
+                diffColorByRow.push(rowDiff.color)
+
+                totalHours += hours
+                totalHolidayUnits += holidayUnits
+                totalPayEE += nestEE
+                totalPayER += nestER
+                totalPayContrib += payContrib
+            })
+        } else {
+            const overUnder = repContrib === null ? null : repContrib - 0
+            const emptyDiff = formatDiff(overUnder)
+            bodyRows.push([
+                calendarMonth,
+                '0.00',
+                '0.00',
+                formatBreakdown(0, 0, 0),
+                formatBreakdownOrNA(repContrib, actualEE, actualER),
+                emptyDiff.text,
+                '-',
+            ])
+            diffColorByRow.push(emptyDiff.color)
+        }
+    }
+
+    if (reconciliation) {
+        totalRepEE = reconciliation.totals?.actualEE ?? null
+        totalRepER = reconciliation.totals?.actualER ?? null
+    }
+    const totalRepContrib =
+        totalRepEE === null || totalRepER === null
+            ? null
+            : (totalRepEE || 0) + (totalRepER || 0)
+    const totalOverUnder =
+        totalRepContrib === null ? null : totalRepContrib - totalPayContrib
+
+    const totalOverUnderDiff = formatDiff(totalOverUnder)
+
+    y = writeTable(
+        doc,
+        {
+            head: [
+                [
+                    'Month',
+                    'Hours',
+                    'Holiday Units',
+                    'Payroll Cont. (EE+ER)',
+                    'Reported (EE+ER)',
+                    'Over/Under',
+                    'Flags',
+                ],
+            ],
+            body: bodyRows,
+            foot: [
+                [
+                    'Total',
+                    totalHours.toFixed(2),
+                    totalHolidayUnits.toFixed(2),
+                    formatBreakdown(totalPayContrib, totalPayEE, totalPayER),
+                    formatBreakdownOrNA(
+                        totalRepContrib,
+                        totalRepEE,
+                        totalRepER
+                    ),
+                    totalOverUnderDiff.text,
+                    '-',
+                ],
+            ],
+        },
+        y,
+        {
+            didParseCell(data) {
+                if (data.column.index !== 5 || data.section === 'head') {
+                    return
+                }
+                const color =
+                    data.section === 'foot'
+                        ? totalOverUnderDiff.color
+                        : (diffColorByRow[data.row.index] ?? null)
+                if (color) {
+                    data.cell.styles.textColor = color
+                    data.cell.styles.fontStyle = 'bold'
+                }
+            },
+        }
+    )
+
+    const yearFlagNotes = /** @type {string[]} */ ([])
+    const yearFlagIndexById = new Map()
+    entriesForYear.forEach((/** @type {any} */ entry) => {
+        const entryFlags = entry.validation?.flags || []
+        entryFlags.forEach((/** @type {any} */ flag) => {
+            if (!yearFlagIndexById.has(flag.id)) {
+                yearFlagIndexById.set(flag.id, yearFlagNotes.length + 1)
+                yearFlagNotes.push(flag.label)
+            }
+        })
+    })
+    if (yearFlagNotes.length) {
+        y = writeHeading(doc, 'Flag notes', y)
+        y = writeText(
+            doc,
+            yearFlagNotes.map((label, i) => `${i + 1}. ${label}`),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
+    const yearHasAprilEntry = entriesForYear.some(
+        (/** @type {any} */ e) =>
+            e.parsedDate instanceof Date && e.parsedDate.getMonth() === 3
+    )
+    const yearLowPretaxPay = entriesForYear.some((/** @type {any} */ e) => {
+        const gross = e.record?.payrollDoc?.thisPeriod?.totalGrossPay?.amount
+        return typeof gross === 'number' && gross < 1048
+    })
+    const yearPageNotes = []
+    if (yearHasAprilEntry) yearPageNotes.push(APRIL_BOUNDARY_NOTE)
+    if (yearLowPretaxPay) yearPageNotes.push(ZERO_TAX_ALLOWANCE_NOTE)
+    writePageFooterNotes(doc, yearPageNotes)
+
+    const yearFootnotes = collectMiscFootnotes(entriesForYear)
+    if (yearFootnotes.length) {
+        y = writeHeading(doc, 'Misc entries to review', y)
+        writeText(
+            doc,
+            yearFootnotes.map((f) => {
+                const typeLabel =
+                    f.type === 'deduction' ? 'Deduction' : 'Payment'
+                const amountLabel =
+                    f.type === 'deduction'
+                        ? formatDeduction(f.item.amount || 0)
+                        : formatCurrency(f.item.amount || 0)
+                return `${f.dateLabel}: ${typeLabel}: ${formatMiscLabel(f.item)}: ${amountLabel}`
+            }),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+}
+
+/**
+ * @param {jsPDF} doc
+ * @param {any} entry
+ */
+function renderPayslipPage(doc, entry) {
+    doc.addPage()
+    let y = PAGE_MARGIN
+
+    const record = entry.record
+    const dateLabel = entry.parsedDate
+        ? formatEntryDateLabel(entry.parsedDate)
+        : record?.payrollDoc?.processDate?.date || 'Unknown'
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(FONT_HEADING)
+    doc.setTextColor('#000000')
+    doc.text(`Payslip details - ${dateLabel}`, PAGE_MARGIN, y)
+    y += FONT_HEADING + LINE_GAP
+
+    const imageData = normalizeImageData(entry.record?.imageData || null)
+    if (imageData) {
+        try {
+            const props = doc.getImageProperties(imageData)
+            const maxW = maxWidth(doc)
+            const availableH = pageHeight(doc) - y - PAGE_MARGIN
+            const ratio = props.width / props.height
+            let imgW = maxW
+            let imgH = imgW / ratio
+            if (imgH > availableH) {
+                doc.addPage()
+                y = PAGE_MARGIN
+                imgH = Math.min(imgH, pageHeight(doc) - PAGE_MARGIN * 2)
+                imgW = imgH * ratio
+                if (imgW > maxW) {
+                    imgW = maxW
+                    imgH = imgW / ratio
+                }
+            }
+            const imgFormat = imageData.startsWith('data:image/jpeg')
+                ? 'JPEG'
+                : 'PNG'
+            doc.addImage(imageData, imgFormat, PAGE_MARGIN, y, imgW, imgH)
+            doc.setDrawColor('#cccccc')
+            doc.setLineWidth(0.5)
+            doc.rect(PAGE_MARGIN, y, imgW, imgH)
+            y += imgH + SECTION_GAP
+        } catch {
+            y = writeText(doc, 'Image unavailable for this entry.', y, {
+                fontSize: FONT_SMALL,
+            })
+        }
+    }
+
+    const hourlyPayments = record?.payrollDoc?.payments?.hourly || {}
+    const salaryPayments = record?.payrollDoc?.payments?.salary || {}
+    const miscPayments = record?.payrollDoc?.payments?.misc || []
+
+    /** @type {Array<Array<string>>} */
+    const paymentRows = []
+    const basicHours = hourlyPayments.basic?.units || 0
+    const basicAmount = hourlyPayments.basic?.amount || 0
+    const holidayHoursUnits = hourlyPayments.holiday?.units || 0
+    const holidayAmount = hourlyPayments.holiday?.amount || 0
+    const basicSalaryAmount = salaryPayments.basic?.amount ?? null
+    const holidaySalaryAmount = salaryPayments.holiday?.amount ?? null
+
+    if (basicHours || basicAmount) {
+        paymentRows.push(['Basic Hours', formatCurrency(basicAmount)])
+    }
+    if (holidayHoursUnits || holidayAmount) {
+        paymentRows.push(['Holiday Hours', formatCurrency(holidayAmount)])
+    }
+    if (basicSalaryAmount !== null) {
+        paymentRows.push(['Basic Salary', formatCurrency(basicSalaryAmount)])
+    }
+    if (holidaySalaryAmount !== null) {
+        paymentRows.push([
+            'Holiday Salary',
+            formatCurrency(holidaySalaryAmount),
+        ])
+    }
+    miscPayments.forEach((/** @type {any} */ item) => {
+        paymentRows.push([
+            formatMiscLabel(item),
+            formatCurrency(item.amount || 0),
+        ])
+    })
+
+    y = writeTable(
+        doc,
+        {
+            head: [['Payments', 'Amount']],
+            body: paymentRows.length
+                ? paymentRows
+                : [['No payments recorded', '']],
+        },
+        y
+    )
+
+    const miscDeductions = record?.payrollDoc?.deductions?.misc || []
+    const payeTax = record?.payrollDoc?.deductions?.payeTax?.amount || 0
+    const natIns = record?.payrollDoc?.deductions?.natIns?.amount || 0
+    const nestEE = record?.payrollDoc?.deductions?.pensionEE?.amount || 0
+    const nestER = record?.payrollDoc?.deductions?.pensionER?.amount || 0
+    const netPay = record?.payrollDoc?.netPay?.amount || 0
+
+    /** @type {Array<Array<string>>} */
+    const deductionRows = [
+        ['PAYE Tax', formatDeduction(payeTax)],
+        ['National Insurance', formatDeduction(natIns)],
+        ['NEST Corp - EE', formatDeduction(nestEE)],
+        ['NEST Corp - ER', formatContribution(nestER)],
+    ]
+    miscDeductions.forEach((/** @type {any} */ item) => {
+        deductionRows.push([
+            formatMiscLabel(item),
+            formatDeduction(item.amount || 0),
+        ])
+    })
+    deductionRows.push(['Combined NEST', formatCurrency(nestEE + nestER)])
+    deductionRows.push(['Net Pay (after deductions)', formatCurrency(netPay)])
+
+    y = writeTable(
+        doc,
+        { head: [['Deductions', 'Amount']], body: deductionRows },
+        y
+    )
+
+    const natInsNumber = record?.employee?.natInsNumber || ''
+    if (!natInsNumber) {
+        y = writeText(doc, 'Warning: National Insurance number missing.', y, {
+            fontSize: FONT_SMALL,
+            bold: true,
+        })
+    }
+
+    const validationFlags = entry.validation?.flags || []
+    if (validationFlags.length) {
+        y = writeHeading(doc, 'Warnings', y, { fontSize: FONT_BODY })
+        y = writeText(
+            doc,
+            validationFlags.map((/** @type {any} */ f) => `• ${f.label}`),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+}
+
+/**
+ * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
+ * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
+ * @typedef {{ date: Date | null, type: string, amount: number }} ContributionEntry
+ * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
+ * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number, balance: number }} ContributionMonthSummary
+ * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number }} ContributionYearTotals
+ * @typedef {{ months: Map<number, ContributionMonthSummary>, totals: ContributionYearTotals, yearEndBalance: number }} ContributionYearSummary
+ * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
+ * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
+ * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null } }} ReportContext
+ */
+
+/**
+ * @param {ReportContext} context
+ * @param {{ filename: string, appVersion: string, employeeName: string, dateRangeLabel: string }} meta
+ * @returns {Promise<Uint8Array>}
+ */
+export async function exportReportPdf(context, meta) {
+    if (!context || !meta) {
+        throw new Error('PDF_CONTEXT_MISSING')
+    }
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+
+    renderSummaryPage(doc, context, meta)
+
+    context.yearGroups.forEach((entriesForYear, yearKey) => {
+        renderYearPage(
+            doc,
+            entriesForYear,
+            String(yearKey || 'Unknown'),
+            context
+        )
+    })
+
+    context.entries.forEach((entry) => {
+        renderPayslipPage(doc, entry)
+    })
+
+    const arrayBuffer = doc.output('arraybuffer')
+    return new Uint8Array(arrayBuffer)
+}

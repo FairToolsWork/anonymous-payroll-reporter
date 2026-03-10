@@ -8,6 +8,7 @@
     --card: hsl(0deg 0% 100%);
     --accent: hsl(16deg 62% 47%);
     --accent-dark: hsl(16deg 66% 33%);
+    --accent-green: hsl(145deg 52% 33%);
     --accent-green-dark: hsl(145deg 52% 33%);
     --diff-positive: hsl(42deg 78% 38%);
     --diff-negative: hsl(6deg 72% 45%);
@@ -253,6 +254,18 @@ button:disabled.primary:hover {
     box-shadow: none;
 }
 
+button.primary.accent {
+    flex-shrink: 0;
+    align-self: flex-start;
+    background: var(--accent);
+    color: #fff;
+}
+
+button.primary.accent:hover {
+    background: var(--accent-dark);
+    filter: brightness(0.88);
+}
+
 body.update-resources-ready .update-banner button.primary {
     background: var(--accent-green-dark);
     color: var(--paper);
@@ -290,7 +303,11 @@ button.secondary:hover {
 
 button.next-action,
 label.next-action {
-    background: var(--accent-green-dark);
+    background: var(--accent-green);
+}
+
+button.next-action:hover {
+    filter: brightness(0.88);
 }
 
 .collapse-section {
@@ -814,6 +831,7 @@ label.next-action {
 .completion {
     background: #f5eee6;
     padding: 16px;
+    margin-top: 16px;
     border-radius: 14px;
     border: 1px dashed rgb(30 28 25 / 20%);
     display: flex;
@@ -823,6 +841,53 @@ label.next-action {
 
 .completion h3 {
     margin: 0;
+}
+
+.btn-group {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    margin-top: 16px;
+}
+
+.btn-group button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 0;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-right-width: 0;
+}
+
+.btn-group button svg {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    display: block;
+}
+
+.btn-group button:first-child {
+    border-radius: 999px 0 0 999px;
+}
+
+.btn-group button:last-child {
+    border-radius: 0 999px 999px 0;
+    border-right-width: 1px;
+}
+
+.btn-group button:only-child {
+    border-radius: 999px;
+    border-right-width: 1px;
+}
+
+.btn-group button.primary + button {
+    border-left: 1px solid rgb(30 28 25 / 20%);
+}
+
+.btn-group button.secondary + button.secondary {
+    border-left-width: 0;
 }
 
 .stats {
@@ -918,7 +983,7 @@ label.next-action {
     transform: translateY(-1px);
 }
 
-.report-actions {
+.btn {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -1280,25 +1345,6 @@ p.report-footnote-row {
     font-weight: 600;
 }
 
-.about-btn {
-    flex-shrink: 0;
-    align-self: flex-start;
-    padding: 12px 22px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    background: var(--accent);
-    color: #fff;
-    font-weight: 600;
-    transition:
-        transform 0.2s ease,
-        all 0.2s ease;
-}
-
-.about-btn:hover {
-    background: var(--accent-dark);
-    transform: translateY(-1px);
-}
-
 dialog.about-dialog {
     background: var(--card);
     border: none;
@@ -1308,6 +1354,10 @@ dialog.about-dialog {
     max-height: calc(100dvh - 48px);
     overflow: hidden;
     padding: 0;
+}
+
+dialog.about-dialog a {
+    word-break: break-all;
 }
 
 dialog.about-dialog[open] {
@@ -1385,7 +1435,7 @@ body.scroll-locked {
     .app-header,
     .prep,
     .controls,
-    .report-actions,
+    .btn,
     .next-steps {
         display: none;
     }

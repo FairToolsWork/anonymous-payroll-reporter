@@ -24,6 +24,14 @@ import {
     getTaxYearSortKey,
     parsePayPeriodStart,
 } from './report_calculations.js'
+import {
+    formatBreakdownCell,
+    formatContribution,
+    formatContributionDifference,
+    formatCurrency,
+    formatDeduction,
+    formatMiscLabel,
+} from './report_formatters.js'
 
 /**
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
@@ -41,7 +49,7 @@ import {
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null } }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number } }} ReportContext
  */
 
 /** @type {number} Update this each tax year if the personal allowance changes */
@@ -85,84 +93,6 @@ function formatTimestamp(date) {
     const minutes = String(date.getMinutes()).padStart(2, '0')
     const seconds = String(date.getSeconds()).padStart(2, '0')
     return `${year}${month}${day}${hours}${minutes}${seconds}`
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function formatCurrency(value) {
-    const roundedValue = Number(value.toFixed(2))
-    const normalizedValue = Object.is(roundedValue, -0) ? 0 : roundedValue
-    return `£${normalizedValue.toFixed(2)}`
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function formatDeduction(value) {
-    return `-£${Math.abs(value).toFixed(2)}`
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function formatContribution(value) {
-    return `£${Math.abs(value).toFixed(2)}`
-}
-
-/**
- * @param {number | null} total
- * @param {number | null} ee
- * @param {number | null} er
- * @param {boolean} [allowNA=false]
- * @returns {string}
- */
-function formatBreakdownCell(total, ee, er, allowNA = false) {
-    if (allowNA && total === null) {
-        return 'N/A'
-    }
-    const formatOrNA = (/** @type {number | null} */ value) =>
-        value === null ? 'N/A' : formatCurrency(value)
-    const totalLabel = allowNA ? formatOrNA(total) : formatCurrency(total ?? 0)
-    const eeLabel = allowNA ? formatOrNA(ee) : formatCurrency(ee ?? 0)
-    const erLabel = allowNA ? formatOrNA(er) : formatCurrency(er ?? 0)
-    return `${totalLabel}<br><span class="summary-breakdown">${eeLabel} EE / ${erLabel} ER</span>`
-}
-
-/**
- * @param {number | null} value
- * @returns {string}
- */
-function formatContributionDifference(value) {
-    if (value === null) {
-        return 'N/A'
-    }
-    const roundedValue = Number(value.toFixed(2))
-    const diffClass =
-        roundedValue === 0
-            ? 'diff--neutral'
-            : roundedValue > 0
-              ? 'diff--positive'
-              : 'diff--negative'
-    return `<span class="${diffClass}">${formatCurrency(value)}</span>`
-}
-
-/**
- * @param {PayrollPayItem | PayrollMiscDeduction | { title?: string, units?: number | null, rate?: number | null }} item
- * @returns {string}
- */
-function formatMiscLabel(item) {
-    if (!item) {
-        return ''
-    }
-    const label = item.title || ''
-    if (item.units == null || item.rate == null) {
-        return label
-    }
-    return `${label} (${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))})`
 }
 
 /**
@@ -331,6 +261,11 @@ export function buildReport(
             reportRunDate,
             daysThreshold
         )
+    const contributionRecency = {
+        lastContributionLabel,
+        daysSinceContribution,
+        daysThreshold,
+    }
     const formatOrNA = (/** @type {number | null} */ value) =>
         value === null ? 'N/A' : formatCurrency(value)
     const formatDifference = () => {
@@ -693,6 +628,7 @@ export function buildReport(
             missingMonths: missingMonthsResult,
             validationSummary: validationSummaryResult,
             contributionTotals: contributionTotalsResult,
+            contributionRecency,
         },
     }
 }

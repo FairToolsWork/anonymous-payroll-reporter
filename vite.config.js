@@ -29,6 +29,9 @@ export default defineConfig({
                 },
                 manualChunks: (id) => {
                     const normId = id.replace(/\\/g, '/')
+                    if (normId.includes('jspdf')) {
+                        return 'pdf-download'
+                    }
                     if (normId.includes('pdfjs-dist')) {
                         return 'pdfjs'
                     }
