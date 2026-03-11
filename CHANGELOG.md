@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.1.0...anonymous-payroll-reporter-v3.2.0) (2026-03-11)
+
+
+### Features
+
+* **pwa:** add PDF sharing controls and refine export UI ([fb697a9](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/fb697a929a5f395b9d96793ca5ef28ab813a10be))
+
 ## [3.1.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.0.0...anonymous-payroll-reporter-v3.1.0) (2026-03-10)
 
 
