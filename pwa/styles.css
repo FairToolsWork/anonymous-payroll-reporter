@@ -209,7 +209,6 @@ button {
     border: none;
     cursor: pointer;
     font-family: inherit;
-    font-size: 1rem;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
 }
@@ -224,6 +223,7 @@ button.ghost.on-dk {
 button.primary,
 button.secondary,
 button.ghost {
+    font-size: 1rem;
     border-radius: 999px;
     transition:
         transform 0.2s ease,
@@ -257,16 +257,25 @@ button:disabled.primary:hover {
     box-shadow: none;
 }
 
+button.about {
+    align-self: flex-start;
+}
+
+button.secondary.accent,
 button.primary.accent {
     flex-shrink: 0;
-    align-self: flex-start;
     background: var(--accent);
     color: #fff;
 }
 
+button.secondary.accent:hover,
 button.primary.accent:hover {
     background: var(--accent-dark);
     filter: brightness(0.88);
+}
+
+button.reset {
+    font-size: 0.9rem;
 }
 
 body.update-resources-ready .update-banner button.primary {
@@ -901,7 +910,7 @@ button.next-action:hover {
     margin-top: 16px;
 }
 
-@container (width <= 260px) {
+@container (width <= 320px) {
     .btn-group {
         flex-direction: column;
         width: 100%;

@@ -27,7 +27,8 @@ import {
  * @property {string} reportHtml
  * @property {string} reportTimestamp
  * @property {boolean} reportReady
- * @property {boolean} pdfExporting
+ * @property {boolean} pdfDownloading
+ * @property {boolean} pdfSharing
  * @property {string} suggestedFilename
  * @property {any | null} reportContext
  * @property {string} employeeName
@@ -67,6 +68,8 @@ import {
  *     handleScroll(): void,
  *     closeAbout(): void,
  *     canRunReport: boolean,
+ *     canShare: boolean,
+ *     sharePdf(): Promise<void>,
  *   }
  * } PayrollAppInstance
  */
@@ -268,7 +271,8 @@ export function initPayrollApp() {
                     reportHtml: '',
                     reportTimestamp: '',
                     reportReady: false,
-                    pdfExporting: false,
+                    pdfDownloading: false,
+                    pdfSharing: false,
                     suggestedFilename: '',
                     reportContext: null,
                     employeeName: '',
@@ -346,6 +350,27 @@ export function initPayrollApp() {
                         this.acceptedDisclaimer &&
                         this.status !== 'processing'
                     )
+                },
+                /** @this {PayrollAppInstance} @returns {boolean} */
+                canShare() {
+                    if (
+                        typeof navigator === 'undefined' ||
+                        typeof navigator.share !== 'function' ||
+                        typeof navigator.canShare !== 'function'
+                    ) {
+                        return false
+                    }
+                    try {
+                        return navigator.canShare({
+                            files: [
+                                new File([], 'test.pdf', {
+                                    type: 'application/pdf',
+                                }),
+                            ],
+                        })
+                    } catch {
+                        return false
+                    }
                 },
             },
             watch: {
@@ -1134,11 +1159,12 @@ export function initPayrollApp() {
                     if (
                         !this.reportReady ||
                         !this.reportContext ||
-                        this.pdfExporting
+                        this.pdfDownloading ||
+                        this.pdfSharing
                     ) {
                         return
                     }
-                    this.pdfExporting = true
+                    this.pdfDownloading = true
                     await new Promise((resolve) => setTimeout(resolve, 50))
                     /** @type {ReturnType<typeof setInterval> | null} */
                     let memoryPollInterval = null
@@ -1175,8 +1201,6 @@ export function initPayrollApp() {
                         const blob = new Blob([pdfBytes], {
                             type: 'application/pdf',
                         })
-                        const url = URL.createObjectURL(blob)
-                        const link = document.createElement('a')
                         const baseName =
                             typeof this.suggestedFilename === 'string'
                                 ? this.suggestedFilename.trim()
@@ -1187,6 +1211,8 @@ export function initPayrollApp() {
                                 ? baseName
                                 : `${baseName}.pdf`
                             : fallbackName
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
                         link.href = url
                         link.download = normalizedName
                         document.body.appendChild(link)
@@ -1209,7 +1235,93 @@ export function initPayrollApp() {
                         if (memoryPollInterval !== null) {
                             clearInterval(memoryPollInterval)
                         }
-                        this.pdfExporting = false
+                        this.pdfDownloading = false
+                    }
+                },
+                /** @this {PayrollAppInstance} @returns {Promise<void>} */
+                async sharePdf() {
+                    if (
+                        !this.reportReady ||
+                        !this.reportContext ||
+                        this.pdfDownloading ||
+                        this.pdfSharing
+                    ) {
+                        return
+                    }
+                    this.pdfSharing = true
+                    await new Promise((resolve) => setTimeout(resolve, 50))
+                    /** @type {ReturnType<typeof setInterval> | null} */
+                    let memoryPollInterval = null
+                    try {
+                        console.info('Payroll: PDF share started')
+                        logMemoryUsage('pdf-share-start')
+                        const { exportReportPdf } = await loadPdfExport()
+                        logMemoryUsage('pdf-share-library-loaded')
+                        if (MEMORY_LOG_ENABLED) {
+                            memoryPollInterval = setInterval(() => {
+                                logMemoryUsage('pdf-share-poll')
+                            }, 500)
+                        }
+                        const t0 = performance.now()
+                        const pdfBytes = await exportReportPdf(
+                            this.reportContext,
+                            {
+                                filename: this.suggestedFilename,
+                                appVersion: this.appVersion,
+                                employeeName: this.employeeName,
+                                dateRangeLabel: this.reportStats.dateRangeLabel,
+                            }
+                        )
+                        const durationMs = Math.round(performance.now() - t0)
+                        if (memoryPollInterval !== null) {
+                            clearInterval(memoryPollInterval)
+                            memoryPollInterval = null
+                        }
+                        logMemoryUsage('pdf-share-rendered')
+                        console.info('Payroll: PDF share rendered', {
+                            durationMs,
+                            sizeKb: Math.round(pdfBytes.byteLength / 1024),
+                        })
+                        const blob = new Blob([pdfBytes], {
+                            type: 'application/pdf',
+                        })
+                        const baseName =
+                            typeof this.suggestedFilename === 'string'
+                                ? this.suggestedFilename.trim()
+                                : ''
+                        const fallbackName = 'payroll-report.pdf'
+                        const normalizedName = baseName
+                            ? baseName.toLowerCase().endsWith('.pdf')
+                                ? baseName
+                                : `${baseName}.pdf`
+                            : fallbackName
+                        const shareFile = new File([blob], normalizedName, {
+                            type: 'application/pdf',
+                        })
+                        await navigator.share({
+                            files: [shareFile],
+                            title: normalizedName,
+                        })
+                        logMemoryUsage('pdf-share-complete')
+                        console.info('Payroll: PDF shared', {
+                            filename: normalizedName,
+                        })
+                    } catch (err) {
+                        const e = /** @type {any} */ (err)
+                        if (e?.name === 'AbortError') {
+                            return
+                        }
+                        console.error('Payroll: PDF share failed', {
+                            message: e?.message,
+                            error: e,
+                        })
+                        this.error =
+                            'Failed to share PDF. Please try again or use the Download button.'
+                    } finally {
+                        if (memoryPollInterval !== null) {
+                            clearInterval(memoryPollInterval)
+                        }
+                        this.pdfSharing = false
                     }
                 },
                 /** @this {PayrollAppInstance} @returns {void} */
