@@ -54,12 +54,8 @@ html {
     scroll-behavior: smooth;
     scrollbar-gutter: stable;
     overflow-y: scroll;
-    background: radial-gradient(
-        circle at top,
-        #fbf7f2 0%,
-        #f1ede6 45%,
-        #e8e0d6 100%
-    );
+    background: var(--paper)
+        radial-gradient(circle at top, #fbf7f2 0%, #f1ede6 45%, #e8e0d6 100%);
 }
 
 body {
@@ -488,11 +484,13 @@ button.next-action:hover {
 }
 
 .pill.sage {
+    color: var(--ink);
     background: #02d639;
 }
 
 .pill.nest {
-    background: #ff8200;
+    color: var(--ink);
+    background: #ff8400e1;
 }
 
 .pill.ghost {
@@ -1562,4 +1560,24 @@ body.scroll-locked {
     .pill * {
         color: #111;
     }
+}
+
+/* ── Offline banner ─────────────────────────────────────────────────────── */
+
+.offline-banner {
+    display: none;
+}
+
+body.offline .offline-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--notice-bg);
+    color: var(--notice-text);
+    border-bottom: 1px solid var(--notice-border);
+    font-size: 0.8rem;
+    font-weight: 500;
+    width: 100%;
+    justify-content: center;
 }

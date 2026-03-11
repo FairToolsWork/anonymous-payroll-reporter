@@ -70,6 +70,8 @@ import {
  *     canRunReport: boolean,
  *     canShare: boolean,
  *     sharePdf(): Promise<void>,
+ *     _onOnline: (() => void),
+ *     _onOffline: (() => void),
  *   }
  * } PayrollAppInstance
  */
@@ -1401,9 +1403,23 @@ export function initPayrollApp() {
             /** @this {PayrollAppInstance} @returns {void} */
             beforeUnmount() {
                 window.removeEventListener('scroll', this.handleScroll)
+                if (this._onOnline) {
+                    window.removeEventListener('online', this._onOnline)
+                }
+                if (this._onOffline) {
+                    window.removeEventListener('offline', this._onOffline)
+                }
             },
             /** @this {PayrollAppInstance} @returns {void} */
             mounted() {
+                this._onOnline = () => document.body.classList.remove('offline')
+                this._onOffline = () => document.body.classList.add('offline')
+                window.addEventListener('online', this._onOnline)
+                window.addEventListener('offline', this._onOffline)
+                if (!navigator.onLine) {
+                    document.body.classList.add('offline')
+                }
+
                 this.appVersion = getAppVersionFromDemoLink()
                 if (DEBUG_LEVEL === '2') {
                     this.updateAvailable = true
