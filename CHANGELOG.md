@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.4.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.3.0...anonymous-payroll-reporter-v3.4.0) (2026-03-12)
+
+
+### Features
+
+* **pwa:** add holiday pay calculator and supporting UI updates ([8052aa4](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8052aa42a5ab308fa40fdaa2f4e70774572dda4f))
+* **pwa:** expand help resources and refine report flow copy ([fad8697](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/fad8697fdfdafc7f9482cb094aa5b4cc161ddab0))
+
 ## [3.3.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.2.0...anonymous-payroll-reporter-v3.3.0) (2026-03-11)
 
 
