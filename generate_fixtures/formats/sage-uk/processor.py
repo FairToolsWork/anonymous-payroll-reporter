@@ -275,6 +275,7 @@ def apply_fixture(
 ):
     overrides = overrides or {}
     omit_tax_code = bool(overrides.get("omit_tax_code"))
+    omit_nat_ins = bool(overrides.get("omit_nat_ins"))
     omit_process_date = bool(overrides.get("omit_process_date"))
     omit_pay_run = bool(overrides.get("omit_pay_run"))
     header_bar = structure["header_bar"]
@@ -743,7 +744,9 @@ def apply_fixture(
         if employee_name is not None:
             update_text(words, header_entries[0], employee_name)
             update_text(words, header_entries[1], "")
-        if employee_nat_ins is not None:
+        if omit_nat_ins:
+            update_text(words, header_entries[5], "")
+        elif employee_nat_ins is not None:
             update_text(words, header_entries[5], employee_nat_ins)
         employee_x0 = max(0, name_word["x0"] - _EMPLOYEE_ID_OFFSET)
         words.append(

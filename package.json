@@ -15,7 +15,7 @@
         "fixtures:print-excel-text": "./generate_fixtures/.venv/bin/python generate_fixtures/print_excel_text.py",
         "fixtures:patterns": "node generate_fixtures/formats/sage-uk/generate_patterns.mjs",
         "fixtures:generate": "pnpm fixtures:patterns && pnpm fixtures:pdf && pnpm fixtures:expected-pdf && pnpm fixtures:excel && pnpm fixtures:expected-excel && pnpm fixtures:demo:zip",
-        "fixtures:demo:zip": "node generate_fixtures/zip_demo.mjs",
+        "fixtures:demo:zip": "node generate_fixtures/zip_demo.mjs --dirs=good-place:demo_files/good-place,compliance-adjacent:demo_files/compliance-adjacent",
         "test:pdf_parse": "vitest run tests/pdf_parse.test.mjs",
         "test:excel_contribution": "vitest run tests/excel_contribution.test.mjs",
         "test:report_calc": "vitest run tests/report_calculation.test.mjs",

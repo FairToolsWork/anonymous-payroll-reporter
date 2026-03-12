@@ -1,5 +1,4 @@
 import * as pdfjsBrowser from 'pdfjs-dist/build/pdf.mjs'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 /**
  * @typedef {{ x: number, text: string }} LineItemText
@@ -8,16 +7,19 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
  * @typedef {{ text: string, imageData: string | null, lines: string[], lineItems: PageLineItemRow[] }} ExtractedPdfData
  */
 
-const PDFJS_WORKER_SRC = pdfjsWorkerUrl
-
 async function getPdfjsLib() {
     const windowPdfjs =
         globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib
-    const pdfjsModule = windowPdfjs ? windowPdfjs : pdfjsBrowser
-    if (!pdfjsModule.GlobalWorkerOptions?.workerSrc) {
-        pdfjsModule.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC
+    if (windowPdfjs) {
+        return windowPdfjs
     }
-    return pdfjsModule
+    if (!pdfjsBrowser.GlobalWorkerOptions?.workerSrc) {
+        const { default: workerUrl } = await import(
+            /* @vite-ignore */ 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+        )
+        pdfjsBrowser.GlobalWorkerOptions.workerSrc = workerUrl
+    }
+    return pdfjsBrowser
 }
 
 /**

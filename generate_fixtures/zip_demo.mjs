@@ -3,6 +3,8 @@ import {
     createWriteStream,
     readdirSync,
     readFileSync,
+    rmdirSync,
+    statSync,
     unlinkSync,
     writeFileSync,
 } from 'fs'
@@ -12,8 +14,23 @@ import { fileURLToPath } from 'url'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const BASE_DIR = resolve(__dirname, '..')
+
 const DEMO_DIR = join(BASE_DIR, 'demo_files')
 const ZIP_PATH = join(DEMO_DIR, 'anonymous-payroll-reporter-demo-files.zip')
+
+// --dirs=label:rel/path,label2:rel/path2
+const dirsArg = process.argv.find((a) => a.startsWith('--dirs='))
+const SOURCE_DIRS = dirsArg
+    ? dirsArg
+          .slice('--dirs='.length)
+          .split(',')
+          .map((pair) => {
+              const colon = pair.indexOf(':')
+              const label = pair.slice(0, colon)
+              const rel = pair.slice(colon + 1)
+              return { label, dir: join(BASE_DIR, rel) }
+          })
+    : [{ label: null, dir: DEMO_DIR }]
 const FIXED_MTIME = new Date('2024-01-01T00:00:00Z')
 
 const INCLUDE = [/^DEMO-INSTRUCTIONS\.txt$/, /\.pdf$/i, /\.xlsx$/i]
@@ -206,65 +223,96 @@ async function buildZip(files) {
     return Buffer.concat(parts)
 }
 
-async function main() {
-    let filenames
-    try {
-        readdirSync(DEMO_DIR)
-    } catch {
-        console.error(`Demo directory not found: ${DEMO_DIR}`)
-        console.error('Run fixtures:generate first.')
-        process.exit(1)
-    }
-
-    const instructionsPath = join(DEMO_DIR, INSTRUCTIONS_FILENAME)
-    writeFileSync(instructionsPath, buildInstructions(), 'utf8')
-
-    filenames = readdirSync(DEMO_DIR)
-
-    const toInclude = filenames
-        .filter((f) => INCLUDE.some((re) => re.test(f)))
-        .sort()
-
-    if (!toInclude.length) {
-        console.error(
-            'No demo files found in demo_files/. Run fixtures:generate first.'
-        )
-        process.exit(1)
-    }
-
-    const files = toInclude.map((name) => {
-        const fullPath = join(DEMO_DIR, name)
-        const data = (() => {
-            const chunks = []
-            const fd = createReadStream(fullPath)
-            return new Promise((resolve, reject) => {
-                fd.on('data', (chunk) => chunks.push(chunk))
-                fd.on('end', () => resolve(Buffer.concat(chunks)))
-                fd.on('error', reject)
-            })
-        })()
-        return { name, dataPromise: data }
+function readFileData(fullPath) {
+    const chunks = []
+    const fd = createReadStream(fullPath)
+    return new Promise((res, rej) => {
+        fd.on('data', (chunk) => chunks.push(chunk))
+        fd.on('end', () => res(Buffer.concat(chunks)))
+        fd.on('error', rej)
     })
+}
+
+function removeDirRecursive(dir) {
+    let entries
+    try {
+        entries = readdirSync(dir)
+    } catch {
+        return
+    }
+    for (const entry of entries) {
+        const fullPath = join(dir, entry)
+        if (statSync(fullPath).isDirectory()) {
+            removeDirRecursive(fullPath)
+        } else {
+            unlinkSync(fullPath)
+        }
+    }
+    rmdirSync(dir)
+}
+
+async function main() {
+    const instructionsContent = buildInstructions()
+    const allFiles = []
+
+    for (const { label, dir } of SOURCE_DIRS) {
+        let filenames
+        try {
+            filenames = readdirSync(dir)
+        } catch {
+            console.error(`Demo directory not found: ${dir}`)
+            console.error('Run fixtures:generate first.')
+            process.exit(1)
+        }
+
+        const instructionsPath = join(dir, INSTRUCTIONS_FILENAME)
+        writeFileSync(instructionsPath, instructionsContent, 'utf8')
+        filenames = readdirSync(dir)
+
+        const toInclude = filenames
+            .filter((f) => INCLUDE.some((re) => re.test(f)))
+            .sort()
+
+        for (const filename of toInclude) {
+            const zipName = label ? `${label}/${filename}` : filename
+            allFiles.push({ zipName, fullPath: join(dir, filename) })
+        }
+    }
+
+    if (!allFiles.length) {
+        console.error('No demo files found. Run fixtures:generate first.')
+        process.exit(1)
+    }
 
     const resolved = await Promise.all(
-        files.map(async ({ name, dataPromise }) => ({
-            name,
-            data: await dataPromise,
+        allFiles.map(async ({ zipName, fullPath }) => ({
+            name: zipName,
+            data: await readFileData(fullPath),
             mtime: FIXED_MTIME,
         }))
     )
 
     const zipBuf = await buildZip(resolved)
 
-    await new Promise((resolve, reject) => {
+    await new Promise((res, rej) => {
         const ws = createWriteStream(ZIP_PATH)
-        ws.on('finish', resolve)
-        ws.on('error', reject)
+        ws.on('finish', res)
+        ws.on('error', rej)
         ws.end(zipBuf)
     })
 
-    for (const { name } of resolved) {
-        unlinkSync(join(DEMO_DIR, name))
+    for (const { label, dir } of SOURCE_DIRS) {
+        if (label) {
+            removeDirRecursive(dir)
+        } else {
+            for (const { name } of resolved) {
+                try {
+                    unlinkSync(join(dir, name))
+                } catch {
+                    /* already gone */
+                }
+            }
+        }
     }
 
     console.log(

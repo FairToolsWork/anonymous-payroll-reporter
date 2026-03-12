@@ -81,8 +81,8 @@
             }
         },
         {
-            "id": "demo",
-            "output_dir": "demo_files",
+            "id": "demo-good-place",
+            "output_dir": "demo_files/good-place",
             "months": [
                 "2024-05",
                 "2024-06",
@@ -106,6 +106,48 @@
                     "Sampleshire",
                     "SA1 1AA"
                 ]
+            }
+        },
+        {
+            "id": "demo-compliance",
+            "output_dir": "demo_files/compliance-adjacent",
+            "months": [
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03"
+            ],
+            "employee": {
+                "name": "Alex Sample",
+                "nat_ins_number": "QQ123456C",
+                "employer": "The Compliance-Adjacent Catering Group Ltd",
+                "address": [
+                    "1 Sample Street",
+                    "Sample Town",
+                    "Sampleshire",
+                    "SA1 1AA"
+                ]
+            },
+            "fixture_overrides": {
+                "2024-05": {
+                    "omit_nat_ins": true,
+                    "omit_tax_code": true
+                },
+                "2024-06": {
+                    "omit_nat_ins": true,
+                    "omit_tax_code": true
+                },
+                "2024-07": {
+                    "omit_nat_ins": true,
+                    "omit_tax_code": true
+                }
             }
         },
         {
@@ -202,7 +244,20 @@
                 "2025-03"
             ],
             "employer_name": "Example Employer Ltd",
-            "output_file": "demo_files/nest-contribution-history.xlsx"
+            "output_file": "demo_files/good-place/nest-contribution-history.xlsx"
+        },
+        {
+            "id": "nest-demo-compliance",
+            "months": [
+                "2024-10",
+                "2024-11",
+                "2024-12",
+                "2025-01",
+                "2025-02",
+                "2025-03"
+            ],
+            "employer_name": "The Compliance-Adjacent Catering Group Ltd",
+            "output_file": "demo_files/compliance-adjacent/nest-contribution-history.xlsx"
         },
         {
             "id": "nest-mixed-employers-report-workflow",
