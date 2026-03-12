@@ -322,16 +322,16 @@
                 </button>
             </header>
             <dialog
-                class="about-dialog"
+                class="modal-dialog"
                 ref="aboutDialog"
                 aria-label="About"
                 @click="onAboutBackdropClick"
                 @close="onAboutDialogClose"
             >
-                <div class="about-header">
+                <div class="modal-header">
                     <h2>About</h2>
                     <button
-                        class="about-close ghost"
+                        class="modal-close ghost"
                         type="button"
                         @click="closeAbout"
                         aria-label="Close about panel"
@@ -339,7 +339,7 @@
                         Close
                     </button>
                 </div>
-                <div class="about-content">
+                <div class="modal-content">
                     <p class="eyebrow">
                         Anonymous Payroll Reporter
                         <span class="pill inline ghost"
@@ -498,6 +498,112 @@
                             >
                         </li>
                     </ul>
+                </div>
+            </dialog>
+            <dialog
+                class="modal-dialog"
+                ref="holCalcDialog"
+                aria-label="Holiday Pay Calculator"
+                @click="onHolCalcBackdropClick"
+                @close="onHolCalcDialogClose"
+            >
+                <div class="modal-header">
+                    <h2>Holiday Pay Calculator</h2>
+                    <button
+                        class="modal-close ghost"
+                        type="button"
+                        @click="closeHolCalc"
+                        aria-label="Close holiday pay calculator"
+                    >
+                        Close
+                    </button>
+                </div>
+                <div class="modal-content">
+                    <div class="notice">
+                        <p>
+                            For irregular hours workers, holiday pay is based on
+                            your average pay over the last
+                            <strong>52 paid weeks</strong>. Only include weeks
+                            where you actually received normal pay — skip any
+                            weeks on statutory sick pay, maternity/paternity
+                            pay, or unpaid leave, and replace them with earlier
+                            paid weeks (going back up to 104 weeks if needed).
+                        </p>
+                        <p>
+                            The legally correct entitlement is expressed as
+                            <strong>a week's pay per week of holiday</strong>.
+                            The per-day figures below are a convenience estimate
+                            only.
+                        </p>
+                    </div>
+                    <div class="hol-calc calc-bg">
+                        <label>
+                            Total hours worked (52 paid weeks)
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                placeholder="e.g. 800"
+                                autocomplete="off"
+                                v-model.number="holCalcHours"
+                            />
+                        </label>
+                        <label>
+                            Hourly rate (£)
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="e.g. 12.71"
+                                autocomplete="off"
+                                v-model.number="holCalcRate"
+                            />
+                        </label>
+                        <label>
+                            Typical working days per week
+                            <input
+                                type="number"
+                                min="1"
+                                max="7"
+                                step="1"
+                                autocomplete="off"
+                                v-model.number="holCalcWorkDays"
+                            />
+                        </label>
+                        <label>
+                            Holiday days taken
+                            <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="e.g. 2"
+                                autocomplete="off"
+                                v-model.number="holCalcDaysTaken"
+                            />
+                        </label>
+                        <div class="hol-calc-result notice">
+                            <span>Avg hours per week of holiday:</span>
+                            <strong>{{ holCalcAvgWeekly }}</strong>
+                        </div>
+                        <div class="hol-calc-result notice">
+                            <span>Expected £ per week of holiday:</span>
+                            <strong>{{ holCalcExpectedWeeklyPay }}</strong>
+                        </div>
+                        <div class="hol-calc-result notice">
+                            <span
+                                >Est. hours for {{ holCalcDaysTaken }} day(s)
+                                <em>(estimate)</em>:</span
+                            >
+                            <strong>{{ holCalcExpectedHours }}</strong>
+                        </div>
+                        <div class="hol-calc-result notice">
+                            <span
+                                >Est. £ for {{ holCalcDaysTaken }} day(s)
+                                <em>(estimate)</em>:</span
+                            >
+                            <strong>{{ holCalcExpectedPay }}</strong>
+                        </div>
+                    </div>
                 </div>
             </dialog>
             <section class="prep collapse-section">
@@ -804,6 +910,14 @@
                                 worked that long). That average weekly pay is
                                 what you should receive for a week of holiday.
                             </p>
+                            <button
+                                type="button"
+                                class="primary accent hol-calc-btn"
+                                @click="openHolCalc"
+                                aria-haspopup="dialog"
+                            >
+                                Holiday Pay Calculator
+                            </button>
                             <p>Resources:</p>
                             <ul>
                                 <li>

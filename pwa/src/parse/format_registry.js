@@ -7,7 +7,7 @@
 export const PAYROLL_FORMATS = {
     'sage-uk': {
         id: 'sage-uk',
-        label: 'BETA: Sage Payroll',
+        label: 'Sage Payroll (BETA)',
         className: 'sage',
         patterns: () =>
             import('./formats/payroll/sage-uk/patterns.js').then(
@@ -24,7 +24,7 @@ export const PAYROLL_FORMATS = {
 export const PENSION_FORMATS = {
     nest: {
         id: 'nest',
-        label: 'BETA: Nest Pensions',
+        label: 'Nest Pensions (BETA)',
         className: 'nest',
         parser: () =>
             import('./formats/pension/nest/parser.js').then(

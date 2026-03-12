@@ -4,6 +4,12 @@ import {
     ACTIVE_PAYROLL_FORMAT,
     ACTIVE_PENSION_FORMAT,
 } from '../parse/active_format.js'
+import {
+    holCalcAvgWeekly,
+    holCalcExpectedHours,
+    holCalcExpectedPay,
+    holCalcExpectedWeeklyPay,
+} from './hol_calc.js'
 
 /**
  * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
@@ -54,12 +60,16 @@ import {
  * @property {string} appVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
+ * @property {number} holCalcHours
+ * @property {number} holCalcRate
+ * @property {number} holCalcDaysTaken
+ * @property {number} holCalcWorkDays
  */
 
 /**
  * @typedef {PayrollAppState &
  *   import('vue').ComponentPublicInstance<PayrollAppState> &
- *   { $refs: { aboutDialog?: HTMLDialogElement } } &
+ *   { $refs: { aboutDialog?: HTMLDialogElement, holCalcDialog?: HTMLDialogElement } } &
  *   {
  *     stageFiles(files: File[]): void,
  *     processFiles(files: File[]): Promise<void>,
@@ -67,6 +77,11 @@ import {
  *     downloadPdf(): Promise<void>,
  *     handleScroll(): void,
  *     closeAbout(): void,
+ *     closeHolCalc(): void,
+ *     holCalcAvgWeekly: string,
+ *     holCalcExpectedWeeklyPay: string,
+ *     holCalcExpectedHours: string,
+ *     holCalcExpectedPay: string,
  *     canRunReport: boolean,
  *     canShare: boolean,
  *     sharePdf(): Promise<void>,
@@ -293,6 +308,10 @@ export function initPayrollApp() {
                             flaggedPeriods: [],
                         },
                     },
+                    holCalcHours: 0,
+                    holCalcRate: 0,
+                    holCalcDaysTaken: 1,
+                    holCalcWorkDays: 5,
                     dragActive: false,
                     debugEnabled: DEBUG_ENABLED,
                     error: '',
@@ -336,6 +355,34 @@ export function initPayrollApp() {
                 }
             },
             computed: {
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcAvgWeekly() {
+                    return holCalcAvgWeekly(this.holCalcHours)
+                },
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcExpectedWeeklyPay() {
+                    return holCalcExpectedWeeklyPay(
+                        this.holCalcHours,
+                        this.holCalcRate
+                    )
+                },
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcExpectedHours() {
+                    return holCalcExpectedHours(
+                        this.holCalcHours,
+                        this.holCalcWorkDays,
+                        this.holCalcDaysTaken
+                    )
+                },
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcExpectedPay() {
+                    return holCalcExpectedPay(
+                        this.holCalcHours,
+                        this.holCalcRate,
+                        this.holCalcWorkDays,
+                        this.holCalcDaysTaken
+                    )
+                },
                 /** @this {PayrollAppInstance} @returns {number} */
                 progressPercent() {
                     if (!this.progress.total) {
@@ -1397,6 +1444,36 @@ export function initPayrollApp() {
                         event.clientY > rect.bottom
                     ) {
                         this.closeAbout()
+                    }
+                },
+                /** @this {PayrollAppInstance} @returns {void} */
+                openHolCalc() {
+                    this.$refs.holCalcDialog?.showModal()
+                    document.body.classList.add('scroll-locked')
+                },
+                /** @this {PayrollAppInstance} @returns {void} */
+                closeHolCalc() {
+                    this.$refs.holCalcDialog?.close()
+                    document.body.classList.remove('scroll-locked')
+                },
+                /** @this {PayrollAppInstance} @returns {void} */
+                onHolCalcDialogClose() {
+                    document.body.classList.remove('scroll-locked')
+                },
+                /** @this {PayrollAppInstance} @param {MouseEvent} event @returns {void} */
+                onHolCalcBackdropClick(event) {
+                    const rect =
+                        this.$refs.holCalcDialog?.getBoundingClientRect()
+                    if (!rect) {
+                        return
+                    }
+                    if (
+                        event.clientX < rect.left ||
+                        event.clientX > rect.right ||
+                        event.clientY < rect.top ||
+                        event.clientY > rect.bottom
+                    ) {
+                        this.closeHolCalc()
                     }
                 },
             },

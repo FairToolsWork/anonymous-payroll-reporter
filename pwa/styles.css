@@ -25,7 +25,6 @@
     --notice-text: hsl(35deg 52% 32%);
     --shadow: 0 18px 45px hsl(36deg 9% 11% / 12%);
     --radius: 18px;
-    --note: hsl(46deg 96% 91%);
     --warning-bg: hsl(12deg 100% 95%);
     --warning-text: hsl(16deg 62% 47%);
 
@@ -65,6 +64,11 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+a {
+    color: var(--ac);
+    font-weight: 600;
 }
 
 .app-shell {
@@ -399,6 +403,14 @@ button.next-action:hover {
     grid-column: span 2;
 }
 
+/* Step 4: cards 12–15, each 3 cols (2-column row) */
+.collapse-grid > :nth-child(12),
+.collapse-grid > :nth-child(13),
+.collapse-grid > :nth-child(14),
+.collapse-grid > :nth-child(15) {
+    grid-column: span 3;
+}
+
 @media (width <= 760px) {
     .collapse-grid {
         grid-template-columns: 1fr;
@@ -519,7 +531,7 @@ button.next-action:hover {
     box-shadow: var(--shadow);
 }
 
-.about-content img {
+.modal-content img {
     width: 100%;
     max-width: 100%;
     margin: 0 0 8px;
@@ -537,7 +549,7 @@ button.next-action:hover {
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--muted);
-    min-height: 80px;
+    min-height: 50px;
 }
 
 .card > header {
@@ -620,15 +632,7 @@ button.next-action:hover {
     display: none;
 }
 
-.note {
-    background: var(--note);
-    padding: 1em;
-    border: 1px solid rgb(30 28 25 / 10%);
-    border: 1px solid color-mix(in srgb, var(--note) 10%, transparent);
-    border-radius: 10px;
-    font-size: small;
-}
-
+.calc-bg,
 .notice {
     margin: 8px 0 0;
     padding: 8px 12px;
@@ -636,7 +640,13 @@ button.next-action:hover {
     border: 1px solid var(--notice-border);
     background: var(--notice-bg);
     color: var(--notice-text);
-    font-size: 0.85rem;
+}
+
+.calc-bg {
+    border: 1px solid var(--ink-50);
+    background: var(--note);
+    color: var(--notice-text);
+    padding: 3rem;
 }
 
 .card details .notice {
@@ -650,6 +660,62 @@ button.next-action:hover {
     border: 1px solid;
     border-radius: 5px;
     margin: 10px auto;
+}
+
+button.hol-calc-btn {
+    width: 100%;
+}
+
+.hol-calc {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    border: 1px solid var(--notice-bg);
+    background: var(--paper);
+    color: var(--notice-text);
+    padding: 3rem;
+}
+
+@media (width >= 480px) {
+    .hol-calc {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .hol-calc-result {
+        grid-column: span 2;
+    }
+}
+
+.hol-calc label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.hol-calc input {
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 10px 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+    border-radius: 8px;
+    color: var(--ink);
+    width: 100%;
+}
+
+.hol-calc-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 0.9rem;
+}
+
+.hol-calc-result strong {
+    font-size: 1.2rem;
+    white-space: nowrap;
 }
 
 .spinner {
@@ -1438,7 +1504,7 @@ p.report-footnote-row {
     font-weight: 600;
 }
 
-dialog.about-dialog {
+dialog.modal-dialog {
     background: var(--card);
     border: none;
     border-radius: var(--radius);
@@ -1449,16 +1515,16 @@ dialog.about-dialog {
     padding: 0;
 }
 
-dialog.about-dialog a {
+dialog.modal-dialog a {
     word-break: break-all;
 }
 
-dialog.about-dialog[open] {
+dialog.modal-dialog[open] {
     display: flex;
     flex-direction: column;
 }
 
-dialog.about-dialog::backdrop {
+dialog.modal-dialog::backdrop {
     background: rgb(30 28 25 / 55%);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
@@ -1469,7 +1535,7 @@ body.scroll-locked {
     overflow: hidden;
 }
 
-.about-header {
+.modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1480,42 +1546,42 @@ body.scroll-locked {
     background: var(--card);
 }
 
-.about-header h2 {
+.modal-header h2 {
     margin: 0;
 }
 
-.about-content {
+.modal-content {
     overflow-y: auto;
     padding: 24px 32px 32px;
     flex: 1 1 auto;
     min-height: 0;
 }
 
-.about-close {
+.modal-close {
     flex-shrink: 0;
 }
 
-.about-close:hover {
+.modal-close:hover {
     background: var(--ink);
     color: #fff;
     border-color: var(--ink);
 }
 
-.about-content h3 {
+.modal-content h3 {
     margin: 20px 0 8px;
 }
 
-.about-content h3:first-child {
+.modal-content h3:first-child {
     margin-top: 0;
 }
 
-.about-content p {
+.modal-content p {
     margin: 0 0 8px;
     color: var(--muted);
     line-height: 1.5rem;
 }
 
-.about-version-row {
+.modal-version-row {
     margin-top: 0;
     margin-bottom: 16px;
 }
