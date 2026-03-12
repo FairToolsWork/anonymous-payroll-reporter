@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.0...anonymous-payroll-reporter-v3.4.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* fix typo ([5b15103](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/5b151032a744111c914ee27499a2501ef1e27dbb))
+
 ## [3.4.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.3.0...anonymous-payroll-reporter-v3.4.0) (2026-03-12)
 
 
