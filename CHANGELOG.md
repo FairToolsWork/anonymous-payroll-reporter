@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.2.0...anonymous-payroll-reporter-v3.3.0) (2026-03-11)
+
+
+### Features
+
+* **pwa:** add offline banner and connectivity state handling ([41b08ab](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/41b08ab8dabf1cf87c222ade996e0a1d27017d25))
+
 ## [3.2.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.1.0...anonymous-payroll-reporter-v3.2.0) (2026-03-11)
 
 
