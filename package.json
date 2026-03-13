@@ -8,7 +8,7 @@
     "description": "Payroll PDF Processor PWA and test/fixture tooling",
     "scripts": {
         "fixtures:pdf": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_pdf_fixtures.py",
-        "fixtures:expected-pdf": "node tests/utils/regenerate_expected_payslips.mjs",
+        "fixtures:expected-pdf": "vitest run tests/utils/regenerate_expected_payslips.test.mjs",
         "fixtures:print-pdf-text": "./generate_fixtures/.venv/bin/python generate_fixtures/print_pdf_text.py",
         "fixtures:excel": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_excel_fixtures.py",
         "fixtures:expected-excel": "node tests/utils/regenerate_expected_contributions.mjs",
