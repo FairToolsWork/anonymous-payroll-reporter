@@ -67,7 +67,7 @@ body {
 }
 
 a {
-    color: var(--ac);
+    color: var(--accent);
     font-weight: 600;
 }
 
