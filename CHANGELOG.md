@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.2](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.1...anonymous-payroll-reporter-v3.4.2) (2026-03-13)
+
+
+### Bug Fixes
+
+* **pwa:** stabilize pdfjs worker loading and adjust build target ([0b8edf8](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/0b8edf8744d9a3023cdbc2c045b103327b3a54bb))
+
 ## [3.4.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.0...anonymous-payroll-reporter-v3.4.1) (2026-03-12)
 
 
