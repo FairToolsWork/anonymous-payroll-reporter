@@ -7,19 +7,24 @@ import * as pdfjsBrowser from 'pdfjs-dist/build/pdf.mjs'
  * @typedef {{ text: string, imageData: string | null, lines: string[], lineItems: PageLineItemRow[] }} ExtractedPdfData
  */
 
+let PDFJS_WORKER_SRC = /** @type {string | undefined} */ (undefined)
+try {
+    const mod = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+    PDFJS_WORKER_SRC = mod.default
+} catch {
+    // Running outside Vite (e.g. Node.js test runner): worker URL is not
+    // needed because the test shim overrides GlobalWorkerOptions.workerSrc
+    // via the legacy pdfjs build before this module is used.
+}
+
 async function getPdfjsLib() {
     const windowPdfjs =
         globalThis?.window && /** @type {any} */ (globalThis.window).pdfjsLib
-    if (windowPdfjs) {
-        return windowPdfjs
+    const pdfjsModule = windowPdfjs ? windowPdfjs : pdfjsBrowser
+    if (!pdfjsModule.GlobalWorkerOptions?.workerSrc) {
+        pdfjsModule.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC
     }
-    if (!pdfjsBrowser.GlobalWorkerOptions?.workerSrc) {
-        const { default: workerUrl } = await import(
-            /* @vite-ignore */ 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-        )
-        pdfjsBrowser.GlobalWorkerOptions.workerSrc = workerUrl
-    }
-    return pdfjsBrowser
+    return pdfjsModule
 }
 
 /**

@@ -679,6 +679,7 @@ button.hol-calc-btn {
 @media (width >= 480px) {
     .hol-calc {
         grid-template-columns: 1fr 1fr;
+        align-items: start;
     }
 
     .hol-calc-result {
