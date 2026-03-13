@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.3](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.2...anonymous-payroll-reporter-v3.4.3) (2026-03-13)
+
+
+### Bug Fixes
+
+* **pwa:** stabilize pdfjs worker and shift payslip fixture script to vitest ([fe259de](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/fe259de2d9e414dcaa2e1c1602b667dbad135ccf))
+
 ## [3.4.2](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.1...anonymous-payroll-reporter-v3.4.2) (2026-03-13)
 
 
