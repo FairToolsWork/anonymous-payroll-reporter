@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.4](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.3...anonymous-payroll-reporter-v3.4.4) (2026-03-13)
+
+
+### Bug Fixes
+
+* **pwa:** fix broken css variable, restructure resource links, add e2e smoke test ([76bd5c2](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/76bd5c26eaa674cb22bb0e83965c2066f13ec2bf))
+
 ## [3.4.3](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.2...anonymous-payroll-reporter-v3.4.3) (2026-03-13)
 
 
