@@ -177,7 +177,7 @@ def apply_run_variant(entries, variant):
     return entries
 
 
-def main():
+def main(check_only=False):
     inputs_payload = load_inputs()
     dataset = inputs_payload["dataset"]
 
@@ -219,15 +219,20 @@ def main():
 
         pay_day = int(structure.get("pay_day", 20))
         months = run.get("months") or [e["month"] for e in dataset]
-        employer_name = run.get("employer_name", "The Better Place Catering Company Limited")
 
         output_file = run.get("output_file")
         if not output_file:
             raise ValueError(f"Run '{run_id}' missing 'output_file'")
-        output_path = resolve_output_path(output_file)
 
         variant = run.get("variant")
 
+        build_contribution_entries(dataset, months, pay_day)
+
+        if check_only:
+            continue
+
+        employer_name = run.get("employer_name", "The Better Place Catering Company Limited")
+        output_path = resolve_output_path(output_file)
         entries = build_contribution_entries(dataset, months, pay_day)
         transformed = apply_run_variant(entries, variant)
 
@@ -266,4 +271,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(check_only="--check" in sys.argv)

@@ -561,7 +561,7 @@ def resolve_output_dir(value):
     return resolved
 
 
-def main():
+def main(check_only=False):
     inputs_payload = load_inputs()
     apply_inputs(inputs_payload)
 
@@ -615,7 +615,6 @@ def main():
             image_buffer.seek(0)
             background_image = ImageReader(image_buffer)
 
-        output_dir = resolve_output_dir(run.get("output_dir"))
         months = run.get("months")
         if not isinstance(months, list) or not months:
             raise ValueError("Each run must define a non-empty 'months' array")
@@ -629,18 +628,20 @@ def main():
         employee = run.get("employee") or {}
         if not isinstance(employee, dict):
             raise ValueError("employee must be an object when provided")
-        employee_name = employee.get("name") if "name" in employee else None
-        employee_nat_ins = employee.get("nat_ins_number") if "nat_ins_number" in employee else None
-        employer_name = employee.get("employer") if "employer" in employee else None
-        employee_address = employee.get("address") if "address" in employee else None
-        if employee_address is not None and not isinstance(employee_address, list):
-            raise ValueError("employee.address must be an array when provided")
         employee_overrides = run.get("employee_overrides") or {}
         if employee_overrides and not isinstance(employee_overrides, dict):
             raise ValueError("employee_overrides must be an object when provided")
         fixture_overrides = run.get("fixture_overrides") or {}
         if fixture_overrides and not isinstance(fixture_overrides, dict):
             raise ValueError("fixture_overrides must be an object when provided")
+        employee_address = employee.get("address") if "address" in employee else None
+        if employee_address is not None and not isinstance(employee_address, list):
+            raise ValueError("employee.address must be an array when provided")
+
+        if check_only:
+            continue
+
+        output_dir = resolve_output_dir(run.get("output_dir"))
         output_dir.mkdir(parents=True, exist_ok=True)
         for month in months:
             meta = month_meta[month]
@@ -700,4 +701,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(check_only="--check" in sys.argv)
