@@ -237,6 +237,21 @@ export function formatDateKey(date) {
 }
 
 /**
+ * Returns the number of calendar weeks in the month containing the given date.
+ * Used to convert monthly basic hours/pay into per-week figures for the rolling
+ * 52-week reference average.
+ *
+ * @param {Date} date
+ * @returns {number}
+ */
+export function getWeeksInPeriod(date) {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    return daysInMonth / 7
+}
+
+/**
  * @param {number[]} presentMonths - Fiscal month indices (1=April … 12=March)
  * @param {number | null} minMonth - Fiscal month index lower bound (inclusive)
  * @param {number | null} maxMonth - Fiscal month index upper bound (inclusive)
