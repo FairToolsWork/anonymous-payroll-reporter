@@ -273,10 +273,84 @@ function injectReportVersionFootnote(reportHtml, appVersion) {
     )
 }
 
+const AppHeader = defineComponent({
+    name: 'AppHeader',
+    props: {
+        activePayrollPill: {
+            type: Object,
+            default: null,
+        },
+        activePensionPill: {
+            type: Object,
+            default: null,
+        },
+    },
+    emits: ['open-about'],
+    template: `
+        <header class="app-header">
+            <div>
+                <p class="eyebrow">Offline &amp; Anonymous</p>
+                <h1>Anonymous Payroll Reporter</h1>
+                <p class="subhead">
+                    All processing happens in the browser — your data never
+                    leaves your computer.
+                </p>
+                <div class="pill-row">
+                    <span
+                        v-if="activePayrollPill"
+                        class="pill"
+                        :class="activePayrollPill.className"
+                        v-cloak
+                    >
+                        {{ activePayrollPill.label }}
+                    </span>
+                    <span
+                        v-if="activePensionPill"
+                        class="pill"
+                        :class="activePensionPill.className"
+                        v-cloak
+                    >
+                        {{ activePensionPill.label }}
+                    </span>
+                </div>
+            </div>
+            <button
+                class="primary accent"
+                type="button"
+                @click="$emit('open-about')"
+                aria-haspopup="dialog"
+            >
+                About
+            </button>
+        </header>
+    `,
+})
+
+const AppBreadcrumb = defineComponent({
+    name: 'AppBreadcrumb',
+    props: {
+        current: {
+            type: String,
+            required: true,
+        },
+    },
+    template: `
+        <nav class="app-breadcrumb" aria-label="Breadcrumb">
+            <a href="/index.html">Home</a>
+            <span class="crumb-separator" aria-hidden="true">></span>
+            <span aria-current="page">{{ current }}</span>
+        </nav>
+    `,
+})
+
 /** @returns {void} */
 export function initPayrollApp() {
     const appConfig = defineComponent(
         /** @type {any} */ ({
+            components: {
+                AppHeader,
+                AppBreadcrumb,
+            },
             /** @returns {PayrollAppState} */
             data() {
                 return {

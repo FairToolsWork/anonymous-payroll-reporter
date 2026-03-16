@@ -69,6 +69,44 @@ body {
     align-items: center;
 }
 
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 220ms;
+    animation-timing-function: ease;
+}
+
+::view-transition-old(root) {
+    animation-name: fade-out;
+}
+
+::view-transition-new(root) {
+    animation-name: fade-in;
+}
+
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
 a {
     color: var(--accent);
     font-weight: 600;
@@ -177,6 +215,20 @@ a {
     justify-content: space-between;
     gap: 24px;
     margin-bottom: 32px;
+}
+
+.app-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: -12px 0 28px;
+}
+
+.app-breadcrumb a {
+    color: var(--accent);
+    text-decoration: none;
 }
 
 .pill-row {
@@ -1670,6 +1722,15 @@ dialog.modal-dialog {
 
 dialog.modal-dialog a {
     word-break: break-all;
+}
+
+.app-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.crumb-separator {
+    color: var(--muted);
+    font-weight: 600;
 }
 
 dialog.modal-dialog[open] {
