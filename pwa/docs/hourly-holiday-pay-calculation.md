@@ -1,4 +1,4 @@
-# Holiday Pay Calculation: Technical Reference
+# Hourly Employee - Holiday Pay Calculation: Technical Reference
 
 ## Overview
 
@@ -101,7 +101,7 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 ### 6. Same-month duplicate payslips
 
-**What it means:** Where a worker has two payslips sharing the same fiscal `monthIndex` (e.g. a corrected or split payslip), the deduplication key `calendarYear:monthIndex` ensures only one month's worth of weeks is counted in `totalWeeks`. Only the first payslip encountered (the one with the more recent date, since the loop is backwards) is included; subsequent payslips for the same month are skipped.
+**What it means:** Where a worker has two payslips sharing the same fiscal `monthIndex` (e.g. a corrected or split payslip), the deduplication key `calendarYear:fiscalMonthIndex` ensures only one month's worth of weeks is counted in `totalWeeks`. The year component is the calendar year from `entryDate.getFullYear()` (not the tax year string); the month component is the fiscal month index (April=1 … March=12) from `entry.monthIndex`. Only the first payslip encountered (the one with the more recent date, since the loop is backwards) is included; subsequent payslips for the same month are skipped.
 
 **Effect:** The hours and pay from the first payslip are included; the second is discarded. If the two payslips represent genuinely different pay (e.g. a correction that split one month's pay into two amounts), the reference average will undercount basic pay for that month.
 
@@ -209,10 +209,10 @@ Matching is case-insensitive substring. A month flagged as containing any statut
 #### Rule 3 — No holiday pay on the entry itself
 
 ```text
-hourly.holiday.units === 0  AND  hourly.holiday.amount === 0
+(hourly.holiday.units ?? 0) <= 0  AND  (hourly.holiday.amount ?? 0) <= 0
 ```
 
-The reference window must be built from _prior paid_ ordinary working weeks, not from weeks that themselves included holiday. A month where the worker took holiday is excluded. Note: ACAS guidance does not explicitly state that holiday weeks must be excluded from the reference pool, but including holiday-pay months would inflate the average in a circular way, so exclusion is the conservative and defensible approach.
+The reference window must be built from _prior paid_ ordinary working weeks, not from weeks that themselves included holiday. A month where the worker took holiday is excluded. A `null` or absent holiday field is treated as zero and does not disqualify the month. Note: ACAS guidance does not explicitly state that holiday weeks must be excluded from the reference pool, but including holiday-pay months would inflate the average in a circular way, so exclusion is the conservative and defensible approach.
 
 ---
 
@@ -239,7 +239,7 @@ for i = length−1 down to 0:
     skip: parsedDate >= targetDate  (same date or future)
     break: parsedDate < cutoffMs    (beyond 104-week window)
     skip: not isReferenceEligible
-    skip: calendarYear:monthIndex already seen (duplicate payslip deduplication)
+    skip: calendarYear:fiscalMonthIndex already seen (duplicate payslip deduplication)
 
     accumulate:
         weeks        += getWeeksInPeriod(entryDate)
@@ -334,7 +334,7 @@ AND impliedHolidayRate does not match same-payslip basicRate within tolerance
 AND ref is not null
 ```
 
-The second condition (`!holidayMatchesBasic`) prevents Signal B from firing purely because a historical pay rise inflated the rolling average — if the worker is being paid the same rate as their current payslip basic rate, that is the correct rate for a fixed-hours worker and no flag is appropriate.
+The second condition (`!holidayMatchesBasic`) prevents Signal B from firing purely because a historical pay rise inflated the rolling average — if the worker is being paid the same rate as their current payslip basic rate, no flag is raised. This applies to both fixed-hours and irregular-hours workers: for a fixed-hours worker the current basic rate _is_ the correct holiday rate; for an irregular-hours worker who received a recent pay rise, paying the new rate is also acceptable.
 
 ---
 
@@ -387,15 +387,28 @@ Note: Sage UK payslips print `Holiday Salary` as a flat amount only — `salary.
 
 The worker profile panel provides optional context that improves report accuracy:
 
-| Field | Type | Default | Effect |
-| --- | --- | --- | --- |
-| Worker type | Radio (hourly / salaried) | hourly | Controls which fields are shown; used for mismatch detection |
-| Statutory holiday entitlement | days/year | 28 (UK minimum) | Used to compute days remaining in Annual Totals |
-| Typical hours per week | number | 0 (hourly only) | Informational |
-| Typical days per week | number | 5 | Used as divisor for `avgHoursPerDay` and salaried `dailyRate` |
-| Contractual hours per week | number | 0 (salaried only) | Stored for future use; not currently used in calculations |
+| Field                         | Type                      | Default           | Effect                                                        |
+| ----------------------------- | ------------------------- | ----------------- | ------------------------------------------------------------- |
+| Worker type                   | Radio (hourly / salaried) | hourly            | Controls which fields are shown; used for mismatch detection  |
+| Statutory holiday entitlement | days/year                 | 28 (UK minimum)   | Used to compute days remaining in Annual Totals               |
+| Typical hours per week        | number                    | 0 (hourly only)   | Informational                                                 |
+| Typical days per week         | number                    | 5                 | Used as divisor for `avgHoursPerDay` and salaried `dailyRate` |
+| Contractual hours per week    | number                    | 0 (salaried only) | Stored for future use; not currently used in calculations     |
 
 None of these fields affect the underlying payslip parsing or the 52-week rolling reference calculation. The calculation engine is payslip-data-driven.
+
+---
+
+## Relationship to the Salaried Path
+
+| Aspect                  | Hourly workers                   | Salaried workers                 |
+| ----------------------- | -------------------------------- | -------------------------------- |
+| Underpayment rate check | ✓ Signals A and B                | ✗ Not applicable                 |
+| Days taken estimate     | From `avgHoursPerDay` baseline   | From `dailyRate` formula         |
+| Data source             | `hourly.basic`, `hourly.holiday` | `salary.basic`, `salary.holiday` |
+| Requires worker profile | No (defaults to hourly)          | Yes (must set type to Salaried)  |
+| Per-month day estimate  | ✗ Annual only                    | ✗ Annual only                    |
+| Statutory reference     | 52-week rolling average          | Daily rate from annual salary    |
 
 ---
 
@@ -403,10 +416,10 @@ None of these fields affect the underlying payslip parsing or the 52-week rollin
 
 When a worker profile is provided, the report checks for contradictions between the declared worker type and the parsed payslip data:
 
-| Profile type | Signal | Warning |
-| --- | --- | --- |
-| Hourly | Any payslip has `salary.basic.amount !== null` | Banner above Annual Totals advising to split the run |
-| Salaried | Any payslip has `hourly.basic.units > 0` | Banner above Annual Totals advising to split the run |
+| Profile type | Signal                                         | Warning                                              |
+| ------------ | ---------------------------------------------- | ---------------------------------------------------- |
+| Hourly       | Any payslip has `salary.basic.amount !== null` | Banner above Annual Totals advising to split the run |
+| Salaried     | Any payslip has `hourly.basic.units > 0`       | Banner above Annual Totals advising to split the run |
 
 This typically indicates a contract change mid-dataset. The warning is advisory only — no calculations are suppressed. Workers who changed contract type part-way through should run separate reports for each contract period to get accurate holiday rate checks and day estimates for each period.
 
