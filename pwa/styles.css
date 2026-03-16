@@ -30,11 +30,14 @@
     --warning-callout-bg: hsl(0deg 68% 48% / 14%);
     --warning-callout-text: hsl(14deg 52% 32%);
     --warning-callout-border: hsl(42deg 68% 48% / 45%);
+    --info-border: hsl(217deg 89% 61% / 60%);
+    --info-bg: hsl(217deg 89% 61% / 8%);
+    --info-text: hsl(217deg 58% 32%);
 
-    font-family: 'Space Grotesk', Arial, sans-serif;
+    font-family: 'Space Grotesk', arial, sans-serif;
 }
 
-[hidden] {
+a [hidden] {
     display: none;
 }
 
@@ -701,20 +704,30 @@ button.next-action:hover {
 }
 
 .calc-bg,
-.notice,
-.warning-callout {
+.notice {
     margin: 8px 0 0;
     padding: 8px 12px;
     border-radius: 10px;
     border: 1px solid var(--notice-border);
+    border-left-width: 3px;
     background: var(--notice-bg);
     color: var(--notice-text);
 }
 
-.warning-callout {
-    border: 1px solid var(--warning-callout-border);
+.notice.info {
+    background: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-text);
+}
+
+.notice.callout {
+    border-color: var(--warning-callout-border);
     background: var(--warning-callout-bg);
     color: var(--warning-callout-text);
+}
+
+.notice.no-left-border {
+    border-left-width: 1px;
 }
 
 .calc-bg {
@@ -855,11 +868,14 @@ button.hol-calc-btn {
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 4px;
+    width: 100%;
 }
 
 .radio-option {
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex: 1;
     gap: 6px;
     cursor: pointer;
     padding: 7px 14px;
@@ -872,6 +888,11 @@ button.hol-calc-btn {
         background 0.15s;
     -webkit-user-select: none;
     user-select: none;
+}
+
+.radio-option:focus-within {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    outline-offset: 2px;
 }
 
 .radio-option:has(input:checked) {
@@ -888,14 +909,8 @@ button.hol-calc-btn {
     flex-shrink: 0;
 }
 
-.notice-info {
-    background: rgb(66 133 244 / 8%);
-    border-left: 3px solid rgb(66 133 244 / 60%);
-    color: var(--text);
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 0.88em;
-    margin-top: 6px;
+.radio-option input[type='radio']:focus {
+    outline: none;
 }
 
 .optional-label {
@@ -1013,8 +1028,18 @@ button.hol-calc-btn {
     line-height: 1.4;
 }
 
+.disclaimer:focus-within {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
 .disclaimer input {
     margin-top: 2px;
+}
+
+.disclaimer input[type='checkbox']:focus {
+    outline: none;
 }
 
 .file-count,

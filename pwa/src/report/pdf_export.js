@@ -407,6 +407,20 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         { align: 'center' }
     )
 
+    if (context.contractTypeMismatchWarning) {
+        y += LINE_GAP
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(FONT_SMALL)
+        doc.setTextColor('#a05000')
+        const warningText = sanitizeText(
+            `\u26a0 ${stripHtml(context.contractTypeMismatchWarning)}`
+        )
+        const warningLines = doc.splitTextToSize(warningText, maxWidth(doc))
+        doc.text(warningLines, PAGE_MARGIN, y)
+        y += warningLines.length * FONT_SMALL * 1.3 + LINE_GAP
+        doc.setTextColor('#000000')
+    }
+
     y += LINE_GAP
     y = writeHeading(doc, 'Year Summary', y)
 
@@ -498,7 +512,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                     daysTaken !== null && pdfStatutoryDays - daysTaken < 0
                 yearHolidayCell =
                     daysTaken !== null
-                        ? `${formatCurrency(yearHolidaySalary)} (\u2248${daysTaken.toFixed(1)}d taken / ${daysRemaining !== null ? daysRemaining.toFixed(1) : '?'} rem${overrun ? ' EXCEEDED' : ''})`
+                        ? `${formatCurrency(yearHolidaySalary)}\n(${daysTaken.toFixed(1)}d taken, ${daysRemaining !== null ? daysRemaining.toFixed(1) : '?'} rem${overrun ? ' EXCEEDED' : ''})`
                         : formatCurrency(yearHolidaySalary)
             } else if (
                 firstEntryCtx?.hasBaseline &&
@@ -508,7 +522,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                     yearHolidayHours / firstEntryCtx.avgHoursPerDay
                 const daysRemaining = Math.max(0, pdfStatutoryDays - daysTaken)
                 const overrun = pdfStatutoryDays - daysTaken < 0
-                yearHolidayCell = `${yearHolidayHours.toFixed(2)} (\u2248${daysTaken.toFixed(1)}d taken / ${daysRemaining.toFixed(1)} rem${overrun ? ' EXCEEDED' : ''})`
+                yearHolidayCell = `${yearHolidayHours.toFixed(2)} hrs\n(${daysTaken.toFixed(1)}d taken, ${daysRemaining.toFixed(1)} rem${overrun ? ' EXCEEDED' : ''})`
             } else {
                 yearHolidayCell = yearHolidayHours.toFixed(2)
             }
@@ -699,9 +713,17 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
  * @param {string} yearKey
  * @param {any} context
  * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
+ * @param {number} openingBalance
  * @returns {number}
  */
-function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
+function renderYearPage(
+    doc,
+    entriesForYear,
+    yearKey,
+    context,
+    pageNumbers,
+    openingBalance
+) {
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
@@ -773,7 +795,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                     entryCtx?.hasBaseline &&
                     entryCtx.avgHoursPerDay > 0 &&
                     holidayUnits > 0
-                        ? `${holidayUnits.toFixed(2)} (\u2248${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)}d)`
+                        ? `${holidayUnits.toFixed(2)} hrs\n(${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)}d)`
                         : holidayUnits.toFixed(2)
                 const nestEE =
                     rec?.payrollDoc?.deductions?.pensionEE?.amount || 0
@@ -846,6 +868,49 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
         totalRepContrib === null ? null : totalRepContrib - totalPayContrib
 
     const totalOverUnderDiff = formatDiff(totalOverUnder)
+    const closingBalance =
+        reconciliation && totalOverUnder !== null
+            ? openingBalance + totalOverUnder
+            : null
+    const showBalanceRows =
+        reconciliation != null &&
+        (openingBalance !== 0 || closingBalance !== null)
+    const openingBalanceDiff = formatDiff(
+        openingBalance !== 0 ? openingBalance : null
+    )
+    const closingBalanceDiff = formatDiff(closingBalance)
+    const footRows = []
+    if (showBalanceRows && openingBalance !== 0) {
+        footRows.push([
+            'Opening Balance',
+            '',
+            '',
+            '',
+            '',
+            openingBalanceDiff.text,
+            '',
+        ])
+    }
+    footRows.push([
+        'Total',
+        totalHours.toFixed(2),
+        totalHolidayUnits.toFixed(2),
+        formatBreakdown(totalPayContrib, totalPayEE, totalPayER),
+        formatBreakdownOrNA(totalRepContrib, totalRepEE, totalRepER),
+        totalOverUnderDiff.text,
+        '-',
+    ])
+    if (showBalanceRows && closingBalance !== null) {
+        footRows.push([
+            'Closing Balance',
+            '',
+            '',
+            '',
+            '',
+            closingBalanceDiff.text,
+            '',
+        ])
+    }
 
     y = writeTable(
         doc,
@@ -862,31 +927,31 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 ],
             ],
             body: bodyRows,
-            foot: [
-                [
-                    'Total',
-                    totalHours.toFixed(2),
-                    totalHolidayUnits.toFixed(2),
-                    formatBreakdown(totalPayContrib, totalPayEE, totalPayER),
-                    formatBreakdownOrNA(
-                        totalRepContrib,
-                        totalRepEE,
-                        totalRepER
-                    ),
-                    totalOverUnderDiff.text,
-                    '-',
-                ],
-            ],
+            foot: footRows,
         },
         y,
         {
             didParseCell(data) {
                 if (data.section === 'head') return
                 if (data.column.index === 5) {
-                    const color =
-                        data.section === 'foot'
-                            ? totalOverUnderDiff.color
-                            : (diffColorByRow[data.row.index] ?? null)
+                    let color = null
+                    if (data.section === 'foot') {
+                        const totalRowIndex =
+                            showBalanceRows && openingBalance !== 0 ? 1 : 0
+                        if (data.row.index === totalRowIndex) {
+                            color = totalOverUnderDiff.color
+                        } else if (
+                            data.row.index === 0 &&
+                            showBalanceRows &&
+                            openingBalance !== 0
+                        ) {
+                            color = openingBalanceDiff.color
+                        } else {
+                            color = closingBalanceDiff.color
+                        }
+                    } else {
+                        color = diffColorByRow[data.row.index] ?? null
+                    }
                     if (color) {
                         data.cell.styles.textColor = color
                         data.cell.styles.fontStyle = 'bold'
@@ -1155,20 +1220,44 @@ export async function exportReportPdf(context, meta) {
     /** @type {Map<number, number>} */
     const payslipPageNumbers = new Map()
 
-    context.entries.forEach((entry, index) => {
-        const pageNumber = renderPayslipPage(doc, entry)
-        payslipPageNumbers.set(index, pageNumber)
+    const pdfYearKeys = /** @type {string[]} */ ([])
+    context.yearGroups.forEach(
+        (/** @type {any} */ _v, /** @type {string} */ k) =>
+            pdfYearKeys.push(String(k || 'Unknown'))
+    )
+
+    // Pre-calculate payslip page numbers so year pages can link to them.
+    // Final page order: 1=summary (inserted last), 2..Y+1=year pages, Y+2..end=payslips.
+    const firstPayslipPage = pdfYearKeys.length + 2
+    context.entries.forEach((_, index) => {
+        payslipPageNumbers.set(index, firstPayslipPage + index)
     })
 
     context.yearGroups.forEach((entriesForYear, yearKey) => {
+        const strYearKey = String(yearKey || 'Unknown')
+        const yearIdx = pdfYearKeys.indexOf(strYearKey)
+        let openingBalance = 0
+        if (yearIdx > 0 && context.contributionSummary) {
+            for (let i = 0; i < yearIdx; i += 1) {
+                openingBalance +=
+                    context.contributionSummary.years.get(pdfYearKeys[i])
+                        ?.totals?.delta ?? 0
+            }
+        }
         const pageNumber = renderYearPage(
             doc,
             entriesForYear,
-            String(yearKey || 'Unknown'),
+            strYearKey,
             context,
-            { yearPageNumbers, payslipPageNumbers }
+            { yearPageNumbers, payslipPageNumbers },
+            openingBalance
         )
-        yearPageNumbers.set(String(yearKey || 'Unknown'), pageNumber)
+        yearPageNumbers.set(strYearKey, pageNumber)
+    })
+
+    context.entries.forEach((entry, index) => {
+        const pageNumber = renderPayslipPage(doc, entry)
+        payslipPageNumbers.set(index, pageNumber)
     })
 
     const docAny = /** @type {any} */ (doc)

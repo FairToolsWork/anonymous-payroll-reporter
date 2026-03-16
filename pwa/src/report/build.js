@@ -54,9 +54,10 @@ import {
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
+ * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number } }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number }, contractTypeMismatchWarning: string | null }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -134,7 +135,9 @@ export function buildReport(
         const hasHourlyPayslip = entries.some(
             (entry) =>
                 (entry.record.payrollDoc?.payments?.hourly?.basic?.units ?? 0) >
-                0
+                    0 ||
+                (entry.record.payrollDoc?.payments?.hourly?.holiday?.units ??
+                    0) > 0
         )
         if (hasHourlyPayslip) {
             contractTypeMismatchWarning =
@@ -385,7 +388,7 @@ export function buildReport(
             `<h2>Payroll Report \u2014 ${employeeName}</h2>` +
             `<p class="report-range">${dateRangeLabel}</p>` +
             `<p class="report-meta-generated"><b>Generated:</b> ${reportGeneratedLabel}</p>` +
-            `<div class="report-meta-table-container notice">` +
+            `<div class="report-meta-table-container notice no-left-border">` +
             `<table class="report-meta-table ">` +
             `<tr><th>Payroll:</th><td>${dateRangeLabel} &nbsp;\u00b7&nbsp; ${pdfCountLabel}</td></tr>` +
             `<tr><th>Pension:</th><td>${contributionMeta.fileCount ? `${contributionMeta.dateRangeLabel} &nbsp;\u00b7&nbsp; ${pensionFileLabel}` : 'None'}</td></tr>` +
@@ -511,7 +514,9 @@ export function buildReport(
                     0
                 )
                 const monthsInYear = new Set(
-                    entriesForYear.map((entry) => entry.monthIndex)
+                    entriesForYear.map(
+                        (/** @type {ReportEntry} */ entry) => entry.monthIndex
+                    )
                 ).size
                 const workingDaysPerMonth = (typicalDays * 52) / 12
                 const dailyRate =
@@ -694,7 +699,17 @@ export function buildReport(
                 flag.noteIndex = noteIndex
             })
         })
-        reportSections.push(renderYearSummary(entriesForYear))
+        const yearKeys2 = Array.from(yearGroups.keys())
+        const yearIndex2 = yearKeys2.indexOf(yearKey)
+        let openingBalance2 = 0
+        if (yearIndex2 > 0 && contributionSummary) {
+            for (let i = 0; i < yearIndex2; i += 1) {
+                openingBalance2 +=
+                    contributionSummary.years.get(yearKeys2[i])?.totals
+                        ?.delta ?? 0
+            }
+        }
+        reportSections.push(renderYearSummary(entriesForYear, openingBalance2))
         if (yearFlagNotes.length) {
             const noteItems = yearFlagNotes
                 .map((label, index) => `<li>${index + 1} ${label}</li>`)
@@ -816,6 +831,7 @@ export function buildReport(
                 typicalDays,
                 statutoryHolidayDays,
             },
+            contractTypeMismatchWarning,
         },
     }
 }
@@ -1109,7 +1125,7 @@ function renderReportCell(entry) {
         )
     }
     const warningsHtml = warningItems.length
-        ? `<div class="warning-callout"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
+        ? `<div class="notice callout"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
         : ''
 
     const rows = [
@@ -1230,9 +1246,10 @@ function renderReportCell(entry) {
 
 /**
  * @param {YearEntries} entriesForYear
+ * @param {number} openingBalance
  * @returns {string}
  */
-function renderYearSummary(entriesForYear) {
+function renderYearSummary(entriesForYear, openingBalance) {
     const monthEntries = new Map()
     entriesForYear.forEach((entry) => {
         if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
@@ -1465,6 +1482,30 @@ function renderYearSummary(entriesForYear) {
             : yearReportedContribution - yearPayrollContribution
     const yearZeroReview =
         yearPayrollContribution === 0 && yearReportedContribution === 0
+    const closingBalance =
+        showReconciliation && yearOverUnder !== null
+            ? openingBalance + yearOverUnder
+            : null
+    const showBalanceRows =
+        showReconciliation && (openingBalance !== 0 || closingBalance !== null)
+    const openingBalanceRow =
+        showBalanceRows && openingBalance !== 0
+            ? '<tr>' +
+              '<th>Opening Balance</th>' +
+              '<td colspan="3"></td>' +
+              `<td colspan="2">${formatDiff(openingBalance)}</td>` +
+              '<td>—</td>' +
+              '</tr>'
+            : ''
+    const closingBalanceRow =
+        showBalanceRows && closingBalance !== null
+            ? '<tr>' +
+              '<th>Closing Balance</th>' +
+              '<td colspan="3"></td>' +
+              `<td colspan="2">${formatDiff(closingBalance)}</td>` +
+              '<td>—</td>' +
+              '</tr>'
+            : ''
     const sections = [
         '<table class="summary-table">' +
             '<thead><tr>' +
@@ -1474,6 +1515,7 @@ function renderYearSummary(entriesForYear) {
             '</tr></thead>' +
             `<tbody>${bodyRows.join('')}</tbody>` +
             '<tfoot>' +
+            openingBalanceRow +
             '<tr>' +
             '<th>Total</th>' +
             `<td>${yearHours.toFixed(2)}</td>` +
@@ -1492,6 +1534,7 @@ function renderYearSummary(entriesForYear) {
             `<td>${formatDiff(yearOverUnder, yearZeroReview)}</td>` +
             '<td>—</td>' +
             '</tr>' +
+            closingBalanceRow +
             '</tfoot>' +
             '</table>',
     ]

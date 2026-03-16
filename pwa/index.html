@@ -626,7 +626,7 @@
                     :class="{ 'is-collapsed': collapsedSections.prep }"
                 >
                     <div
-                        class="collapse-grid notice"
+                        class="collapse-grid notice no-left-border"
                         id="prep-content"
                         :class="{ 'is-collapsed': collapsedSections.prep }"
                         @focusin="handleSectionFocus('prep')"
@@ -1426,20 +1426,18 @@
                     </h2>
                     <div class="instructions">
                         <p class="notice">
-                            <b>Note: </b>These details help <i>estimate</i> how
-                            many days of holiday your payslips represent, and
-                            enable holiday underpayment checks. Leave at
-                            defaults if unsure — the report will still run
-                            without them.
-                        </p>
-                        <p
-                            v-if="workerProfile.workerType === 'salary'"
-                            class="notice notice-info"
-                        >
-                            <b>Salaried workers: </b>Holiday underpayment rate
-                            checks are not available for salaried pay. Days
-                            estimates are derived from monthly salary figures on
-                            the payslips and your typical days/week setting.
+                            These details help <i>estimate</i> how many days of
+                            holiday your payslips represent. Leave at defaults
+                            if unsure — the report will still run without them.
+                            <span v-if="workerProfile.workerType === 'hourly'">
+                                For <b>hourly workers</b> they also enable
+                                holiday underpayment rate checks.
+                            </span>
+                            <span v-else="">
+                                <b>Salaried workers:</b> days are estimated from
+                                monthly salary figures and your typical
+                                days/week.
+                            </span>
                         </p>
                     </div>
                     <div class="worker-profile-fields">
@@ -1535,7 +1533,7 @@
                                 type="number"
                                 min="1"
                                 max="365"
-                                step="1"
+                                step="any"
                                 placeholder="e.g. 28"
                                 autocomplete="off"
                                 v-model.number="workerProfile.statutoryHolidayDays"
