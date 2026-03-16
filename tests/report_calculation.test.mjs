@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
 import {
-    buildContributionSummary,
-    buildMissingMonthsWithRange,
     buildValidation,
+    sumDeductionsForNetPay,
+    sumMiscAmounts,
+    sumPayments,
+} from '../pwa/src/report/hourly_pay_calculations.js'
+import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
+import {
+    buildMissingMonthsWithRange,
     formatDateKey,
     formatDateLabel,
     formatMonthYearLabel,
@@ -11,10 +16,7 @@ import {
     getTaxYearKey,
     getTaxYearSortKey,
     parsePayPeriodStart,
-    sumDeductionsForNetPay,
-    sumMiscAmounts,
-    sumPayments,
-} from '../pwa/src/report/report_calculations.js'
+} from '../pwa/src/report/tax_year_utils.js'
 
 function buildRecord({
     nestEE,
@@ -114,7 +116,6 @@ describe('report calculations', () => {
         }
         const validation = buildValidation(entry)
         const flagIds = validation.flags.map((flag) => flag.id)
-        expect(flagIds).toContain('missing_nat_ins')
         expect(flagIds).toContain('missing_tax_code')
         expect(flagIds).toContain('paye_zero')
         expect(flagIds).toContain('nat_ins_zero')

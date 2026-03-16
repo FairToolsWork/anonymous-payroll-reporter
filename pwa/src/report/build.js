@@ -12,9 +12,24 @@ import {
     formatMonthLabel,
 } from '../parse/parser_config.js'
 import {
-    buildContributionSummary,
-    buildReportEntries,
-    buildValidation,
+    buildHolidayPayFlags,
+    buildYearHolidayContext,
+} from './holiday_calculations.js'
+import { buildValidation } from './hourly_pay_calculations.js'
+import { buildContributionSummary } from './pension_calculations.js'
+import { buildReportEntries } from './report_calculations.js'
+import {
+    ACCUMULATED_TOTALS_NOTE,
+    APRIL_BOUNDARY_NOTE,
+    formatBreakdownCell,
+    formatContribution,
+    formatContributionDifference,
+    formatCurrency,
+    formatDeduction,
+    formatMiscLabel,
+    ZERO_TAX_ALLOWANCE_NOTE,
+} from './report_formatters.js'
+import {
     formatDateKey,
     formatDateLabel,
     formatMonthYearLabel,
@@ -23,15 +38,7 @@ import {
     getTaxYearKey,
     getTaxYearSortKey,
     parsePayPeriodStart,
-} from './report_calculations.js'
-import {
-    formatBreakdownCell,
-    formatContribution,
-    formatContributionDifference,
-    formatCurrency,
-    formatDeduction,
-    formatMiscLabel,
-} from './report_formatters.js'
+} from './tax_year_utils.js'
 
 /**
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
@@ -52,23 +59,8 @@ import {
  * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number } }} ReportContext
  */
 
-/** @type {number} Update this each tax year if the personal allowance changes */
-const PERSONAL_ALLOWANCE_ANNUAL = 12570
-/** @type {string} Update this each tax year e.g. '2026/27 and 2027/28' */
-const PERSONAL_ALLOWANCE_TAX_YEARS = '2025/26 and 2026/27'
-/** @type {number} */
-const PERSONAL_ALLOWANCE_MONTHLY = Math.round(PERSONAL_ALLOWANCE_ANNUAL / 12)
-
-/** @type {string} */
-const APRIL_BOUNDARY_NOTE =
-    `<b>Note:</b> <i>April payslips may include pay accrued across the 6 April tax year boundary. ` +
-    `This tool cannot determine how the employer has attributed hours or amounts between tax years, ` +
-    `which may cause discrepancies in year-end figures.</i>`
-
-/** @type {string} */
-const ZERO_TAX_ALLOWANCE_NOTE =
-    `<b>Note:</b> <i>PAYE Tax / National Insurance may be £0 when monthly pay is below £${PERSONAL_ALLOWANCE_MONTHLY.toLocaleString('en-GB')} ` +
-    `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year for ${PERSONAL_ALLOWANCE_TAX_YEARS})</i>.`
+const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
+const ZERO_TAX_ALLOWANCE_NOTE_HTML = `<b>Note:</b> <i>${ZERO_TAX_ALLOWANCE_NOTE}</i>`
 
 /**
  * @param {string | number} yearKey
@@ -99,12 +91,14 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
+ * @param {{ typicalDays?: number } | null} [workerProfile=null]
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
     records,
     failedPayPeriods = [],
-    contributionData = null
+    contributionData = null,
+    workerProfile = null
 ) {
     if (!records.length) {
         throw new Error('No payroll records provided')
@@ -115,6 +109,10 @@ export function buildReport(
 
     entries.forEach((entry) => {
         entry.validation = buildValidation(entry)
+    })
+    buildHolidayPayFlags(entries)
+    buildYearHolidayContext(entries, {
+        typicalDays: workerProfile?.typicalDays ?? 5,
     })
 
     entries.sort((a, b) => {
@@ -298,19 +296,80 @@ export function buildReport(
         return `<span class="${daysClass}">${daysSinceContribution} days</span>`
     }
 
+    const reportGeneratedLabel = reportRunDate.toLocaleString('en-GB')
+    const pdfCountLabel = `${records.length} PDF${records.length === 1 ? '' : 's'}`
+    const pensionFileLabel = contributionMeta.fileCount
+        ? `${contributionMeta.fileCount} file${contributionMeta.fileCount === 1 ? '' : 's'} (${contributionMeta.recordCount} records)`
+        : 'None'
+    const flaggedPeriodsByYear = /** @type {Record<string, string[]>} */ ({})
+    flaggedPeriods.forEach((p) => {
+        const yearMatch = p.match(/\d{4}$/)
+        const year = yearMatch ? yearMatch[0] : 'Unknown'
+        if (!flaggedPeriodsByYear[year]) {
+            flaggedPeriodsByYear[year] = []
+        }
+        flaggedPeriodsByYear[year].push(p)
+    })
+    const flaggedPeriodsHtml = flaggedPeriods.length
+        ? Object.entries(flaggedPeriodsByYear)
+              .map(
+                  ([year, periods]) =>
+                      `<span class="missing-year">${year}:</span> <span class="meta-pills">${periods.map((p) => `<span class="pill pill--warn inline">${p.replace(/\s*\d{4}$/, '')}</span>`).join(' ')}</span>`
+              )
+              .join('<br>')
+        : '<span class="validation-none">None</span>'
+    const lowConfidencePeriods = lowConfidenceEntries.map((entry) =>
+        entry.parsedDate
+            ? formatDateLabel(entry.parsedDate)
+            : entry.record.payrollDoc?.processDate?.date || 'Unknown'
+    )
+    const lowConfidencePeriodsByYear =
+        /** @type {Record<string, string[]>} */ ({})
+    lowConfidencePeriods.forEach((p) => {
+        const yearMatch = p.match(/\d{4}$/)
+        const year = yearMatch ? yearMatch[0] : 'Unknown'
+        if (!lowConfidencePeriodsByYear[year]) {
+            lowConfidencePeriodsByYear[year] = []
+        }
+        lowConfidencePeriodsByYear[year].push(p)
+    })
+    const lowConfidenceHtml = lowConfidencePeriods.length
+        ? Object.entries(lowConfidencePeriodsByYear)
+              .map(
+                  ([year, periods]) =>
+                      `<span class="missing-year">${year}:</span> <span class="meta-pills">${periods.map((p) => `<span class="pill pill--warn inline">${p.replace(/\s*\d{4}$/, '')}</span>`).join(' ')}</span>`
+              )
+              .join('<br>')
+        : '<span class="validation-none">0</span>'
+
+    const missingMonthsTableHtml = hasMissingMonths
+        ? Object.entries(missingMonthsByYear)
+              .filter(([, months]) => months.length)
+              .map(
+                  ([year, months]) =>
+                      `<span class="missing-year">${year}:</span> ${months.map((m) => `<span class="pill pill--warn inline">${m}</span>`).join(' ')}`
+              )
+              .join('<br>')
+        : '<span class="validation-none">None</span>'
+
     reportSections.push('<div class="page">')
     reportSections.push(
-        `<div class="report-meta"><h2>Payroll Report - ${employeeName}</h2>` +
+        `<div class="report-meta">` +
+            `<h2>Payroll Report \u2014 ${employeeName}</h2>` +
             `<p class="report-range">${dateRangeLabel}</p>` +
-            (hasMissingMonths
-                ? `<div class="report-missing">${missingMonthsPill}</div>`
-                : '') +
-            `<div class="report-validation">${validationPill}</div>` +
-            '</div>'
+            `<p class="report-meta-generated"><b>Generated:</b> ${reportGeneratedLabel}</p>` +
+            `<div class="report-meta-table-container notice">` +
+            `<table class="report-meta-table ">` +
+            `<tr><th>Payroll:</th><td>${dateRangeLabel} &nbsp;\u00b7&nbsp; ${pdfCountLabel}</td></tr>` +
+            `<tr><th>Pension:</th><td>${contributionMeta.fileCount ? `${contributionMeta.dateRangeLabel} &nbsp;\u00b7&nbsp; ${pensionFileLabel}` : 'None'}</td></tr>` +
+            `<tr><th>Missing payroll months:</th><td>${missingMonthsTableHtml}</td></tr>` +
+            `<tr><th>Flagged periods:</th><td>${flaggedPeriodsHtml}</td></tr>` +
+            `<tr><th>Low confidence periods:</th><td>${lowConfidenceHtml}</td></tr>` +
+            `</table>` +
+            `</div>` +
+            `</div>`
     )
-    reportSections.push(
-        `<h2>Summary Totals: ${employeeName} (${dateRangeLabel})</h2>`
-    )
+    reportSections.push(`<h2>Annual Totals:    (${dateRangeLabel})</h2>`)
 
     const yearSummaryRows = Array.from(yearGroups.entries())
         .filter(([yearKey]) => yearKey && yearKey !== 'Unknown')
@@ -325,6 +384,21 @@ export function buildReport(
                         (entry.record.payrollDoc?.payments?.hourly?.basic
                             ?.units || 0)
                     )
+                },
+                0
+            )
+            const yearHolidayHours = entriesForYear.reduce(
+                (
+                    /** @type {number} */ acc,
+                    /** @type {ReportEntry} */ entry
+                ) => {
+                    const hh =
+                        entry.record.payrollDoc?.payments?.hourly?.holiday
+                            ?.units || 0
+                    const hs =
+                        entry.record.payrollDoc?.payments?.salary?.holiday
+                            ?.units || 0
+                    return acc + hh + hs
                 },
                 0
             )
@@ -379,10 +453,17 @@ export function buildReport(
                 yearReportedContribution === 0
             const flagIcon = hasFlags ? '⚠︎' : '—'
             const yearSummaryAnchor = `year-summary-${formatYearAnchor(yearKey)}`
+            const firstEntryCtx = /** @type {any} */ (entriesForYear[0])
+            const yearCtx = firstEntryCtx?.holidayContext
+            const yearHolidayCell =
+                yearCtx?.hasBaseline && yearCtx.avgHoursPerDay > 0
+                    ? `${yearHolidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">\u2248${(yearHolidayHours / yearCtx.avgHoursPerDay).toFixed(1)} days</span>`
+                    : `${yearHolidayHours.toFixed(2)} hrs`
             return (
                 '<tr>' +
                 `<th><a href="#${yearSummaryAnchor}">${yearKey}</a></th>` +
                 `<td>${yearHours.toFixed(2)}</td>` +
+                `<td>${yearHolidayCell}</td>` +
                 `<td>${formatBreakdownCell(yearPayrollContribution, yearPayrollEE, yearPayrollER)}</td>` +
                 `<td>${formatBreakdownCell(
                     yearReportedContribution,
@@ -399,14 +480,16 @@ export function buildReport(
     if (yearSummaryRows) {
         reportSections.push(
             '<table class="summary-table"><thead><tr>' +
-                '<th>Tax Year</th><th>Hours</th>' +
-                '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
+                '<th>Tax Year</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+                '<th>Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
                 '<th>YE Over / Under</th><th>Flags</th>' +
                 '</tr></thead>' +
                 `<tbody>${yearSummaryRows}</tbody>` +
                 '</table>'
         )
     }
+
+    reportSections.push(`<h3>Accumulated Pension:</h3>`)
 
     reportSections.push(
         '<table class="summary-table"><thead><tr>' +
@@ -425,8 +508,7 @@ export function buildReport(
             `<td>${formatDifference()}</td>` +
             `<td>${lastContributionLabel}<br>${formatDaysSince()}</td>` +
             '</tr></tbody>' +
-            '</table>' +
-            `<p class="notice">Note: Accumulated Over / Under = Reported (EE+ER) − Payroll Contributions (EE+ER). Positive values indicate an overpayment; negative values indicate an underpayment to your pension.</p>`
+            '</table>'
     )
 
     if (miscFootnotes.length) {
@@ -460,6 +542,10 @@ export function buildReport(
         )
     }
 
+    reportSections.push(
+        `<div class="report-footnote"><b>Note:</b> <i>${ACCUMULATED_TOTALS_NOTE}</i></div>`
+    )
+
     const hasAprilEntry = entries.some(
         (entry) =>
             entry.parsedDate instanceof Date &&
@@ -467,12 +553,12 @@ export function buildReport(
     )
     if (hasAprilEntry) {
         reportSections.push(
-            `<div class="report-footnote">${APRIL_BOUNDARY_NOTE}</div>`
+            `<div class="report-footnote">${APRIL_BOUNDARY_NOTE_HTML}</div>`
         )
     }
     if (hasLowPretaxPay) {
         reportSections.push(
-            `<div class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</div>`
+            `<div class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE_HTML}</div>`
         )
     }
     reportSections.push('</div>')
@@ -541,12 +627,12 @@ export function buildReport(
         )
         if (yearHasAprilEntry) {
             reportSections.push(
-                `<p class="report-footnote">${APRIL_BOUNDARY_NOTE}</p>`
+                `<p class="report-footnote">${APRIL_BOUNDARY_NOTE_HTML}</p>`
             )
         }
         if (yearLowPretaxPay) {
             reportSections.push(
-                `<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE}</p>`
+                `<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE_HTML}</p>`
             )
         }
         reportSections.push('</div>')
@@ -566,7 +652,7 @@ export function buildReport(
                 reportSections.push('<div class="page">')
                 if (index === 0) {
                     reportSections.push(
-                        `<h2 class="year-header" id="${yearAnchor}">${yearLabel}</h2>`
+                        `<h2 class="year-header" id="${yearAnchor}">Payslips: ${yearLabel}</h2>`
                     )
                 }
                 const monthIndex = entry.monthIndex
@@ -837,7 +923,6 @@ function renderReportCell(entry) {
     const dateLabel = parsedDate
         ? formatDateLabel(parsedDate)
         : record.payrollDoc?.processDate?.date || 'Unknown'
-    const natInsNumber = record.employee?.natInsNumber || ''
     const combined =
         (record.payrollDoc?.deductions?.pensionEE?.amount || 0) +
         (record.payrollDoc?.deductions?.pensionER?.amount || 0)
@@ -913,34 +998,49 @@ function renderReportCell(entry) {
             amount: holidaySalaryAmount,
         })
     }
-    const validationList = validation.flags
-        .map((flag) => `<li>${flag.label}</li>`)
-        .join('')
     const nestEmployeeClass = nestEmployee === 0 ? 'pension-zero' : ''
     const nestEmployerClass = nestEmployer === 0 ? 'pension-zero' : ''
+
+    const warningItems = []
+    if (validation.flags.length) {
+        warningItems.push(
+            ...validation.flags.map((flag) => `<li>${flag.label}</li>`)
+        )
+    }
+    const warningsHtml = warningItems.length
+        ? `<div class="warning-callout"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
+        : ''
+
     const rows = [
         '<table class="report-table">',
         `<tr style="border-bottom: 2px solid black;"><th class="row-header" align="left">Date</th><td>${dateLabel}</td></tr>`,
-        ...(!natInsNumber
-            ? [
-                  `<tr class="report-warning"><th align="left">NAT INS No.</th>` +
-                      '<td>Missing</td></tr>',
-              ]
-            : []),
-        ...(validation.flags.length
-            ? [
-                  `<tr class="report-warning"><th align="left">Warnings</th>` +
-                      `<td><ul class="report-warning-list">${validationList}</ul></td></tr>`,
-              ]
-            : []),
         '<tr><th class="row-header" align="left" colspan="2">Payments</th></tr>',
-        ...corePaymentRows.map(
-            (item) =>
-                `<tr><th align="left">${formatMiscLabel(item)}</th><td>${formatCurrency(
-                    item.amount || 0
-                )}</td></tr>`
-        ),
     ]
+
+    const entryHolidayCtx = /** @type {any} */ (entry).holidayContext
+    const holidayImpliedDays =
+        entryHolidayCtx?.hasBaseline &&
+        entryHolidayCtx.avgHoursPerDay > 0 &&
+        holidayHours > 0
+            ? (holidayHours / entryHolidayCtx.avgHoursPerDay).toFixed(1)
+            : null
+
+    for (const item of corePaymentRows) {
+        const breakdown =
+            item.units != null && item.rate != null && item.rate !== 0
+                ? ` (${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))})`
+                : ''
+        const isHolidayHourly = item.label === 'Holiday Hours'
+        const estSuffix =
+            isHolidayHourly && holidayImpliedDays !== null
+                ? ` <span class="holiday-est-days">est ${holidayImpliedDays} days holiday</span>`
+                : ''
+        rows.push(
+            `<tr><th align="left">${item.label}${breakdown}${estSuffix}</th><td>${formatCurrency(
+                item.amount || 0
+            )}</td></tr>`
+        )
+    }
 
     if (miscPayments.length) {
         rows.push(
@@ -984,6 +1084,20 @@ function renderReportCell(entry) {
         '</table>'
     )
 
+    let holidayAnalysisFootnote = ''
+    if (holidayImpliedDays !== null && entryHolidayCtx) {
+        const avgHrsPerDay = entryHolidayCtx.avgHoursPerDay.toFixed(2)
+        const avgHrsPerWeek = entryHolidayCtx.avgWeeklyHours.toFixed(2)
+        const days = entryHolidayCtx.typicalDays
+        holidayAnalysisFootnote =
+            `<div class="notice">` +
+            `<p><b>Holiday analysis</b> (year average, <i>estimate only</i>):</p>` +
+            `<ul><li>Avg ${avgHrsPerWeek}\u00a0hrs/week over ${days}\u00a0days \u2192 1\u00a0day\u00a0\u2248\u00a0${avgHrsPerDay}\u00a0hrs.</li>` +
+            `<li>This payslip: ${holidayHours.toFixed(2)}\u00a0hrs\u00a0\u2248\u00a0${holidayImpliedDays}\u00a0days.</li></ul>` +
+            `<p>If <b>${holidayImpliedDays}</b>\u00a0days doesn\u2019t match the days you agreed, ask your employer how they calculated the number of hours for holiday.</p>` +
+            `</div>`
+    }
+
     const cellClass = validation.lowConfidence
         ? 'report-cell is-low-confidence'
         : 'report-cell'
@@ -994,14 +1108,21 @@ function renderReportCell(entry) {
         '</p>'
     const aprilBoundaryFootnote =
         parsedDate instanceof Date && parsedDate.getMonth() === 3
-            ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE}</p>`
+            ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE_HTML}</p>`
             : ''
+
     return `
     <div class="${cellClass}">
-      ${imageHtml}
-      ${rows.join('\n')}
-      ${erFootnote}
-      ${aprilBoundaryFootnote}
+      <div class="report-cell-image">${imageHtml}</div>
+      <div class="report-cell-main">
+        ${rows.join('\n')}
+        ${warningsHtml}
+        ${holidayAnalysisFootnote}
+      </div>
+      <div class="report-cell-footer">
+        ${erFootnote}
+        ${aprilBoundaryFootnote}
+      </div>
     </div>
   `
 }
@@ -1150,6 +1271,13 @@ function renderYearSummary(entriesForYear) {
                         record?.payrollDoc?.payments?.salary?.holiday?.units ||
                         0
                     const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
+                    const entryCtx = /** @type {any} */ (entry).holidayContext
+                    const holidayCell =
+                        entryCtx?.hasBaseline &&
+                        entryCtx.avgHoursPerDay > 0 &&
+                        holidayUnits > 0
+                            ? `${holidayUnits.toFixed(2)} hrs<br><span class="summary-breakdown">\u2248${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)} days</span>`
+                            : `${holidayUnits.toFixed(2)} hrs`
                     const nestEmployee =
                         record?.payrollDoc?.deductions?.pensionEE?.amount || 0
                     const nestEmployer =
@@ -1183,7 +1311,7 @@ function renderYearSummary(entriesForYear) {
                         '<tr>' +
                             `<th>${monthLink}</th>` +
                             `<td>${hours.toFixed(2)}</td>` +
-                            `<td>${holidayUnits.toFixed(2)}</td>` +
+                            `<td>${holidayCell}</td>` +
                             `<td>${formatBreakdownCell(payrollContribution, nestEmployee, nestEmployer)}</td>` +
                             `<td>${formatBreakdownCell(
                                 reportedContribution,
@@ -1239,7 +1367,7 @@ function renderYearSummary(entriesForYear) {
     const sections = [
         '<table class="summary-table">' +
             '<thead><tr>' +
-            '<th>Month</th><th>Hours</th><th>Holiday Used (Units)</th>' +
+            '<th>Month</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
             '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
             '<th>Over / Under</th><th>Flags</th>' +
             '</tr></thead>' +

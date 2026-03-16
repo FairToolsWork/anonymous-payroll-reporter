@@ -1,13 +1,16 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatMonthLabel } from '../parse/parser_config.js'
-import { getCalendarMonthFromFiscalIndex } from './report_calculations.js'
 import {
+    ACCUMULATED_TOTALS_NOTE,
+    APRIL_BOUNDARY_NOTE,
     formatContribution,
     formatCurrency,
     formatDeduction,
     formatMiscLabel,
+    ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
+import { getCalendarMonthFromFiscalIndex } from './tax_year_utils.js'
 
 /**
  * Testing constraints: jsPDF requires a DOM constructor and autoTable relies on
@@ -27,19 +30,6 @@ import {
  */
 
 // ─── Layout constants ────────────────────────────────────────────────────────
-
-const APRIL_BOUNDARY_NOTE =
-    'Note: April payslips may include pay accrued across the 6 April tax year boundary. ' +
-    'This tool cannot determine how the employer has attributed hours or amounts between tax years, ' +
-    'which may cause discrepancies in year-end figures.'
-
-const ZERO_TAX_ALLOWANCE_NOTE =
-    'Note: PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
-    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27).'
-
-const ACCUMULATED_TOTALS_NOTE =
-    'Note: Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). ' +
-    'Positive values indicate an overpayment; negative values indicate an underpayment to your pension.'
 
 const PAGE_MARGIN = 40
 const LINE_GAP = 4
@@ -311,7 +301,10 @@ function writePageFooterNotes(doc, notes) {
     const bottom = pageHeight(doc) - PAGE_MARGIN
     let footerY = bottom
     for (let i = notes.length - 1; i >= 0; i -= 1) {
-        const lines = doc.splitTextToSize(sanitizeText(notes[i]), width)
+        const lines = doc.splitTextToSize(
+            sanitizeText('Note: ' + notes[i]),
+            width
+        )
         footerY -= lines.length * lineHeight
         doc.text(lines, PAGE_MARGIN, footerY)
         footerY -= LINE_GAP
@@ -430,6 +423,15 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                     (e.record?.payrollDoc?.payments?.hourly?.basic?.units || 0),
                 0
             )
+            const yearHolidayHours = yearEntries.reduce(
+                (acc, e) =>
+                    acc +
+                    (e.record?.payrollDoc?.payments?.hourly?.holiday?.units ||
+                        0) +
+                    (e.record?.payrollDoc?.payments?.salary?.holiday?.units ||
+                        0),
+                0
+            )
             const payEE = yearEntries.reduce(
                 (acc, e) =>
                     acc +
@@ -457,9 +459,15 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             const hasFlags = yearEntries.some(
                 (e) => e.validation?.flags?.length
             )
+            const firstEntryCtx = yearEntries[0]?.holidayContext
+            const yearHolidayCell =
+                firstEntryCtx?.hasBaseline && firstEntryCtx.avgHoursPerDay > 0
+                    ? `${yearHolidayHours.toFixed(2)} (\u2248${(yearHolidayHours / firstEntryCtx.avgHoursPerDay).toFixed(1)}d)`
+                    : yearHolidayHours.toFixed(2)
             yearRows.push([
                 String(yearKey || 'Unknown'),
                 hours.toFixed(2),
+                yearHolidayCell,
                 formatBreakdown(payTotal, payEE, payER),
                 formatBreakdownOrNA(repTotal, repEE, repER),
                 diff.text,
@@ -481,6 +489,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 [
                     'Tax Year',
                     'Hours',
+                    'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'YE Over/Under',
@@ -492,7 +501,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         y,
         {
             didParseCell(data) {
-                if (data.section === 'body' && data.column.index === 4) {
+                if (data.section === 'body' && data.column.index === 5) {
                     const color = yearRowDiffColors[data.row.index] ?? null
                     if (color) {
                         data.cell.styles.textColor = color
@@ -594,9 +603,6 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         }
     )
 
-    y += 12
-    y = writeText(doc, ACCUMULATED_TOTALS_NOTE, y, { fontSize: FONT_SMALL })
-
     const hasAprilEntry = context.entries.some(
         (/** @type {any} */ e) =>
             e.parsedDate instanceof Date && e.parsedDate.getMonth() === 3
@@ -608,6 +614,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     const summaryPageNotes = []
     if (hasAprilEntry) summaryPageNotes.push(APRIL_BOUNDARY_NOTE)
     if (hasLowPretaxPay) summaryPageNotes.push(ZERO_TAX_ALLOWANCE_NOTE)
+    summaryPageNotes.push(ACCUMULATED_TOTALS_NOTE)
     writePageFooterNotes(doc, summaryPageNotes)
 
     const summaryFootnotes = collectMiscFootnotes(context.entries)
@@ -713,6 +720,13 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 const holidaySalaryUnits =
                     rec?.payrollDoc?.payments?.salary?.holiday?.units || 0
                 const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
+                const entryCtx = entry.holidayContext
+                const holidayCell =
+                    entryCtx?.hasBaseline &&
+                    entryCtx.avgHoursPerDay > 0 &&
+                    holidayUnits > 0
+                        ? `${holidayUnits.toFixed(2)} (\u2248${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)}d)`
+                        : holidayUnits.toFixed(2)
                 const nestEE =
                     rec?.payrollDoc?.deductions?.pensionEE?.amount || 0
                 const nestER =
@@ -738,7 +752,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 bodyRows.push([
                     monthLabel,
                     hours.toFixed(2),
-                    holidayUnits.toFixed(2),
+                    holidayCell,
                     formatBreakdown(payContrib, nestEE, nestER),
                     formatBreakdownOrNA(repContrib, actualEE, actualER),
                     rowDiff.text,
@@ -792,7 +806,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 [
                     'Month',
                     'Hours',
-                    'Holiday Units',
+                    'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'Over/Under',

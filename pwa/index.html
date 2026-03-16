@@ -1419,8 +1419,60 @@
                         </div>
                     </div>
                 </div>
+                <div class="card worker-profile-panel">
+                    <h2>
+                        2: Worker Profile
+                        <span class="optional-label">(optional)</span>
+                    </h2>
+                    <div class="instructions">
+                        <p class="notice">
+                            <b>Note: </b>These details help <i>estimate</i> how
+                            many days of holiday your payslips represent. Leave
+                            at defaults if unsure — the report will still run
+                            without them.
+                        </p>
+                    </div>
+                    <div class="worker-profile-fields">
+                        <label class="field">
+                            <span>Worker type</span>
+                            <select v-model="workerProfile.workerType">
+                                <option value="hourly">
+                                    Hourly / irregular hours
+                                </option>
+                                <option value="salary">Salaried</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span
+                                >Typical hours per week
+                                <em>(informational)</em></span
+                            >
+                            <input
+                                type="number"
+                                min="0"
+                                max="168"
+                                step="0.5"
+                                placeholder="e.g. 30"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalHours"
+                            />
+                        </label>
+                        <label class="field">
+                            <span>Typical days per week</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="7"
+                                step="1"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
+                    </div>
+                </div>
                 <div class="card status-panel">
-                    <h2>2: Run &amp; Review</h2>
+                    <h2>3: Run &amp; Review</h2>
                     <p class="instructions" v-if="status === 'idle'">
                         Once your files are selected, run the report, and the
                         results will appear below.
@@ -1454,8 +1506,7 @@
                         files
                     </p>
                     <p v-if="parsingExcel">
-                        Parsing PDF Payroll &amp; Excel Pension contribution
-                        history…
+                        Processing Payroll &amp; Pension docs...
                     </p>
                     <p v-if="status === 'rendering'">Rendering report…</p>
                     <p v-if="error" class="error">{{ error }}</p>
@@ -1475,71 +1526,6 @@
                         ></div>
                     </div>
                     <div class="completion" v-if="reportReady">
-                        <h3 id="report-summary">Report summary</h3>
-                        <ul class="stats">
-                            <li>
-                                <span>Generated</span
-                                ><strong>{{ reportTimestamp }}</strong>
-                            </li>
-                            <li>
-                                <span>PDF files</span
-                                ><strong>{{ fileCount }}</strong>
-                            </li>
-                            <li>
-                                <span>PDF Date range</span
-                                ><strong
-                                    >{{ reportStats.dateRangeLabel }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Excel files</span>
-                                <strong>
-                                    {{ reportStats.contributionMeta.fileCount }}
-                                    ({{ reportStats.contributionMeta.recordCount
-                                    }} records)
-                                </strong>
-                            </li>
-                            <li>
-                                <span>Excel date range</span
-                                ><strong
-                                    >{{
-                                    reportStats.contributionMeta.dateRangeLabel
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Missing months</span>
-                                <strong
-                                    class="missing-months"
-                                    v-html="reportStats.missingMonthsHtml"
-                                ></strong>
-                            </li>
-                            <li>
-                                <span>Flagged months</span>
-                                <strong class="validation-pill"
-                                    >{{
-                                    reportStats.validationSummary.flaggedCount
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Low confidence months</span>
-                                <strong class="validation-pill"
-                                    >{{
-                                    reportStats.validationSummary.lowConfidenceCount
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Flagged periods</span>
-                                <strong class="validation-list">
-                                    {{ ((reportStats.validationSummary
-                                    &amp;&amp;
-                                    reportStats.validationSummary.flaggedPeriods)
-                                    || []).join(", ") || "None" }}
-                                </strong>
-                            </li>
-                        </ul>
                         <div class="btn-group">
                             <button
                                 id="download-pdf-btn"

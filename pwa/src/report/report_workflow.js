@@ -13,7 +13,8 @@ import { buildReport } from './build.js'
  *  captureDebug?: boolean,
  *  onProgress?: (info: { current: number, total: number, file: File }) => void,
  *  requireEmployeeDetails?: boolean,
- *  includeReportContext?: boolean
+ *  includeReportContext?: boolean,
+ *  workerProfile?: { workerType?: string, typicalHours?: number, typicalDays?: number } | null
  * }} options
  * @returns {Promise<{
  *  records: any[],
@@ -51,6 +52,7 @@ export async function runPayrollReportWorkflow(options) {
     const onProgress = options?.onProgress
     const requireEmployeeDetails = options?.requireEmployeeDetails !== false
     const includeReportContext = Boolean(options?.includeReportContext)
+    const workerProfile = options?.workerProfile ?? null
     const totalSteps = pdfFiles.length + excelFiles.length
 
     /** @type {any[]} */
@@ -193,7 +195,12 @@ export async function runPayrollReportWorkflow(options) {
 
     const report =
         records.length > 0
-            ? buildReport(records, failedPayPeriods, contributionData)
+            ? buildReport(
+                  records,
+                  failedPayPeriods,
+                  contributionData,
+                  workerProfile
+              )
             : null
     const reportContext = includeReportContext && report ? report.context : null
 

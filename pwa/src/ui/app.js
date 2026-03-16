@@ -60,6 +60,7 @@ import {
  * @property {string} appVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
+ * @property {{ workerType: string, typicalHours: number, typicalDays: number }} workerProfile
  * @property {number} holCalcHours
  * @property {number} holCalcRate
  * @property {number} holCalcDaysTaken
@@ -111,6 +112,8 @@ const SESSION_PERSISTED_AT_KEY = 'session_persisted_at'
 const SESSION_TTL_MS = 30 * 60 * 1000
 /** @type {string} */
 const LAST_LOADED_AT_KEY = 'payroll_last_loaded'
+/** @type {string} */
+const WORKER_PROFILE_KEY = 'worker_profile'
 /** @type {number} */
 const STALE_INSTANCE_TTL_MS = 24 * 60 * 60 * 1000
 /** @type {string} */
@@ -308,6 +311,11 @@ export function initPayrollApp() {
                             flaggedPeriods: [],
                         },
                     },
+                    workerProfile: {
+                        workerType: 'hourly',
+                        typicalHours: 0,
+                        typicalDays: 5,
+                    },
                     holCalcHours: 0,
                     holCalcRate: 0,
                     holCalcDaysTaken: 1,
@@ -423,6 +431,21 @@ export function initPayrollApp() {
                 },
             },
             watch: {
+                /** @this {PayrollAppInstance} @param {any} value */
+                workerProfile: {
+                    deep: true,
+                    /** @this {PayrollAppInstance} @param {any} value */
+                    handler(value) {
+                        try {
+                            localStorage.setItem(
+                                WORKER_PROFILE_KEY,
+                                JSON.stringify(value)
+                            )
+                        } catch {
+                            /* storage unavailable */
+                        }
+                    },
+                },
                 /** @this {PayrollAppInstance} @param {string} value */
                 pdfPassword(value) {
                     if (value) {
@@ -889,6 +912,7 @@ export function initPayrollApp() {
                             failedFiles: this.failedFiles,
                             captureDebug: this.debugEnabled,
                             includeReportContext: true,
+                            workerProfile: this.workerProfile,
                             onProgress: (
                                 /** @type {{ current: number, total: number, file: File }} */
                                 { current, total, file }
@@ -1542,6 +1566,28 @@ export function initPayrollApp() {
                     sessionStorage.getItem(PDF_PASSWORD_KEY) || ''
                 this.acceptedDisclaimer =
                     sessionStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === 'true'
+                try {
+                    const storedProfile =
+                        localStorage.getItem(WORKER_PROFILE_KEY)
+                    if (storedProfile) {
+                        const parsed = JSON.parse(storedProfile)
+                        if (parsed && typeof parsed === 'object') {
+                            this.workerProfile = {
+                                workerType: parsed.workerType || 'hourly',
+                                typicalHours:
+                                    typeof parsed.typicalHours === 'number'
+                                        ? parsed.typicalHours
+                                        : 0,
+                                typicalDays:
+                                    typeof parsed.typicalDays === 'number'
+                                        ? parsed.typicalDays
+                                        : 5,
+                            }
+                        }
+                    }
+                } catch {
+                    /* storage unavailable */
+                }
                 const lastLoadedAt = Number(
                     localStorage.getItem(LAST_LOADED_AT_KEY) || 0
                 )

@@ -1,7 +1,10 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { describe, expect, it } from 'vitest'
-import { buildBrowserShims, runReportFromFixtures } from './utils/report_runner.mjs'
+import {
+    buildBrowserShims,
+    runReportFromFixtures,
+} from './utils/report_runner.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,8 +28,14 @@ describe('smoke', () => {
             requireEmployeeDetails: false,
         })
 
-        expect(result.failedFiles, 'no files should fail to parse').toHaveLength(0)
-        expect(result.records.length, 'at least one payroll record extracted').toBeGreaterThan(0)
+        expect(
+            result.failedFiles,
+            'no files should fail to parse'
+        ).toHaveLength(0)
+        expect(
+            result.records.length,
+            'at least one payroll record extracted'
+        ).toBeGreaterThan(0)
         expect(result.report, 'report should be produced').toBeTruthy()
     })
 })
