@@ -520,7 +520,9 @@ export function buildReport(
                 ).size
                 const workingDaysPerMonth = (typicalDays * 52) / 12
                 const dailyRate =
-                    yearBasicSalaryAmount > 0 && workingDaysPerMonth > 0
+                    yearBasicSalaryAmount > 0 &&
+                    workingDaysPerMonth > 0 &&
+                    monthsInYear > 0
                         ? yearBasicSalaryAmount /
                           monthsInYear /
                           workingDaysPerMonth

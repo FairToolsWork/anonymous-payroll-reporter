@@ -80,7 +80,9 @@ export function buildRollingReference(sortedEntries, targetEntry) {
     if (!targetDate) {
         return null
     }
-    const cutoffMs = targetDate.getTime() - 104 * 7 * 24 * 60 * 60 * 1000
+    const cutoff = new Date(targetDate)
+    cutoff.setDate(cutoff.getDate() - 104 * 7)
+    const cutoffMs = cutoff.getTime()
 
     let totalBasicPay = 0
     let totalBasicHours = 0

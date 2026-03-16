@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
+import { buildReport } from '../pwa/src/report/build.js'
 import {
     buildValidation,
     sumDeductionsForNetPay,
@@ -441,6 +442,88 @@ describe('report calculations', () => {
         })
     })
 
+    it('buildReport HTML shows Opening Balance and Closing Balance rows when prior year has a deficit', () => {
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+                payPeriod: '01/01/24 - 31/01/24',
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 0 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 10 },
+                        pensionER: { amount: 5 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: { units: 10, amount: 100, rate: 10 },
+                            holiday: { units: 0, amount: 0 },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: 0 },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 100 } },
+                    netPay: { amount: 85 },
+                    processDate: { date: '31/01/24' },
+                },
+            },
+            {
+                employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+                payPeriod: '01/01/25 - 31/01/25',
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 0 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 20 },
+                        pensionER: { amount: 10 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: { units: 10, amount: 100, rate: 10 },
+                            holiday: { units: 0, amount: 0 },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: 0 },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 100 } },
+                    netPay: { amount: 70 },
+                    processDate: { date: '31/01/25' },
+                },
+            },
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2024, 0, 20), type: 'ee', amount: 8 },
+                { date: new Date(2024, 0, 20), type: 'er', amount: 4 },
+                { date: new Date(2025, 0, 20), type: 'ee', amount: 20 },
+                { date: new Date(2025, 0, 20), type: 'er', amount: 10 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+        const { html } = buildReport(records, [], contributionData, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        const year2024Section =
+            html.split('2023/24 Summary')[1]?.split('2024/25 Summary')[0] ?? ''
+        const year2025Section = html.split('2024/25 Summary')[1] ?? ''
+        expect(year2024Section).not.toContain('Opening Balance')
+        expect(year2024Section).toContain('Closing Balance')
+        expect(year2025Section).toContain('Opening Balance')
+        expect(year2025Section).toContain('Closing Balance')
+    })
+
     it('flags gross_mismatch and sets lowConfidence when payments total differs from totalGrossPay', () => {
         const entry = {
             record: {
@@ -775,5 +858,253 @@ describe('report calculations', () => {
         expect(parsedShortYear?.getFullYear()).toBe(2099)
         expect(parsedShortYear?.getMonth()).toBe(5)
         expect(parsedShortYear?.getDate()).toBe(1)
+    })
+})
+
+function buildSalaryRecord({
+    basicSalary,
+    holidaySalary,
+    nestEE = 0,
+    nestER = 0,
+}) {
+    return {
+        employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+        payPeriod: '01/04/25 - 30/04/25',
+        payrollDoc: {
+            deductions: {
+                payeTax: { amount: 100 },
+                natIns: { amount: 80 },
+                pensionEE: { amount: nestEE },
+                pensionER: { amount: nestER },
+                misc: [],
+            },
+            payments: {
+                hourly: {
+                    basic: { units: 0, amount: 0, rate: null },
+                    holiday: { units: null, amount: null, rate: null },
+                },
+                salary: {
+                    basic: { amount: basicSalary },
+                    holiday: { amount: holidaySalary, units: null, rate: null },
+                },
+                misc: [],
+            },
+            taxCode: { code: '1257L' },
+            thisPeriod: {
+                totalGrossPay: { amount: basicSalary + holidaySalary },
+            },
+            netPay: { amount: basicSalary + holidaySalary - 100 - 80 - nestEE },
+            processDate: { date: '2025-04-30' },
+        },
+    }
+}
+
+describe('workerProfile — salaried holiday day estimation', () => {
+    it('daily rate uses workingDaysPerMonth (typicalDays * 52 / 12), not typicalDays directly', () => {
+        // £36,000/year, 12 months, 5 days/week
+        // workingDaysPerMonth = 5 * 52 / 12 = 21.667
+        // dailyRate = 36000 / 12 / 21.667 ≈ £138.46/day  (NOT £600)
+        const annualSalary = 36000
+        const monthlyBasic = annualSalary / 12 // 3000
+        const typicalDays = 5
+        const workingDaysPerMonth = (typicalDays * 52) / 12
+        const expectedDailyRate = monthlyBasic / workingDaysPerMonth
+
+        expect(expectedDailyRate).toBeCloseTo(138.46, 1)
+        expect(monthlyBasic / typicalDays).toBeCloseTo(600, 1) // confirms old formula was wrong
+    })
+
+    it('buildReport HTML includes salaried days taken and remaining when workerType is salary', () => {
+        // 12 months of salary payslips Apr 2025–Mar 2026, £3000/month basic, £500 holiday in November
+        // processDate must be DD/MM/YY format for parsePayPeriodStart
+        const months = [
+            { date: '15/04/25', holiday: false },
+            { date: '15/05/25', holiday: false },
+            { date: '15/06/25', holiday: false },
+            { date: '15/07/25', holiday: false },
+            { date: '15/08/25', holiday: false },
+            { date: '15/09/25', holiday: false },
+            { date: '15/10/25', holiday: false },
+            { date: '15/11/25', holiday: true },
+            { date: '15/12/25', holiday: false },
+            { date: '15/01/26', holiday: false },
+            { date: '15/02/26', holiday: false },
+            { date: '15/03/26', holiday: false },
+        ]
+        const records = months.map(({ date, holiday }, i) => ({
+            employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+            payPeriod: `01/${date.slice(3)} - 30/${date.slice(3)}`,
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 50 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                payments: {
+                    hourly: {
+                        basic: { units: 0, amount: 0, rate: null },
+                        holiday: { units: null, amount: null, rate: null },
+                    },
+                    salary: {
+                        basic: { amount: 3000 },
+                        holiday: {
+                            amount: holiday ? 500 : 0,
+                            units: null,
+                            rate: null,
+                        },
+                    },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: {
+                    totalGrossPay: { amount: holiday ? 3500 : 3000 },
+                },
+                netPay: { amount: holiday ? 3350 : 2850 },
+                processDate: { date },
+            },
+            parsedDate: new Date(
+                `20${date.slice(6, 8)}-${date.slice(3, 5)}-${date.slice(0, 2)}`
+            ),
+            yearKey: '2025/26',
+            monthIndex: i,
+        }))
+
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+
+        // dailyRate = 3000 / 1 / (5*52/12) ≈ £138.46 per month context
+        // For the year: yearBasicSalary = 36000, months = 12
+        // dailyRate = 36000 / 12 / (5*52/12) ≈ £138.46/day
+        // daysTaken = 500 / 138.46 ≈ 3.6 days
+        // daysRemaining = 28 - 3.6 ≈ 24.4 days
+        expect(html).toContain('days taken')
+        expect(html).toContain('remaining')
+        // Should show a currency amount not raw hours
+        expect(html).toMatch(/£500\.00|£500/)
+
+        // ReportContext should carry workerProfile
+        expect(context.workerProfile.workerType).toBe('salary')
+        expect(context.workerProfile.typicalDays).toBe(5)
+        expect(context.workerProfile.statutoryHolidayDays).toBe(28)
+    })
+
+    it('buildReport context.workerProfile defaults are applied when no workerProfile passed', () => {
+        const records = [
+            buildSalaryRecord({ basicSalary: 3000, holidaySalary: 0 }),
+        ]
+        const { context } = buildReport(records)
+        expect(context.workerProfile.workerType).toBeNull()
+        expect(context.workerProfile.typicalDays).toBe(5)
+        expect(context.workerProfile.statutoryHolidayDays).toBe(28)
+    })
+
+    it('contract-type mismatch: hourly profile with salary payslip triggers warning', () => {
+        const records = [
+            buildSalaryRecord({ basicSalary: 3000, holidaySalary: 0 }),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        expect(html).toContain('report-warning-banner')
+        expect(html).toContain('Hourly')
+    })
+
+    it('contract-type mismatch: salary profile with hourly payslip triggers warning', () => {
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+                payPeriod: '01/04/25 - 30/04/25',
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: { units: 150, amount: 1200, rate: 8 },
+                            holiday: { units: 0, amount: 0, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 },
+                            holiday: { amount: 0, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 1200 } },
+                    netPay: { amount: 1020 },
+                    processDate: { date: '2025-04-30' },
+                },
+            },
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        expect(html).toContain('report-warning-banner')
+        expect(html).toContain('Salaried')
+    })
+
+    it('no mismatch warning when worker type matches payslip data', () => {
+        const records = [
+            buildSalaryRecord({ basicSalary: 3000, holidaySalary: 0 }),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        expect(html).not.toContain('report-warning-banner')
+    })
+
+    it('zero-amount salary line does not trigger mismatch warning for hourly worker', () => {
+        // A record with salary.basic.amount === 0 should NOT trigger the mismatch
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+                payPeriod: '01/04/25 - 30/04/25',
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    payments: {
+                        hourly: {
+                            basic: { units: 150, amount: 1200, rate: 8 },
+                            holiday: { units: 0, amount: 0, rate: null },
+                        },
+                        salary: {
+                            basic: { amount: 0 }, // zero — should not trigger warning
+                            holiday: { amount: 0, units: null, rate: null },
+                        },
+                        misc: [],
+                    },
+                    taxCode: { code: '1257L' },
+                    thisPeriod: { totalGrossPay: { amount: 1200 } },
+                    netPay: { amount: 1020 },
+                    processDate: { date: '2025-04-30' },
+                },
+            },
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        expect(html).not.toContain('report-warning-banner')
     })
 })

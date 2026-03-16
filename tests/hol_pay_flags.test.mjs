@@ -961,6 +961,49 @@ describe('buildRollingReference', () => {
         )
     })
 
+    it('includes a payslip on the first day of the 104-week window (calendar boundary)', () => {
+        // The cutoff is computed via setDate(-728) from the target date, which gives midnight
+        // on the boundary calendar day. A payslip on that exact calendar day must be included
+        // (entryDate.getTime() >= cutoffMs). This guards against the previous implementation
+        // that used raw millisecond subtraction (104 * 7 * 24 * 60 * 60 * 1000), which could
+        // shift the cutoff by ±1 hour across DST transitions in the Europe/London timezone,
+        // causing payslips on that boundary day to be incorrectly excluded.
+        const targetDate = new Date(2024, 6, 15) // 2024-07-15
+        const boundaryDate = new Date(2022, 6, 18) // 2022-07-18 — exactly 728 calendar days before
+
+        const boundaryEntry = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.5,
+            monthIndex: 4,
+            parsedDate: boundaryDate,
+        })
+        const m2 = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.5,
+            monthIndex: 1,
+            parsedDate: new Date(2024, 0, 15),
+        })
+        const m3 = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.5,
+            monthIndex: 2,
+            parsedDate: new Date(2024, 1, 15),
+        })
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            parsedDate: targetDate,
+        })
+        const sorted = [boundaryEntry, m2, m3, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+        const ref = buildRollingReference(sorted, target)
+        expect(ref).not.toBeNull()
+        expect(ref.periodsCounted).toBe(3)
+    })
+
     it('worker with stable hourly rate but variable weekly hours — no false positive', () => {
         const highUnits = makeEntry({
             basicUnits: 240,

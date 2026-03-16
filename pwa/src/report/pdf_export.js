@@ -499,7 +499,9 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 ).size
                 const workingDaysPerMonth = (pdfTypicalDays * 52) / 12
                 const dailyRate =
-                    yearBasicSalary > 0 && workingDaysPerMonth > 0
+                    yearBasicSalary > 0 &&
+                    workingDaysPerMonth > 0 &&
+                    monthsInYear > 0
                         ? yearBasicSalary / monthsInYear / workingDaysPerMonth
                         : 0
                 const daysTaken =
