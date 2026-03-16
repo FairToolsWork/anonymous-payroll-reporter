@@ -1427,22 +1427,47 @@
                     <div class="instructions">
                         <p class="notice">
                             <b>Note: </b>These details help <i>estimate</i> how
-                            many days of holiday your payslips represent. Leave
-                            at defaults if unsure — the report will still run
+                            many days of holiday your payslips represent, and
+                            enable holiday underpayment checks. Leave at
+                            defaults if unsure — the report will still run
                             without them.
+                        </p>
+                        <p
+                            v-if="workerProfile.workerType === 'salary'"
+                            class="notice notice-info"
+                        >
+                            <b>Salaried workers: </b>Holiday underpayment rate
+                            checks are not available for salaried pay. Days
+                            estimates are derived from monthly salary figures on
+                            the payslips and your typical days/week setting.
                         </p>
                     </div>
                     <div class="worker-profile-fields">
-                        <label class="field">
+                        <div class="field">
                             <span>Worker type</span>
-                            <select v-model="workerProfile.workerType">
-                                <option value="hourly">
-                                    Hourly / irregular hours
-                                </option>
-                                <option value="salary">Salaried</option>
-                            </select>
-                        </label>
-                        <label class="field">
+                            <div class="radio-toggle">
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        value="hourly"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Hourly</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        value="salary"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Salaried</span>
+                                </label>
+                            </div>
+                        </div>
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
                             <span
                                 >Typical hours per week
                                 <em>(informational)</em></span
@@ -1457,7 +1482,10 @@
                                 v-model.number="workerProfile.typicalHours"
                             />
                         </label>
-                        <label class="field">
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
                             <span>Typical days per week</span>
                             <input
                                 type="number"
@@ -1468,6 +1496,66 @@
                                 autocomplete="off"
                                 v-model.number="workerProfile.typicalDays"
                             />
+                        </label>
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'salary'"
+                        >
+                            <span>Contractual hours per week</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="168"
+                                step="0.5"
+                                placeholder="e.g. 37.5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.contractualHours"
+                            />
+                        </label>
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'salary'"
+                        >
+                            <span>Typical days per week</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="7"
+                                step="1"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
+                        <label class="field">
+                            <span
+                                >Statutory holiday entitlement (days/year)</span
+                            >
+                            <input
+                                type="number"
+                                min="1"
+                                max="365"
+                                step="1"
+                                placeholder="e.g. 28"
+                                autocomplete="off"
+                                v-model.number="workerProfile.statutoryHolidayDays"
+                            />
+                            <span class="field-hint">
+                                Statutory minimum for {{
+                                workerProfile.typicalDays }}d/week:
+                                <strong
+                                    >{{ suggestedStatutoryDays }} days</strong
+                                >
+                                (5.6 × days/week, capped at 28).
+                                <button
+                                    type="button"
+                                    class="use-suggested-btn"
+                                    :disabled="workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
+                                    @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
+                                >
+                                    Use suggested
+                                </button>
+                            </span>
                         </label>
                     </div>
                 </div>

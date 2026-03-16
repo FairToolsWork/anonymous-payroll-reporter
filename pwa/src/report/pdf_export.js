@@ -460,10 +460,58 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 (e) => e.validation?.flags?.length
             )
             const firstEntryCtx = yearEntries[0]?.holidayContext
-            const yearHolidayCell =
-                firstEntryCtx?.hasBaseline && firstEntryCtx.avgHoursPerDay > 0
-                    ? `${yearHolidayHours.toFixed(2)} (\u2248${(yearHolidayHours / firstEntryCtx.avgHoursPerDay).toFixed(1)}d)`
-                    : yearHolidayHours.toFixed(2)
+            const pdfWorkerType = context.workerProfile?.workerType ?? null
+            const pdfTypicalDays = context.workerProfile?.typicalDays ?? 5
+            const pdfStatutoryDays =
+                context.workerProfile?.statutoryHolidayDays ?? 28
+            let yearHolidayCell
+            if (pdfWorkerType === 'salary') {
+                const yearBasicSalary = yearEntries.reduce(
+                    (acc, e) =>
+                        acc +
+                        (e.record?.payrollDoc?.payments?.salary?.basic
+                            ?.amount || 0),
+                    0
+                )
+                const yearHolidaySalary = yearEntries.reduce(
+                    (acc, e) =>
+                        acc +
+                        (e.record?.payrollDoc?.payments?.salary?.holiday
+                            ?.amount || 0),
+                    0
+                )
+                const monthsInYear = new Set(
+                    yearEntries.map((e) => e.monthIndex)
+                ).size
+                const workingDaysPerMonth = (pdfTypicalDays * 52) / 12
+                const dailyRate =
+                    yearBasicSalary > 0 && workingDaysPerMonth > 0
+                        ? yearBasicSalary / monthsInYear / workingDaysPerMonth
+                        : 0
+                const daysTaken =
+                    dailyRate > 0 ? yearHolidaySalary / dailyRate : null
+                const daysRemaining =
+                    daysTaken !== null
+                        ? Math.max(0, pdfStatutoryDays - daysTaken)
+                        : null
+                const overrun =
+                    daysTaken !== null && pdfStatutoryDays - daysTaken < 0
+                yearHolidayCell =
+                    daysTaken !== null
+                        ? `${formatCurrency(yearHolidaySalary)} (\u2248${daysTaken.toFixed(1)}d taken / ${daysRemaining !== null ? daysRemaining.toFixed(1) : '?'} rem${overrun ? ' EXCEEDED' : ''})`
+                        : formatCurrency(yearHolidaySalary)
+            } else if (
+                firstEntryCtx?.hasBaseline &&
+                firstEntryCtx.avgHoursPerDay > 0
+            ) {
+                const daysTaken =
+                    yearHolidayHours / firstEntryCtx.avgHoursPerDay
+                const daysRemaining = Math.max(0, pdfStatutoryDays - daysTaken)
+                const overrun = pdfStatutoryDays - daysTaken < 0
+                yearHolidayCell = `${yearHolidayHours.toFixed(2)} (\u2248${daysTaken.toFixed(1)}d taken / ${daysRemaining.toFixed(1)} rem${overrun ? ' EXCEEDED' : ''})`
+            } else {
+                yearHolidayCell = yearHolidayHours.toFixed(2)
+            }
             yearRows.push([
                 String(yearKey || 'Unknown'),
                 hours.toFixed(2),

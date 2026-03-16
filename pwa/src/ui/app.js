@@ -60,7 +60,7 @@ import {
  * @property {string} appVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
- * @property {{ workerType: string, typicalHours: number, typicalDays: number }} workerProfile
+ * @property {{ workerType: string, typicalHours: number, typicalDays: number, contractualHours: number, statutoryHolidayDays: number }} workerProfile
  * @property {number} holCalcHours
  * @property {number} holCalcRate
  * @property {number} holCalcDaysTaken
@@ -85,6 +85,7 @@ import {
  *     holCalcExpectedPay: string,
  *     canRunReport: boolean,
  *     canShare: boolean,
+ *     suggestedStatutoryDays: number,
  *     sharePdf(): Promise<void>,
  *     _onOnline: (() => void),
  *     _onOffline: (() => void),
@@ -389,6 +390,8 @@ export function initPayrollApp() {
                         workerType: 'hourly',
                         typicalHours: 0,
                         typicalDays: 5,
+                        contractualHours: 0,
+                        statutoryHolidayDays: 28,
                     },
                     holCalcHours: 0,
                     holCalcRate: 0,
@@ -503,6 +506,14 @@ export function initPayrollApp() {
                         return false
                     }
                 },
+                /** @this {PayrollAppInstance} @returns {number} */
+                suggestedStatutoryDays() {
+                    const days =
+                        this.workerProfile?.typicalDays > 0
+                            ? this.workerProfile.typicalDays
+                            : 5
+                    return Math.round(Math.min(5.6 * days, 28) * 10) / 10
+                },
             },
             watch: {
                 /** @this {PayrollAppInstance} @param {any} value */
@@ -519,6 +530,20 @@ export function initPayrollApp() {
                             /* storage unavailable */
                         }
                     },
+                },
+                /** @this {PayrollAppInstance} @param {number} newDays @param {number} oldDays */
+                'workerProfile.typicalDays'(newDays, oldDays) {
+                    const prevSuggestion =
+                        Math.round(Math.min(5.6 * (oldDays || 5), 28) * 10) / 10
+                    if (
+                        this.workerProfile.statutoryHolidayDays ===
+                        prevSuggestion
+                    ) {
+                        this.workerProfile.statutoryHolidayDays =
+                            Math.round(
+                                Math.min(5.6 * (newDays || 5), 28) * 10
+                            ) / 10
+                    }
                 },
                 /** @this {PayrollAppInstance} @param {string} value */
                 pdfPassword(value) {
@@ -1656,6 +1681,15 @@ export function initPayrollApp() {
                                     typeof parsed.typicalDays === 'number'
                                         ? parsed.typicalDays
                                         : 5,
+                                contractualHours:
+                                    typeof parsed.contractualHours === 'number'
+                                        ? parsed.contractualHours
+                                        : 0,
+                                statutoryHolidayDays:
+                                    typeof parsed.statutoryHolidayDays ===
+                                    'number'
+                                        ? parsed.statutoryHolidayDays
+                                        : 28,
                             }
                         }
                     }

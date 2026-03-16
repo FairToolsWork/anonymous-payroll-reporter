@@ -56,7 +56,7 @@ import {
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number } }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number } }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -91,7 +91,7 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @param {{ typicalDays?: number } | null} [workerProfile=null]
+ * @param {{ typicalDays?: number, workerType?: string, contractualHours?: number, statutoryHolidayDays?: number } | null} [workerProfile=null]
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
@@ -110,10 +110,37 @@ export function buildReport(
     entries.forEach((entry) => {
         entry.validation = buildValidation(entry)
     })
+    const workerType = workerProfile?.workerType ?? null
+    const typicalDays = workerProfile?.typicalDays ?? 5
+    const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? 28
+
     buildHolidayPayFlags(entries)
     buildYearHolidayContext(entries, {
-        typicalDays: workerProfile?.typicalDays ?? 5,
+        typicalDays,
     })
+
+    let contractTypeMismatchWarning = null
+    if (workerType === 'hourly') {
+        const hasSalaryPayslip = entries.some(
+            (entry) =>
+                (entry.record.payrollDoc?.payments?.salary?.basic?.amount ??
+                    0) > 0
+        )
+        if (hasSalaryPayslip) {
+            contractTypeMismatchWarning =
+                'Some payslips contain salaried pay (Basic Salary) but your worker profile is set to <b>Hourly</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+        }
+    } else if (workerType === 'salary') {
+        const hasHourlyPayslip = entries.some(
+            (entry) =>
+                (entry.record.payrollDoc?.payments?.hourly?.basic?.units ?? 0) >
+                0
+        )
+        if (hasHourlyPayslip) {
+            contractTypeMismatchWarning =
+                'Some payslips contain hourly pay (Basic Hours) but your worker profile is set to <b>Salaried</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+        }
+    }
 
     entries.sort((a, b) => {
         const yearA = getTaxYearSortKey(a.yearKey ?? 'Unknown')
@@ -369,6 +396,11 @@ export function buildReport(
             `</div>` +
             `</div>`
     )
+    if (contractTypeMismatchWarning) {
+        reportSections.push(
+            `<div class="report-warning-banner"><span class="warning-icon">⚠︎</span> ${contractTypeMismatchWarning}</div>`
+        )
+    }
     reportSections.push(`<h2>Annual Totals:    (${dateRangeLabel})</h2>`)
 
     const yearSummaryRows = Array.from(yearGroups.entries())
@@ -455,10 +487,74 @@ export function buildReport(
             const yearSummaryAnchor = `year-summary-${formatYearAnchor(yearKey)}`
             const firstEntryCtx = /** @type {any} */ (entriesForYear[0])
             const yearCtx = firstEntryCtx?.holidayContext
-            const yearHolidayCell =
-                yearCtx?.hasBaseline && yearCtx.avgHoursPerDay > 0
-                    ? `${yearHolidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">\u2248${(yearHolidayHours / yearCtx.avgHoursPerDay).toFixed(1)} days</span>`
-                    : `${yearHolidayHours.toFixed(2)} hrs`
+
+            let yearHolidayCell
+            if (workerType === 'salary') {
+                const yearBasicSalaryAmount = entriesForYear.reduce(
+                    (
+                        /** @type {number} */ acc,
+                        /** @type {ReportEntry} */ entry
+                    ) =>
+                        acc +
+                        (entry.record.payrollDoc?.payments?.salary?.basic
+                            ?.amount || 0),
+                    0
+                )
+                const yearHolidaySalaryAmount = entriesForYear.reduce(
+                    (
+                        /** @type {number} */ acc,
+                        /** @type {ReportEntry} */ entry
+                    ) =>
+                        acc +
+                        (entry.record.payrollDoc?.payments?.salary?.holiday
+                            ?.amount || 0),
+                    0
+                )
+                const monthsInYear = new Set(
+                    entriesForYear.map((entry) => entry.monthIndex)
+                ).size
+                const workingDaysPerMonth = (typicalDays * 52) / 12
+                const dailyRate =
+                    yearBasicSalaryAmount > 0 && workingDaysPerMonth > 0
+                        ? yearBasicSalaryAmount /
+                          monthsInYear /
+                          workingDaysPerMonth
+                        : 0
+                const salaryDaysTaken =
+                    dailyRate > 0 ? yearHolidaySalaryAmount / dailyRate : null
+                const salaryDaysRemainingRaw =
+                    salaryDaysTaken !== null
+                        ? statutoryHolidayDays - salaryDaysTaken
+                        : null
+                const salaryDaysRemaining =
+                    salaryDaysRemainingRaw !== null
+                        ? Math.max(0, salaryDaysRemainingRaw)
+                        : null
+                const salaryOverrun =
+                    salaryDaysRemainingRaw !== null &&
+                    salaryDaysRemainingRaw < 0
+                if (salaryDaysTaken !== null) {
+                    yearHolidayCell =
+                        `${formatCurrency(yearHolidaySalaryAmount)}<br>` +
+                        `<span class="summary-breakdown">\u2248${salaryDaysTaken.toFixed(1)} days taken` +
+                        ` / ${salaryDaysRemaining !== null ? salaryDaysRemaining.toFixed(1) : '?'} remaining${salaryOverrun ? ' (entitlement exceeded)' : ''}</span>`
+                } else {
+                    yearHolidayCell = formatCurrency(yearHolidaySalaryAmount)
+                }
+            } else if (yearCtx?.hasBaseline && yearCtx.avgHoursPerDay > 0) {
+                const hourlyDaysTaken =
+                    yearHolidayHours / yearCtx.avgHoursPerDay
+                const hourlyDaysRemainingRaw =
+                    statutoryHolidayDays - hourlyDaysTaken
+                const hourlyDaysRemaining = Math.max(0, hourlyDaysRemainingRaw)
+                const hourlyOverrun = hourlyDaysRemainingRaw < 0
+                yearHolidayCell =
+                    `${yearHolidayHours.toFixed(2)} hrs<br>` +
+                    `<span class="summary-breakdown">\u2248${hourlyDaysTaken.toFixed(1)} days taken` +
+                    ` / ${hourlyDaysRemaining.toFixed(1)} remaining${hourlyOverrun ? ' (entitlement exceeded)' : ''}</span>`
+            } else {
+                yearHolidayCell = `${yearHolidayHours.toFixed(2)} hrs`
+            }
             return (
                 '<tr>' +
                 `<th><a href="#${yearSummaryAnchor}">${yearKey}</a></th>` +
@@ -715,6 +811,11 @@ export function buildReport(
             validationSummary: validationSummaryResult,
             contributionTotals: contributionTotalsResult,
             contributionRecency,
+            workerProfile: {
+                workerType,
+                typicalDays,
+                statutoryHolidayDays,
+            },
         },
     }
 }
