@@ -380,21 +380,91 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     y = writeCenteredText(`Date range: ${meta.dateRangeLabel || 'Unknown'}`, y)
     y += LINE_GAP
 
-    if (context.missingMonths?.missingMonthsLabel) {
-        y = writeCenteredText(
-            `Missing months: ${stripHtml(context.missingMonths.missingMonthsLabel)}`,
-            y,
-            { fontSize: FONT_SMALL }
-        )
-    }
-
-    if (context.validationSummary?.validationPill) {
-        y = writeCenteredText(
-            stripHtml(context.validationSummary.validationPill),
-            y,
-            { fontSize: FONT_SMALL }
-        )
-    }
+    const pdfCount = context.entries?.length ?? 0
+    const pdfRow = `${meta.dateRangeLabel || 'Unknown'} \u00b7 ${pdfCount} PDF${pdfCount !== 1 ? 's' : ''}`
+    const pensionFileCount =
+        context.contributionSummary?.sourceFiles?.length ?? 0
+    const pensionRow =
+        pensionFileCount > 0
+            ? `${pensionFileCount} file${pensionFileCount !== 1 ? 's' : ''}`
+            : 'None'
+    const wp = context.workerProfile
+    const PDF_MONTH_NAMES = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+    ]
+    const pdfWorkerTypeLabel = wp?.workerType
+        ? wp.workerType.charAt(0).toUpperCase() + wp.workerType.slice(1)
+        : 'Not specified'
+    const pdfLeaveMonthName =
+        PDF_MONTH_NAMES[(wp?.leaveYearStartMonth ?? 4) - 1] || 'April'
+    const workerProfileRow =
+        `Type: ${pdfWorkerTypeLabel} \u00b7 ${wp?.typicalDays ?? 5} days/week` +
+        ` \u00b7 Entitlement: ${wp?.statutoryHolidayDays ?? 28} days/year` +
+        ` \u00b7 Leave year: ${pdfLeaveMonthName}`
+    const pdfMissingStr = context.missingMonths?.missingMonthsLabel
+        ? stripHtml(context.missingMonths.missingMonthsLabel)
+        : 'None'
+    const pdfFlaggedPeriods = context.validationSummary?.flaggedPeriods ?? []
+    const pdfFlaggedStr =
+        pdfFlaggedPeriods.length > 0
+            ? pdfFlaggedPeriods
+                  .map((/** @type {string} */ p) => sanitizeText(stripHtml(p)))
+                  .join(', ')
+            : 'None'
+    const pdfLowConfCount =
+        context.validationSummary?.lowConfidenceEntries?.length ?? 0
+    const metaRows = [
+        ['Payroll', pdfRow],
+        ['Pension', pensionRow],
+        ['Worker profile', workerProfileRow],
+        ['Missing months', pdfMissingStr],
+        ['Flagged periods', pdfFlaggedStr],
+        ['Low confidence', String(pdfLowConfCount)],
+    ]
+    y += LINE_GAP
+    autoTable(doc, {
+        startY: y,
+        head: [],
+        body: metaRows.map((row) => [
+            sanitizeText(row[0]),
+            sanitizeText(row[1]),
+        ]),
+        theme: 'plain',
+        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        tableWidth: maxWidth(doc),
+        columnStyles: {
+            0: {
+                fontStyle: 'bold',
+                textColor: [110, 105, 100],
+                cellWidth: 100,
+            },
+            1: { textColor: [30, 28, 25] },
+        },
+        styles: {
+            font: 'helvetica',
+            fontSize: FONT_SMALL,
+            cellPadding: { top: 2, right: 4, bottom: 2, left: 4 },
+            overflow: 'linebreak',
+            fillColor: [248, 246, 243],
+            lineColor: [215, 210, 202],
+            lineWidth: 0.3,
+        },
+        tableLineColor: [194, 189, 182],
+        tableLineWidth: 0.5,
+    })
+    y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
+    y += SECTION_GAP
 
     const footerY = pageHeight(doc) - PAGE_MARGIN
     doc.setFont('helvetica', 'normal')
@@ -408,17 +478,30 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     )
 
     if (context.contractTypeMismatchWarning) {
-        y += LINE_GAP
+        y += SECTION_GAP
+        const warningText =
+            'WARNING: ' + sanitizeText(context.contractTypeMismatchWarning)
+        const WARN_ACCENT_W = 4
+        const WARN_PAD_H = 10
+        const WARN_PAD_V = 6
+        const warnBoxX = PAGE_MARGIN
+        const warnBoxW = maxWidth(doc)
+        const warnTextX = warnBoxX + WARN_ACCENT_W + WARN_PAD_H
+        const warnAvailWidth = warnBoxW - WARN_ACCENT_W - WARN_PAD_H * 2
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(FONT_SMALL)
-        doc.setTextColor('#a05000')
-        const warningText = sanitizeText(
-            `\u26a0 ${stripHtml(context.contractTypeMismatchWarning)}`
-        )
-        const warningLines = doc.splitTextToSize(warningText, maxWidth(doc))
-        doc.text(warningLines, PAGE_MARGIN, y)
-        y += warningLines.length * FONT_SMALL * 1.3 + LINE_GAP
-        doc.setTextColor('#000000')
+        const warnLines = doc.splitTextToSize(warningText, warnAvailWidth)
+        const warnLineH = FONT_SMALL * 1.3
+        const warnTextH = warnLines.length * warnLineH
+        const warnBoxH = warnTextH + WARN_PAD_V * 2
+        doc.setFillColor(253, 244, 237)
+        doc.roundedRect(warnBoxX, y, warnBoxW, warnBoxH, 2, 2, 'F')
+        doc.setFillColor(194, 84, 45)
+        doc.rect(warnBoxX, y, WARN_ACCENT_W, warnBoxH, 'F')
+        doc.setTextColor(74, 40, 0)
+        doc.text(warnLines, warnTextX, y + WARN_PAD_V + FONT_SMALL)
+        doc.setTextColor(0, 0, 0)
+        y += warnBoxH + SECTION_GAP
     }
 
     y += LINE_GAP
