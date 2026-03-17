@@ -33,8 +33,9 @@
     --info-border: hsl(217deg 89% 61% / 60%);
     --info-bg: hsl(217deg 89% 61% / 8%);
     --info-text: hsl(217deg 58% 32%);
+    --font-fam: 'Space Grotesk', arial, sans-serif;
 
-    font-family: 'Space Grotesk', arial, sans-serif;
+    font-family: var(--font-fam);
 }
 
 a [hidden] {
@@ -616,15 +617,12 @@ button.next-action:hover {
 }
 
 .card header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    align-items: flex-start;
     border-bottom: 1px solid var(--muted);
-    min-height: 50px;
-}
-
-.card > header {
-    margin-top: -5px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .card ul {
@@ -822,12 +820,6 @@ button.hol-calc-btn {
     }
 }
 
-.instructions {
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--muted);
-    padding-bottom: 12px;
-}
-
 .status-panel,
 .upload-panel,
 .controls-loading .card {
@@ -855,15 +847,48 @@ button.hol-calc-btn {
 .worker-profile-fields input,
 .worker-profile-fields select {
     width: 100%;
-    max-width: 280px;
+    max-width: 325px;
     padding: 6px 8px;
     border: 1px solid rgb(30 28 25 / 25%);
     border-radius: 6px;
     font-size: 1em;
     background: var(--card);
+    font-family: var(--font-fam);
 }
 
-.radio-toggle {
+.field select {
+    border: none;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.field .select-wrap {
+    border-radius: 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+    position: relative;
+    background: var(--card);
+}
+
+.field .select-wrap::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--ink);
+    pointer-events: none;
+}
+
+.worker-profile-fields .radio-toggle {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -987,25 +1012,33 @@ button.hol-calc-btn {
     line-height: 1.4;
 }
 
-.use-suggested-btn {
-    display: inline;
-    margin-left: 4px;
-    padding: 1px 7px;
-    font-size: 0.75rem;
-    font-family: inherit;
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    background: transparent;
-    color: var(--accent);
-    cursor: pointer;
-    vertical-align: baseline;
+.field-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    align-items: flex-end;
 }
 
-.use-suggested-btn:disabled {
-    border-color: var(--muted);
-    color: var(--muted);
-    cursor: not-allowed;
-    opacity: 0.55;
+.field-row .field {
+    flex: 1;
+    margin-top: 0;
+}
+
+.field-with-button {
+    display: flex;
+    max-width: 325px;
+    width: 100%;
+    align-items: center;
+    border-radius: 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+}
+
+.disclaimer input {
+    margin-top: 2px;
+}
+
+.disclaimer input[type='checkbox']:focus {
+    outline: none;
 }
 
 .field input {
@@ -1017,6 +1050,63 @@ button.hol-calc-btn {
     font-size: 0.95rem;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+}
+
+.upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    opacity: 0;
+}
+
+.field .field-with-button input {
+    flex: 1;
+    border: 1px transparent;
+}
+
+.field input:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-color: rgb(194 84 45 / 50%);
+}
+
+.field .field-with-button input:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.auto-calculate-btn {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
+}
+
+.auto-calculate-btn:disabled {
+    border-color: var(--muted);
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.auto-calculate-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: white;
 }
 
 .disclaimer {
@@ -1032,14 +1122,6 @@ button.hol-calc-btn {
     outline: 2px solid rgb(194 84 45 / 35%);
     outline-offset: 3px;
     border-radius: 4px;
-}
-
-.disclaimer input {
-    margin-top: 2px;
-}
-
-.disclaimer input[type='checkbox']:focus {
-    outline: none;
 }
 
 .file-count,
@@ -1105,22 +1187,13 @@ button.hol-calc-btn {
     outline-offset: 3px;
 }
 
-.upload input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    border: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    opacity: 0;
-}
-
-.field input:focus {
+.field .select-wrap:focus-within {
     outline: 2px solid rgb(194 84 45 / 35%);
     border-color: rgb(194 84 45 / 50%);
+}
+
+.field select:focus {
+    outline: none;
 }
 
 .upload.disabled {
@@ -1272,6 +1345,13 @@ button.hol-calc-btn {
     display: block;
 }
 
+.field .field-with-button button {
+    margin-left: -1px;
+    border: 1px transparent;
+    border-left: 1px solid rgb(30 28 25 / 20%);
+    border-radius: 0;
+}
+
 .btn-group button:first-child {
     border-radius: 999px 0 0 999px;
 }
@@ -1294,6 +1374,13 @@ button.hol-calc-btn {
     border-left-width: 0;
 }
 
+.field .field-with-button button:hover,
+.field .field-with-button button:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
 .stats {
     list-style: none;
     padding: 0;
@@ -1309,6 +1396,10 @@ button.hol-calc-btn {
 
 .stats span {
     color: var(--muted);
+}
+
+label.field span {
+    padding-inline-start: 6px;
 }
 
 .field.password > span {

@@ -60,7 +60,7 @@ import {
  * @property {string} appVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
- * @property {{ workerType: string, typicalHours: number, typicalDays: number, contractualHours: number, statutoryHolidayDays: number }} workerProfile
+ * @property {{ workerType: string, typicalHours: number, typicalDays: number, contractualHours: number, statutoryHolidayDays: number, leaveYearStartMonth: number }} workerProfile
  * @property {number} holCalcHours
  * @property {number} holCalcRate
  * @property {number} holCalcDaysTaken
@@ -392,6 +392,7 @@ export function initPayrollApp() {
                         typicalDays: 5,
                         contractualHours: 0,
                         statutoryHolidayDays: 28,
+                        leaveYearStartMonth: 4,
                     },
                     holCalcHours: 0,
                     holCalcRate: 0,
@@ -1690,6 +1691,16 @@ export function initPayrollApp() {
                                     'number'
                                         ? parsed.statutoryHolidayDays
                                         : 28,
+                                leaveYearStartMonth:
+                                    typeof parsed.leaveYearStartMonth ===
+                                        'number' &&
+                                    Number.isInteger(
+                                        parsed.leaveYearStartMonth
+                                    ) &&
+                                    parsed.leaveYearStartMonth >= 1 &&
+                                    parsed.leaveYearStartMonth <= 12
+                                        ? parsed.leaveYearStartMonth
+                                        : 4,
                             }
                         }
                     }

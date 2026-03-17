@@ -387,15 +387,22 @@ Note: Sage UK payslips print `Holiday Salary` as a flat amount only — `salary.
 
 The worker profile panel provides optional context that improves report accuracy:
 
-| Field                         | Type                      | Default           | Effect                                                        |
-| ----------------------------- | ------------------------- | ----------------- | ------------------------------------------------------------- |
-| Worker type                   | Radio (hourly / salaried) | hourly            | Controls which fields are shown; used for mismatch detection  |
-| Statutory holiday entitlement | days/year                 | 28 (UK minimum)   | Used to compute days remaining in Annual Totals               |
-| Typical hours per week        | number                    | 0 (hourly only)   | Informational                                                 |
-| Typical days per week         | number                    | 5                 | Used as divisor for `avgHoursPerDay` and salaried `dailyRate` |
-| Contractual hours per week    | number                    | 0 (salaried only) | Stored for future use; not currently used in calculations     |
+| Field                         | Type                      | Default           | Effect                                                                  |
+| ----------------------------- | ------------------------- | ----------------- | ----------------------------------------------------------------------- |
+| Worker type                   | Radio (hourly / salaried) | hourly            | Controls which fields are shown; used for mismatch detection            |
+| Statutory holiday entitlement | days/year                 | 28 (UK minimum)   | Used to compute days remaining in Annual Totals                         |
+| Typical hours per week        | number                    | 0 (hourly only)   | Informational                                                           |
+| Typical days per week         | number                    | 5                 | Used as divisor for `avgHoursPerDay` and salaried `dailyRate`           |
+| Contractual hours per week    | number                    | 0 (salaried only) | Stored for future use; not currently used in calculations               |
+| Holiday year start month      | 1–12                      | 4 (April)         | Controls which holiday hours are grouped together for the days estimate |
 
-None of these fields affect the underlying payslip parsing or the 52-week rolling reference calculation. The calculation engine is payslip-data-driven.
+None of the above fields affect the underlying payslip parsing or the 52-week rolling reference calculation. The calculation engine is payslip-data-driven.
+
+### Leave year grouping
+
+By default, the holiday hours total shown in each Annual Totals row is the sum of `hourly.holiday.units` for all payslips in that **tax year** (April – March). When `leaveYearStartMonth` is set to a different month, the tool instead sums holiday hours from the **leave year** group that the first entry of each tax year belongs to, and appends a **"Leave year: …"** note to the holiday cell.
+
+The 52-week rolling reference average (`avgHoursPerDay`) is computed per entry across all entries regardless of year grouping — it is unaffected by `leaveYearStartMonth`.
 
 ---
 

@@ -76,26 +76,38 @@ Sage UK payslips do not populate `salary.holiday.units` — the holiday amount i
 
 ## Worker Profile Fields Used
 
-| Field                         | Default      | Effect                                            |
-| ----------------------------- | ------------ | ------------------------------------------------- |
-| Worker type                   | hourly       | Must be set to **Salaried** to activate this path |
-| Typical days per week         | 5            | Used in `workingDaysPerMonth` and `dailyRate`     |
-| Statutory holiday entitlement | 28 days/year | Used to compute `daysRemaining`                   |
-| Contractual hours per week    | —            | Not used in salaried calculations                 |
+| Field                         | Default      | Effect                                                                   |
+| ----------------------------- | ------------ | ------------------------------------------------------------------------ |
+| Worker type                   | hourly       | Must be set to **Salaried** to activate this path                        |
+| Typical days per week         | 5            | Used in `workingDaysPerMonth` and `dailyRate`                            |
+| Statutory holiday entitlement | 28 days/year | Used to compute `daysRemaining`                                          |
+| Contractual hours per week    | —            | Not used in salaried calculations                                        |
+| Holiday year start month      | 4 (April)    | Controls which entries are grouped together for the holiday day estimate |
+
+---
+
+## Leave Year Grouping
+
+By default, holiday days taken and remaining are computed per **tax year** (April – March), matching the UK tax year. When a different `leaveYearStartMonth` is set (e.g. 1 for January), the tool groups entries by **leave year** instead for the holiday cell.
+
+For each row in the Annual Totals table (still keyed by tax year), the report looks up the leave year that the first entry of that tax year belongs to and uses all entries in _that leave year_ to compute `yearBasicSalaryAmount`, `yearHolidaySalaryAmount`, and `monthsInYear`. When the leave year differs from the tax year, the cell appends a **"Leave year: …"** note so it is clear which period the estimate covers.
+
+When `leaveYearStartMonth === 4` (the default), the leave year exactly matches the tax year and the note is suppressed.
 
 ---
 
 ## Calculation Pipeline
 
-### Inputs (per tax year)
+### Inputs (per leave year)
 
-| Symbol                    | Source                                                           |
-| ------------------------- | ---------------------------------------------------------------- |
-| `yearBasicSalaryAmount`   | Sum of `salary.basic.amount` across all entries for the year     |
-| `yearHolidaySalaryAmount` | Sum of `salary.holiday.amount` across all entries for the year   |
-| `monthsInYear`            | Count of distinct `monthIndex` values among entries for the year |
-| `typicalDays`             | `workerProfile.typicalDays` (default 5)                          |
-| `statutoryHolidayDays`    | `workerProfile.statutoryHolidayDays` (default 28)                |
+| Symbol                    | Source                                                                     |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `yearBasicSalaryAmount`   | Sum of `salary.basic.amount` across all entries for the leave year         |
+| `yearHolidaySalaryAmount` | Sum of `salary.holiday.amount` across all entries for the leave year       |
+| `monthsInYear`            | Count of distinct `monthIndex` values among entries for the leave year     |
+| `typicalDays`             | `workerProfile.typicalDays` (default 5)                                    |
+| `statutoryHolidayDays`    | `workerProfile.statutoryHolidayDays` (default 28)                          |
+| `leaveYearStartMonth`     | `workerProfile.leaveYearStartMonth` (default 4 — April, matching tax year) |
 
 ---
 

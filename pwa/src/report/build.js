@@ -54,10 +54,10 @@ import {
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
- * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number }} WorkerProfileContext
+ * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number, typicalHours: number | null, contractualHours: number | null }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number }, contractTypeMismatchWarning: string | null }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number, typicalHours: number | null, contractualHours: number | null }, contractTypeMismatchWarning: string | null }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -92,7 +92,7 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @param {{ typicalDays?: number, workerType?: string, contractualHours?: number, statutoryHolidayDays?: number } | null} [workerProfile=null]
+ * @param {{ typicalDays?: number, workerType?: string, typicalHours?: number, contractualHours?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} [workerProfile=null]
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
@@ -105,8 +105,15 @@ export function buildReport(
         throw new Error('No payroll records provided')
     }
     const reportRunDate = new Date()
+    const rawLeaveYear = workerProfile?.leaveYearStartMonth ?? 4
+    const leaveYearStartMonth =
+        Number.isInteger(rawLeaveYear) &&
+        rawLeaveYear >= 1 &&
+        rawLeaveYear <= 12
+            ? rawLeaveYear
+            : 4
     /** @type {ReportEntry[]} */
-    const entries = buildReportEntries(records)
+    const entries = buildReportEntries(records, leaveYearStartMonth)
 
     entries.forEach((entry) => {
         entry.validation = buildValidation(entry)
@@ -168,6 +175,17 @@ export function buildReport(
         const yearEntries = yearGroups.get(key)
         if (yearEntries) {
             yearEntries.push(entry)
+        }
+    })
+    const leaveYearGroups = new Map()
+    entries.forEach((entry) => {
+        const key = /** @type {any} */ (entry).leaveYearKey ?? 'Unknown'
+        if (!leaveYearGroups.has(key)) {
+            leaveYearGroups.set(key, [])
+        }
+        const lyEntries = leaveYearGroups.get(key)
+        if (lyEntries) {
+            lyEntries.push(entry)
         }
     })
     const yearKeys = Array.from(yearGroups.keys())
@@ -382,6 +400,38 @@ export function buildReport(
               .join('<br>')
         : '<span class="validation-none">None</span>'
 
+    const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+    ]
+    const leaveYearStartMonthName =
+        monthNames[leaveYearStartMonth - 1] || 'April'
+    const workerTypeLabel = workerType
+        ? workerType.charAt(0).toUpperCase() + workerType.slice(1)
+        : 'Not specified'
+    const typicalHours = workerProfile?.typicalHours ?? null
+    const contractualHours = workerProfile?.contractualHours ?? null
+
+    const workerProfileHtml =
+        `<b>Type:</b> ${workerTypeLabel}` +
+        (workerType === 'hourly' && typicalHours
+            ? ` &nbsp;\u00b7&nbsp; <b>Typical hours:</b> ${typicalHours}/week`
+            : '') +
+        (workerType === 'salary' && contractualHours
+            ? ` &nbsp;\u00b7&nbsp; <b>Contractual hours:</b> ${contractualHours}/week`
+            : '') +
+        `<br><b>Typical days:</b> ${typicalDays}/week &nbsp;\u00b7&nbsp; <b>Holiday entitlement:</b> ${statutoryHolidayDays} days/year &nbsp;\u00b7&nbsp; <b>Leave year starts:</b> ${leaveYearStartMonthName}`
+
     reportSections.push('<div class="page">')
     reportSections.push(
         `<div class="report-meta">` +
@@ -392,6 +442,7 @@ export function buildReport(
             `<table class="report-meta-table ">` +
             `<tr><th>Payroll:</th><td>${dateRangeLabel} &nbsp;\u00b7&nbsp; ${pdfCountLabel}</td></tr>` +
             `<tr><th>Pension:</th><td>${contributionMeta.fileCount ? `${contributionMeta.dateRangeLabel} &nbsp;\u00b7&nbsp; ${pensionFileLabel}` : 'None'}</td></tr>` +
+            `<tr><th>Worker profile:</th><td>${workerProfileHtml}</td></tr>` +
             `<tr><th>Missing payroll months:</th><td>${missingMonthsTableHtml}</td></tr>` +
             `<tr><th>Flagged periods:</th><td>${flaggedPeriodsHtml}</td></tr>` +
             `<tr><th>Low confidence periods:</th><td>${lowConfidenceHtml}</td></tr>` +
@@ -419,21 +470,6 @@ export function buildReport(
                         (entry.record.payrollDoc?.payments?.hourly?.basic
                             ?.units || 0)
                     )
-                },
-                0
-            )
-            const yearHolidayHours = entriesForYear.reduce(
-                (
-                    /** @type {number} */ acc,
-                    /** @type {ReportEntry} */ entry
-                ) => {
-                    const hh =
-                        entry.record.payrollDoc?.payments?.hourly?.holiday
-                            ?.units || 0
-                    const hs =
-                        entry.record.payrollDoc?.payments?.salary?.holiday
-                            ?.units || 0
-                    return acc + hh + hs
                 },
                 0
             )
@@ -488,12 +524,38 @@ export function buildReport(
                 yearReportedContribution === 0
             const flagIcon = hasFlags ? '⚠︎' : '—'
             const yearSummaryAnchor = `year-summary-${formatYearAnchor(yearKey)}`
-            const firstEntryCtx = /** @type {any} */ (entriesForYear[0])
-            const yearCtx = firstEntryCtx?.holidayContext
+            const firstLeaveYearKey =
+                /** @type {any} */ (entriesForYear[0])?.leaveYearKey ?? null
+            const holidayEntries =
+                leaveYearStartMonth !== 4 && firstLeaveYearKey
+                    ? leaveYearGroups.get(firstLeaveYearKey) || entriesForYear
+                    : entriesForYear
+            const yearCtx = /** @type {any} */ (entriesForYear[0])
+                ?.holidayContext
+            const leaveYearNote =
+                leaveYearStartMonth !== 4 && firstLeaveYearKey
+                    ? `<br><span class="summary-breakdown">Leave year: ${firstLeaveYearKey}</span>`
+                    : ''
+
+            const leaveYearHolidayHours = holidayEntries.reduce(
+                (
+                    /** @type {number} */ acc,
+                    /** @type {ReportEntry} */ entry
+                ) => {
+                    const hh =
+                        entry.record.payrollDoc?.payments?.hourly?.holiday
+                            ?.units || 0
+                    const hs =
+                        entry.record.payrollDoc?.payments?.salary?.holiday
+                            ?.units || 0
+                    return acc + hh + hs
+                },
+                0
+            )
 
             let yearHolidayCell
             if (workerType === 'salary') {
-                const yearBasicSalaryAmount = entriesForYear.reduce(
+                const yearBasicSalaryAmount = holidayEntries.reduce(
                     (
                         /** @type {number} */ acc,
                         /** @type {ReportEntry} */ entry
@@ -503,7 +565,7 @@ export function buildReport(
                             ?.amount || 0),
                     0
                 )
-                const yearHolidaySalaryAmount = entriesForYear.reduce(
+                const yearHolidaySalaryAmount = holidayEntries.reduce(
                     (
                         /** @type {number} */ acc,
                         /** @type {ReportEntry} */ entry
@@ -514,7 +576,7 @@ export function buildReport(
                     0
                 )
                 const monthsInYear = new Set(
-                    entriesForYear.map(
+                    holidayEntries.map(
                         (/** @type {ReportEntry} */ entry) => entry.monthIndex
                     )
                 ).size
@@ -544,23 +606,27 @@ export function buildReport(
                     yearHolidayCell =
                         `${formatCurrency(yearHolidaySalaryAmount)}<br>` +
                         `<span class="summary-breakdown">\u2248${salaryDaysTaken.toFixed(1)} days taken` +
-                        ` / ${salaryDaysRemaining !== null ? salaryDaysRemaining.toFixed(1) : '?'} remaining${salaryOverrun ? ' (entitlement exceeded)' : ''}</span>`
+                        ` / ${salaryDaysRemaining !== null ? salaryDaysRemaining.toFixed(1) : '?'} remaining${salaryOverrun ? ' (entitlement exceeded)' : ''}</span>` +
+                        leaveYearNote
                 } else {
-                    yearHolidayCell = formatCurrency(yearHolidaySalaryAmount)
+                    yearHolidayCell =
+                        formatCurrency(yearHolidaySalaryAmount) + leaveYearNote
                 }
             } else if (yearCtx?.hasBaseline && yearCtx.avgHoursPerDay > 0) {
                 const hourlyDaysTaken =
-                    yearHolidayHours / yearCtx.avgHoursPerDay
+                    leaveYearHolidayHours / yearCtx.avgHoursPerDay
                 const hourlyDaysRemainingRaw =
                     statutoryHolidayDays - hourlyDaysTaken
                 const hourlyDaysRemaining = Math.max(0, hourlyDaysRemainingRaw)
                 const hourlyOverrun = hourlyDaysRemainingRaw < 0
                 yearHolidayCell =
-                    `${yearHolidayHours.toFixed(2)} hrs<br>` +
+                    `${leaveYearHolidayHours.toFixed(2)} hrs<br>` +
                     `<span class="summary-breakdown">\u2248${hourlyDaysTaken.toFixed(1)} days taken` +
-                    ` / ${hourlyDaysRemaining.toFixed(1)} remaining${hourlyOverrun ? ' (entitlement exceeded)' : ''}</span>`
+                    ` / ${hourlyDaysRemaining.toFixed(1)} remaining${hourlyOverrun ? ' (entitlement exceeded)' : ''}</span>` +
+                    leaveYearNote
             } else {
-                yearHolidayCell = `${yearHolidayHours.toFixed(2)} hrs`
+                yearHolidayCell =
+                    `${leaveYearHolidayHours.toFixed(2)} hrs` + leaveYearNote
             }
             return (
                 '<tr>' +
@@ -832,6 +898,9 @@ export function buildReport(
                 workerType,
                 typicalDays,
                 statutoryHolidayDays,
+                leaveYearStartMonth,
+                typicalHours,
+                contractualHours,
             },
             contractTypeMismatchWarning,
         },
@@ -1494,8 +1563,8 @@ function renderYearSummary(entriesForYear, openingBalance) {
         showBalanceRows && openingBalance !== 0
             ? '<tr>' +
               '<th>Opening Balance</th>' +
-              '<td colspan="3"></td>' +
-              `<td colspan="2">${formatDiff(openingBalance)}</td>` +
+              '<td colspan="4"></td>' +
+              `<td colspan="1">${formatDiff(openingBalance)}</td>` +
               '<td>—</td>' +
               '</tr>'
             : ''
@@ -1503,8 +1572,8 @@ function renderYearSummary(entriesForYear, openingBalance) {
         showBalanceRows && closingBalance !== null
             ? '<tr>' +
               '<th>Closing Balance</th>' +
-              '<td colspan="3"></td>' +
-              `<td colspan="2">${formatDiff(closingBalance)}</td>` +
+              '<td colspan="4"></td>' +
+              `<td colspan="1">${formatDiff(closingBalance)}</td>` +
               '<td>—</td>' +
               '</tr>'
             : ''

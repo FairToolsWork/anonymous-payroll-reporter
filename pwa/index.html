@@ -845,7 +845,7 @@
                                         d="M16.5 19q1.05 0 1.775-.725T19 16.5t-.725-1.775T16.5 14t-1.775.725T14 16.5t.725 1.775T16.5 19m5.8 3.3q-.275.275-.7.275t-.7-.275l-2-2q-.525.35-1.137.525T16.5 21q-1.875 0-3.187-1.312T12 16.5t1.313-3.187T16.5 12t3.188 1.313T21 16.5q0 .65-.175 1.263T20.3 18.9l2 2q.275.275.275.7t-.275.7M5 22q-.825 0-1.412-.587T3 20V4q0-.825.588-1.412T5 2h7.175q.4 0 .763.15t.637.425l4.85 4.85q.275.275.425.638t.15.762v.45q0 .45-.363.725t-.812.15q-.325-.075-.65-.113T16.5 10q-2.95 0-4.75 2t-1.8 4.525q0 1.1.388 2.175t1.212 2.025q.35.375.162.825t-.637.45zm7-18v4q0 .425.288.713T13 9h4zl5 5z"
                                     />
                                 </svg>
-                                <h3>Upload Payslips &amp; Pension docs</h3>
+                                <h3>Upload Payslips + Pension docs</h3>
                             </header>
                             <ul>
                                 <li>
@@ -853,8 +853,8 @@
                                     required)
                                 </li>
                                 <li>
-                                    Upload your payroll and pension documents
-                                    (optional)
+                                    Upload your payroll and (optional) pension
+                                    documents
                                 </li>
                             </ul>
                         </div>
@@ -1342,6 +1342,164 @@
                 </div>
             </section>
             <section class="controls" v-cloak="">
+                <div class="card worker-profile-panel">
+                    <header>
+                        <h2>
+                            1: Worker Profile
+                            <span class="optional-label">(optional)</span>
+                        </h2>
+                        <p>
+                            These details help <i>estimate</i> how many days of
+                            holiday your payslips represent.
+                        </p>
+                    </header>
+                    <div class="worker-profile-fields">
+                        <div class="field">
+                            <span>Worker type</span>
+                            <div class="radio-toggle">
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        value="hourly"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Hourly</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        value="salary"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Salaried</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div
+                            class="field-row"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
+                            <label class="field">
+                                <span
+                                    >Hours per week
+                                    <em>(informational)</em></span
+                                >
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="168"
+                                    step="0.5"
+                                    placeholder="e.g. 30"
+                                    autocomplete="off"
+                                    v-model.number="workerProfile.typicalHours"
+                                />
+                            </label>
+                            <label class="field">
+                                <span>Days per week</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="7"
+                                    step="1"
+                                    placeholder="e.g. 5"
+                                    autocomplete="off"
+                                    v-model.number="workerProfile.typicalDays"
+                                />
+                            </label>
+                        </div>
+
+                        <div
+                            class="field-row"
+                            v-show="workerProfile.workerType === 'salary'"
+                        >
+                            <label class="field">
+                                <span>Hours per week <i>(contractual)</i></span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="168"
+                                    step="0.5"
+                                    placeholder="e.g. 37.5"
+                                    autocomplete="off"
+                                    v-model.number="workerProfile.contractualHours"
+                                />
+                            </label>
+                            <label class="field">
+                                <span>Days per week</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="7"
+                                    step="1"
+                                    placeholder="e.g. 5"
+                                    autocomplete="off"
+                                    v-model.number="workerProfile.typicalDays"
+                                />
+                            </label>
+                        </div>
+                        <label class="field">
+                            <span
+                                >Statutory holiday entitlement (days/year)</span
+                            >
+                            <div class="field-with-button">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    step="any"
+                                    placeholder="e.g. 28"
+                                    autocomplete="off"
+                                    v-model.number="workerProfile.statutoryHolidayDays"
+                                />
+                                <button
+                                    type="button"
+                                    class="auto-calculate-btn"
+                                    :disabled="workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
+                                    @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
+                                >
+                                    Auto calculate
+                                </button>
+                            </div>
+                            <span class="field-hint">
+                                Statutory minimum for {{
+                                workerProfile.typicalDays }}d/week:
+                                <strong
+                                    >{{ suggestedStatutoryDays }} days</strong
+                                >
+                                <br />
+                                (5.6 × days/week, capped at 28)
+                            </span>
+                        </label>
+                        <label class="field">
+                            <span>Holiday year start month</span>
+                            <div class="select-wrap">
+                                <select
+                                    v-model.number="workerProfile.leaveYearStartMonth"
+                                >
+                                    <option :value="1">January</option>
+                                    <option :value="2">February</option>
+                                    <option :value="3">March</option>
+                                    <option :value="4">
+                                        April (default — matches tax year)
+                                    </option>
+                                    <option :value="5">May</option>
+                                    <option :value="6">June</option>
+                                    <option :value="7">July</option>
+                                    <option :value="8">August</option>
+                                    <option :value="9">September</option>
+                                    <option :value="10">October</option>
+                                    <option :value="11">November</option>
+                                    <option :value="12">December</option>
+                                </select>
+                            </div>
+                            <span class="field-hint"
+                                >The month your holiday year begins - this
+                                should appear in your contract, or your ask your
+                                manager.
+                            </span>
+                        </label>
+                    </div>
+                </div>
                 <div
                     class="card upload-panel"
                     :class="{ 'is-drop-active': dragActive }"
@@ -1356,18 +1514,13 @@
                             <span>Release files to add them to the queue</span>
                         </div>
                     </div>
-                    <h2>1: Upload Payslips &amp; Pension docs</h2>
-                    <div class="instructions">
+                    <header>
+                        <h2>2: Payslips &amp; Pension</h2>
                         <p>
-                            Drag and drop your Payroll PDFs and Pension files
-                            here or choose multiple files.
+                            Drag &amp; drop / choose your Payroll and (optional)
+                            Pension files.
                         </p>
-                        <p class="notice">
-                            <b>Note:</b> Pension files are optional; if you
-                            don't have them, the report will skip pension
-                            comparisons.
-                        </p>
-                    </div>
+                    </header>
                     <label class="field password">
                         <span>PDF password</span>
                         <input
@@ -1419,150 +1572,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="card worker-profile-panel">
-                    <h2>
-                        2: Worker Profile
-                        <span class="optional-label">(optional)</span>
-                    </h2>
-                    <div class="instructions">
-                        <p class="notice">
-                            These details help <i>estimate</i> how many days of
-                            holiday your payslips represent. Leave at defaults
-                            if unsure — the report will still run without them.
-                            <span v-if="workerProfile.workerType === 'hourly'">
-                                For <b>hourly workers</b> they also enable
-                                holiday underpayment rate checks.
-                            </span>
-                            <span v-else="">
-                                <b>Salaried workers:</b> days are estimated from
-                                monthly salary figures and your typical
-                                days/week.
-                            </span>
-                        </p>
-                    </div>
-                    <div class="worker-profile-fields">
-                        <div class="field">
-                            <span>Worker type</span>
-                            <div class="radio-toggle">
-                                <label class="radio-option">
-                                    <input
-                                        type="radio"
-                                        value="hourly"
-                                        v-model="workerProfile.workerType"
-                                    />
-                                    <span>Hourly</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input
-                                        type="radio"
-                                        value="salary"
-                                        v-model="workerProfile.workerType"
-                                    />
-                                    <span>Salaried</span>
-                                </label>
-                            </div>
-                        </div>
-                        <label
-                            class="field"
-                            v-show="workerProfile.workerType === 'hourly'"
-                        >
-                            <span
-                                >Typical hours per week
-                                <em>(informational)</em></span
-                            >
-                            <input
-                                type="number"
-                                min="0"
-                                max="168"
-                                step="0.5"
-                                placeholder="e.g. 30"
-                                autocomplete="off"
-                                v-model.number="workerProfile.typicalHours"
-                            />
-                        </label>
-                        <label
-                            class="field"
-                            v-show="workerProfile.workerType === 'hourly'"
-                        >
-                            <span>Typical days per week</span>
-                            <input
-                                type="number"
-                                min="1"
-                                max="7"
-                                step="1"
-                                placeholder="e.g. 5"
-                                autocomplete="off"
-                                v-model.number="workerProfile.typicalDays"
-                            />
-                        </label>
-                        <label
-                            class="field"
-                            v-show="workerProfile.workerType === 'salary'"
-                        >
-                            <span>Contractual hours per week</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max="168"
-                                step="0.5"
-                                placeholder="e.g. 37.5"
-                                autocomplete="off"
-                                v-model.number="workerProfile.contractualHours"
-                            />
-                        </label>
-                        <label
-                            class="field"
-                            v-show="workerProfile.workerType === 'salary'"
-                        >
-                            <span>Typical days per week</span>
-                            <input
-                                type="number"
-                                min="1"
-                                max="7"
-                                step="1"
-                                placeholder="e.g. 5"
-                                autocomplete="off"
-                                v-model.number="workerProfile.typicalDays"
-                            />
-                        </label>
-                        <label class="field">
-                            <span
-                                >Statutory holiday entitlement (days/year)</span
-                            >
-                            <input
-                                type="number"
-                                min="1"
-                                max="365"
-                                step="any"
-                                placeholder="e.g. 28"
-                                autocomplete="off"
-                                v-model.number="workerProfile.statutoryHolidayDays"
-                            />
-                            <span class="field-hint">
-                                Statutory minimum for {{
-                                workerProfile.typicalDays }}d/week:
-                                <strong
-                                    >{{ suggestedStatutoryDays }} days</strong
-                                >
-                                (5.6 × days/week, capped at 28).
-                                <button
-                                    type="button"
-                                    class="use-suggested-btn"
-                                    :disabled="workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
-                                    @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
-                                >
-                                    Use suggested
-                                </button>
-                            </span>
-                        </label>
-                    </div>
-                </div>
                 <div class="card status-panel">
-                    <h2>3: Run &amp; Review</h2>
-                    <p class="instructions" v-if="status === 'idle'">
-                        Once your files are selected, run the report, and the
-                        results will appear below.
-                    </p>
+                    <header>
+                        <h2>3: Run &amp; Review</h2>
+                        <p>
+                            Once your files are selected, run the report, and
+                            the results will appear below.
+                        </p>
+                    </header>
                     <div class="run-actions">
                         <label class="disclaimer inline">
                             <input

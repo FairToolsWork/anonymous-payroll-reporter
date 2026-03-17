@@ -99,6 +99,64 @@ export function getTaxYearSortKey(yearKey) {
 }
 
 /**
+ * Returns a leave-year key for the given date, using a configurable start
+ * month (1-indexed: 1=January, 4=April). The leave year is assumed to start
+ * on the 1st of the given month. When startMonth is 1 the leave year aligns
+ * with the calendar year and the key is a plain four-digit year string (e.g.
+ * "2023"); otherwise it uses the same "YYYY/YY" cross-year format as the tax
+ * year (e.g. "2023/24").
+ *
+ * @param {Date | null} date
+ * @param {number} startMonth - 1-indexed month number (1=January … 12=December)
+ * @returns {string}
+ */
+export function getLeaveYearKey(date, startMonth) {
+    if (!date) {
+        return 'Unknown'
+    }
+    if (
+        startMonth === 4 ||
+        !Number.isInteger(startMonth) ||
+        startMonth < 1 ||
+        startMonth > 12
+    ) {
+        return getTaxYearKey(date)
+    }
+    const startMonthIndex = startMonth - 1
+    const year = date.getFullYear()
+    const monthIndex = date.getMonth()
+    const startYear = monthIndex >= startMonthIndex ? year : year - 1
+    if (startMonth === 1) {
+        return String(startYear)
+    }
+    return formatTaxYearLabel(startYear)
+}
+
+/**
+ * Returns a numeric sort key for a leave-year key produced by
+ * {@link getLeaveYearKey}. Handles both "YYYY/YY" and plain "YYYY" formats.
+ *
+ * @param {string | number} leaveYearKey
+ * @returns {number}
+ */
+export function getLeaveYearSortKey(leaveYearKey) {
+    if (!leaveYearKey || leaveYearKey === 'Unknown') {
+        return 9999
+    }
+    const slashMatch = String(leaveYearKey).match(/^(\d{4})\//)
+    if (slashMatch) {
+        const parsed = Number.parseInt(slashMatch[1], 10)
+        return Number.isNaN(parsed) ? 9999 : parsed
+    }
+    const yearMatch = String(leaveYearKey).match(/^(\d{4})$/)
+    if (yearMatch) {
+        const parsed = Number.parseInt(yearMatch[1], 10)
+        return Number.isNaN(parsed) ? 9999 : parsed
+    }
+    return 9999
+}
+
+/**
  * @param {Date | null} date
  * @returns {number | null}
  */

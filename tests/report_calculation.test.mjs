@@ -8,6 +8,7 @@ import {
     sumPayments,
 } from '../pwa/src/report/hourly_pay_calculations.js'
 import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
+import { buildReportEntries } from '../pwa/src/report/report_calculations.js'
 import {
     buildMissingMonthsWithRange,
     formatDateKey,
@@ -1106,5 +1107,342 @@ describe('workerProfile — salaried holiday day estimation', () => {
             statutoryHolidayDays: 28,
         })
         expect(html).not.toContain('report-warning-banner')
+    })
+})
+
+function buildMinimalRecord(processDateStr) {
+    return {
+        employee: { natInsNumber: null },
+        payrollDoc: {
+            processDate: { date: processDateStr },
+            deductions: {
+                payeTax: { amount: 0 },
+                natIns: { amount: 0 },
+                pensionEE: { amount: 0 },
+                pensionER: { amount: 0 },
+                misc: [],
+            },
+            payments: {
+                hourly: {
+                    basic: { units: 0, rate: null, amount: 0 },
+                    holiday: { units: null, rate: null, amount: null },
+                },
+                salary: {
+                    basic: { amount: 0 },
+                    holiday: { amount: null, units: null, rate: null },
+                },
+                misc: [],
+            },
+            taxCode: { code: '' },
+            thisPeriod: { totalGrossPay: { amount: 0 } },
+            netPay: { amount: 0 },
+        },
+    }
+}
+
+describe('buildReportEntries — leaveYearKey', () => {
+    it('defaults to April start: leaveYearKey matches yearKey for a mid-tax-year date', () => {
+        const [entry] = buildReportEntries([
+            buildMinimalRecord('15/05/25 - 31/05/25'),
+        ])
+        expect(entry.leaveYearKey).toBe('2025/26')
+        expect(entry.yearKey).toBe('2025/26')
+    })
+
+    it('explicit leaveYearStartMonth=4 matches tax year key', () => {
+        const [entry] = buildReportEntries(
+            [buildMinimalRecord('15/11/25 - 30/11/25')],
+            4
+        )
+        expect(entry.leaveYearKey).toBe('2025/26')
+        expect(entry.yearKey).toBe('2025/26')
+    })
+
+    it('leaveYearStartMonth=1 (January): April payslip gives calendar-year leaveYearKey', () => {
+        const [entry] = buildReportEntries(
+            [buildMinimalRecord('15/04/25 - 30/04/25')],
+            1
+        )
+        expect(entry.leaveYearKey).toBe('2025')
+        expect(entry.yearKey).toBe('2025/26')
+    })
+
+    it('leaveYearStartMonth=1: January payslip is in leave year 2025 but tax year 2024/25', () => {
+        const [entry] = buildReportEntries(
+            [buildMinimalRecord('15/01/25 - 31/01/25')],
+            1
+        )
+        expect(entry.leaveYearKey).toBe('2025')
+        expect(entry.yearKey).toBe('2024/25')
+    })
+
+    it('leaveYearStartMonth=6 (June): April payslip falls in prior leave year, different from its tax year', () => {
+        const [entry] = buildReportEntries(
+            [buildMinimalRecord('15/04/25 - 30/04/25')],
+            6
+        )
+        expect(entry.leaveYearKey).toBe('2024/25')
+        expect(entry.yearKey).toBe('2025/26')
+    })
+
+    it('leaveYearStartMonth=6: June payslip starts a new leave year', () => {
+        const [entry] = buildReportEntries(
+            [buildMinimalRecord('15/06/25 - 30/06/25')],
+            6
+        )
+        expect(entry.leaveYearKey).toBe('2025/26')
+        expect(entry.yearKey).toBe('2025/26')
+    })
+
+    it('unparseable processDate: leaveYearKey and yearKey are both null', () => {
+        const [entry] = buildReportEntries([buildMinimalRecord('not-a-date')])
+        expect(entry.leaveYearKey).toBeNull()
+        expect(entry.yearKey).toBeNull()
+    })
+})
+
+function buildLeaveYearSalaryRecord(dateRangeStr, basicSalary, holidaySalary) {
+    return {
+        employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+        payrollDoc: {
+            deductions: {
+                payeTax: { amount: 0 },
+                natIns: { amount: 0 },
+                pensionEE: { amount: 0 },
+                pensionER: { amount: 0 },
+                misc: [],
+            },
+            payments: {
+                hourly: {
+                    basic: { units: 0, rate: null, amount: 0 },
+                    holiday: { units: null, rate: null, amount: null },
+                },
+                salary: {
+                    basic: { amount: basicSalary },
+                    holiday: { amount: holidaySalary, units: null, rate: null },
+                },
+                misc: [],
+            },
+            taxCode: { code: '1257L' },
+            thisPeriod: {
+                totalGrossPay: { amount: basicSalary + holidaySalary },
+            },
+            netPay: { amount: basicSalary + holidaySalary },
+            processDate: { date: dateRangeStr },
+        },
+    }
+}
+
+function buildLeaveYearHourlyRecord(dateRangeStr, holidayUnits) {
+    return {
+        employee: { natInsNumber: 'AB123456C', name: 'Test Worker' },
+        payrollDoc: {
+            deductions: {
+                payeTax: { amount: 0 },
+                natIns: { amount: 0 },
+                pensionEE: { amount: 0 },
+                pensionER: { amount: 0 },
+                misc: [],
+            },
+            payments: {
+                hourly: {
+                    basic: { units: 100, rate: 10, amount: 1000 },
+                    holiday: {
+                        units: holidayUnits,
+                        rate: 10,
+                        amount: holidayUnits * 10,
+                    },
+                },
+                salary: {
+                    basic: { amount: 0 },
+                    holiday: { amount: 0, units: null, rate: null },
+                },
+                misc: [],
+            },
+            taxCode: { code: '1257L' },
+            thisPeriod: {
+                totalGrossPay: { amount: 1000 + holidayUnits * 10 },
+            },
+            netPay: { amount: 1000 + holidayUnits * 10 },
+            processDate: { date: dateRangeStr },
+        },
+    }
+}
+
+describe('leaveYearStartMonth — buildReport holiday cell grouping', () => {
+    it('leave year note absent when leaveYearStartMonth=4 (default match with tax year)', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 4,
+        })
+        expect(html).not.toContain('Leave year:')
+    })
+
+    it('leave year note absent when leaveYearStartMonth is not provided (defaults to 4)', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        expect(html).not.toContain('Leave year:')
+    })
+
+    it('leave year note rendered in holiday cell when leaveYearStartMonth=1', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 1,
+        })
+        expect(html).toContain('Leave year: 2025')
+    })
+
+    it('context.workerProfile.leaveYearStartMonth is propagated into report context', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 3,
+        })
+        expect(context.workerProfile.leaveYearStartMonth).toBe(3)
+    })
+
+    it('context.workerProfile.leaveYearStartMonth defaults to 4 when no workerProfile is passed', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { context } = buildReport(records)
+        expect(context.workerProfile.leaveYearStartMonth).toBe(4)
+    })
+
+    it('salaried: holiday cell sums only the leave year entries, not the full tax year', () => {
+        // April 2025 → tax year 2025/26, leave year 2025 (Jan start)
+        // January 2026 → tax year 2025/26, leave year 2026 (Jan start)
+        // With leaveYearStartMonth=1, the holiday cell for 2025/26 uses only the April entry (leave year 2025)
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 300),
+            buildLeaveYearSalaryRecord('15/01/26 - 31/01/26', 2000, 200),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 1,
+        })
+        expect(html).toContain('£300.00')
+        expect(html).not.toContain('£500.00')
+    })
+
+    it('salaried: holiday cell sums all tax year entries when leaveYearStartMonth=4', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 300),
+            buildLeaveYearSalaryRecord('15/01/26 - 31/01/26', 2000, 200),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 4,
+        })
+        expect(html).toContain('£500.00')
+    })
+
+    it('hourly: holiday hours cell reflects only the leave year entries when leaveYearStartMonth=1', () => {
+        // April 2025 → leave year 2025 (8 hrs), January 2026 → leave year 2026 (4 hrs)
+        // With leaveYearStartMonth=1, tax year 2025/26 cell shows 8.00 hrs (not 12.00)
+        const records = [
+            buildLeaveYearHourlyRecord('15/04/25 - 30/04/25', 8),
+            buildLeaveYearHourlyRecord('15/01/26 - 31/01/26', 4),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 1,
+        })
+        expect(html).toContain('8.00 hrs')
+        expect(html).not.toContain('12.00 hrs')
+    })
+
+    it('hourly: holiday hours cell sums all tax year entries when leaveYearStartMonth=4', () => {
+        const records = [
+            buildLeaveYearHourlyRecord('15/04/25 - 30/04/25', 8),
+            buildLeaveYearHourlyRecord('15/01/26 - 31/01/26', 4),
+        ]
+        const { html } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 4,
+        })
+        expect(html).toContain('12.00 hrs')
+    })
+
+    it('invalid leaveYearStartMonth (0) is normalised to 4: no leave year note, context shows 4', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 0,
+        })
+        expect(context.workerProfile.leaveYearStartMonth).toBe(4)
+        expect(html).not.toContain('Leave year:')
+    })
+
+    it('invalid leaveYearStartMonth (13) is normalised to 4: no leave year note, context shows 4', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 13,
+        })
+        expect(context.workerProfile.leaveYearStartMonth).toBe(4)
+        expect(html).not.toContain('Leave year:')
+    })
+
+    it('invalid leaveYearStartMonth (NaN) is normalised to 4: context shows 4', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: NaN,
+        })
+        expect(context.workerProfile.leaveYearStartMonth).toBe(4)
+    })
+
+    it('invalid leaveYearStartMonth (2.5) is normalised to 4: context shows 4', () => {
+        const records = [
+            buildLeaveYearSalaryRecord('15/04/25 - 30/04/25', 2000, 0),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            leaveYearStartMonth: 2.5,
+        })
+        expect(context.workerProfile.leaveYearStartMonth).toBe(4)
     })
 })
