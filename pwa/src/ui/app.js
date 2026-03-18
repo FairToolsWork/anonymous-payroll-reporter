@@ -60,7 +60,8 @@ import {
  * @property {string} appVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
- * @property {{ workerType: string, typicalHours: number, typicalDays: number, contractualHours: number, statutoryHolidayDays: number, leaveYearStartMonth: number }} workerProfile
+ * @property {{ workerType: string, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }} workerProfile
+ * @property {boolean} _updatingWorkerProfile
  * @property {number} holCalcHours
  * @property {number} holCalcRate
  * @property {number} holCalcDaysTaken
@@ -85,7 +86,10 @@ import {
  *     holCalcExpectedPay: string,
  *     canRunReport: boolean,
  *     canShare: boolean,
- *     suggestedStatutoryDays: number,
+ *     suggestedStatutoryDays: number | null,
+ *     isZeroHoursWorker: boolean,
+ *     statutoryHolidayInputValue: string | number,
+ *     updateStatutoryHolidayDays(event: Event): void,
  *     sharePdf(): Promise<void>,
  *     _onOnline: (() => void),
  *     _onOffline: (() => void),
@@ -388,12 +392,11 @@ export function initPayrollApp() {
                     },
                     workerProfile: {
                         workerType: 'hourly',
-                        typicalHours: 0,
                         typicalDays: 5,
-                        contractualHours: 0,
                         statutoryHolidayDays: 28,
                         leaveYearStartMonth: 4,
                     },
+                    _updatingWorkerProfile: false,
                     holCalcHours: 0,
                     holCalcRate: 0,
                     holCalcDaysTaken: 1,
@@ -507,13 +510,26 @@ export function initPayrollApp() {
                         return false
                     }
                 },
-                /** @this {PayrollAppInstance} @returns {number} */
+                /** @this {PayrollAppInstance} @returns {number | null} */
                 suggestedStatutoryDays() {
-                    const days =
-                        this.workerProfile?.typicalDays > 0
-                            ? this.workerProfile.typicalDays
-                            : 5
-                    return Math.round(Math.min(5.6 * days, 28) * 10) / 10
+                    const days = this.workerProfile?.typicalDays
+                    if (days && days > 0) {
+                        return Math.round(Math.min(5.6 * days, 28) * 10) / 10
+                    }
+                    return null
+                },
+                /** @this {PayrollAppInstance} @returns {boolean} */
+                isZeroHoursWorker() {
+                    return (
+                        this.workerProfile.workerType === 'hourly' &&
+                        this.workerProfile.typicalDays === 0
+                    )
+                },
+                /** @this {PayrollAppInstance} @returns {string | number} */
+                statutoryHolidayInputValue() {
+                    return this.isZeroHoursWorker
+                        ? ''
+                        : this.workerProfile.statutoryHolidayDays
                 },
             },
             watch: {
@@ -534,16 +550,74 @@ export function initPayrollApp() {
                 },
                 /** @this {PayrollAppInstance} @param {number} newDays @param {number} oldDays */
                 'workerProfile.typicalDays'(newDays, oldDays) {
+                    if (this._updatingWorkerProfile) {
+                        return
+                    }
+                    // Use fallback of 5 for prevSuggestion to preserve auto-update when returning from 0
                     const prevSuggestion =
                         Math.round(Math.min(5.6 * (oldDays || 5), 28) * 10) / 10
+                    const newSuggestion =
+                        newDays > 0
+                            ? Math.round(Math.min(5.6 * newDays, 28) * 10) / 10
+                            : null
                     if (
                         this.workerProfile.statutoryHolidayDays ===
-                        prevSuggestion
+                            prevSuggestion &&
+                        newSuggestion !== null
                     ) {
-                        this.workerProfile.statutoryHolidayDays =
-                            Math.round(
-                                Math.min(5.6 * (newDays || 5), 28) * 10
-                            ) / 10
+                        this._updatingWorkerProfile = true
+                        this.workerProfile.statutoryHolidayDays = newSuggestion
+                        this.$nextTick(() => {
+                            this._updatingWorkerProfile = false
+                        })
+                    }
+                },
+                /** @this {PayrollAppInstance} @param {number} newHolidayDays */
+                'workerProfile.statutoryHolidayDays'(newHolidayDays) {
+                    if (this._updatingWorkerProfile) {
+                        return
+                    }
+                    const currentDays = this.workerProfile.typicalDays
+                    if (currentDays <= 0) {
+                        return
+                    }
+                    const statutoryMinimum =
+                        Math.round(Math.min(5.6 * currentDays, 28) * 10) / 10
+
+                    // If user sets holiday entitlement below statutory minimum, adjust typicalDays downward
+                    // Only adjust if the new value doesn't match the current statutory minimum
+                    if (
+                        newHolidayDays < statutoryMinimum &&
+                        newHolidayDays > 0 &&
+                        newHolidayDays !== statutoryMinimum
+                    ) {
+                        // Reverse calculation: days = holidayDays / 5.6
+                        const impliedDays = newHolidayDays / 5.6
+                        const newTypicalDays = Math.max(
+                            this.workerProfile.workerType === 'salary'
+                                ? 0.5
+                                : 0,
+                            Math.round(impliedDays * 10) / 10
+                        )
+                        // Only update if it would actually change the value (prevents watcher loop)
+                        if (newTypicalDays !== currentDays) {
+                            this._updatingWorkerProfile = true
+                            this.workerProfile.typicalDays = newTypicalDays
+                            this.$nextTick(() => {
+                                this._updatingWorkerProfile = false
+                            })
+                        }
+                    }
+                },
+                /** @this {PayrollAppInstance} @param {string} newType */
+                'workerProfile.workerType'(newType) {
+                    // Enforce min/max typicalDays for salaried workers
+                    if (newType === 'salary') {
+                        if (this.workerProfile.typicalDays < 0.5) {
+                            this.workerProfile.typicalDays = 5
+                        } else if (this.workerProfile.typicalDays > 7) {
+                            this.workerProfile.typicalDays = 7
+                        }
                     }
                 },
                 /** @this {PayrollAppInstance} @param {string} value */
@@ -578,6 +652,16 @@ export function initPayrollApp() {
                 },
             },
             methods: {
+                /** @this {PayrollAppInstance} @param {Event} event */
+                updateStatutoryHolidayDays(event) {
+                    if (!this.isZeroHoursWorker) {
+                        const target = /** @type {HTMLInputElement} */ (
+                            event.target
+                        )
+                        this.workerProfile.statutoryHolidayDays =
+                            parseFloat(target.value) || 0
+                    }
+                },
                 /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
                 toggleSection(sectionKey) {
                     if (!this.collapsedSections) {
@@ -1674,18 +1758,10 @@ export function initPayrollApp() {
                         if (parsed && typeof parsed === 'object') {
                             this.workerProfile = {
                                 workerType: parsed.workerType || 'hourly',
-                                typicalHours:
-                                    typeof parsed.typicalHours === 'number'
-                                        ? parsed.typicalHours
-                                        : 0,
                                 typicalDays:
                                     typeof parsed.typicalDays === 'number'
                                         ? parsed.typicalDays
                                         : 5,
-                                contractualHours:
-                                    typeof parsed.contractualHours === 'number'
-                                        ? parsed.contractualHours
-                                        : 0,
                                 statutoryHolidayDays:
                                     typeof parsed.statutoryHolidayDays ===
                                     'number'

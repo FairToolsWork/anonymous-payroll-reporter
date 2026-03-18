@@ -139,6 +139,16 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 ---
 
+### 10. Zero-hours / highly variable patterns
+
+**What it means:** Workers with highly variable shift patterns (zero-hours contracts, irregular-hours workers) may not have a meaningful "typical days per week" value. For these workers, `typicalDays` can be set to `0` in the worker profile.
+
+**Effect:** When `typicalDays = 0`, the tool suppresses all days-taken estimates and shows only hours and rate checks. The report displays "Days estimate not shown — variable work pattern" in place of the usual days calculation. The statutory holiday entitlement field in the UI becomes disabled and shows "N/A".
+
+**Mitigation:** This is intentional behavior aligned with ACAS guidance for irregular-hours workers. Holiday entitlement for these workers accrues at 12.07% of hours worked per pay period (from April 2024 onwards) and cannot be meaningfully pre-calculated as a fixed annual amount. The tool provides accurate rate checks and flags potential underpayment based on the 52-week rolling average, which is the primary statutory requirement.
+
+---
+
 ## Data Requirements
 
 The tool works from payslips the worker already holds — no additional data entry of weekly hours is required. The minimum useful dataset is **3 months** of payslips. Accuracy improves with more data; the rolling window becomes fully representative with **12 or more months** of continuous payslips — though workers with several excluded months (e.g. extended sick leave) may need more than 12 calendar months to accumulate 52 eligible weeks. ([ACAS: If someone has not been employed for 52 weeks](https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay))
@@ -358,6 +368,8 @@ holidayContext = {
 
 `typicalDays` defaults to 5 when not supplied by the caller via `workerProfile`. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
 
+**Zero-hours handling:** When `typicalDays = 0` (hourly workers only), `avgHoursPerDay` cannot be calculated and days estimates are suppressed. The context still includes `avgWeeklyHours` and `avgRatePerHour` for rate validation purposes.
+
 ---
 
 ## Salaried Workers
@@ -387,16 +399,21 @@ Note: Sage UK payslips print `Holiday Salary` as a flat amount only — `salary.
 
 The worker profile panel provides optional context that improves report accuracy:
 
-| Field                         | Type                      | Default           | Effect                                                                  |
-| ----------------------------- | ------------------------- | ----------------- | ----------------------------------------------------------------------- |
-| Worker type                   | Radio (hourly / salaried) | hourly            | Controls which fields are shown; used for mismatch detection            |
-| Statutory holiday entitlement | days/year                 | 28 (UK minimum)   | Used to compute days remaining in Annual Totals                         |
-| Typical hours per week        | number                    | 0 (hourly only)   | Informational                                                           |
-| Typical days per week         | number                    | 5                 | Used as divisor for `avgHoursPerDay` and salaried `dailyRate`           |
-| Contractual hours per week    | number                    | 0 (salaried only) | Stored for future use; not currently used in calculations               |
-| Holiday year start month      | 1–12                      | 4 (April)         | Controls which holiday hours are grouped together for the days estimate |
+| Field                         | Type                      | Default                          | Effect                                                                                                           |
+| ----------------------------- | ------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Worker type                   | Radio (hourly / salaried) | hourly                           | Controls which fields are shown; used for mismatch detection                                                     |
+| Statutory holiday entitlement | days/year                 | 28 (UK minimum)                  | Used to compute days remaining in Annual Totals; disabled when `typicalDays = 0` for hourly workers              |
+| Typical days per week         | number                    | 5 (hourly: 0–7, salaried: 0.5–7) | Used as divisor for `avgHoursPerDay` and salaried `dailyRate`; set to `0` for zero-hours/irregular-hours workers |
+| Holiday year start month      | 1–12                      | 4 (April)                        | Controls which holiday hours are grouped together for the days estimate                                          |
 
 None of the above fields affect the underlying payslip parsing or the 52-week rolling reference calculation. The calculation engine is payslip-data-driven.
+
+**Zero-hours workers:** Hourly workers can set `typicalDays = 0` to indicate a highly variable work pattern. When set to zero:
+
+- Days-taken estimates are suppressed in the report
+- The statutory holiday entitlement field becomes disabled in the UI
+- Rate checks (Signals A and B) continue to operate normally
+- A notice is displayed: "Days estimate not shown — variable work pattern"
 
 ### Leave year grouping
 

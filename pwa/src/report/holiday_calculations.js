@@ -3,7 +3,7 @@ import { getWeeksInPeriod } from './tax_year_utils.js'
 /**
  * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
- * @typedef {{ hasBaseline: false } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number }} HolidayContext
+ * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
  */
 
@@ -231,16 +231,16 @@ export function buildHolidayPayFlags(entries) {
 /**
  * Computes rolling 52-week holiday context for each entry and stores it as entry.holidayContext.
  *
- * holidayContext: { avgWeeklyHours, avgHoursPerDay, avgRatePerHour, hasBaseline }
+ * holidayContext: { avgWeeklyHours, avgHoursPerDay, avgRatePerHour, hasBaseline, typicalDays }
  * hasBaseline is false when fewer than 3 months of basic hours exist in the rolling window.
  *
  * @param {HolidayEntry[]} entries
- * @param {{ typicalDays: number } | null} workerProfile
+ * @param {{ workerType?: string, typicalDays?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} workerProfile
  * @returns {void}
  */
 export function buildYearHolidayContext(entries, workerProfile) {
     const typicalDays =
-        workerProfile != null && workerProfile.typicalDays > 0
+        workerProfile?.typicalDays != null && workerProfile.typicalDays >= 0
             ? workerProfile.typicalDays
             : 5
 
@@ -256,12 +256,13 @@ export function buildYearHolidayContext(entries, workerProfile) {
         /** @type {any} */
         const anyEntry = entry
         if (!ref || ref.totalBasicHours <= 0) {
-            anyEntry.holidayContext = { hasBaseline: false }
+            anyEntry.holidayContext = { hasBaseline: false, typicalDays }
             continue
         }
 
         const avgWeeklyHours = ref.totalBasicHours / ref.totalWeeks
-        const avgHoursPerDay = avgWeeklyHours / typicalDays
+        const avgHoursPerDay =
+            typicalDays > 0 ? avgWeeklyHours / typicalDays : 0
         const avgRatePerHour = ref.totalBasicPay / ref.totalBasicHours
 
         anyEntry.holidayContext = {

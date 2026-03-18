@@ -565,6 +565,162 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
         expect(entriesA[0].holidayContext.hasBaseline).toBe(false)
         expect(entryB.holidayContext.hasBaseline).toBe(true)
     })
+
+    it('includes typicalDays in holidayContext even when hasBaseline is false', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10.0,
+                basicAmount: 1600,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 10.0,
+                basicAmount: 1500,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 1, 15),
+            }),
+        ]
+        buildYearHolidayContext(entries, { typicalDays: 3 })
+        expect(entries[0].holidayContext.hasBaseline).toBe(false)
+        expect(entries[0].holidayContext.typicalDays).toBe(3)
+        expect(entries[1].holidayContext.hasBaseline).toBe(false)
+        expect(entries[1].holidayContext.typicalDays).toBe(3)
+    })
+
+    it('handles typicalDays = 0 (zero-hours workers) without division errors', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 2, 15),
+            }),
+        ]
+        const targetEntry = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 3, 15),
+        })
+        entries.push(targetEntry)
+        buildYearHolidayContext(entries, { typicalDays: 0 })
+
+        const ctx = targetEntry.holidayContext
+        // With 4 entries but only 4 months (Jan, Feb, Mar, Apr), hasBaseline should be true
+        // However, the entries need to be in the same year for the rolling window
+        expect(ctx.typicalDays).toBe(0)
+        if (ctx.hasBaseline) {
+            expect(ctx.avgHoursPerDay).toBe(0)
+            expect(isNaN(ctx.avgHoursPerDay)).toBe(false)
+            expect(ctx.avgWeeklyHours).toBeGreaterThan(0)
+            expect(ctx.avgRatePerHour).toBeGreaterThan(0)
+        }
+    })
+
+    it('handles typicalDays = 0.5 (minimum salaried workers)', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 2, 15),
+            }),
+        ]
+        const targetEntry = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 3, 15),
+        })
+        entries.push(targetEntry)
+        buildYearHolidayContext(entries, { typicalDays: 0.5 })
+
+        const ctx = targetEntry.holidayContext
+        expect(ctx.typicalDays).toBe(0.5)
+        if (ctx.hasBaseline) {
+            const totalWeeks = (31 + 29 + 31) / 7
+            const avgWeeklyHours = (100 + 200 + 150) / totalWeeks
+            expect(ctx.avgHoursPerDay).toBeCloseTo(avgWeeklyHours / 0.5, 2)
+        }
+    })
+
+    it('handles typicalDays = 7 (maximum salaried workers)', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 2, 15),
+            }),
+        ]
+        const targetEntry = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 3, 15),
+        })
+        entries.push(targetEntry)
+        buildYearHolidayContext(entries, { typicalDays: 7 })
+
+        const ctx = targetEntry.holidayContext
+        expect(ctx.typicalDays).toBe(7)
+        if (ctx.hasBaseline) {
+            const totalWeeks = (31 + 29 + 31) / 7
+            const avgWeeklyHours = (100 + 200 + 150) / totalWeeks
+            expect(ctx.avgHoursPerDay).toBeCloseTo(avgWeeklyHours / 7, 2)
+        }
+    })
 })
 
 describe('isReferenceEligible', () => {

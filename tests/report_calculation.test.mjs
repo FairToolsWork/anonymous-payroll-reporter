@@ -520,9 +520,9 @@ describe('report calculations', () => {
             html.split('2023/24 Summary')[1]?.split('2024/25 Summary')[0] ?? ''
         const year2025Section = html.split('2024/25 Summary')[1] ?? ''
         expect(year2024Section).not.toContain('Opening Balance')
-        expect(year2024Section).toContain('Closing Balance')
+        expect(year2024Section).toContain('Closing Pensions Balance')
         expect(year2025Section).toContain('Opening Balance')
-        expect(year2025Section).toContain('Closing Balance')
+        expect(year2025Section).toContain('Closing Pensions Balance')
     })
 
     it('flags gross_mismatch and sets lowConfidence when payments total differs from totalGrossPay', () => {
@@ -1444,5 +1444,107 @@ describe('leaveYearStartMonth — buildReport holiday cell grouping', () => {
             leaveYearStartMonth: 2.5,
         })
         expect(context.workerProfile.leaveYearStartMonth).toBe(4)
+    })
+
+    it('buildReport handles zero-hours worker (typicalDays = 0)', () => {
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    payPeriod: { start: '01/01/25', end: '31/01/25' },
+                    taxCode: '1257L',
+                    basicHours: { amount: 120, rate: 15.0 },
+                    holidayHours: { amount: 8, rate: 15.0 },
+                    payments: {
+                        totalGrossPay: { amount: 1920 },
+                    },
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        totalDeductions: { amount: 180 },
+                    },
+                    netPay: { amount: 1740 },
+                },
+                sourceFiles: ['fixture.pdf'],
+            },
+        ]
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 0,
+            statutoryHolidayDays: 0,
+        })
+
+        expect(context.workerProfile.typicalDays).toBe(0)
+        expect(context.workerProfile.statutoryHolidayDays).toBe(0)
+        // Verify the record was processed (HTML contains some content)
+        expect(html.length).toBeGreaterThan(100)
+    })
+
+    it('buildReport handles minimum salaried days (typicalDays = 0.5)', () => {
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    payPeriod: { start: '01/01/25', end: '31/01/25' },
+                    taxCode: '1257L',
+                    basicSalary: { amount: 1000 },
+                    holidaySalary: { amount: 100 },
+                    payments: {
+                        totalGrossPay: { amount: 1100 },
+                    },
+                    deductions: {
+                        payeTax: { amount: 50 },
+                        natIns: { amount: 40 },
+                        totalDeductions: { amount: 90 },
+                    },
+                    netPay: { amount: 1010 },
+                },
+                sourceFiles: ['fixture.pdf'],
+            },
+        ]
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 0.5,
+            statutoryHolidayDays: 2.8,
+        })
+
+        expect(context.workerProfile.typicalDays).toBe(0.5)
+        expect(context.workerProfile.statutoryHolidayDays).toBe(2.8)
+        // Verify the record was processed (HTML contains some content)
+        expect(html.length).toBeGreaterThan(100)
+    })
+
+    it('buildReport handles maximum salaried days (typicalDays = 7)', () => {
+        const records = [
+            {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    payPeriod: { start: '01/01/25', end: '31/01/25' },
+                    taxCode: '1257L',
+                    basicSalary: { amount: 3000 },
+                    holidaySalary: { amount: 200 },
+                    payments: {
+                        totalGrossPay: { amount: 3200 },
+                    },
+                    deductions: {
+                        payeTax: { amount: 150 },
+                        natIns: { amount: 120 },
+                        totalDeductions: { amount: 270 },
+                    },
+                    netPay: { amount: 2930 },
+                },
+                sourceFiles: ['fixture.pdf'],
+            },
+        ]
+        const { html, context } = buildReport(records, [], null, {
+            workerType: 'salary',
+            typicalDays: 7,
+            statutoryHolidayDays: 28,
+        })
+
+        expect(context.workerProfile.typicalDays).toBe(7)
+        expect(context.workerProfile.statutoryHolidayDays).toBe(28)
+        // Verify the record was processed (HTML contains some content)
+        expect(html.length).toBeGreaterThan(100)
     })
 })

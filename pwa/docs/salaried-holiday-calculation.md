@@ -56,6 +56,8 @@ This assumes the worker's salary was the same throughout all months in the year.
 
 **Mitigation:** The `typicalDays` field in the worker profile panel should be set correctly. The value used is visible in the field hint in the UI, which shows the suggested statutory entitlement based on `typicalDays`.
 
+**Note:** Salaried workers must enter at least 0.5 days per week (the minimum allowed value). Unlike hourly workers, salaried workers cannot set `typicalDays = 0` as the daily rate calculation requires a valid working pattern.
+
 ---
 
 ### 4. No per-month breakdown
@@ -76,13 +78,12 @@ Sage UK payslips do not populate `salary.holiday.units` — the holiday amount i
 
 ## Worker Profile Fields Used
 
-| Field                         | Default      | Effect                                                                   |
-| ----------------------------- | ------------ | ------------------------------------------------------------------------ |
-| Worker type                   | hourly       | Must be set to **Salaried** to activate this path                        |
-| Typical days per week         | 5            | Used in `workingDaysPerMonth` and `dailyRate`                            |
-| Statutory holiday entitlement | 28 days/year | Used to compute `daysRemaining`                                          |
-| Contractual hours per week    | —            | Not used in salaried calculations                                        |
-| Holiday year start month      | 4 (April)    | Controls which entries are grouped together for the holiday day estimate |
+| Field                         | Default      | Effect                                                                            |
+| ----------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| Worker type                   | hourly       | Must be set to **Salaried** to activate this path                                 |
+| Typical days per week         | 5 (min: 0.5) | Used in `workingDaysPerMonth` and `dailyRate`; must be ≥ 0.5 for salaried workers |
+| Statutory holiday entitlement | 28 days/year | Used to compute `daysRemaining`                                                   |
+| Holiday year start month      | 4 (April)    | Controls which entries are grouped together for the holiday day estimate          |
 
 ---
 
@@ -137,7 +138,7 @@ dailyRate = yearBasicSalaryAmount / monthsInYear / workingDaysPerMonth
 
 This is the average gross pay for one working day, derived from the worker's total basic salary for the year divided by the number of months worked and the working days per month.
 
-**Guard:** If `yearBasicSalaryAmount = 0`, `dailyRate` is set to 0 and the day estimate is omitted (only the raw £ holiday amount is shown). The `workingDaysPerMonth > 0` condition is also checked but is vacuously satisfied in practice — `typicalDays` is always at least 1.
+**Guard:** If `yearBasicSalaryAmount = 0`, `dailyRate` is set to 0 and the day estimate is omitted (only the raw £ holiday amount is shown). The `workingDaysPerMonth > 0` condition is also checked but is vacuously satisfied in practice — `typicalDays` is always at least 0.5 for salaried workers.
 
 ---
 
@@ -243,3 +244,4 @@ This warning does not affect the day calculation — it is informational only.
 | Requires worker profile | No (defaults to hourly)          | Yes (must set type to Salaried)  |
 | Per-month day estimate  | ✗ Annual only                    | ✗ Annual only                    |
 | Statutory reference     | 52-week rolling average          | Daily rate from annual salary    |
+| Zero-hours support      | ✓ Can set `typicalDays = 0`      | ✗ Minimum 0.5 days required      |

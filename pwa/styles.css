@@ -381,6 +381,166 @@ button.next-action:hover {
     filter: brightness(0.88);
 }
 
+.field-button-group {
+    display: flex;
+    max-width: 325px;
+    width: 100%;
+    align-items: center;
+    border-radius: 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+}
+
+.hol-calc input {
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 10px 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+    border-radius: 8px;
+    color: var(--ink);
+    width: 100%;
+}
+
+.worker-profile-fields input,
+.worker-profile-fields select {
+    width: 100%;
+    max-width: 325px;
+    padding: 6px 8px;
+    border: 1px solid rgb(30 28 25 / 25%);
+    border-radius: 6px;
+    font-size: 1em;
+    background: var(--card);
+    font-family: var(--font-fam);
+}
+
+.disclaimer input {
+    margin-top: 2px;
+}
+
+.disclaimer input[type='checkbox']:focus {
+    outline: none;
+}
+
+.field input {
+    border-radius: 12px;
+    border: 1px solid rgb(30 28 25 / 20%);
+    padding: 10px 14px;
+    font-family: inherit;
+    color: var(--ink);
+    font-size: 0.95rem;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+.upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    opacity: 0;
+}
+
+.field input:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-color: rgb(194 84 45 / 50%);
+}
+
+.field input:disabled {
+    background: rgb(30 28 25 / 5%);
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-group button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 0;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-right-width: 0;
+}
+
+.btn-group button:first-child {
+    border-radius: 999px 0 0 999px;
+}
+
+.btn-group button:last-child {
+    border-radius: 0 999px 999px 0;
+    border-right-width: 1px;
+}
+
+.btn-group button:only-child {
+    border-radius: 999px;
+    border-right-width: 1px;
+}
+
+.field .field-button-group input {
+    flex: 1;
+    border: 1px transparent;
+}
+
+.field .field-button-group input:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.field .field-button-group button {
+    margin-left: -1px;
+    border: 1px transparent;
+    border-left: 1px solid rgb(30 28 25 / 20%);
+}
+
+.btn-group button.primary + button {
+    border-left: 1px solid rgb(30 28 25 / 20%);
+}
+
+.field .field-button-group button:hover,
+.field .field-button-group button:focus {
+    outline: 2px solid rgb(194 84 45 / 35%);
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.auto-calculate-btn {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    border: 1px solid var(--accent-green);
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background: var(--accent-green);
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 600;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
+}
+
+.auto-calculate-btn:disabled {
+    border-color: var(--muted);
+    background: transparent;
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.auto-calculate-btn:hover:not(:disabled) {
+    background: var(--accent-green-dark);
+    color: white;
+}
+
 .collapse-section {
     margin-bottom: 36px;
 }
@@ -781,16 +941,6 @@ button.hol-calc-btn {
     font-weight: 600;
 }
 
-.hol-calc input {
-    font-size: 1rem;
-    font-family: inherit;
-    padding: 10px 12px;
-    border: 1px solid rgb(30 28 25 / 20%);
-    border-radius: 8px;
-    color: var(--ink);
-    width: 100%;
-}
-
 .hol-calc-result {
     display: flex;
     align-items: center;
@@ -842,18 +992,6 @@ button.hol-calc-btn {
     flex-direction: column;
     gap: 4px;
     font-size: 0.92em;
-}
-
-.worker-profile-fields input,
-.worker-profile-fields select {
-    width: 100%;
-    max-width: 325px;
-    padding: 6px 8px;
-    border: 1px solid rgb(30 28 25 / 25%);
-    border-radius: 6px;
-    font-size: 1em;
-    background: var(--card);
-    font-family: var(--font-fam);
 }
 
 .field select {
@@ -1001,7 +1139,7 @@ button.hol-calc-btn {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 6px;
     font-size: 0.9rem;
     color: var(--muted);
 }
@@ -1022,91 +1160,6 @@ button.hol-calc-btn {
 .field-row .field {
     flex: 1;
     margin-top: 0;
-}
-
-.field-with-button {
-    display: flex;
-    max-width: 325px;
-    width: 100%;
-    align-items: center;
-    border-radius: 12px;
-    border: 1px solid rgb(30 28 25 / 20%);
-}
-
-.disclaimer input {
-    margin-top: 2px;
-}
-
-.disclaimer input[type='checkbox']:focus {
-    outline: none;
-}
-
-.field input {
-    border-radius: 12px;
-    border: 1px solid rgb(30 28 25 / 20%);
-    padding: 10px 14px;
-    font-family: inherit;
-    color: var(--ink);
-    font-size: 0.95rem;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-}
-
-.upload input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    border: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    opacity: 0;
-}
-
-.field .field-with-button input {
-    flex: 1;
-    border: 1px transparent;
-}
-
-.field input:focus {
-    outline: 2px solid rgb(194 84 45 / 35%);
-    border-color: rgb(194 84 45 / 50%);
-}
-
-.field .field-with-button input:focus {
-    outline: 2px solid rgb(194 84 45 / 35%);
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.auto-calculate-btn {
-    flex-shrink: 0;
-    padding: 10px 16px;
-    font-size: 0.85rem;
-    font-family: inherit;
-    border: 1px solid var(--accent);
-    border-radius: 12px;
-    background: transparent;
-    color: var(--accent);
-    cursor: pointer;
-    white-space: nowrap;
-    transition:
-        background-color 0.2s,
-        color 0.2s;
-}
-
-.auto-calculate-btn:disabled {
-    border-color: var(--muted);
-    color: var(--muted);
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-
-.auto-calculate-btn:hover:not(:disabled) {
-    background: var(--accent);
-    color: white;
 }
 
 .disclaimer {
@@ -1143,6 +1196,7 @@ button.hol-calc-btn {
     display: flex;
     flex-flow: column wrap;
     gap: 12px;
+    margin-top: 12px;
 }
 
 .disclaimer.inline {
@@ -1199,10 +1253,6 @@ button.hol-calc-btn {
 .upload.disabled {
     opacity: 0.5;
     pointer-events: none;
-}
-
-.status-panel p {
-    margin: 12px 0;
 }
 
 .error {
@@ -1326,59 +1376,8 @@ button.hol-calc-btn {
     }
 }
 
-.btn-group button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border-radius: 0;
-    padding: 12px 20px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border-right-width: 0;
-}
-
-.btn-group button svg {
-    width: 1em;
-    height: 1em;
-    flex-shrink: 0;
-    display: block;
-}
-
-.field .field-with-button button {
-    margin-left: -1px;
-    border: 1px transparent;
-    border-left: 1px solid rgb(30 28 25 / 20%);
-    border-radius: 0;
-}
-
-.btn-group button:first-child {
-    border-radius: 999px 0 0 999px;
-}
-
-.btn-group button:last-child {
-    border-radius: 0 999px 999px 0;
-    border-right-width: 1px;
-}
-
-.btn-group button:only-child {
-    border-radius: 999px;
-    border-right-width: 1px;
-}
-
-.btn-group button.primary + button {
-    border-left: 1px solid rgb(30 28 25 / 20%);
-}
-
 .btn-group button.secondary + button.secondary {
     border-left-width: 0;
-}
-
-.field .field-with-button button:hover,
-.field .field-with-button button:focus {
-    outline: 2px solid rgb(194 84 45 / 35%);
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
 }
 
 .stats {
@@ -1404,6 +1403,11 @@ label.field span {
 
 .field.password > span {
     padding-inline-start: 1em;
+}
+
+.field:has(input:disabled) > span:not(.notice) {
+    color: var(--muted);
+    opacity: 0.6;
 }
 
 .missing-months {

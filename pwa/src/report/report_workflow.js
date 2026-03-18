@@ -14,7 +14,7 @@ import { buildReport } from './build.js'
  *  onProgress?: (info: { current: number, total: number, file: File }) => void,
  *  requireEmployeeDetails?: boolean,
  *  includeReportContext?: boolean,
- *  workerProfile?: { workerType?: string, typicalHours?: number, typicalDays?: number, contractualHours?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null
+ *  workerProfile?: { workerType?: string, typicalDays?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null
  * }} options
  * @returns {Promise<{
  *  records: any[],

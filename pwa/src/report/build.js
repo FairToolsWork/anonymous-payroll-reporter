@@ -54,10 +54,10 @@ import {
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
- * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number, typicalHours: number | null, contractualHours: number | null }} WorkerProfileContext
+ * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number, typicalHours: number | null, contractualHours: number | null }, contractTypeMismatchWarning: string | null }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -92,7 +92,7 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @param {{ typicalDays?: number, workerType?: string, typicalHours?: number, contractualHours?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} [workerProfile=null]
+ * @param {{ typicalDays?: number, workerType?: string, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} [workerProfile=null]
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
@@ -123,9 +123,7 @@ export function buildReport(
     const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? 28
 
     buildHolidayPayFlags(entries)
-    buildYearHolidayContext(entries, {
-        typicalDays,
-    })
+    buildYearHolidayContext(entries, workerProfile)
 
     let contractTypeMismatchWarning = null
     if (workerType === 'hourly') {
@@ -419,18 +417,8 @@ export function buildReport(
     const workerTypeLabel = workerType
         ? workerType.charAt(0).toUpperCase() + workerType.slice(1)
         : 'Not specified'
-    const typicalHours = workerProfile?.typicalHours ?? null
-    const contractualHours = workerProfile?.contractualHours ?? null
 
-    const workerProfileHtml =
-        `<b>Type:</b> ${workerTypeLabel}` +
-        (workerType === 'hourly' && typicalHours
-            ? ` &nbsp;\u00b7&nbsp; <b>Typical hours:</b> ${typicalHours}/week`
-            : '') +
-        (workerType === 'salary' && contractualHours
-            ? ` &nbsp;\u00b7&nbsp; <b>Contractual hours:</b> ${contractualHours}/week`
-            : '') +
-        `<br><b>Typical days:</b> ${typicalDays}/week &nbsp;\u00b7&nbsp; <b>Holiday entitlement:</b> ${statutoryHolidayDays} days/year &nbsp;\u00b7&nbsp; <b>Leave year starts:</b> ${leaveYearStartMonthName}`
+    const workerProfileHtml = `<b>Type:</b> ${workerTypeLabel} &nbsp;\u00b7&nbsp; <b>Typical days:</b> ${typicalDays}/week &nbsp;\u00b7&nbsp; <b>Holiday entitlement:</b> ${statutoryHolidayDays} days/year &nbsp;\u00b7&nbsp; <b>Leave year starts:</b> ${leaveYearStartMonthName}`
 
     reportSections.push('<div class="page">')
     reportSections.push(
@@ -612,7 +600,11 @@ export function buildReport(
                     yearHolidayCell =
                         formatCurrency(yearHolidaySalaryAmount) + leaveYearNote
                 }
-            } else if (yearCtx?.hasBaseline && yearCtx.avgHoursPerDay > 0) {
+            } else if (
+                yearCtx?.hasBaseline &&
+                yearCtx.avgHoursPerDay > 0 &&
+                yearCtx.typicalDays > 0
+            ) {
                 const hourlyDaysTaken =
                     leaveYearHolidayHours / yearCtx.avgHoursPerDay
                 const hourlyDaysRemainingRaw =
@@ -625,8 +617,14 @@ export function buildReport(
                     ` / ${hourlyDaysRemaining.toFixed(1)} remaining${hourlyOverrun ? ' (entitlement exceeded)' : ''}</span>` +
                     leaveYearNote
             } else {
+                const variablePatternNote =
+                    yearCtx?.hasBaseline && yearCtx.typicalDays === 0
+                        ? `<br><span class="summary-breakdown">Days estimate not shown — variable work pattern</span>`
+                        : ''
                 yearHolidayCell =
-                    `${leaveYearHolidayHours.toFixed(2)} hrs` + leaveYearNote
+                    `${leaveYearHolidayHours.toFixed(2)} hrs` +
+                    leaveYearNote +
+                    variablePatternNote
             }
             return (
                 '<tr>' +
@@ -899,8 +897,6 @@ export function buildReport(
                 typicalDays,
                 statutoryHolidayDays,
                 leaveYearStartMonth,
-                typicalHours,
-                contractualHours,
             },
             contractTypeMismatchWarning,
         },
@@ -1209,6 +1205,7 @@ function renderReportCell(entry) {
     const holidayImpliedDays =
         entryHolidayCtx?.hasBaseline &&
         entryHolidayCtx.avgHoursPerDay > 0 &&
+        entryHolidayCtx.typicalDays > 0 &&
         holidayHours > 0
             ? (holidayHours / entryHolidayCtx.avgHoursPerDay).toFixed(1)
             : null
@@ -1464,6 +1461,7 @@ function renderYearSummary(entriesForYear, openingBalance) {
                     const holidayCell =
                         entryCtx?.hasBaseline &&
                         entryCtx.avgHoursPerDay > 0 &&
+                        entryCtx.typicalDays > 0 &&
                         holidayUnits > 0
                             ? `${holidayUnits.toFixed(2)} hrs<br><span class="summary-breakdown">\u2248${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)} days</span>`
                             : `${holidayUnits.toFixed(2)} hrs`
@@ -1571,7 +1569,7 @@ function renderYearSummary(entriesForYear, openingBalance) {
     const closingBalanceRow =
         showBalanceRows && closingBalance !== null
             ? '<tr>' +
-              '<th>Closing Balance</th>' +
+              '<th>Closing Pensions Balance</th>' +
               '<td colspan="4"></td>' +
               `<td colspan="1">${formatDiff(closingBalance)}</td>` +
               '<td>—</td>' +

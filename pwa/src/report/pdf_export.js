@@ -408,10 +408,14 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         : 'Not specified'
     const pdfLeaveMonthName =
         PDF_MONTH_NAMES[(wp?.leaveYearStartMonth ?? 4) - 1] || 'April'
+    const pdfTypicalDaysDisplay =
+        (wp?.typicalDays ?? 5) > 0
+            ? `${wp?.typicalDays ?? 5} days/week`
+            : 'Variable pattern'
     const workerProfileRow =
-        `Type: ${pdfWorkerTypeLabel} \u00b7 ${wp?.typicalDays ?? 5} days/week` +
-        ` \u00b7 Entitlement: ${wp?.statutoryHolidayDays ?? 28} days/year` +
-        ` \u00b7 Leave year: ${pdfLeaveMonthName}`
+        `Type: ${pdfWorkerTypeLabel} · ${pdfTypicalDaysDisplay}` +
+        ` · Entitlement: ${wp?.statutoryHolidayDays ?? 28} days/year` +
+        ` · Leave year: ${pdfLeaveMonthName}`
     const pdfMissingStr = context.missingMonths?.missingMonthsLabel
         ? stripHtml(context.missingMonths.missingMonthsLabel)
         : 'None'
@@ -601,7 +605,8 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                         : formatCurrency(yearHolidaySalary)
             } else if (
                 firstEntryCtx?.hasBaseline &&
-                firstEntryCtx.avgHoursPerDay > 0
+                firstEntryCtx.avgHoursPerDay > 0 &&
+                pdfTypicalDays > 0
             ) {
                 const daysTaken =
                     yearHolidayHours / firstEntryCtx.avgHoursPerDay
@@ -609,7 +614,11 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 const overrun = pdfStatutoryDays - daysTaken < 0
                 yearHolidayCell = `${yearHolidayHours.toFixed(2)} hrs\n(${daysTaken.toFixed(1)}d taken, ${daysRemaining.toFixed(1)} rem${overrun ? ' EXCEEDED' : ''})`
             } else {
-                yearHolidayCell = yearHolidayHours.toFixed(2)
+                const variableNote =
+                    firstEntryCtx?.hasBaseline && pdfTypicalDays === 0
+                        ? '\n(Variable pattern)'
+                        : ''
+                yearHolidayCell = yearHolidayHours.toFixed(2) + variableNote
             }
             yearRows.push([
                 String(yearKey || 'Unknown'),
@@ -879,6 +888,7 @@ function renderYearPage(
                 const holidayCell =
                     entryCtx?.hasBaseline &&
                     entryCtx.avgHoursPerDay > 0 &&
+                    entryCtx.typicalDays > 0 &&
                     holidayUnits > 0
                         ? `${holidayUnits.toFixed(2)} hrs\n(${(holidayUnits / entryCtx.avgHoursPerDay).toFixed(1)}d)`
                         : holidayUnits.toFixed(2)

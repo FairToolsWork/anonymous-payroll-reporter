@@ -667,9 +667,27 @@
                                         review — ideally, your full employment.
                                     </li>
                                     <li>
-                                        Grab your holiday request/approval forms
-                                        to check whether the holiday pay you
-                                        received matches what you were owed.
+                                        <b>Holidays:</b>
+                                        <ul>
+                                            <li>
+                                                Grab your holiday
+                                                request/approval forms to check
+                                                whether the holiday pay you
+                                                received matches what you were
+                                                owed.
+                                            </li>
+                                            <li>
+                                                Check your contract, or ask your
+                                                employer to confirm your holiday
+                                                allocation. Some companies offer
+                                                additional days over and above
+                                                the statutory minimums.
+                                            </li>
+                                            <li>
+                                                You will also need to know what
+                                                month your holidays roll over.
+                                            </li>
+                                        </ul>
                                     </li>
                                 </ul>
                                 <div class="notice">
@@ -882,7 +900,7 @@
                         <!-- follow up -->
                         <h2>Step 3: Review & Report</h2>
 
-                        <div class="card hollidays">
+                        <div class="card holidays">
                             <header>
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -1376,98 +1394,86 @@
                             </div>
                         </div>
                         <div
-                            class="field-row"
+                            class="field-hint notice info"
                             v-show="workerProfile.workerType === 'hourly'"
                         >
-                            <label class="field">
-                                <span
-                                    >Hours per week
-                                    <em>(informational)</em></span
-                                >
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="168"
-                                    step="0.5"
-                                    placeholder="e.g. 30"
-                                    autocomplete="off"
-                                    v-model.number="workerProfile.typicalHours"
-                                />
-                            </label>
-                            <label class="field">
-                                <span>Days per week</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="7"
-                                    step="1"
-                                    placeholder="e.g. 5"
-                                    autocomplete="off"
-                                    v-model.number="workerProfile.typicalDays"
-                                />
-                            </label>
+                            <b>Zero-hours / irregular-hours workers:</b><br />
+                            If your shift pattern is highly variable, enter
+                            <b>0 days</b>. Otherwise, enter your typical working
+                            pattern <i>when you work</i>.
                         </div>
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
+                            <span>Days per week</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="7"
+                                step=".5"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
 
-                        <div
-                            class="field-row"
+                        <label
+                            class="field"
                             v-show="workerProfile.workerType === 'salary'"
                         >
-                            <label class="field">
-                                <span>Hours per week <i>(contractual)</i></span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="168"
-                                    step="0.5"
-                                    placeholder="e.g. 37.5"
-                                    autocomplete="off"
-                                    v-model.number="workerProfile.contractualHours"
-                                />
-                            </label>
-                            <label class="field">
-                                <span>Days per week</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="7"
-                                    step="1"
-                                    placeholder="e.g. 5"
-                                    autocomplete="off"
-                                    v-model.number="workerProfile.typicalDays"
-                                />
-                            </label>
-                        </div>
+                            <span>Days per week</span>
+                            <input
+                                type="number"
+                                min="0.5"
+                                max="7"
+                                step=".5"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
                         <label class="field">
                             <span
                                 >Statutory holiday entitlement (days/year)</span
                             >
-                            <div class="field-with-button">
+                            <div class="field-button-group">
                                 <input
                                     type="number"
                                     min="1"
                                     max="365"
                                     step="any"
-                                    placeholder="e.g. 28"
+                                    placeholder="N/A"
                                     autocomplete="off"
-                                    v-model.number="workerProfile.statutoryHolidayDays"
+                                    :value="statutoryHolidayInputValue"
+                                    @input="updateStatutoryHolidayDays"
+                                    :disabled="isZeroHoursWorker"
                                 />
                                 <button
                                     type="button"
                                     class="auto-calculate-btn"
-                                    :disabled="workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
+                                    :disabled="isZeroHoursWorker || workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
                                     @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
                                 >
                                     Auto calculate
                                 </button>
                             </div>
-                            <span class="field-hint">
+                            <span class="field-hint" v-if="!isZeroHoursWorker">
                                 Statutory minimum for {{
                                 workerProfile.typicalDays }}d/week:
                                 <strong
-                                    >{{ suggestedStatutoryDays }} days</strong
+                                    >{{ suggestedStatutoryDays || '?' }}
+                                    days</strong
                                 >
                                 <br />
                                 (5.6 × days/week, capped at 28)
+                            </span>
+                            <span
+                                class="field-hint notice info"
+                                v-if="isZeroHoursWorker"
+                            >
+                                For irregular-hours, the system will estimate
+                                your holiday entitlement from your payslip info.
                             </span>
                         </label>
                         <label class="field">
@@ -1521,6 +1527,14 @@
                             Pension files.
                         </p>
                     </header>
+                    <input
+                        type="text"
+                        name="pdf-username"
+                        value="pdf-document"
+                        autocomplete="username"
+                        style="display: none"
+                        readonly
+                    />
                     <label class="field password">
                         <span>PDF password</span>
                         <input
@@ -1588,8 +1602,9 @@
                             />
                             <span>
                                 <i
-                                    >I understand this report may contain
-                                    processing errors or omissions, and I am
+                                    >I understand this is an ACAS-informed
+                                    check, not a legal determination of holiday
+                                    or pension calculations, and I am
                                     responsible for verifying its accuracy.</i
                                 >
                             </span>
