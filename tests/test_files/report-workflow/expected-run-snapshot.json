@@ -1,0 +1,149 @@
+{
+    "recordCount": 13,
+    "contributionEntries": 26,
+    "entries": [
+        {
+            "period": "20 Apr 2024",
+            "netPay": 1262.03,
+            "basicHours": 151.8,
+            "basicRate": 9.299999999999999,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 61.47,
+            "pensionEE": 44.59,
+            "flagIds": []
+        },
+        {
+            "period": "20 May 2024",
+            "netPay": 1451.5,
+            "basicHours": 170.78,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 117.73,
+            "pensionEE": 59.39,
+            "flagIds": []
+        },
+        {
+            "period": "20 Jun 2024",
+            "netPay": 1826.66,
+            "basicHours": 218.21,
+            "basicRate": 10,
+            "holidayHours": 4,
+            "holidayRate": 10,
+            "payeTax": 243.94,
+            "pensionEE": 92.61,
+            "flagIds": []
+        },
+        {
+            "period": "20 Jul 2024",
+            "netPay": 1633.65,
+            "basicHours": 199.24,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 171.8,
+            "pensionEE": 73.62,
+            "flagIds": []
+        },
+        {
+            "period": "20 Aug 2024",
+            "netPay": 1294.9,
+            "basicHours": 142.31,
+            "basicRate": 10,
+            "holidayHours": 4,
+            "holidayRate": 10,
+            "payeTax": 71.23,
+            "pensionEE": 47.16,
+            "flagIds": []
+        },
+        {
+            "period": "20 Sep 2024",
+            "netPay": 1936.48,
+            "basicHours": 246.68,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 262.72,
+            "pensionEE": 97.34,
+            "flagIds": []
+        },
+        {
+            "period": "20 Oct 2024",
+            "netPay": 1512.18,
+            "basicHours": 180.26,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 135.74,
+            "pensionEE": 64.13,
+            "flagIds": []
+        },
+        {
+            "period": "20 Nov 2024",
+            "netPay": 1772.38,
+            "basicHours": 208.73,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 227.83,
+            "pensionEE": 88.37,
+            "flagIds": []
+        },
+        {
+            "period": "20 Dec 2024",
+            "netPay": 1435.57,
+            "basicHours": 161.29,
+            "basicRate": 10,
+            "holidayHours": 7,
+            "holidayRate": 10,
+            "payeTax": 112.99,
+            "pensionEE": 58.15,
+            "flagIds": []
+        },
+        {
+            "period": "20 Jan 2025",
+            "netPay": 1860.6,
+            "basicHours": 227.7,
+            "basicRate": 10,
+            "holidayHours": 7,
+            "holidayRate": 10,
+            "payeTax": 239.17,
+            "pensionEE": 91.35,
+            "flagIds": []
+        },
+        {
+            "period": "20 Feb 2025",
+            "netPay": 1235.43,
+            "basicHours": 132.83,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 68.42,
+            "pensionEE": 46.41,
+            "flagIds": []
+        },
+        {
+            "period": "20 Mar 2025",
+            "netPay": 1876.53,
+            "basicHours": 237.19,
+            "basicRate": 10,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 243.9,
+            "pensionEE": 92.6,
+            "flagIds": []
+        },
+        {
+            "period": "20 Apr 2025",
+            "netPay": 1624.52,
+            "basicHours": 189.75,
+            "basicRate": 10.42498023715415,
+            "holidayHours": 0,
+            "holidayRate": null,
+            "payeTax": 169.09,
+            "pensionEE": 72.91,
+            "flagIds": []
+        }
+    ]
+}

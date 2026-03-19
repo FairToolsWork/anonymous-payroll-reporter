@@ -49,7 +49,7 @@ import {
  * @property {string} notice
  * @property {string[]} failedFiles
  * @property {string[]} failedPayPeriods
- * @property {{ parsed: string, matches: string, excelSource: string, excelRows: string, excelParsed: string }} debugInfo
+ * @property {{ pdfSource: string, parsed: string, matches: string, excelSource: string, excelRows: string, excelParsed: string, runSnapshot: string }} debugInfo
  * @property {boolean} debugCopySuccess
  * @property {number | null} debugCopyResetTimer
  * @property {boolean} acceptedDisclaimer
@@ -133,6 +133,8 @@ let reportWorkflowPromise = null
 /** @type {Promise<any> | null} */
 let patternsPromise = null
 /** @type {Promise<any> | null} */
+let runSnapshotPromise = null
+/** @type {Promise<any> | null} */
 let pdfExportPromise = null
 /** @type {boolean} */
 let memoryAttributionUnavailableLogged = false
@@ -161,6 +163,13 @@ function loadPatterns() {
         }))
     }
     return patternsPromise
+}
+
+function loadRunSnapshot() {
+    if (!runSnapshotPromise) {
+        runSnapshotPromise = import('../report/run_snapshot.js')
+    }
+    return runSnapshotPromise
 }
 
 function loadPdfExport() {
@@ -413,11 +422,13 @@ export function initPayrollApp() {
                     failedFiles: [],
                     failedPayPeriods: [],
                     debugInfo: {
+                        pdfSource: '',
                         parsed: '',
                         matches: '',
                         excelSource: '',
                         excelRows: '',
                         excelParsed: '',
+                        runSnapshot: '',
                     },
                     debugCopySuccess: false,
                     debugCopyResetTimer: null,
@@ -893,6 +904,8 @@ export function initPayrollApp() {
                 copyDebugOutput() {
                     const payload = [
                         `App version: ${this.appVersion || UNKNOWN_APP_VERSION}`,
+                        '=== Debug: PDF Source File ===',
+                        this.debugInfo.pdfSource || '<empty>',
                         '=== Debug: Extracted Text ===',
                         this.debugText || '<empty>',
                         '=== Debug: Parsed Values ===',
@@ -905,6 +918,8 @@ export function initPayrollApp() {
                         this.debugInfo.excelRows || '<empty>',
                         '=== Debug: Excel Parsed Entries (first 20) ===',
                         this.debugInfo.excelParsed || '<empty>',
+                        '=== Debug: Run Snapshot ===',
+                        this.debugInfo.runSnapshot || '<empty>',
                     ].join('\n\n')
 
                     try {
@@ -1024,11 +1039,13 @@ export function initPayrollApp() {
                     this.employeeName = ''
                     this.debugText = ''
                     this.debugInfo = {
+                        pdfSource: '',
                         parsed: '',
                         matches: '',
                         excelSource: '',
                         excelRows: '',
                         excelParsed: '',
+                        runSnapshot: '',
                     }
                     this.failedFiles = []
                     this.failedPayPeriods = []
@@ -1241,6 +1258,10 @@ export function initPayrollApp() {
                     }
 
                     if (this.debugEnabled && workflowResult?.debug) {
+                        if (!this.debugInfo.pdfSource) {
+                            this.debugInfo.pdfSource =
+                                files[0]?.name || 'Unknown'
+                        }
                         if (!this.debugText) {
                             this.debugText = workflowResult.debug.text
                         }
@@ -1382,6 +1403,18 @@ export function initPayrollApp() {
                     this.reportTimestamp = new Date().toLocaleString('en-GB')
                     this.suggestedFilename = report.filename
                     this.reportContext = report.context || null
+                    if (this.debugEnabled) {
+                        const { buildRunSnapshot } = await loadRunSnapshot()
+                        this.debugInfo.runSnapshot = JSON.stringify(
+                            buildRunSnapshot(
+                                records,
+                                this.reportContext,
+                                workflowResult?.contributionData || null
+                            ),
+                            null,
+                            2
+                        )
+                    }
                     this.employeeName = records[0]?.employee?.name || 'Unknown'
                     this.reportStats = /** @type {ReportStats} */ ({
                         ...this.reportStats,

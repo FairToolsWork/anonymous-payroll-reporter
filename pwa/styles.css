@@ -609,24 +609,25 @@ button.next-action:hover {
     grid-column: span 3;
 }
 
-/* Step 2: cards 5–6, each 3 cols (2-column full-width row) */
+/* Step 2: cards 5–7, each 2 cols (3-column row) */
 .collapse-grid > :nth-child(5),
-.collapse-grid > :nth-child(6) {
-    grid-column: span 3;
-}
-
-/* Step 3: cards 8–10, each 2 cols (3-column row) */
-.collapse-grid > :nth-child(8),
-.collapse-grid > :nth-child(9),
-.collapse-grid > :nth-child(10) {
+.collapse-grid > :nth-child(6),
+.collapse-grid > :nth-child(7) {
     grid-column: span 2;
 }
 
-/* Step 4: cards 12–15, each 3 cols (2-column row) */
-.collapse-grid > :nth-child(12),
+/* Step 3: cards 9–11, each 2 cols (3-column row) */
+.collapse-grid > :nth-child(9),
+.collapse-grid > :nth-child(10),
+.collapse-grid > :nth-child(11) {
+    grid-column: span 2;
+}
+
+/* Step 4: cards 13–16, each 3 cols (2-column row) */
 .collapse-grid > :nth-child(13),
 .collapse-grid > :nth-child(14),
-.collapse-grid > :nth-child(15) {
+.collapse-grid > :nth-child(15),
+.collapse-grid > :nth-child(16) {
     grid-column: span 3;
 }
 
