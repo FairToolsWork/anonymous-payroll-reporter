@@ -614,11 +614,29 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 const overrun = pdfStatutoryDays - daysTaken < 0
                 yearHolidayCell = `${yearHolidayHours.toFixed(2)} hrs\n(${daysTaken.toFixed(1)}d taken, ${daysRemaining.toFixed(1)} rem${overrun ? ' EXCEEDED' : ''})`
             } else {
-                const variableNote =
-                    firstEntryCtx?.hasBaseline && pdfTypicalDays === 0
-                        ? '\n(Variable pattern)'
-                        : ''
-                yearHolidayCell = yearHolidayHours.toFixed(2) + variableNote
+                const lastEntryCtx =
+                    yearEntries[yearEntries.length - 1]?.holidayContext
+                if (
+                    lastEntryCtx?.hasBaseline &&
+                    pdfTypicalDays === 0 &&
+                    lastEntryCtx.entitlementHours > 0
+                ) {
+                    const hoursRemainingRaw =
+                        lastEntryCtx.entitlementHours - yearHolidayHours
+                    const hoursRemaining = Math.max(0, hoursRemainingRaw)
+                    const hoursOverrun = hoursRemainingRaw < 0
+                    yearHolidayCell =
+                        `${yearHolidayHours.toFixed(2)} hrs taken\n` +
+                        `~${lastEntryCtx.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+                        `(${lastEntryCtx.avgWeeklyHours.toFixed(1)} avg hrs/wk x 5.6)\n` +
+                        `${hoursRemaining.toFixed(1)} hrs remaining${hoursOverrun ? ' EXCEEDED' : ''}`
+                } else {
+                    const variableNote =
+                        firstEntryCtx?.hasBaseline && pdfTypicalDays === 0
+                            ? '\n(Variable pattern)'
+                            : ''
+                    yearHolidayCell = yearHolidayHours.toFixed(2) + variableNote
+                }
             }
             yearRows.push([
                 String(yearKey || 'Unknown'),

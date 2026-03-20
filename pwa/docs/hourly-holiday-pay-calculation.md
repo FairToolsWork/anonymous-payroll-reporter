@@ -143,9 +143,11 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 **What it means:** Workers with highly variable shift patterns (zero-hours contracts, irregular-hours workers) may not have a meaningful "typical days per week" value. For these workers, `typicalDays` can be set to `0` in the worker profile.
 
-**Effect:** When `typicalDays = 0`, the tool suppresses all days-taken estimates and shows only hours and rate checks. The report displays "Days estimate not shown — variable work pattern" in place of the usual days calculation. The statutory holiday entitlement field in the UI becomes disabled and shows "N/A".
+**Effect:** When `typicalDays = 0`, days-taken estimates are suppressed — converting hours to days requires a shift-length assumption the tool does not have. Rate checks (Signals A and B) continue to operate normally.
 
-**Mitigation:** This is intentional behavior aligned with ACAS guidance for irregular-hours workers. Holiday entitlement for these workers accrues at 12.07% of hours worked per pay period (from April 2024 onwards) and cannot be meaningfully pre-calculated as a fixed annual amount. The tool provides accurate rate checks and flags potential underpayment based on the 52-week rolling average, which is the primary statutory requirement.
+**Mitigation:** The tool computes an hours-based entitlement instead: `entitlementHours = avgWeeklyHours × 5.6`. This follows directly from the statutory framework for irregular-hours workers (_Harper Trust v Brazel_ [2022] UKSC 21), which defines entitlement as 5.6 weeks of average weekly hours — no `typicalDays` value is required. The report displays the total holiday hours taken, the estimated annual entitlement in hours (derived from the rolling 52-week average), and the hours remaining. The statutory holiday entitlement field in the UI is disabled (days-based entitlement is not applicable for these workers).
+
+**Enhanced contractual entitlement:** Because `statutoryHolidayDays` is disabled when `typicalDays = 0`, the calculation is anchored to the statutory minimum of 5.6 weeks. Workers whose contract grants more than 5.6 weeks (e.g. 30 days on a 5-day week = 6.0 weeks) will see the statutory floor only — the additional entitlement is not reflected in the hours-remaining figure. For a worker on a regular pattern who happens to set `typicalDays = 0`, this means the result is accurate for the 28-day statutory case (`avgWeeklyHours × 5.6` is algebraically equivalent to `28 days × avgHoursPerDay` when typical days = 5) but will understate remaining entitlement if enhanced contractual days apply. Workers with enhanced entitlement should use `typicalDays > 0` and set `statutoryHolidayDays` to their actual contractual figure.
 
 ---
 
@@ -368,7 +370,7 @@ holidayContext = {
 
 `typicalDays` defaults to 5 when not supplied by the caller via `workerProfile`. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
 
-**Zero-hours handling:** When `typicalDays = 0` (hourly workers only), `avgHoursPerDay` cannot be calculated and days estimates are suppressed. The context still includes `avgWeeklyHours` and `avgRatePerHour` for rate validation purposes.
+**Zero-hours handling:** When `typicalDays = 0` (hourly workers only), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours = avgWeeklyHours × 5.6` — the statutory annual entitlement in hours under _Harper Trust v Brazel_ [2022] UKSC 21. Both `avgWeeklyHours` and `avgRatePerHour` are preserved for rate validation and entitlement display.
 
 ---
 
@@ -410,10 +412,12 @@ None of the above fields affect the underlying payslip parsing or the 52-week ro
 
 **Zero-hours workers:** Hourly workers can set `typicalDays = 0` to indicate a highly variable work pattern. When set to zero:
 
-- Days-taken estimates are suppressed in the report
+- Days-taken estimates are suppressed (no shift-length assumption available)
 - The statutory holiday entitlement field becomes disabled in the UI
 - Rate checks (Signals A and B) continue to operate normally
-- A notice is displayed: "Days estimate not shown — variable work pattern"
+- The report displays an hours-based entitlement: `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6)` and `Z hrs remaining`, using the most recent entry's 52-week rolling context
+- Falls back to `Days estimate not shown — variable work pattern` if no 52-week baseline exists (fewer than 3 eligible prior months)
+- **Enhanced entitlement caveat:** the calculation is anchored to the statutory 5.6-week minimum; workers with enhanced contractual entitlement above this should set `typicalDays > 0` and enter their actual `statutoryHolidayDays` instead
 
 ### Leave year grouping
 

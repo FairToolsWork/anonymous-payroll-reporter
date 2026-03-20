@@ -234,6 +234,15 @@
         />
     </head>
     <body>
+        <svg xmlns="http://www.w3.org/2000/svg">
+            <symbol viewBox="0 0 24 24" id="ic-baseline-help-outline">
+                <!-- Icon from Google Material Icons by Material Design Authors - https://github.com/material-icons/material-icons/blob/master/LICENSE -->
+                <path
+                    fill="currentColor"
+                    d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5c0-2.21-1.79-4-4-4"
+                ></path>
+            </symbol>
+        </svg>
         <div class="offline-banner" aria-live="polite" aria-atomic="true">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -659,7 +668,18 @@
                                 </h3>
                             </header>
                             <details open="">
-                                <summary>What to collect</summary>
+                                <summary>
+                                    What to collect
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <ul>
                                     <li>
                                         From your email, download all your
@@ -748,7 +768,18 @@
                                 </div>
                             </details>
                             <details name="nest-top">
-                                <summary>What to download</summary>
+                                <summary>
+                                    What to download
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <p>
                                     Nest provides a pension contributions record
                                     for each financial year.
@@ -1097,7 +1128,18 @@
                             </p>
 
                             <details>
-                                <summary>Email tips</summary>
+                                <summary>
+                                    Email tips
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <ul>
                                     <li>
                                         You can start informally,
@@ -1346,7 +1388,18 @@
                                 >.
                             </p>
                             <details>
-                                <summary>Whistelblowing</summary>
+                                <summary>
+                                    Whistelblowing
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <p>
                                     Reporting your employer to a regulator is
                                     known as whistleblowing. UK law provides
@@ -1422,15 +1475,24 @@
                                 </label>
                             </div>
                         </div>
-                        <div
-                            class="field-hint notice info"
-                            v-show="workerProfile.workerType === 'hourly'"
-                        >
-                            <b>Zero-hours / irregular-hours workers:</b><br />
-                            If your shift pattern is highly variable, enter
-                            <b>0 days</b>. Otherwise, enter your typical working
-                            pattern <i>when you work</i>.
-                        </div>
+                        <details v-show="workerProfile.workerType === 'hourly'">
+                            <summary>
+                                Zero/irregular hours workers
+                                <svg
+                                    class="inline-icon"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                >
+                                    <use href="#ic-baseline-help-outline"></use>
+                                </svg>
+                            </summary>
+                            <p>
+                                If your shift pattern changes a lot, enter
+                                <b>0 days</b> and the system will estimate your
+                                holiday entitlement. Otherwise, enter the number
+                                of days a week you typically work.
+                            </p>
+                        </details>
                         <label
                             class="field"
                             v-show="workerProfile.workerType === 'hourly'"
@@ -1487,7 +1549,7 @@
                                     Auto calculate
                                 </button>
                             </div>
-                            <span class="field-hint" v-if="!isZeroHoursWorker">
+                            <span class="field-hint">
                                 Statutory minimum for {{
                                 workerProfile.typicalDays }}d/week:
                                 <strong
@@ -1497,13 +1559,13 @@
                                 <br />
                                 (5.6 × days/week, capped at 28)
                             </span>
-                            <span
+                            <!-- <span
                                 class="field-hint notice info"
                                 v-if="isZeroHoursWorker"
                             >
                                 For irregular-hours, the system will estimate
                                 your holiday entitlement from your payslip info.
-                            </span>
+                            </span> -->
                         </label>
                         <label class="field">
                             <span>Holiday year start month</span>
@@ -1631,10 +1693,10 @@
                             />
                             <span>
                                 <i
-                                    >I understand this is an ACAS-informed
-                                    check, not a legal determination of holiday
-                                    or pension calculations, and I am
-                                    responsible for verifying its accuracy.</i
+                                    >I understand this report is only a guide,
+                                    not a legal determination of pay, holiday or
+                                    pension calculations, and I am responsible
+                                    for verifying its accuracy.</i
                                 >
                             </span>
                         </label>

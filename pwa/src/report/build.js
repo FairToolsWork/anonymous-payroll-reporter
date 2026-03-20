@@ -617,14 +617,36 @@ export function buildReport(
                     ` / ${hourlyDaysRemaining.toFixed(1)} remaining${hourlyOverrun ? ' (entitlement exceeded)' : ''}</span>` +
                     leaveYearNote
             } else {
-                const variablePatternNote =
-                    yearCtx?.hasBaseline && yearCtx.typicalDays === 0
-                        ? `<br><span class="summary-breakdown">Days estimate not shown — variable work pattern</span>`
-                        : ''
-                yearHolidayCell =
-                    `${leaveYearHolidayHours.toFixed(2)} hrs` +
-                    leaveYearNote +
-                    variablePatternNote
+                const lastEntryCtx = /** @type {any} */ (
+                    entriesForYear[entriesForYear.length - 1]
+                )?.holidayContext
+                if (
+                    lastEntryCtx?.hasBaseline &&
+                    lastEntryCtx.typicalDays === 0 &&
+                    lastEntryCtx.entitlementHours > 0
+                ) {
+                    const hoursRemainingRaw =
+                        lastEntryCtx.entitlementHours - leaveYearHolidayHours
+                    const hoursRemaining = Math.max(0, hoursRemainingRaw)
+                    const hoursOverrun = hoursRemainingRaw < 0
+                    yearHolidayCell =
+                        `${leaveYearHolidayHours.toFixed(2)} hrs taken<br>` +
+                        `<span class="summary-breakdown">` +
+                        `\u2248${lastEntryCtx.entitlementHours.toFixed(1)} hrs/yr entitlement` +
+                        ` (${lastEntryCtx.avgWeeklyHours.toFixed(1)} avg hrs/wk \u00d7 5.6)<br>` +
+                        `${hoursRemaining.toFixed(1)} hrs remaining${hoursOverrun ? ' (entitlement exceeded)' : ''}` +
+                        `</span>` +
+                        leaveYearNote
+                } else {
+                    const variablePatternNote =
+                        yearCtx?.hasBaseline && yearCtx.typicalDays === 0
+                            ? `<br><span class="summary-breakdown">Days estimate not shown \u2014 variable work pattern</span>`
+                            : ''
+                    yearHolidayCell =
+                        `${leaveYearHolidayHours.toFixed(2)} hrs` +
+                        leaveYearNote +
+                        variablePatternNote
+                }
             }
             return (
                 '<tr>' +

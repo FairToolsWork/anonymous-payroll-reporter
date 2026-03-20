@@ -3,7 +3,7 @@ import { getWeeksInPeriod } from './tax_year_utils.js'
 /**
  * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
- * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number }} HolidayContext
+ * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
  */
 
@@ -271,6 +271,8 @@ export function buildYearHolidayContext(entries, workerProfile) {
             avgHoursPerDay,
             avgRatePerHour,
             typicalDays,
+            entitlementHours:
+                typicalDays === 0 ? avgWeeklyHours * 5.6 : undefined,
         }
     }
 }
