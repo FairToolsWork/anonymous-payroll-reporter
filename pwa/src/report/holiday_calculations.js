@@ -1,5 +1,7 @@
 import { getWeeksInPeriod } from './tax_year_utils.js'
 
+const timing = /** @type {any} */ (globalThis).__payrollTiming || null
+
 /**
  * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
@@ -76,8 +78,18 @@ export function isReferenceEligible(entry) {
  * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean } | null}
  */
 export function buildRollingReference(sortedEntries, targetEntry) {
+    const timingEnabled = Boolean(timing?.enabled)
+    const startedAt = timingEnabled ? globalThis.performance.now() : 0
     const targetDate = targetEntry.parsedDate
     if (!targetDate) {
+        if (timingEnabled) {
+            timing.increment('rollingReference.calls')
+            timing.increment('rollingReference.nullTargetDate')
+            timing.record(
+                'rollingReference.total',
+                globalThis.performance.now() - startedAt
+            )
+        }
         return null
     }
     const cutoff = new Date(targetDate)
@@ -88,30 +100,50 @@ export function buildRollingReference(sortedEntries, targetEntry) {
     let totalBasicHours = 0
     let totalWeeks = 0
     let periodsCounted = 0
+    let scannedEntries = 0
     /** @type {Set<string>} — `yearKey:monthIndex` to deduplicate same-month payslips */
     const monthsSeen = new Set()
 
     for (let i = sortedEntries.length - 1; i >= 0; i--) {
         const entry = sortedEntries[i]
+        scannedEntries += 1
         if (entry === targetEntry) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.targetEntry')
+            }
             continue
         }
         const entryDate = entry.parsedDate
         if (!entryDate) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.noDate')
+            }
             continue
         }
         if (entryDate >= targetDate) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.notBeforeTarget')
+            }
             continue
         }
         if (entryDate.getTime() < cutoffMs) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.break.cutoff')
+            }
             break
         }
         if (!isReferenceEligible(entry)) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.ineligible')
+            }
             continue
         }
         const calYear = entryDate.getFullYear()
         const monthKey = `${calYear}:${entry.monthIndex}`
         if (monthsSeen.has(monthKey)) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.duplicateMonth')
+            }
             continue
         }
         monthsSeen.add(monthKey)
@@ -128,16 +160,41 @@ export function buildRollingReference(sortedEntries, targetEntry) {
         }
     }
 
+    if (timingEnabled) {
+        timing.increment('rollingReference.calls')
+        timing.increment('rollingReference.scannedEntries', scannedEntries)
+        timing.increment('rollingReference.periodsCounted', periodsCounted)
+        timing.recordMax('rollingReference.maxScannedEntries', scannedEntries)
+        timing.recordMax('rollingReference.maxPeriodsCounted', periodsCounted)
+    }
+
     if (periodsCounted < 3) {
+        if (timingEnabled) {
+            timing.increment('rollingReference.nullResult')
+            timing.record(
+                'rollingReference.total',
+                globalThis.performance.now() - startedAt
+            )
+        }
         return null
     }
-    return {
+    const result = {
         totalBasicPay,
         totalBasicHours,
         totalWeeks,
         periodsCounted,
         limitedData: totalWeeks < 52,
     }
+    if (timingEnabled) {
+        if (result.limitedData) {
+            timing.increment('rollingReference.limitedData')
+        }
+        timing.record(
+            'rollingReference.total',
+            globalThis.performance.now() - startedAt
+        )
+    }
+    return result
 }
 
 /**
@@ -157,6 +214,11 @@ export function buildRollingReference(sortedEntries, targetEntry) {
  * @returns {void}
  */
 export function buildHolidayPayFlags(entries) {
+    if (timing?.enabled) {
+        timing.start('holidayFlags.total')
+        timing.increment('holidayFlags.calls')
+        timing.increment('holidayFlags.entriesSeen', entries.length)
+    }
     const sortedEntries = [...entries].sort((a, b) => {
         const aTime = a.parsedDate?.getTime() ?? 0
         const bTime = b.parsedDate?.getTime() ?? 0
@@ -173,6 +235,10 @@ export function buildHolidayPayFlags(entries) {
 
         if (holidayUnits <= 0 || holidayAmount <= 0) {
             continue
+        }
+        if (timing?.enabled) {
+            timing.increment('holidayFlags.entriesWithHolidayPay')
+            timing.increment('holidayFlags.rollingReferenceCalls')
         }
 
         const impliedHolidayRate = holidayAmount / holidayUnits
@@ -214,6 +280,9 @@ export function buildHolidayPayFlags(entries) {
                 id: 'holiday_rate_below_basic',
                 label: `Holiday rate (£${impliedHolidayRate.toFixed(2)}/hr implied) is below basic rate (£${basicRate.toFixed(2)}/hr) on this payslip`,
             })
+            if (timing?.enabled) {
+                timing.increment('holidayFlags.flag.holiday_rate_below_basic')
+            }
         }
 
         if (rollingAvgFlagWillFire) {
@@ -224,7 +293,15 @@ export function buildHolidayPayFlags(entries) {
                 id: 'holiday_rate_below_rolling_avg',
                 label: `Holiday rate (£${impliedHolidayRate.toFixed(2)}/hr implied) is below average basic rate (£${rollingAvgRate.toFixed(2)}/hr)${weeksNote} — request employer's weekly records to confirm`,
             })
+            if (timing?.enabled) {
+                timing.increment(
+                    'holidayFlags.flag.holiday_rate_below_rolling_avg'
+                )
+            }
         }
+    }
+    if (timing?.enabled) {
+        timing.end('holidayFlags.total')
     }
 }
 
@@ -239,6 +316,11 @@ export function buildHolidayPayFlags(entries) {
  * @returns {void}
  */
 export function buildYearHolidayContext(entries, workerProfile) {
+    if (timing?.enabled) {
+        timing.start('holidayContext.total')
+        timing.increment('holidayContext.calls')
+        timing.increment('holidayContext.entriesSeen', entries.length)
+    }
     const typicalDays =
         workerProfile?.typicalDays != null && workerProfile.typicalDays >= 0
             ? workerProfile.typicalDays
@@ -251,12 +333,18 @@ export function buildYearHolidayContext(entries, workerProfile) {
     })
 
     for (const entry of entries) {
+        if (timing?.enabled) {
+            timing.increment('holidayContext.rollingReferenceCalls')
+        }
         const ref = buildRollingReference(sortedEntries, entry)
 
         /** @type {any} */
         const anyEntry = entry
         if (!ref || ref.totalBasicHours <= 0) {
             anyEntry.holidayContext = { hasBaseline: false, typicalDays }
+            if (timing?.enabled) {
+                timing.increment('holidayContext.noBaseline')
+            }
             continue
         }
 
@@ -276,5 +364,14 @@ export function buildYearHolidayContext(entries, workerProfile) {
                     ? avgWeeklyHours * 5.6
                     : undefined,
         }
+        if (timing?.enabled) {
+            timing.increment('holidayContext.hasBaseline')
+            if (typicalDays === 0 && avgWeeklyHours > 0) {
+                timing.increment('holidayContext.zeroHoursBaseline')
+            }
+        }
+    }
+    if (timing?.enabled) {
+        timing.end('holidayContext.total')
     }
 }

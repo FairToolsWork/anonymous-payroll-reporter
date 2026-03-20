@@ -5,6 +5,14 @@ import {
     ACTIVE_PENSION_FORMAT,
 } from '../parse/active_format.js'
 import {
+    DEBUG_ENABLED,
+    DEBUG_LEVEL,
+    logMemoryUsage,
+    MEMORY_LOG_ENABLED,
+    MEMORY_LOG_EVERY,
+    timingApi,
+} from './debug_tools.js'
+import {
     holCalcAvgWeekly,
     holCalcExpectedHours,
     holCalcExpectedPay,
@@ -99,17 +107,6 @@ import {
  *   }
  * } PayrollAppInstance
  */
-
-/** @type {string | null} */
-const DEBUG_LEVEL = new URLSearchParams(window.location.search).get('debug')
-/** @type {string | null} */
-const MEMORY_LEVEL = new URLSearchParams(window.location.search).get('mem')
-/** @type {boolean} */
-const DEBUG_ENABLED = DEBUG_LEVEL === '1' || DEBUG_LEVEL === '2'
-/** @type {boolean} */
-const MEMORY_LOG_ENABLED = MEMORY_LEVEL === '1'
-/** @type {number} */
-const MEMORY_LOG_EVERY = 5
 /** @type {string} */
 const PDF_PASSWORD_KEY = 'pdf_password'
 /** @type {string} */
@@ -139,8 +136,6 @@ let patternsPromise = null
 let runSnapshotPromise = null
 /** @type {Promise<any> | null} */
 let pdfExportPromise = null
-/** @type {boolean} */
-let memoryAttributionUnavailableLogged = false
 
 function loadXlsx() {
     if (!xlsxPromise) {
@@ -189,56 +184,6 @@ function scheduleIdle(callback) {
         return
     }
     window.setTimeout(() => callback(), 0)
-}
-
-/** @param {string} label */
-function logMemoryUsage(label) {
-    if (!MEMORY_LOG_ENABLED) {
-        return
-    }
-    const memory = /** @type {any} */ (globalThis).performance?.memory
-    if (!memory) {
-        console.info('Payroll: memory metrics unavailable', { label })
-        return
-    }
-    const toMb = (/** @type {number} */ value) =>
-        Math.round((value / (1024 * 1024)) * 10) / 10
-    console.info('Payroll: memory usage', {
-        label,
-        usedMb: toMb(memory.usedJSHeapSize),
-        totalMb: toMb(memory.totalJSHeapSize),
-        limitMb: toMb(memory.jsHeapSizeLimit),
-    })
-    void logUserAgentMemory(label)
-}
-
-/** @param {string} label */
-async function logUserAgentMemory(label) {
-    if (!MEMORY_LOG_ENABLED) {
-        return
-    }
-    const perf = /** @type {any} */ (globalThis).performance
-    if (typeof perf?.measureUserAgentSpecificMemory !== 'function') {
-        if (!memoryAttributionUnavailableLogged) {
-            console.info('Payroll: memory attribution unavailable', { label })
-            memoryAttributionUnavailableLogged = true
-        }
-        return
-    }
-    try {
-        const result = await perf.measureUserAgentSpecificMemory()
-        const toMb = (/** @type {number} */ value) =>
-            Math.round((value / (1024 * 1024)) * 10) / 10
-        console.info('Payroll: memory attribution', {
-            label,
-            totalMb: toMb(result.bytes),
-            breakdownCount: Array.isArray(result.breakdown)
-                ? result.breakdown.length
-                : 0,
-        })
-    } catch {
-        // ignore measurement errors
-    }
 }
 
 /**
@@ -1339,6 +1284,34 @@ export function initPayrollApp() {
                         current: 0,
                         total: files.length + this.contributionFiles.length,
                     }
+                    let timingFlushed = false
+                    /**
+                     * @param {string} outcome
+                     * @param {Record<string, any> | null} [meta=null]
+                     */
+                    const flushRunTiming = (outcome, meta = null) => {
+                        if (!timingApi.enabled || timingFlushed) {
+                            return
+                        }
+                        timingFlushed = true
+                        timingApi.end('run.total')
+                        timingApi.setMeta('run.outcome', outcome)
+                        if (meta && typeof meta === 'object') {
+                            Object.entries(meta).forEach(([key, value]) => {
+                                timingApi.setMeta(key, value)
+                            })
+                        }
+                        timingApi.flush('run.total')
+                    }
+                    if (timingApi.enabled) {
+                        timingApi.reset()
+                        timingApi.setMeta('run.pdfFiles', files.length)
+                        timingApi.setMeta(
+                            'run.excelFiles',
+                            this.contributionFiles.length
+                        )
+                        timingApi.start('run.total')
+                    }
                     logMemoryUsage('run-start')
                     console.info('Payroll: starting processing', {
                         files: files.length,
@@ -1485,6 +1458,9 @@ export function initPayrollApp() {
                             this.error =
                                 'An unexpected error occurred while processing the files. Please try again.'
                         }
+                        flushRunTiming('error', {
+                            'run.errorMessage': e?.message || 'UNKNOWN_ERROR',
+                        })
                         this.status = 'idle'
                         return
                     } finally {
@@ -1511,6 +1487,13 @@ export function initPayrollApp() {
                         console.warn('Payroll: no records extracted', {
                             files: files.length,
                             error: this.error,
+                        })
+                        flushRunTiming('no-records', {
+                            'run.records': 0,
+                            'run.failedFiles': this.failedFiles.length,
+                            'run.failedPayPeriods':
+                                this.failedPayPeriods.length,
+                            'run.errorMessage': this.error,
                         })
                         return
                     }
@@ -1648,6 +1631,13 @@ export function initPayrollApp() {
                         this.status = 'idle'
                         this.error =
                             this.error || 'No payroll data was extracted.'
+                        flushRunTiming('no-report', {
+                            'run.records': records.length,
+                            'run.failedFiles': this.failedFiles.length,
+                            'run.failedPayPeriods':
+                                this.failedPayPeriods.length,
+                            'run.errorMessage': this.error,
+                        })
                         return
                     }
 
@@ -1685,6 +1675,11 @@ export function initPayrollApp() {
                     document.title = report.filename
                     console.info('Payroll: report ready', {
                         filename: report.filename,
+                    })
+                    flushRunTiming('done', {
+                        'run.records': records.length,
+                        'run.failedFiles': this.failedFiles.length,
+                        'run.failedPayPeriods': this.failedPayPeriods.length,
                     })
                     this.stagedFiles = []
                     this.stagedPdfCount = 0
