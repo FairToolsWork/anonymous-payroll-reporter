@@ -718,13 +718,13 @@ button.next-action:hover {
 
 .collapse-shell {
     position: relative;
-    max-height: 2230px;
-    max-height: max-content;
-    transition: max-height 0.25s ease;
+    height: auto;
+    transition:
+        height 0.25s ease,
+        filter 0.25s ease;
 }
 
 .collapse-shell.is-collapsed {
-    max-height: 75px;
     overflow: hidden;
     filter: saturate(0.5) opacity(0.6);
 }
@@ -916,8 +916,19 @@ button.next-action:hover {
     padding: var(--space-8) var(--space-12);
     background: var(--paper);
     transition:
-        transform 0.2s ease,
-        background 0.2s ease;
+        background 0.2s ease,
+        color 0.2s ease;
+    overflow: hidden;
+}
+
+.card .details-content {
+    height: 0;
+    overflow: hidden;
+    transition: height 0.2s ease;
+}
+
+.card details[open] .details-content > * {
+    animation: details-reveal 0.2s ease;
 }
 
 .card details + details {
@@ -936,10 +947,6 @@ button.next-action:hover {
 
 .card details:not([open]):hover summary::before {
     color: var(--card);
-}
-
-.card details[open] > *:not(summary) {
-    animation: details-reveal 0.2s ease;
 }
 
 .prep .card header {

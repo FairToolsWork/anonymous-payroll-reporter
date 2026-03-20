@@ -272,7 +272,9 @@ export function buildYearHolidayContext(entries, workerProfile) {
             avgRatePerHour,
             typicalDays,
             entitlementHours:
-                typicalDays === 0 ? avgWeeklyHours * 5.6 : undefined,
+                typicalDays === 0 && avgWeeklyHours > 0
+                    ? avgWeeklyHours * 5.6
+                    : undefined,
         }
     }
 }

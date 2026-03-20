@@ -91,6 +91,9 @@ import {
  *     statutoryHolidayInputValue: string | number,
  *     updateStatutoryHolidayDays(event: Event): void,
  *     sharePdf(): Promise<void>,
+ *     setSectionCollapsed(sectionKey: string, isCollapsed: boolean): void,
+ *     syncCollapseShellState(sectionKey: string): void,
+ *     handleAnimatedDetailsClick(event: MouseEvent): void,
  *     _onOnline: (() => void),
  *     _onOffline: (() => void),
  *   }
@@ -356,6 +359,130 @@ const AppBreadcrumb = defineComponent({
         </nav>
     `,
 })
+
+const COLLAPSE_SHELL_COLLAPSED_HEIGHT = 75
+const COLLAPSE_SHELL_TRANSITION_MS = 250
+const DETAILS_CONTENT_TRANSITION_MS = 200
+/** @type {WeakMap<HTMLElement, () => void>} */
+const activeHeightAnimations = new WeakMap()
+
+/** @param {HTMLElement} element */
+function clearHeightAnimation(element) {
+    const cleanup = activeHeightAnimations.get(element)
+    if (!cleanup) {
+        return
+    }
+    cleanup()
+    activeHeightAnimations.delete(element)
+}
+
+/**
+ * @param {HTMLElement} element
+ * @param {number} startHeight
+ * @param {number} endHeight
+ * @param {number} durationMs
+ * @param {() => void} onComplete
+ * @returns {void}
+ */
+function animateElementHeight(
+    element,
+    startHeight,
+    endHeight,
+    durationMs,
+    onComplete
+) {
+    clearHeightAnimation(element)
+    let completed = false
+    let timeoutId = 0
+    const finish = () => {
+        if (completed) {
+            return
+        }
+        completed = true
+        element.removeEventListener('transitionend', handleTransitionEnd)
+        window.clearTimeout(timeoutId)
+        activeHeightAnimations.delete(element)
+        onComplete()
+    }
+    /** @param {TransitionEvent} event */
+    const handleTransitionEnd = (event) => {
+        if (event.target !== element || event.propertyName !== 'height') {
+            return
+        }
+        finish()
+    }
+    element.style.height = `${startHeight}px`
+    element.addEventListener('transitionend', handleTransitionEnd)
+    timeoutId = window.setTimeout(finish, durationMs + 50)
+    activeHeightAnimations.set(element, () => {
+        if (completed) {
+            return
+        }
+        completed = true
+        element.removeEventListener('transitionend', handleTransitionEnd)
+        window.clearTimeout(timeoutId)
+    })
+    window.requestAnimationFrame(() => {
+        element.style.height = `${endHeight}px`
+    })
+}
+
+/** @param {string} sectionKey @returns {HTMLElement | null} */
+function getCollapseShell(sectionKey) {
+    const content = document.getElementById(`${sectionKey}-content`)
+    return /** @type {HTMLElement | null} */ (
+        content?.closest('.collapse-shell') || null
+    )
+}
+
+/** @param {HTMLElement} shell @param {boolean} isCollapsed @returns {void} */
+function syncCollapseShell(shell, isCollapsed) {
+    clearHeightAnimation(shell)
+    shell.style.overflow = isCollapsed ? 'hidden' : ''
+    shell.style.height = isCollapsed
+        ? `${COLLAPSE_SHELL_COLLAPSED_HEIGHT}px`
+        : 'auto'
+}
+
+/** @param {HTMLElement} details @returns {HTMLElement | null} */
+function getAnimatedDetailsContent(details) {
+    for (const child of Array.from(details.children)) {
+        if (
+            child?.nodeType === 1 &&
+            child.classList?.contains('details-content')
+        ) {
+            return /** @type {HTMLElement} */ (child)
+        }
+    }
+    return null
+}
+
+/** @param {HTMLElement} root @returns {void} */
+function initializeAnimatedDetails(root) {
+    root.querySelectorAll('.card details').forEach((element) => {
+        const details = /** @type {HTMLDetailsElement} */ (element)
+        if (details.dataset.animated === 'true') {
+            return
+        }
+        const summary = /** @type {HTMLElement | null} */ (
+            details.firstElementChild
+        )
+        if (!summary || summary.tagName !== 'SUMMARY') {
+            return
+        }
+        const content = document.createElement('div')
+        content.className = 'details-content'
+        for (const child of Array.from(details.children)) {
+            if (child !== summary) {
+                content.appendChild(child)
+            }
+        }
+        details.appendChild(content)
+        content.style.height = details.open ? 'auto' : '0px'
+        details.dataset.animated = 'true'
+        details.dataset.animating = 'false'
+    })
+}
 
 /** @returns {void} */
 export function initPayrollApp() {
@@ -673,28 +800,160 @@ export function initPayrollApp() {
                             parseFloat(target.value) || 0
                     }
                 },
-                /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
-                toggleSection(sectionKey) {
+                /** @this {PayrollAppInstance} @param {string} sectionKey @param {boolean} isCollapsed @returns {void} */
+                setSectionCollapsed(sectionKey, isCollapsed) {
                     if (!this.collapsedSections) {
                         this.collapsedSections = {
                             prep: false,
                             nextSteps: true,
                         }
                     }
-                    this.collapsedSections[sectionKey] =
-                        !this.collapsedSections[sectionKey]
+                    const shell = getCollapseShell(sectionKey)
+                    if (!shell) {
+                        this.collapsedSections[sectionKey] = isCollapsed
+                        return
+                    }
+                    const startHeight = shell.getBoundingClientRect().height
+                    shell.style.overflow = 'hidden'
+                    this.collapsedSections[sectionKey] = isCollapsed
+                    this.$nextTick(() => {
+                        const activeShell =
+                            getCollapseShell(sectionKey) || shell
+                        const targetHeight = isCollapsed
+                            ? COLLAPSE_SHELL_COLLAPSED_HEIGHT
+                            : activeShell.scrollHeight
+                        animateElementHeight(
+                            activeShell,
+                            startHeight,
+                            targetHeight,
+                            COLLAPSE_SHELL_TRANSITION_MS,
+                            () => {
+                                syncCollapseShell(activeShell, isCollapsed)
+                            }
+                        )
+                    })
+                },
+                /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
+                toggleSection(sectionKey) {
+                    this.setSectionCollapsed(
+                        sectionKey,
+                        !this.collapsedSections?.[sectionKey]
+                    )
                 },
                 /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
                 expandSection(sectionKey) {
                     if (this.collapsedSections?.[sectionKey]) {
-                        this.collapsedSections[sectionKey] = false
+                        this.setSectionCollapsed(sectionKey, false)
                     }
                 },
                 /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
                 handleSectionFocus(sectionKey) {
                     if (this.collapsedSections?.[sectionKey]) {
-                        this.collapsedSections[sectionKey] = false
+                        this.setSectionCollapsed(sectionKey, false)
                     }
+                },
+                /** @this {PayrollAppInstance} @param {string} sectionKey @returns {void} */
+                syncCollapseShellState(sectionKey) {
+                    if (!this.collapsedSections) {
+                        return
+                    }
+                    const shell = getCollapseShell(sectionKey)
+                    if (!shell) {
+                        return
+                    }
+                    syncCollapseShell(
+                        shell,
+                        !!this.collapsedSections[sectionKey]
+                    )
+                },
+                /** @this {PayrollAppInstance} @param {MouseEvent} event @returns {void} */
+                handleAnimatedDetailsClick(event) {
+                    const eventTarget = /** @type {EventTarget | null} */ (
+                        event.target
+                    )
+                    if (!eventTarget) {
+                        return
+                    }
+                    const targetCandidate =
+                        /** @type {{ closest?: unknown }} */ (eventTarget)
+                    if (typeof targetCandidate.closest !== 'function') {
+                        return
+                    }
+                    const target = /** @type {Element} */ (eventTarget)
+                    const summary = target.closest('summary')
+                    if (!summary || summary.tagName !== 'SUMMARY') {
+                        return
+                    }
+                    const details = /** @type {HTMLDetailsElement | null} */ (
+                        summary.parentElement
+                    )
+                    if (!details || details.tagName !== 'DETAILS') {
+                        return
+                    }
+                    if (!details.matches('.card details')) {
+                        return
+                    }
+                    const content = getAnimatedDetailsContent(details)
+                    if (!content) {
+                        return
+                    }
+                    event.preventDefault()
+                    if (details.dataset.animating === 'true') {
+                        return
+                    }
+                    if (details.open) {
+                        details.dataset.animating = 'true'
+                        animateElementHeight(
+                            content,
+                            content.getBoundingClientRect().height,
+                            0,
+                            DETAILS_CONTENT_TRANSITION_MS,
+                            () => {
+                                details.open = false
+                                details.dataset.animating = 'false'
+                                content.style.height = '0px'
+                            }
+                        )
+                        return
+                    }
+                    const groupName = details.getAttribute('name')
+                    if (groupName) {
+                        document
+                            .querySelectorAll('details[open]')
+                            .forEach((node) => {
+                                const openDetails =
+                                    /** @type {HTMLDetailsElement} */ (node)
+                                if (
+                                    openDetails.tagName !== 'DETAILS' ||
+                                    openDetails === details ||
+                                    openDetails.getAttribute('name') !==
+                                        groupName
+                                ) {
+                                    return
+                                }
+                                const siblingContent =
+                                    getAnimatedDetailsContent(openDetails)
+                                if (siblingContent) {
+                                    clearHeightAnimation(siblingContent)
+                                    siblingContent.style.height = '0px'
+                                }
+                                openDetails.open = false
+                                openDetails.dataset.animating = 'false'
+                            })
+                    }
+                    details.open = true
+                    details.dataset.animating = 'true'
+                    content.style.height = '0px'
+                    animateElementHeight(
+                        content,
+                        0,
+                        content.scrollHeight,
+                        DETAILS_CONTENT_TRANSITION_MS,
+                        () => {
+                            details.dataset.animating = 'false'
+                            content.style.height = 'auto'
+                        }
+                    )
                 },
                 /** @this {PayrollAppInstance} @param {File[]} rawFiles */
                 stageFiles(rawFiles) {
@@ -1720,6 +1979,10 @@ export function initPayrollApp() {
             /** @this {PayrollAppInstance} @returns {void} */
             beforeUnmount() {
                 window.removeEventListener('scroll', this.handleScroll)
+                document.removeEventListener(
+                    'click',
+                    this.handleAnimatedDetailsClick
+                )
                 if (this._onOnline) {
                     window.removeEventListener('online', this._onOnline)
                 }
@@ -1830,6 +2093,21 @@ export function initPayrollApp() {
                     void loadXlsx()
                     void loadReportWorkflow()
                     void loadPatterns()
+                })
+                const appRoot = document.getElementById('app')
+                if (appRoot) {
+                    initializeAnimatedDetails(appRoot)
+                }
+                document.addEventListener(
+                    'click',
+                    this.handleAnimatedDetailsClick
+                )
+                this.$nextTick(() => {
+                    Object.keys(this.collapsedSections || {}).forEach(
+                        (sectionKey) => {
+                            this.syncCollapseShellState(sectionKey)
+                        }
+                    )
                 })
 
                 const isDevHost =
