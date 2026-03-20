@@ -1219,7 +1219,7 @@ function renderReportCell(entry) {
 
     const rows = [
         '<table class="report-table">',
-        `<tr style="border-bottom: 2px solid black;"><th class="row-header" align="left">Date</th><td>${dateLabel}</td></tr>`,
+        `<tr class="report-row--section-start"><th class="row-header" align="left">Date</th><td>${dateLabel}</td></tr>`,
         '<tr><th class="row-header" align="left" colspan="2">Payments</th></tr>',
     ]
 
@@ -1287,7 +1287,7 @@ function renderReportCell(entry) {
 
     rows.push(
         `<tr><th class="row-header" align="left">Combined NEST</th><td>${formatCurrency(combined)}</td></tr>`,
-        `<tr style="border-top: 2px solid black;"><th class="row-header" align="left">Net Pay (after deductions)</th><td>${formatCurrency(netPay)}</td></tr>`,
+        `<tr class="report-row--total"><th class="row-header" align="left">Net Pay (after deductions)</th><td>${formatCurrency(netPay)}</td></tr>`,
         '</table>'
     )
 

@@ -929,8 +929,7 @@ export function initPayrollApp() {
                         const textarea = document.createElement('textarea')
                         textarea.value = payload
                         textarea.setAttribute('readonly', '')
-                        textarea.style.position = 'absolute'
-                        textarea.style.left = '-9999px'
+                        textarea.className = 'clipboard-copy-buffer'
                         document.body.appendChild(textarea)
                         textarea.select()
                         document.execCommand('copy')
