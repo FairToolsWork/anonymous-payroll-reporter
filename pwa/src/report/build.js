@@ -19,7 +19,6 @@ import { buildValidation } from './hourly_pay_calculations.js'
 import { buildContributionSummary } from './pension_calculations.js'
 import { buildReportEntries } from './report_calculations.js'
 import {
-    ACCUMULATED_TOTALS_NOTE,
     APRIL_BOUNDARY_NOTE,
     formatBreakdownCell,
     formatContribution,
@@ -28,7 +27,11 @@ import {
     formatDeduction,
     ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
-import { buildPayslipViewModel } from './report_view_model.js'
+import {
+    buildPayslipViewModel,
+    buildSummaryViewModel,
+    buildYearViewModel,
+} from './report_view_model.js'
 import {
     formatDateKey,
     formatDateLabel,
@@ -42,7 +45,6 @@ import {
 import {
     buildEntryHolidaySummary,
     buildLeaveYearGroups,
-    buildYearHolidaySummary,
 } from './year_holiday_summary.js'
 
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
@@ -79,6 +81,85 @@ function formatYearAnchor(yearKey) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
+}
+
+/**
+ * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonthName: string }} workerProfile
+ * @returns {string}
+ */
+function formatWorkerProfileHtml(workerProfile) {
+    return `<b>Type:</b> ${workerProfile.workerTypeLabel} &nbsp;·&nbsp; <b>Typical days:</b> ${workerProfile.typicalDays}/week &nbsp;·&nbsp; <b>Holiday entitlement:</b> ${workerProfile.statutoryHolidayDays} days/year &nbsp;·&nbsp; <b>Leave year starts:</b> ${workerProfile.leaveYearStartMonthName}`
+}
+
+/**
+ * @param {any} holidaySummary
+ * @returns {string}
+ */
+function formatYearSummaryHolidayHtml(holidaySummary) {
+    const leaveYearNote = holidaySummary.leaveYearLabel
+        ? `<br><span class="summary-breakdown">${holidaySummary.leaveYearLabel}</span>`
+        : ''
+    if (holidaySummary.kind === 'salary_days') {
+        return (
+            `${formatCurrency(holidaySummary.holidayAmount)}<br>` +
+            `<span class="summary-breakdown">≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
+            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}</span>` +
+            leaveYearNote
+        )
+    }
+    if (holidaySummary.kind === 'salary_amount') {
+        return formatCurrency(holidaySummary.holidayAmount) + leaveYearNote
+    }
+    if (holidaySummary.kind === 'hourly_days') {
+        return (
+            `${holidaySummary.holidayHours.toFixed(2)} hrs<br>` +
+            `<span class="summary-breakdown">≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
+            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}</span>` +
+            leaveYearNote
+        )
+    }
+    if (holidaySummary.kind === 'hourly_hours') {
+        return (
+            `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
+            `<span class="summary-breakdown">` +
+            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
+            ` (${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk × 5.6)<br>` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}` +
+            `</span>` +
+            leaveYearNote
+        )
+    }
+    const variablePatternNote = holidaySummary.hasVariablePattern
+        ? `<br><span class="summary-breakdown">Days estimate not shown — variable work pattern</span>`
+        : ''
+    return `${holidaySummary.holidayHours.toFixed(2)} hrs${leaveYearNote}${variablePatternNote}`
+}
+
+/**
+ * @param {any} holidaySummary
+ * @returns {string}
+ */
+function formatYearRowHolidayHtml(holidaySummary) {
+    return holidaySummary.kind === 'hours_days'
+        ? `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">≈${holidaySummary.estimatedDays.toFixed(1)} days</span>`
+        : `${holidaySummary.holidayHours.toFixed(2)} hrs`
+}
+
+/**
+ * @param {{ dateLabel: string, type: string, label: string, amount: number, units: number | null, rate: number | null }} item
+ * @returns {string}
+ */
+function formatMiscReviewHtml(item) {
+    const typeLabel = item.type === 'deduction' ? 'Deduction' : 'Payment'
+    const amountLabel =
+        item.type === 'deduction'
+            ? formatDeduction(item.amount || 0)
+            : formatCurrency(item.amount || 0)
+    const detailLabel =
+        item.units == null || item.rate == null
+            ? 'flat'
+            : `${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))}`
+    return `<li>${item.dateLabel}: ${typeLabel}: ${item.label} (${detailLabel}): ${amountLabel}</li>`
 }
 
 /**
@@ -515,182 +596,137 @@ export function buildReport(
             ? workerType.charAt(0).toUpperCase() + workerType.slice(1)
             : 'Not specified'
 
-        const workerProfileHtml = `<b>Type:</b> ${workerTypeLabel} &nbsp;\u00b7&nbsp; <b>Typical days:</b> ${typicalDays}/week &nbsp;\u00b7&nbsp; <b>Holiday entitlement:</b> ${statutoryHolidayDays} days/year &nbsp;\u00b7&nbsp; <b>Leave year starts:</b> ${leaveYearStartMonthName}`
+        const workerProfileHtml = formatWorkerProfileHtml({
+            workerTypeLabel,
+            typicalDays,
+            statutoryHolidayDays,
+            leaveYearStartMonthName,
+        })
+        const summaryViewModel = buildSummaryViewModel(
+            {
+                entries,
+                yearGroups,
+                contributionSummary,
+                reportGeneratedLabel,
+                contributionMeta,
+                missingMonths: {
+                    missingMonthsByYear,
+                },
+                validationSummary: {
+                    flaggedPeriods,
+                    lowConfidenceEntries,
+                },
+                contributionTotals: contributionTotalsResult,
+                contributionRecency: {
+                    ...contributionRecency,
+                    daysThreshold,
+                },
+                workerProfile: {
+                    workerType,
+                    typicalDays,
+                    statutoryHolidayDays,
+                    leaveYearStartMonth,
+                },
+                contractTypeMismatchWarning,
+                leaveYearGroups,
+            },
+            {
+                employeeName,
+                dateRangeLabel,
+            }
+        )
+        const summaryMetaRowsHtml = summaryViewModel.metaRows
+            .map((/** @type {any} */ row) => {
+                let value = row.value || ''
+                if (row.id === 'worker-profile') {
+                    value = workerProfileHtml
+                } else if (row.id === 'missing-payroll-months') {
+                    value = missingMonthsTableHtml
+                } else if (row.id === 'flagged-periods') {
+                    value = flaggedPeriodsHtml
+                } else if (row.id === 'low-confidence-periods') {
+                    value = lowConfidenceHtml
+                }
+                return `<tr><th>${row.label}:</th><td>${value}</td></tr>`
+            })
+            .join('')
+        const summaryYearRowsHtml = summaryViewModel.yearSummaryRows
+            .map((/** @type {any} */ row) => {
+                const flagIcon = row.hasFlags ? '⚠︎' : '—'
+                return (
+                    '<tr>' +
+                    `<th><a href="#${row.anchorId}">${row.yearKey}</a></th>` +
+                    `<td>${row.hours.toFixed(2)}</td>` +
+                    `<td>${formatYearSummaryHolidayHtml(row.holidaySummary)}</td>` +
+                    `<td>${formatBreakdownCell(
+                        row.payrollContribution.total,
+                        row.payrollContribution.ee,
+                        row.payrollContribution.er
+                    )}</td>` +
+                    `<td>${formatBreakdownCell(
+                        row.reportedContribution.total,
+                        row.reportedContribution.ee,
+                        row.reportedContribution.er,
+                        true
+                    )}</td>` +
+                    `<td>${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                    `<td>${flagIcon}</td>` +
+                    '</tr>'
+                )
+            })
+            .join('')
+        const summaryAccumulatedTotals = summaryViewModel.accumulatedTotals
+        const summaryContributionRecency =
+            summaryAccumulatedTotals.contributionRecency || {
+                lastContributionLabel: 'N/A',
+                daysSinceContribution: null,
+                daysThreshold,
+            }
+        const summaryDaysHtml =
+            summaryContributionRecency.daysSinceContribution === null
+                ? 'N/A'
+                : `<span class="${summaryContributionRecency.daysSinceContribution > (summaryContributionRecency.daysThreshold ?? daysThreshold) ? 'days--stale' : 'days--fresh'}">${summaryContributionRecency.daysSinceContribution} days</span>`
+        const summaryMiscReviewHtml = summaryViewModel.miscReviewItems.length
+            ? `<div class="report-footnote"><p>† Misc entries to review</p><ul>${summaryViewModel.miscReviewItems.map((/** @type {any} */ item) => formatMiscReviewHtml(item)).join('')}</ul></div>`
+            : ''
+        const summaryNotesHtml = summaryViewModel.notes
+            .map(
+                (/** @type {any} */ note) =>
+                    `<div class="report-footnote"><b>Note:</b> <i>${note.text}</i></div>`
+            )
+            .join('')
 
         timeBuildPhase('buildReport.annualRender', () => {
             reportSections.push('<div class="page">')
             reportSections.push(
                 `<div class="report-meta">` +
-                    `<h2>Payroll Report \u2014 ${employeeName}</h2>` +
+                    `<h2>Payroll Report — ${employeeName}</h2>` +
                     `<p class="report-range">${dateRangeLabel}</p>` +
                     `<p class="report-meta-generated"><b>Generated:</b> ${reportGeneratedLabel}</p>` +
                     `<div class="report-meta-table-container notice no-left-border">` +
                     `<table class="report-meta-table ">` +
-                    `<tr><th>Payroll:</th><td>${dateRangeLabel} &nbsp;\u00b7&nbsp; ${pdfCountLabel}</td></tr>` +
-                    `<tr><th>Pension:</th><td>${contributionMeta.fileCount ? `${contributionMeta.dateRangeLabel} &nbsp;\u00b7&nbsp; ${pensionFileLabel}` : 'None'}</td></tr>` +
-                    `<tr><th>Worker profile:</th><td>${workerProfileHtml}</td></tr>` +
-                    `<tr><th>Missing payroll months:</th><td>${missingMonthsTableHtml}</td></tr>` +
-                    `<tr><th>Flagged periods:</th><td>${flaggedPeriodsHtml}</td></tr>` +
-                    `<tr><th>Low confidence periods:</th><td>${lowConfidenceHtml}</td></tr>` +
+                    `${summaryMetaRowsHtml}` +
                     `</table>` +
                     `</div>` +
                     `</div>`
             )
-            if (contractTypeMismatchWarning) {
+            if (summaryViewModel.contractTypeMismatchWarning) {
                 reportSections.push(
-                    `<div class="report-warning-banner"><span class="warning-icon">⚠︎</span> ${contractTypeMismatchWarning}</div>`
+                    `<div class="report-warning-banner"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
                 )
             }
             reportSections.push(
                 `<h2>Annual Totals:    (${dateRangeLabel})</h2>`
             )
 
-            const yearSummaryRows = Array.from(yearGroups.entries())
-                .filter(([yearKey]) => yearKey && yearKey !== 'Unknown')
-                .map(([yearKey, entriesForYear]) => {
-                    const yearHours = entriesForYear.reduce(
-                        (
-                            /** @type {number} */ acc,
-                            /** @type {ReportEntry} */ entry
-                        ) => {
-                            return (
-                                acc +
-                                (entry.record.payrollDoc?.payments?.hourly
-                                    ?.basic?.units || 0)
-                            )
-                        },
-                        0
-                    )
-                    const yearPayrollEE = entriesForYear.reduce(
-                        (
-                            /** @type {number} */ acc,
-                            /** @type {ReportEntry} */ entry
-                        ) => {
-                            return (
-                                acc +
-                                (entry.record.payrollDoc?.deductions?.pensionEE
-                                    ?.amount || 0)
-                            )
-                        },
-                        0
-                    )
-                    const yearPayrollER = entriesForYear.reduce(
-                        (
-                            /** @type {number} */ acc,
-                            /** @type {ReportEntry} */ entry
-                        ) => {
-                            return (
-                                acc +
-                                (entry.record.payrollDoc?.deductions?.pensionER
-                                    ?.amount || 0)
-                            )
-                        },
-                        0
-                    )
-                    const yearPayrollContribution =
-                        yearPayrollEE + yearPayrollER
-                    const hasFlags = entriesForYear.some(
-                        (/** @type {ReportEntry} */ entry) =>
-                            entry.validation?.flags &&
-                            entry.validation.flags.length
-                    )
-                    const yearReconciliation =
-                        entriesForYear.reconciliation || null
-                    const yearReportedEE = yearReconciliation
-                        ? yearReconciliation.totals.actualEE || 0
-                        : null
-                    const yearReportedER = yearReconciliation
-                        ? yearReconciliation.totals.actualER || 0
-                        : null
-                    const yearReportedContribution = yearReconciliation
-                        ? yearReportedEE + yearReportedER
-                        : null
-                    const yearOverUnder =
-                        yearReportedContribution === null
-                            ? null
-                            : yearReportedContribution - yearPayrollContribution
-                    const yearZeroReview =
-                        yearReportedContribution !== null &&
-                        yearPayrollContribution === 0 &&
-                        yearReportedContribution === 0
-                    const flagIcon = hasFlags ? '⚠︎' : '—'
-                    const yearSummaryAnchor = `year-summary-${formatYearAnchor(yearKey)}`
-                    const yearHolidaySummary = buildYearHolidaySummary(
-                        entriesForYear,
-                        leaveYearGroups,
-                        {
-                            workerType,
-                            typicalDays,
-                            statutoryHolidayDays,
-                            leaveYearStartMonth,
-                        }
-                    )
-                    const leaveYearNote = yearHolidaySummary.leaveYearLabel
-                        ? `<br><span class="summary-breakdown">${yearHolidaySummary.leaveYearLabel}</span>`
-                        : ''
-
-                    let yearHolidayCell
-                    if (yearHolidaySummary.kind === 'salary_days') {
-                        yearHolidayCell =
-                            `${formatCurrency(yearHolidaySummary.holidayAmount)}<br>` +
-                            `<span class="summary-breakdown">≈${yearHolidaySummary.daysTaken.toFixed(1)} days taken` +
-                            ` / ${yearHolidaySummary.daysRemaining.toFixed(1)} remaining${yearHolidaySummary.overrun ? ' (entitlement exceeded)' : ''}</span>` +
-                            leaveYearNote
-                    } else if (yearHolidaySummary.kind === 'salary_amount') {
-                        yearHolidayCell =
-                            formatCurrency(yearHolidaySummary.holidayAmount) +
-                            leaveYearNote
-                    } else if (yearHolidaySummary.kind === 'hourly_days') {
-                        yearHolidayCell =
-                            `${yearHolidaySummary.holidayHours.toFixed(2)} hrs<br>` +
-                            `<span class="summary-breakdown">≈${yearHolidaySummary.daysTaken.toFixed(1)} days taken` +
-                            ` / ${yearHolidaySummary.daysRemaining.toFixed(1)} remaining${yearHolidaySummary.overrun ? ' (entitlement exceeded)' : ''}</span>` +
-                            leaveYearNote
-                    } else if (yearHolidaySummary.kind === 'hourly_hours') {
-                        yearHolidayCell =
-                            `${yearHolidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
-                            `<span class="summary-breakdown">` +
-                            `≈${yearHolidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
-                            ` (${yearHolidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk × 5.6)<br>` +
-                            `${yearHolidaySummary.hoursRemaining.toFixed(1)} hrs remaining${yearHolidaySummary.overrun ? ' (entitlement exceeded)' : ''}` +
-                            `</span>` +
-                            leaveYearNote
-                    } else {
-                        const variablePatternNote =
-                            yearHolidaySummary.hasVariablePattern
-                                ? `<br><span class="summary-breakdown">Days estimate not shown — variable work pattern</span>`
-                                : ''
-                        yearHolidayCell =
-                            `${yearHolidaySummary.holidayHours.toFixed(2)} hrs` +
-                            leaveYearNote +
-                            variablePatternNote
-                    }
-                    return (
-                        '<tr>' +
-                        `<th><a href="#${yearSummaryAnchor}">${yearKey}</a></th>` +
-                        `<td>${yearHours.toFixed(2)}</td>` +
-                        `<td>${yearHolidayCell}</td>` +
-                        `<td>${formatBreakdownCell(yearPayrollContribution, yearPayrollEE, yearPayrollER)}</td>` +
-                        `<td>${formatBreakdownCell(
-                            yearReportedContribution,
-                            yearReportedEE,
-                            yearReportedER,
-                            true
-                        )}</td>` +
-                        `<td>${formatYearDiff(yearOverUnder, yearZeroReview)}</td>` +
-                        `<td>${flagIcon}</td>` +
-                        '</tr>'
-                    )
-                })
-                .join('')
-            if (yearSummaryRows) {
+            if (summaryYearRowsHtml) {
                 reportSections.push(
                     '<table class="summary-table"><thead><tr>' +
                         '<th>Tax Year</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
                         '<th>Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
                         '<th>YE Over / Under</th><th>Flags</th>' +
                         '</tr></thead>' +
-                        `<tbody>${yearSummaryRows}</tbody>` +
+                        `<tbody>${summaryYearRowsHtml}</tbody>` +
                         '</table>'
                 )
             }
@@ -703,77 +739,24 @@ export function buildReport(
                     '<th>Reported (EE+ER)</th><th>Accumulated Over/Under</th>' +
                     '<th>Last Contribution Date</th></tr></thead>' +
                     '<tbody><tr>' +
-                    `<td colspan="2">${dateRangeLabel}</td>` +
-                    `<td>${formatBreakdownCell(payrollContribution, payrollEE, payrollER)}</td>` +
+                    `<td colspan="2">${summaryAccumulatedTotals.dateRangeLabel}</td>` +
+                    `<td>${formatBreakdownCell(summaryAccumulatedTotals.payrollContribution.total, summaryAccumulatedTotals.payrollContribution.ee, summaryAccumulatedTotals.payrollContribution.er)}</td>` +
                     `<td>${formatBreakdownCell(
-                        reportedContribution,
-                        pensionEE,
-                        pensionER,
+                        summaryAccumulatedTotals.reportedContribution.total,
+                        summaryAccumulatedTotals.reportedContribution.ee,
+                        summaryAccumulatedTotals.reportedContribution.er,
                         true
                     )}</td>` +
-                    `<td>${formatDifference()}</td>` +
-                    `<td>${lastContributionLabel}<br>${formatDaysSince()}</td>` +
+                    `<td>${formatContributionDifference(summaryAccumulatedTotals.contributionDifference)}</td>` +
+                    `<td>${summaryContributionRecency.lastContributionLabel}<br>${summaryDaysHtml}</td>` +
                     '</tr></tbody>' +
                     '</table>'
             )
 
-            if (miscFootnotes.length) {
-                const footnoteItems = miscFootnotes
-                    .map(
-                        (
-                            /** @type {{ type: string, dateLabel: string, item: PayrollPayItem | PayrollMiscDeduction }} */ entry
-                        ) => {
-                            const typeLabel =
-                                entry.type === 'deduction'
-                                    ? 'Deduction'
-                                    : 'Payment'
-                            const amountLabel =
-                                entry.type === 'deduction'
-                                    ? formatDeduction(entry.item.amount || 0)
-                                    : formatCurrency(entry.item.amount || 0)
-                            const itemLabel =
-                                /** @type {any} */ (entry.item).label ||
-                                entry.item.title ||
-                                ''
-                            const detailLabel =
-                                entry.item.units == null ||
-                                entry.item.rate == null
-                                    ? 'flat'
-                                    : `${Number(entry.item.units).toFixed(2)} @ ${formatCurrency(Number(entry.item.rate))}`
-                            return (
-                                `<li>${entry.dateLabel}: ${typeLabel}: ${itemLabel} ` +
-                                `(${detailLabel}): ${amountLabel}</li>`
-                            )
-                        }
-                    )
-                    .join('')
-                reportSections.push(
-                    `<div class="report-footnote">` +
-                        '<p>† Misc entries to review</p>' +
-                        `<ul>${footnoteItems}</ul>` +
-                        '</div>'
-                )
+            if (summaryMiscReviewHtml) {
+                reportSections.push(summaryMiscReviewHtml)
             }
-
-            reportSections.push(
-                `<div class="report-footnote"><b>Note:</b> <i>${ACCUMULATED_TOTALS_NOTE}</i></div>`
-            )
-
-            const hasAprilEntry = entries.some(
-                (entry) =>
-                    entry.parsedDate instanceof Date &&
-                    entry.parsedDate.getMonth() === 3
-            )
-            if (hasAprilEntry) {
-                reportSections.push(
-                    `<div class="report-footnote">${APRIL_BOUNDARY_NOTE_HTML}</div>`
-                )
-            }
-            if (hasLowPretaxPay) {
-                reportSections.push(
-                    `<div class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE_HTML}</div>`
-                )
-            }
+            reportSections.push(summaryNotesHtml)
             reportSections.push('</div>')
         })
 
@@ -799,21 +782,6 @@ export function buildReport(
                         `<p class="report-missing">${yearMissingPill}</p>`
                     )
                 }
-                /** @type {string[]} */
-                const yearFlagNotes = []
-                const yearFlagIndexById = new Map()
-                entriesForYear.forEach((/** @type {ReportEntry} */ entry) => {
-                    const entryFlags = entry.validation?.flags || []
-                    entryFlags.forEach((/** @type {ValidationFlag} */ flag) => {
-                        let noteIndex = yearFlagIndexById.get(flag.id)
-                        if (noteIndex === undefined) {
-                            noteIndex = yearFlagNotes.length + 1
-                            yearFlagIndexById.set(flag.id, noteIndex)
-                            yearFlagNotes.push(flag.label)
-                        }
-                        flag.noteIndex = noteIndex
-                    })
-                })
                 const yearKeys2 = Array.from(yearGroups.keys())
                 const yearIndex2 = yearKeys2.indexOf(yearKey)
                 let openingBalance2 = 0
@@ -824,12 +792,27 @@ export function buildReport(
                                 ?.delta ?? 0
                     }
                 }
-                reportSections.push(
-                    renderYearSummary(entriesForYear, openingBalance2)
+                const yearViewModel = buildYearViewModel(
+                    entriesForYear,
+                    String(yearKey),
+                    {
+                        entries,
+                        missingMonths: {
+                            missingMonthsByYear,
+                        },
+                    },
+                    openingBalance2
                 )
-                if (yearFlagNotes.length) {
-                    const noteItems = yearFlagNotes
-                        .map((label, index) => `<li>${index + 1} ${label}</li>`)
+                reportSections.push(
+                    renderYearSummaryFromViewModel(yearViewModel)
+                )
+                if (yearViewModel.flagNotes.length) {
+                    const noteItems = yearViewModel.flagNotes
+                        .map(
+                            (
+                                /** @type {{ index: number, label: string }} */ note
+                            ) => `<li>${note.index} ${note.label}</li>`
+                        )
                         .join('')
                     reportSections.push(
                         `<div class="report-footnote">` +
@@ -838,32 +821,13 @@ export function buildReport(
                             '</div>'
                     )
                 }
-                const yearLowPretaxPay = entriesForYear.some(
-                    (/** @type {ReportEntry} */ entry) => {
-                        const totalGrossPay =
-                            entry.record.payrollDoc?.thisPeriod?.totalGrossPay
-                                ?.amount
-                        return (
-                            typeof totalGrossPay === 'number' &&
-                            totalGrossPay < 1048
+                yearViewModel.notes.forEach(
+                    (/** @type {{ text: string }} */ note) => {
+                        reportSections.push(
+                            `<p class="report-footnote"><b>Note:</b> <i>${note.text}</i></p>`
                         )
                     }
                 )
-                const yearHasAprilEntry = entriesForYear.some(
-                    (/** @type {ReportEntry} */ entry) =>
-                        entry.parsedDate instanceof Date &&
-                        entry.parsedDate.getMonth() === 3
-                )
-                if (yearHasAprilEntry) {
-                    reportSections.push(
-                        `<p class="report-footnote">${APRIL_BOUNDARY_NOTE_HTML}</p>`
-                    )
-                }
-                if (yearLowPretaxPay) {
-                    reportSections.push(
-                        `<p class="report-footnote">${ZERO_TAX_ALLOWANCE_NOTE_HTML}</p>`
-                    )
-                }
                 reportSections.push('</div>')
             })
         })
@@ -1337,6 +1301,119 @@ function renderReportCell(entry) {
       </div>
     </div>
   `
+}
+
+/**
+ * @param {any} yearViewModel
+ * @returns {string}
+ */
+function renderYearSummaryFromViewModel(yearViewModel) {
+    const formatDiff = (
+        /** @type {number | null} */ value,
+        isZeroReview = false
+    ) => {
+        if (value === null) {
+            return 'N/A'
+        }
+        const roundedValue = Number(value.toFixed(2))
+        const diffClass = isZeroReview
+            ? 'diff--zero-review'
+            : roundedValue === 0
+              ? 'diff--neutral'
+              : roundedValue > 0
+                ? 'diff--positive'
+                : 'diff--negative'
+        return `<span class="${diffClass}">${formatCurrency(value)}</span>`
+    }
+    const bodyRows = yearViewModel.rows.map((/** @type {any} */ row) => {
+        const monthCell =
+            row.kind === 'entry'
+                ? `<a href="#${row.monthAnchorId}">${row.monthLabel}</a>`
+                : row.monthLabel
+        const flagSummary = row.flagRefs.length ? row.flagRefs.join('; ') : '—'
+        const flagClass = row.flagRefs.length ? 'summary-warning' : ''
+        return (
+            '<tr>' +
+            `<th>${monthCell}</th>` +
+            `<td>${row.hours.toFixed(2)}</td>` +
+            `<td>${formatYearRowHolidayHtml(row.holidaySummary)}</td>` +
+            `<td>${formatBreakdownCell(
+                row.payrollContribution.total,
+                row.payrollContribution.ee,
+                row.payrollContribution.er
+            )}</td>` +
+            `<td>${formatBreakdownCell(
+                row.reportedContribution.total,
+                row.reportedContribution.ee,
+                row.reportedContribution.er,
+                true
+            )}</td>` +
+            `<td>${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+            `<td class="${flagClass}">${flagSummary}</td>` +
+            '</tr>'
+        )
+    })
+    const footerRows = yearViewModel.footerRows.map(
+        (/** @type {any} */ row) => {
+            if (row.id === 'total') {
+                return (
+                    '<tr>' +
+                    `<th>${row.label}</th>` +
+                    `<td>${row.hours.toFixed(2)}</td>` +
+                    `<td>${row.holidayHours.toFixed(2)}</td>` +
+                    `<td>${formatBreakdownCell(
+                        row.payrollContribution.total,
+                        row.payrollContribution.ee,
+                        row.payrollContribution.er
+                    )}</td>` +
+                    `<td>${formatBreakdownCell(
+                        row.reportedContribution.total,
+                        row.reportedContribution.ee,
+                        row.reportedContribution.er,
+                        true
+                    )}</td>` +
+                    `<td>${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+                    '<td>—</td>' +
+                    '</tr>'
+                )
+            }
+            return (
+                '<tr>' +
+                `<th>${row.label}</th>` +
+                '<td colspan="4"></td>' +
+                `<td colspan="1">${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+                '<td>—</td>' +
+                '</tr>'
+            )
+        }
+    )
+    const sections = [
+        '<table class="summary-table">' +
+            '<thead><tr>' +
+            '<th>Month</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+            '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
+            '<th>Over / Under</th><th>Flags</th>' +
+            '</tr></thead>' +
+            `<tbody>${bodyRows.join('')}</tbody>` +
+            '<tfoot>' +
+            `${footerRows.join('')}` +
+            '</tfoot>' +
+            '</table>',
+    ]
+
+    if (yearViewModel.miscReviewItems.length) {
+        const footnoteItems = yearViewModel.miscReviewItems
+            .map((/** @type {any} */ item) => formatMiscReviewHtml(item))
+            .join('')
+        sections.push(
+            `<div class="report-footnote">` +
+                '<p>† Misc entries to review</p>' +
+                `<ul>${footnoteItems}</ul>` +
+                '</div>'
+        )
+    }
+
+    return sections.join('')
 }
 
 /**

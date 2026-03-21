@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildPayslipViewModel } from '../pwa/src/report/report_view_model.js'
+import {
+    buildPayslipViewModel,
+    buildSummaryViewModel,
+    buildYearViewModel,
+} from '../pwa/src/report/report_view_model.js'
 
 function buildEntry(overrides = {}) {
     return {
@@ -37,6 +41,86 @@ function buildEntry(overrides = {}) {
             typicalDays: 5,
         },
         ...overrides,
+    }
+}
+
+function buildStageTwoEntry(overrides = {}) {
+    const base = buildEntry()
+    return {
+        ...base,
+        monthIndex: 1,
+        yearKey: '2024/25',
+        leaveYearKey: '2024/25',
+        record: {
+            ...base.record,
+            payrollDoc: {
+                ...base.record.payrollDoc,
+                thisPeriod: {
+                    totalGrossPay: { amount: 800 },
+                },
+            },
+        },
+        ...overrides,
+    }
+}
+
+function buildStageTwoContext() {
+    const entry = buildStageTwoEntry()
+    const entriesForYear = [entry]
+    entriesForYear.reconciliation = {
+        months: new Map([[1, { actualEE: 60, actualER: 40 }]]),
+        totals: { actualEE: 60, actualER: 40 },
+    }
+    return {
+        entry,
+        entriesForYear,
+        context: {
+            entries: [entry],
+            yearGroups: new Map([['2024/25', entriesForYear]]),
+            contributionSummary: {
+                years: new Map([['2024/25', { totals: { delta: 20 } }]]),
+            },
+            reportGeneratedLabel: '01 Jun 2024',
+            contributionMeta: {
+                fileCount: 1,
+                recordCount: 2,
+                dateRangeLabel: 'Apr 2024',
+            },
+            missingMonths: {
+                missingMonthsByYear: {
+                    '2024/25': ['May'],
+                },
+            },
+            validationSummary: {
+                flaggedPeriods: ['30 Apr 2024'],
+                lowConfidenceEntries: [entry],
+            },
+            contributionTotals: {
+                payrollContribution: 80,
+                payrollEE: 50,
+                payrollER: 30,
+                reportedContribution: 100,
+                pensionEE: 60,
+                pensionER: 40,
+                contributionDifference: 20,
+            },
+            contributionRecency: {
+                lastContributionLabel: '25 Apr 2024',
+                daysSinceContribution: 5,
+                daysThreshold: 30,
+            },
+            workerProfile: {
+                workerType: 'hourly',
+                typicalDays: 5,
+                statutoryHolidayDays: 28,
+                leaveYearStartMonth: 4,
+            },
+            contractTypeMismatchWarning: 'Worker type mismatch',
+        },
+        meta: {
+            employeeName: 'Pat Example',
+            dateRangeLabel: 'Apr 2024',
+        },
     }
 }
 
@@ -141,5 +225,120 @@ describe('buildPayslipViewModel', () => {
             lowConfidence: false,
             warningCount: 0,
         })
+    })
+})
+
+describe('buildSummaryViewModel', () => {
+    it('builds shared summary rows, accumulated totals, and ordered notes', () => {
+        const { context, meta } = buildStageTwoContext()
+
+        const viewModel = buildSummaryViewModel(context, meta)
+
+        expect(viewModel.heading).toEqual({
+            employeeName: 'Pat Example',
+            dateRangeLabel: 'Apr 2024',
+            generatedLabel: '01 Jun 2024',
+        })
+        expect(viewModel.metaRows.map((row) => row.id)).toEqual([
+            'payroll',
+            'pension',
+            'worker-profile',
+            'missing-payroll-months',
+            'flagged-periods',
+            'low-confidence-periods',
+        ])
+        expect(
+            viewModel.metaRows.find(
+                (row) => row.id === 'missing-payroll-months'
+            )?.value
+        ).toBe('2024/25: May')
+        expect(viewModel.contractTypeMismatchWarning).toBe(
+            'Worker type mismatch'
+        )
+        expect(viewModel.yearSummaryRows).toHaveLength(1)
+        expect(viewModel.yearSummaryRows[0]).toMatchObject({
+            yearKey: '2024/25',
+            anchorId: 'year-summary-2024-25',
+            hours: 100,
+            payrollContribution: { total: 80, ee: 50, er: 30 },
+            reportedContribution: { total: 100, ee: 60, er: 40 },
+            overUnder: 20,
+            hasFlags: true,
+        })
+        expect(viewModel.accumulatedTotals).toMatchObject({
+            dateRangeLabel: 'Apr 2024',
+            payrollContribution: { total: 80, ee: 50, er: 30 },
+            reportedContribution: { total: 100, ee: 60, er: 40 },
+            contributionDifference: 20,
+        })
+        expect(viewModel.miscReviewItems.map((item) => item.label)).toEqual([
+            'Bonus',
+            'Advance',
+        ])
+        expect(viewModel.notes.map((note) => note.id)).toEqual([
+            'accumulated-totals',
+            'april-boundary',
+            'zero-tax-allowance',
+        ])
+    })
+})
+
+describe('buildYearViewModel', () => {
+    it('builds monthly rows, flag notes, balances, and footer notes from shared year data', () => {
+        const { context, entriesForYear } = buildStageTwoContext()
+
+        const viewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            10
+        )
+
+        expect(viewModel.heading).toEqual({
+            yearKey: '2024/25',
+            anchorId: 'year-summary-2024-25',
+        })
+        expect(viewModel.missingMonths).toEqual(['May'])
+        expect(viewModel.rows).toHaveLength(12)
+        expect(viewModel.rows[0]).toMatchObject({
+            kind: 'entry',
+            monthLabel: 'April',
+            monthAnchorId: 'year-monthly-2024-25-01',
+            globalEntryIndex: 0,
+            hours: 100,
+            flagRefs: ['1'],
+            payrollContribution: { total: 80, ee: 50, er: 30 },
+            reportedContribution: { total: 100, ee: 60, er: 40 },
+            overUnder: 20,
+        })
+        expect(viewModel.rows[1]).toMatchObject({
+            kind: 'empty',
+            monthLabel: 'May',
+            globalEntryIndex: null,
+        })
+        expect(viewModel.footerRows.map((row) => row.id)).toEqual([
+            'opening-balance',
+            'total',
+            'closing-balance',
+        ])
+        expect(viewModel.footerRows[0].overUnder).toBe(10)
+        expect(viewModel.footerRows[1]).toMatchObject({
+            id: 'total',
+            hours: 100,
+            holidayHours: 8,
+            overUnder: 20,
+        })
+        expect(viewModel.footerRows[2].overUnder).toBe(30)
+        expect(viewModel.miscReviewItems.map((item) => item.label)).toEqual([
+            'Bonus',
+            'Advance',
+        ])
+        expect(viewModel.flagNotes).toEqual([
+            { id: 'warn-1', index: 1, label: 'Needs review' },
+        ])
+        expect(viewModel.notes.map((note) => note.id)).toEqual([
+            'april-boundary',
+            'zero-tax-allowance',
+        ])
     })
 })

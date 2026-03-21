@@ -1,3 +1,4 @@
+import autoTable from 'jspdf-autotable'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('jspdf', () => {
@@ -416,6 +417,92 @@ describe('exportReportPdf', () => {
         }
         const result = await pdfExport(contextWithYear, validMeta)
         expect(result).toBeInstanceOf(Uint8Array)
+    })
+
+    it('applies zero-review footer styling for year total rows', async () => {
+        vi.mocked(autoTable).mockClear()
+
+        const entry = {
+            parsedDate: new Date('2024-01-31'),
+            monthIndex: 10,
+            yearKey: '2023/24',
+            record: {
+                employee: { natInsNumber: 'AB123456C' },
+                payrollDoc: {
+                    processDate: { date: '01/01/24 - 31/01/24' },
+                    payments: {
+                        hourly: {
+                            basic: { units: 0, rate: 0, amount: 0 },
+                            holiday: { units: 0, rate: 0, amount: 0 },
+                        },
+                        salary: { basic: { amount: 0 }, holiday: { units: 0 } },
+                        misc: [],
+                    },
+                    deductions: {
+                        payeTax: { amount: 0 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                },
+            },
+            validation: { flags: [], lowConfidence: false },
+        }
+        const yearEntries = [entry]
+        yearEntries.yearKey = '2023/24'
+        yearEntries.reconciliation = {
+            months: new Map([
+                [
+                    10,
+                    {
+                        expectedEE: 0,
+                        expectedER: 0,
+                        actualEE: 0,
+                        actualER: 0,
+                        delta: 0,
+                        balance: 0,
+                    },
+                ],
+            ]),
+            totals: {
+                expectedEE: 0,
+                expectedER: 0,
+                actualEE: 0,
+                actualER: 0,
+                delta: 0,
+            },
+            yearEndBalance: 0,
+        }
+        const contextWithYear = {
+            ...validContext,
+            entries: [entry],
+            yearGroups: new Map([['2023/24', yearEntries]]),
+            yearKeys: ['2023/24'],
+        }
+
+        await pdfExport(contextWithYear, validMeta)
+
+        const yearTableCall = vi
+            .mocked(autoTable)
+            .mock.calls.find((call) => call[1]?.head?.[0]?.[0] === 'Month')
+        expect(yearTableCall).toBeTruthy()
+
+        const yearTableOptions = yearTableCall[1]
+        expect(yearTableOptions.foot?.[0]?.[5]).toBe('£0.00')
+
+        const footCell = {
+            section: 'foot',
+            column: { index: 5 },
+            row: { index: 0 },
+            cell: {
+                styles: {},
+            },
+        }
+        yearTableOptions.didParseCell(footCell)
+
+        expect(footCell.cell.styles.textColor).toBe('#8a6014')
+        expect(footCell.cell.styles.fontStyle).toBe('bold')
     })
 
     it('renders payslip pages when entries has items (line 1025)', async () => {

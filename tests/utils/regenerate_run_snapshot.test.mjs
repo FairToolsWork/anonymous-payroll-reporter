@@ -50,4 +50,4 @@ test('regenerate expected run snapshot', async () => {
 
     fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true })
     fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(snapshot, null, 4)}\n`)
-})
+}, 15000)
