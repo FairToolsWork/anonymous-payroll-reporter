@@ -1,6 +1,11 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
+    buildContributionBreakdownParts,
+    buildContributionRecencyDisplay,
+    buildDiffDisplay,
+    buildMiscReviewDisplay,
+    buildWorkerProfileDisplay,
     formatContribution,
     formatCurrency,
     formatDeduction,
@@ -31,7 +36,7 @@ import {
 // ─── Layout constants ────────────────────────────────────────────────────────
 
 const PAGE_MARGIN = 40
-const LINE_GAP = 4
+const LINE_GAP = 6
 const SECTION_GAP = 4
 const HEADING_PRE_GAP = 16
 const FONT_TITLE = 16
@@ -42,14 +47,6 @@ const FONT_SMALL = 9
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {number | null} value
- * @returns {string}
- */
-function formatOrNA(value) {
-    return value === null ? 'N/A' : formatCurrency(value)
-}
-
-/**
  * Formats a contribution total with its EE/ER breakdown on a second line.
  * @param {number} total
  * @param {number} ee
@@ -57,7 +54,8 @@ function formatOrNA(value) {
  * @returns {string}
  */
 function formatBreakdown(total, ee, er) {
-    return `${formatCurrency(total)}\n(EE ${formatCurrency(ee)} / ER ${formatCurrency(er)})`
+    const parts = buildContributionBreakdownParts(total, ee, er, false)
+    return `${parts.totalLabel}\n(${parts.breakdownLabel})`
 }
 
 /**
@@ -70,7 +68,8 @@ function formatBreakdown(total, ee, er) {
  */
 function formatBreakdownOrNA(total, ee, er) {
     if (total === null) return 'N/A'
-    return `${formatCurrency(total)}\n(EE ${formatOrNA(ee)} / ER ${formatOrNA(er)})`
+    const parts = buildContributionBreakdownParts(total, ee, er, true)
+    return `${parts.totalLabel}\n(${parts.breakdownLabel})`
 }
 
 /**
@@ -248,26 +247,14 @@ function writeTable(doc, tableData, cursorY, opts = {}) {
     return finalY + SECTION_GAP
 }
 
-// ─── Diff colour helpers ─────────────────────────────────────────────────────
-
-const DIFF_POSITIVE_COLOR = '#8a6014'
-const DIFF_NEGATIVE_COLOR = '#c0391a'
-const DIFF_NEUTRAL_COLOR = '#2d7a4f'
-
 /**
  * Returns the text and a semantic text colour for a diff value.
  * @param {number | null} value
  * @returns {{ text: string, color: string | null }}
  */
 export function formatDiff(value) {
-    if (value === null) {
-        return { text: 'N/A', color: null }
-    }
-    const rounded = Number(value.toFixed(2))
-    const text = formatCurrency(value)
-    if (rounded === 0) return { text, color: DIFF_NEUTRAL_COLOR }
-    if (rounded > 0) return { text, color: DIFF_POSITIVE_COLOR }
-    return { text, color: DIFF_NEGATIVE_COLOR }
+    const diff = buildDiffDisplay(value)
+    return { text: diff.text, color: diff.color }
 }
 
 // ─── Data helpers ─────────────────────────────────────────────────────────────
@@ -277,13 +264,11 @@ export function formatDiff(value) {
  * @returns {string}
  */
 function formatPdfWorkerProfileLine(workerProfile) {
-    const typicalDaysDisplay = workerProfile.hasVariablePattern
-        ? 'Variable pattern'
-        : `${workerProfile.typicalDays} days/week`
+    const display = buildWorkerProfileDisplay(workerProfile)
     return (
-        `Type: ${workerProfile.workerTypeLabel} · ${typicalDaysDisplay}` +
-        ` · Entitlement: ${workerProfile.statutoryHolidayDays} days/year` +
-        ` · Leave year: ${workerProfile.leaveYearStartMonthName}`
+        `Type: ${display.typeValue} · ${display.typicalDaysValue}` +
+        ` · Entitlement: ${display.entitlementValue}` +
+        ` · Leave year: ${display.leaveYearValue}`
     )
 }
 
@@ -327,12 +312,8 @@ function formatPdfYearRowHolidayText(holidaySummary) {
 
 /** @param {{ dateLabel: string, type: string, label: string, amount: number }} item */
 function formatPdfMiscReviewLine(item) {
-    const typeLabel = item.type === 'deduction' ? 'Deduction' : 'Payment'
-    const amountLabel =
-        item.type === 'deduction'
-            ? formatDeduction(item.amount || 0)
-            : formatCurrency(item.amount || 0)
-    return `${item.dateLabel}: ${typeLabel}: ${item.label}: ${amountLabel}`
+    const display = buildMiscReviewDisplay(item)
+    return `${item.dateLabel}: ${display.typeLabel}: ${item.label}: ${display.amountLabel}`
 }
 
 // ─── Page sections ────────────────────────────────────────────────────────────
@@ -345,6 +326,8 @@ function formatPdfMiscReviewLine(item) {
  */
 function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
+    const summaryViewModel = buildSummaryViewModel(context, meta)
+    const summaryHeading = summaryViewModel.heading
 
     /**
      * @param {string | string[]} text
@@ -368,23 +351,22 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     }
 
     y = writeCenteredText(
-        `Payroll Report - ${meta.employeeName || 'Unknown'}`,
+        `Payroll Report - ${summaryHeading.employeeName}`,
         y,
         { fontSize: FONT_TITLE, bold: true }
     )
-    y = writeCenteredText(`Date range: ${meta.dateRangeLabel || 'Unknown'}`, y)
-    if (context.reportGeneratedLabel) {
-        y = writeCenteredText(`Generated: ${context.reportGeneratedLabel}`, y)
+    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y)
+    if (summaryHeading.generatedLabel) {
+        y = writeCenteredText(`Generated: ${summaryHeading.generatedLabel}`, y)
     }
     y += LINE_GAP
 
-    const summaryViewModel = buildSummaryViewModel(context, meta)
     const metaRows = summaryViewModel.metaRows.map((/** @type {any} */ row) => [
         sanitizeText(row.label),
         sanitizeText(
             row.id === 'worker-profile' && row.workerProfile
                 ? formatPdfWorkerProfileLine(row.workerProfile)
-                : row.value || ''
+                : (row.displayValue ?? row.value ?? '')
         ),
     ])
     y += LINE_GAP
@@ -418,10 +400,11 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
     y += SECTION_GAP
 
-    if (context.contractTypeMismatchWarning) {
+    if (summaryViewModel.contractTypeMismatchWarning) {
         y += SECTION_GAP
         const warningText =
-            'WARNING: ' + sanitizeText(context.contractTypeMismatchWarning)
+            'WARNING: ' +
+            sanitizeText(summaryViewModel.contractTypeMismatchWarning)
         const WARN_ACCENT_W = 4
         const WARN_PAD_H = 10
         const WARN_PAD_V = 6
@@ -454,9 +437,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     const yearRowDiffColors = []
     const yearKeys = summaryViewModel.yearSummaryRows.map((row) => row.yearKey)
     summaryViewModel.yearSummaryRows.forEach((/** @type {any} */ row) => {
-        const diff = row.zeroReview
-            ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
-            : formatDiff(row.overUnder)
+        const diff = buildDiffDisplay(row.overUnder, row.zeroReview)
         yearRows.push([
             String(row.yearKey || 'Unknown'),
             row.hours.toFixed(2),
@@ -528,22 +509,12 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     y = writeHeading(doc, 'Accumulated Totals', y)
 
     const totals = summaryViewModel.accumulatedTotals
-    const contributionRecency = totals.contributionRecency || null
-    const daysCount =
-        contributionRecency &&
-        typeof contributionRecency.daysSinceContribution === 'number'
-            ? contributionRecency.daysSinceContribution
-            : null
-    const daysThreshold = contributionRecency?.daysThreshold ?? 30
-    const daysSince = daysCount !== null ? `${daysCount} days` : 'N/A'
-    const daysColor =
-        daysCount === null
-            ? null
-            : daysCount > daysThreshold
-              ? '#c0391a'
-              : '#2d7a4f'
-    const lastContributionCell = contributionRecency
-        ? `${contributionRecency.lastContributionLabel}\n${daysSince}`
+    const recencyDisplay = buildContributionRecencyDisplay(
+        totals.contributionRecency,
+        30
+    )
+    const lastContributionCell = totals.contributionRecency
+        ? `${recencyDisplay.lastContributionLabel}\n${recencyDisplay.daysLabel}`
         : totals.hasContributionSummary
           ? 'See year details'
           : 'N/A'
@@ -590,8 +561,8 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                         data.cell.styles.fontStyle = 'bold'
                     }
                 }
-                if (data.column.index === 4 && daysColor) {
-                    data.cell.styles.textColor = daysColor
+                if (data.column.index === 4 && recencyDisplay.color) {
+                    data.cell.styles.textColor = recencyDisplay.color
                     data.cell.styles.fontStyle = 'bold'
                 }
             },
@@ -609,9 +580,12 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             { fontSize: FONT_SMALL }
         )
     }
-    summaryViewModel.notes.forEach((/** @type {any} */ note) => {
-        y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
-    })
+    if (summaryViewModel.notes.length) {
+        y += LINE_GAP
+        summaryViewModel.notes.forEach((/** @type {any} */ note) => {
+            y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
+        })
+    }
 }
 
 /**
@@ -634,21 +608,20 @@ function renderYearPage(
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
-
-    y = writeHeading(
-        doc,
-        `${String(yearKey || 'Unknown')} Summary: ${context.employeeName || 'Unknown'}`,
-        y,
-        {
-            preGap: 0,
-        }
-    )
-
     const yearViewModel = buildYearViewModel(
         entriesForYear,
         String(yearKey),
         context,
         openingBalance
+    )
+
+    y = writeHeading(
+        doc,
+        `${yearViewModel.heading.yearKey} Summary: ${context.employeeName || 'Unknown'}`,
+        y,
+        {
+            preGap: 0,
+        }
     )
     if (yearViewModel.missingMonths.length) {
         y = writeText(
@@ -668,9 +641,7 @@ function renderYearPage(
     /** @type {Array<number | null>} */
     const payslipIndexByRow = []
     yearViewModel.rows.forEach((/** @type {any} */ row) => {
-        const rowDiff = row.zeroReview
-            ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
-            : formatDiff(row.overUnder)
+        const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
         bodyRows.push([
             row.monthLabel,
             row.hours.toFixed(2),
@@ -697,9 +668,7 @@ function renderYearPage(
     /** @type {Array<string | null>} */
     const footDiffColors = []
     yearViewModel.footerRows.forEach((/** @type {any} */ row) => {
-        const rowDiff = row.zeroReview
-            ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
-            : formatDiff(row.overUnder)
+        const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
         footRows.push(
             row.id === 'total'
                 ? [
@@ -805,9 +774,12 @@ function renderYearPage(
         )
     }
 
-    yearViewModel.notes.forEach((/** @type {any} */ note) => {
-        y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
-    })
+    if (yearViewModel.notes.length) {
+        y += LINE_GAP
+        yearViewModel.notes.forEach((/** @type {any} */ note) => {
+            y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
+        })
+    }
 
     return pageNumber
 }

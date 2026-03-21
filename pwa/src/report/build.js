@@ -20,6 +20,10 @@ import { buildContributionSummary } from './pension_calculations.js'
 import { buildReportEntries } from './report_calculations.js'
 import {
     APRIL_BOUNDARY_NOTE,
+    buildContributionRecencyDisplay,
+    buildDiffDisplay,
+    buildMiscReviewDisplay,
+    buildWorkerProfileDisplay,
     formatBreakdownCell,
     formatContribution,
     formatContributionDifference,
@@ -42,10 +46,7 @@ import {
     getTaxYearSortKey,
     parsePayPeriodStart,
 } from './tax_year_utils.js'
-import {
-    buildEntryHolidaySummary,
-    buildLeaveYearGroups,
-} from './year_holiday_summary.js'
+import { buildLeaveYearGroups } from './year_holiday_summary.js'
 
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
@@ -88,7 +89,8 @@ function formatYearAnchor(yearKey) {
  * @returns {string}
  */
 function formatWorkerProfileHtml(workerProfile) {
-    return `<b>Type:</b> ${workerProfile.workerTypeLabel} &nbsp;·&nbsp; <b>Typical days:</b> ${workerProfile.typicalDays}/week &nbsp;·&nbsp; <b>Holiday entitlement:</b> ${workerProfile.statutoryHolidayDays} days/year &nbsp;·&nbsp; <b>Leave year starts:</b> ${workerProfile.leaveYearStartMonthName}`
+    const display = buildWorkerProfileDisplay(workerProfile)
+    return `<b>Type:</b> ${display.typeValue} &nbsp;·&nbsp; <b>Typical days:</b> ${display.typicalDaysValue} &nbsp;·&nbsp; <b>Holiday entitlement:</b> ${display.entitlementValue} &nbsp;·&nbsp; <b>Leave year starts:</b> ${display.leaveYearValue}`
 }
 
 /**
@@ -150,16 +152,8 @@ function formatYearRowHolidayHtml(holidaySummary) {
  * @returns {string}
  */
 function formatMiscReviewHtml(item) {
-    const typeLabel = item.type === 'deduction' ? 'Deduction' : 'Payment'
-    const amountLabel =
-        item.type === 'deduction'
-            ? formatDeduction(item.amount || 0)
-            : formatCurrency(item.amount || 0)
-    const detailLabel =
-        item.units == null || item.rate == null
-            ? 'flat'
-            : `${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))}`
-    return `<li>${item.dateLabel}: ${typeLabel}: ${item.label} (${detailLabel}): ${amountLabel}</li>`
+    const display = buildMiscReviewDisplay(item)
+    return `<li>${item.dateLabel}: ${display.typeLabel}: ${item.label} (${display.detailLabel}): ${display.amountLabel}</li>`
 }
 
 /**
@@ -495,17 +489,11 @@ export function buildReport(
             /** @type {number | null} */ value,
             isZeroReview = false
         ) => {
-            if (value === null) {
+            const diff = buildDiffDisplay(value, isZeroReview)
+            if (diff.className === null) {
                 return 'N/A'
             }
-            const diffClass = isZeroReview
-                ? 'diff--zero-review'
-                : value === 0
-                  ? 'diff--neutral'
-                  : value > 0
-                    ? 'diff--positive'
-                    : 'diff--negative'
-            return `<span class="${diffClass}">${formatCurrency(value)}</span>`
+            return `<span class="${diff.className}">${diff.text}</span>`
         }
         const formatDaysSince = () => {
             if (daysSinceContribution === null) {
@@ -523,58 +511,6 @@ export function buildReport(
         const pensionFileLabel = contributionMeta.fileCount
             ? `${contributionMeta.fileCount} file${contributionMeta.fileCount === 1 ? '' : 's'} (${contributionMeta.recordCount} records)`
             : 'None'
-        const flaggedPeriodsByYear =
-            /** @type {Record<string, string[]>} */ ({})
-        flaggedPeriods.forEach((/** @type {string} */ p) => {
-            const yearMatch = p.match(/\d{4}$/)
-            const year = yearMatch ? yearMatch[0] : 'Unknown'
-            if (!flaggedPeriodsByYear[year]) {
-                flaggedPeriodsByYear[year] = []
-            }
-            flaggedPeriodsByYear[year].push(p)
-        })
-        const flaggedPeriodsHtml = flaggedPeriods.length
-            ? Object.entries(flaggedPeriodsByYear)
-                  .map(
-                      ([year, periods]) =>
-                          `<span class="missing-year">${year}:</span> <span class="meta-pills">${periods.map((p) => `<span class="pill pill--warn inline">${p.replace(/\s*\d{4}$/, '')}</span>`).join(' ')}</span>`
-                  )
-                  .join('<br>')
-            : '<span class="validation-none">None</span>'
-        const lowConfidencePeriods = lowConfidenceEntries.map(
-            (/** @type {ReportEntry} */ entry) =>
-                entry.parsedDate
-                    ? formatDateLabel(entry.parsedDate)
-                    : entry.record.payrollDoc?.processDate?.date || 'Unknown'
-        )
-        const lowConfidencePeriodsByYear =
-            /** @type {Record<string, string[]>} */ ({})
-        lowConfidencePeriods.forEach((/** @type {string} */ p) => {
-            const yearMatch = p.match(/\d{4}$/)
-            const year = yearMatch ? yearMatch[0] : 'Unknown'
-            if (!lowConfidencePeriodsByYear[year]) {
-                lowConfidencePeriodsByYear[year] = []
-            }
-            lowConfidencePeriodsByYear[year].push(p)
-        })
-        const lowConfidenceHtml = lowConfidencePeriods.length
-            ? Object.entries(lowConfidencePeriodsByYear)
-                  .map(
-                      ([year, periods]) =>
-                          `<span class="missing-year">${year}:</span> <span class="meta-pills">${periods.map((p) => `<span class="pill pill--warn inline">${p.replace(/\s*\d{4}$/, '')}</span>`).join(' ')}</span>`
-                  )
-                  .join('<br>')
-            : '<span class="validation-none">0</span>'
-
-        const missingMonthsTableHtml = hasMissingMonths
-            ? Object.entries(missingMonthsByYear)
-                  .filter(([, months]) => months.length)
-                  .map(
-                      ([year, months]) =>
-                          `<span class="missing-year">${year}:</span> ${months.map((/** @type {string} */ m) => `<span class="pill pill--warn inline">${m}</span>`).join(' ')}`
-                  )
-                  .join('<br>')
-            : '<span class="validation-none">None</span>'
 
         const monthNames = [
             'January',
@@ -635,17 +571,66 @@ export function buildReport(
                 dateRangeLabel,
             }
         )
+        /**
+         * @param {Array<{ year: string, months: string[] }>} groupedMonths
+         * @param {string} emptyLabel
+         * @returns {string}
+         */
+        const formatGroupedMonthsHtml = (groupedMonths, emptyLabel) => {
+            if (!groupedMonths || !groupedMonths.length) {
+                return `<span class="validation-none">${emptyLabel}</span>`
+            }
+            return groupedMonths
+                .map(
+                    (
+                        /** @type {{ year: string, months: string[] }} */ group
+                    ) => {
+                        const { year, months } = group
+                        return `<span class="missing-year">${year}:</span> ${months.map((/** @type {string} */ m) => `<span class="pill pill--warn inline">${m}</span>`).join(' ')}`
+                    }
+                )
+                .join('<br>')
+        }
+        /**
+         * @param {Array<{ year: string, items: string[] }>} groupedPeriods
+         * @param {string} emptyLabel
+         * @returns {string}
+         */
+        const formatGroupedPeriodsHtml = (groupedPeriods, emptyLabel) => {
+            if (!groupedPeriods || !groupedPeriods.length) {
+                return `<span class="validation-none">${emptyLabel}</span>`
+            }
+            return groupedPeriods
+                .map(
+                    (
+                        /** @type {{ year: string, items: string[] }} */ group
+                    ) => {
+                        const { year, items } = group
+                        return `<span class="missing-year">${year}:</span> <span class="meta-pills">${items.map((/** @type {string} */ item) => `<span class="pill pill--warn inline">${item}</span>`).join(' ')}</span>`
+                    }
+                )
+                .join('<br>')
+        }
         const summaryMetaRowsHtml = summaryViewModel.metaRows
             .map((/** @type {any} */ row) => {
-                let value = row.value || ''
+                let value = row.displayValue ?? row.value ?? ''
                 if (row.id === 'worker-profile') {
                     value = workerProfileHtml
                 } else if (row.id === 'missing-payroll-months') {
-                    value = missingMonthsTableHtml
+                    value = formatGroupedMonthsHtml(
+                        row.groupedMonths,
+                        row.emptyLabel || 'None'
+                    )
                 } else if (row.id === 'flagged-periods') {
-                    value = flaggedPeriodsHtml
+                    value = formatGroupedPeriodsHtml(
+                        row.groupedPeriods,
+                        row.emptyLabel || 'None'
+                    )
                 } else if (row.id === 'low-confidence-periods') {
-                    value = lowConfidenceHtml
+                    value = formatGroupedPeriodsHtml(
+                        row.groupedPeriods,
+                        row.emptyLabel || '0'
+                    )
                 }
                 return `<tr><th>${row.label}:</th><td>${value}</td></tr>`
             })
@@ -676,16 +661,13 @@ export function buildReport(
             })
             .join('')
         const summaryAccumulatedTotals = summaryViewModel.accumulatedTotals
-        const summaryContributionRecency =
-            summaryAccumulatedTotals.contributionRecency || {
-                lastContributionLabel: 'N/A',
-                daysSinceContribution: null,
-                daysThreshold,
-            }
-        const summaryDaysHtml =
-            summaryContributionRecency.daysSinceContribution === null
-                ? 'N/A'
-                : `<span class="${summaryContributionRecency.daysSinceContribution > (summaryContributionRecency.daysThreshold ?? daysThreshold) ? 'days--stale' : 'days--fresh'}">${summaryContributionRecency.daysSinceContribution} days</span>`
+        const summaryRecencyDisplay = buildContributionRecencyDisplay(
+            summaryAccumulatedTotals.contributionRecency,
+            daysThreshold
+        )
+        const summaryDaysHtml = summaryRecencyDisplay.className
+            ? `<span class="${summaryRecencyDisplay.className}">${summaryRecencyDisplay.daysLabel}</span>`
+            : summaryRecencyDisplay.daysLabel
         const summaryMiscReviewHtml = summaryViewModel.miscReviewItems.length
             ? `<div class="report-footnote"><p>† Misc entries to review</p><ul>${summaryViewModel.miscReviewItems.map((/** @type {any} */ item) => formatMiscReviewHtml(item)).join('')}</ul></div>`
             : ''
@@ -697,12 +679,13 @@ export function buildReport(
             .join('')
 
         timeBuildPhase('buildReport.annualRender', () => {
+            const summaryHeading = summaryViewModel.heading
             reportSections.push('<div class="page">')
             reportSections.push(
                 `<div class="report-meta">` +
-                    `<h2>Payroll Report — ${employeeName}</h2>` +
-                    `<p class="report-range">${dateRangeLabel}</p>` +
-                    `<p class="report-meta-generated"><b>Generated:</b> ${reportGeneratedLabel}</p>` +
+                    `<h2>Payroll Report — ${summaryHeading.employeeName}</h2>` +
+                    `<p class="report-range">${summaryHeading.dateRangeLabel}</p>` +
+                    `<p class="report-meta-generated"><b>Generated:</b> ${summaryHeading.generatedLabel || 'Unknown'}</p>` +
                     `<div class="report-meta-table-container notice no-left-border">` +
                     `<table class="report-meta-table ">` +
                     `${summaryMetaRowsHtml}` +
@@ -716,7 +699,7 @@ export function buildReport(
                 )
             }
             reportSections.push(
-                `<h2>Annual Totals:    (${dateRangeLabel})</h2>`
+                `<h2>Annual Totals:    (${summaryHeading.dateRangeLabel})</h2>`
             )
 
             if (summaryYearRowsHtml) {
@@ -748,7 +731,7 @@ export function buildReport(
                         true
                     )}</td>` +
                     `<td>${formatContributionDifference(summaryAccumulatedTotals.contributionDifference)}</td>` +
-                    `<td>${summaryContributionRecency.lastContributionLabel}<br>${summaryDaysHtml}</td>` +
+                    `<td>${summaryRecencyDisplay.lastContributionLabel}<br>${summaryDaysHtml}</td>` +
                     '</tr></tbody>' +
                     '</table>'
             )
@@ -766,22 +749,7 @@ export function buildReport(
                 if (!entriesForYear) {
                     return
                 }
-                const yearLabel =
-                    yearKey === 'Unknown' ? 'Unknown Year' : yearKey
-                const yearMissing = missingMonthsByYear[yearKey] || []
-                const yearAnchor = `year-monthly-${formatYearAnchor(yearKey)}`
                 /** @type {any} */ entriesForYear.yearKey = yearKey
-
-                reportSections.push('<div class="page">')
-                reportSections.push(
-                    `<h2 id="year-summary-${formatYearAnchor(yearKey)}">${yearLabel} Summary: ${employeeName}</h2>`
-                )
-                if (yearMissing.length) {
-                    const yearMissingPill = `Missing months: <span class="missing-months">${yearMissing.join(', ')}</span>`
-                    reportSections.push(
-                        `<p class="report-missing">${yearMissingPill}</p>`
-                    )
-                }
                 const yearKeys2 = Array.from(yearGroups.keys())
                 const yearIndex2 = yearKeys2.indexOf(yearKey)
                 let openingBalance2 = 0
@@ -803,6 +771,16 @@ export function buildReport(
                     },
                     openingBalance2
                 )
+                reportSections.push('<div class="page">')
+                reportSections.push(
+                    `<h2 id="${yearViewModel.heading.anchorId}">${yearViewModel.heading.yearKey} Summary: ${employeeName}</h2>`
+                )
+                if (yearViewModel.missingMonths.length) {
+                    const yearMissingPill = `Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span>`
+                    reportSections.push(
+                        `<p class="report-missing">${yearMissingPill}</p>`
+                    )
+                }
                 reportSections.push(
                     renderYearSummaryFromViewModel(yearViewModel)
                 )
@@ -1312,18 +1290,11 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         /** @type {number | null} */ value,
         isZeroReview = false
     ) => {
-        if (value === null) {
+        const diff = buildDiffDisplay(value, isZeroReview)
+        if (diff.className === null) {
             return 'N/A'
         }
-        const roundedValue = Number(value.toFixed(2))
-        const diffClass = isZeroReview
-            ? 'diff--zero-review'
-            : roundedValue === 0
-              ? 'diff--neutral'
-              : roundedValue > 0
-                ? 'diff--positive'
-                : 'diff--negative'
-        return `<span class="${diffClass}">${formatCurrency(value)}</span>`
+        return `<span class="${diff.className}">${diff.text}</span>`
     }
     const bodyRows = yearViewModel.rows.map((/** @type {any} */ row) => {
         const monthCell =
@@ -1404,337 +1375,6 @@ function renderYearSummaryFromViewModel(yearViewModel) {
     if (yearViewModel.miscReviewItems.length) {
         const footnoteItems = yearViewModel.miscReviewItems
             .map((/** @type {any} */ item) => formatMiscReviewHtml(item))
-            .join('')
-        sections.push(
-            `<div class="report-footnote">` +
-                '<p>† Misc entries to review</p>' +
-                `<ul>${footnoteItems}</ul>` +
-                '</div>'
-        )
-    }
-
-    return sections.join('')
-}
-
-/**
- * @param {YearEntries} entriesForYear
- * @param {number} openingBalance
- * @returns {string}
- */
-function renderYearSummary(entriesForYear, openingBalance) {
-    const monthEntries = new Map()
-    entriesForYear.forEach((entry) => {
-        if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
-            if (!monthEntries.has(entry.monthIndex)) {
-                monthEntries.set(entry.monthIndex, [])
-            }
-            monthEntries.get(entry.monthIndex).push(entry)
-        }
-    })
-    const yearKey = entriesForYear.yearKey || 'Unknown'
-
-    let yearHours = 0
-    let yearHolidayUnits = 0
-    let yearPayrollEE = 0
-    let yearPayrollER = 0
-    let yearPayrollContribution = 0
-    let yearReportedEE = null
-    let yearReportedER = null
-    let yearReportedContribution = null
-
-    const bodyRows = []
-    const reconciliation = entriesForYear.reconciliation
-    const showReconciliation = reconciliation != null
-    const formatOrNA = (/** @type {number | null} */ value) =>
-        value === null ? 'N/A' : formatCurrency(value)
-    const formatDiff = (
-        /** @type {number | null} */ value,
-        isZeroReview = false
-    ) => {
-        if (value === null) {
-            return 'N/A'
-        }
-        const roundedValue = Number(value.toFixed(2))
-        const diffClass = isZeroReview
-            ? 'diff--zero-review'
-            : roundedValue === 0
-              ? 'diff--neutral'
-              : roundedValue > 0
-                ? 'diff--positive'
-                : 'diff--negative'
-        return `<span class="${diffClass}">${formatCurrency(value)}</span>`
-    }
-    const miscFootnotes =
-        /** @type {Array<{ type: string, dateLabel: string, item: PayrollPayItem | PayrollMiscDeduction }>} */ (
-            entriesForYear.reduce(
-                (
-                    /** @type {any[]} */ acc,
-                    /** @type {ReportEntry} */ entry
-                ) => {
-                    const dateLabel = entry.parsedDate
-                        ? formatDateLabel(entry.parsedDate)
-                        : entry.record.payrollDoc?.processDate?.date ||
-                          'Unknown'
-                    const miscPayments =
-                        entry.record.payrollDoc?.payments?.misc || []
-                    const miscDeductions =
-                        entry.record.payrollDoc?.deductions?.misc || []
-                    miscPayments.forEach((item) => {
-                        acc.push({
-                            type: 'payment',
-                            dateLabel,
-                            item,
-                        })
-                    })
-                    miscDeductions.forEach((item) => {
-                        acc.push({
-                            type: 'deduction',
-                            dateLabel,
-                            item,
-                        })
-                    })
-                    return acc
-                },
-                []
-            )
-        )
-
-    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
-        const calendarMonth = getCalendarMonthFromFiscalIndex(monthIndex)
-        const monthName = calendarMonth
-            ? formatMonthLabel(calendarMonth)
-            : 'Unknown'
-        const entries = /** @type {ReportEntry[]} */ (
-            monthEntries.get(monthIndex) || []
-        )
-            .slice()
-            .sort(
-                (
-                    /** @type {ReportEntry} */ a,
-                    /** @type {ReportEntry} */ b
-                ) => {
-                    const aDate =
-                        a.parsedDate ||
-                        a.record?.payrollDoc?.processDate?.date ||
-                        null
-                    const bDate =
-                        b.parsedDate ||
-                        b.record?.payrollDoc?.processDate?.date ||
-                        null
-                    if (!aDate && !bDate) {
-                        return 0
-                    }
-                    if (!aDate) {
-                        return 1
-                    }
-                    if (!bDate) {
-                        return -1
-                    }
-                    return new Date(aDate).getTime() - new Date(bDate).getTime()
-                }
-            )
-        const monthAnchor = `year-monthly-${formatYearAnchor(
-            yearKey
-        )}-${String(monthIndex).padStart(2, '0')}`
-        const reconMonth = showReconciliation
-            ? reconciliation?.months.get(monthIndex)
-            : null
-        const actualEE = reconMonth?.actualEE ?? null
-        const actualER = reconMonth?.actualER ?? null
-        const reportedContribution =
-            actualEE === null || actualER === null ? null : actualEE + actualER
-
-        if (entries.length) {
-            entries.forEach(
-                (
-                    /** @type {ReportEntry} */ entry,
-                    /** @type {number} */ entryIndex
-                ) => {
-                    const record = entry.record || null
-                    const validation = entry.validation || null
-                    const hours =
-                        record?.payrollDoc?.payments?.hourly?.basic?.units || 0
-                    const holidayHourlyUnits =
-                        record?.payrollDoc?.payments?.hourly?.holiday?.units ||
-                        0
-                    const holidaySalaryUnits =
-                        record?.payrollDoc?.payments?.salary?.holiday?.units ||
-                        0
-                    const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
-                    const entryHolidaySummary = buildEntryHolidaySummary(entry)
-                    const holidayCell =
-                        entryHolidaySummary.kind === 'hours_days'
-                            ? `${entryHolidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">≈${entryHolidaySummary.estimatedDays.toFixed(1)} days</span>`
-                            : `${entryHolidaySummary.holidayHours.toFixed(2)} hrs`
-                    const nestEmployee =
-                        record?.payrollDoc?.deductions?.pensionEE?.amount || 0
-                    const nestEmployer =
-                        record?.payrollDoc?.deductions?.pensionER?.amount || 0
-                    const payrollContribution = nestEmployee + nestEmployer
-                    const flagSummary = validation?.flags?.length
-                        ? validation.flags
-                              .map((/** @type {ValidationFlag} */ flag) =>
-                                  flag.noteIndex
-                                      ? `${flag.noteIndex}`
-                                      : flag.label
-                              )
-                              .join('; ')
-                        : '—'
-                    const flagClass = validation?.flags?.length
-                        ? 'summary-warning'
-                        : ''
-                    const overUnder =
-                        reportedContribution === null
-                            ? null
-                            : reportedContribution - payrollContribution
-                    const zeroReview =
-                        payrollContribution === 0 && reportedContribution === 0
-                    const monthLabel =
-                        entries.length > 1
-                            ? `${monthName} (${entryIndex + 1})`
-                            : monthName
-                    const monthLink = `<a href="#${monthAnchor}">${monthLabel}</a>`
-
-                    bodyRows.push(
-                        '<tr>' +
-                            `<th>${monthLink}</th>` +
-                            `<td>${hours.toFixed(2)}</td>` +
-                            `<td>${holidayCell}</td>` +
-                            `<td>${formatBreakdownCell(payrollContribution, nestEmployee, nestEmployer)}</td>` +
-                            `<td>${formatBreakdownCell(
-                                reportedContribution,
-                                actualEE,
-                                actualER,
-                                true
-                            )}</td>` +
-                            `<td>${formatDiff(overUnder, zeroReview)}</td>` +
-                            `<td class="${flagClass}">${flagSummary}</td>` +
-                            '</tr>'
-                    )
-
-                    yearHours += hours
-                    yearHolidayUnits += holidayUnits
-                    yearPayrollEE += nestEmployee
-                    yearPayrollER += nestEmployer
-                    yearPayrollContribution += payrollContribution
-                }
-            )
-        } else {
-            const payrollContribution = 0
-            const overUnder =
-                reportedContribution === null
-                    ? null
-                    : reportedContribution - payrollContribution
-            const zeroReview =
-                payrollContribution === 0 && reportedContribution === 0
-            bodyRows.push(
-                '<tr>' +
-                    `<th>${monthName}</th>` +
-                    '<td>0.00</td>' +
-                    '<td>0.00</td>' +
-                    `<td>${formatBreakdownCell(payrollContribution, 0, 0)}</td>` +
-                    `<td>${formatBreakdownCell(reportedContribution, actualEE, actualER, true)}</td>` +
-                    `<td>${formatDiff(overUnder, zeroReview)}</td>` +
-                    '<td class="">—</td>' +
-                    '</tr>'
-            )
-        }
-    }
-
-    if (showReconciliation && reconciliation) {
-        yearReportedEE = reconciliation.totals.actualEE || 0
-        yearReportedER = reconciliation.totals.actualER || 0
-        yearReportedContribution = yearReportedEE + yearReportedER
-    }
-    const yearOverUnder =
-        yearReportedContribution === null
-            ? null
-            : yearReportedContribution - yearPayrollContribution
-    const yearZeroReview =
-        yearPayrollContribution === 0 && yearReportedContribution === 0
-    const closingBalance =
-        showReconciliation && yearOverUnder !== null
-            ? openingBalance + yearOverUnder
-            : null
-    const showBalanceRows =
-        showReconciliation && (openingBalance !== 0 || closingBalance !== null)
-    const openingBalanceRow =
-        showBalanceRows && openingBalance !== 0
-            ? '<tr>' +
-              '<th>Opening Balance</th>' +
-              '<td colspan="4"></td>' +
-              `<td colspan="1">${formatDiff(openingBalance)}</td>` +
-              '<td>—</td>' +
-              '</tr>'
-            : ''
-    const closingBalanceRow =
-        showBalanceRows && closingBalance !== null
-            ? '<tr>' +
-              '<th>Closing Pensions Balance</th>' +
-              '<td colspan="4"></td>' +
-              `<td colspan="1">${formatDiff(closingBalance)}</td>` +
-              '<td>—</td>' +
-              '</tr>'
-            : ''
-    const sections = [
-        '<table class="summary-table">' +
-            '<thead><tr>' +
-            '<th>Month</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
-            '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
-            '<th>Over / Under</th><th>Flags</th>' +
-            '</tr></thead>' +
-            `<tbody>${bodyRows.join('')}</tbody>` +
-            '<tfoot>' +
-            openingBalanceRow +
-            '<tr>' +
-            '<th>Total</th>' +
-            `<td>${yearHours.toFixed(2)}</td>` +
-            `<td>${yearHolidayUnits.toFixed(2)}</td>` +
-            `<td>${formatBreakdownCell(
-                yearPayrollContribution,
-                yearPayrollEE,
-                yearPayrollER
-            )}</td>` +
-            `<td>${formatBreakdownCell(
-                yearReportedContribution,
-                yearReportedEE,
-                yearReportedER,
-                true
-            )}</td>` +
-            `<td>${formatDiff(yearOverUnder, yearZeroReview)}</td>` +
-            '<td>—</td>' +
-            '</tr>' +
-            closingBalanceRow +
-            '</tfoot>' +
-            '</table>',
-    ]
-
-    if (miscFootnotes.length) {
-        const footnoteItems = miscFootnotes
-            .map(
-                (
-                    /** @type {{ type: string, dateLabel: string, item: PayrollPayItem | PayrollMiscDeduction }} */ entry
-                ) => {
-                    const typeLabel =
-                        entry.type === 'deduction' ? 'Deduction' : 'Payment'
-                    const amountLabel =
-                        entry.type === 'deduction'
-                            ? formatDeduction(entry.item.amount || 0)
-                            : formatCurrency(entry.item.amount || 0)
-                    const itemLabel =
-                        /** @type {any} */ (entry.item).label ||
-                        entry.item.title ||
-                        ''
-                    const detailLabel =
-                        entry.item.units == null || entry.item.rate == null
-                            ? 'flat'
-                            : `${Number(entry.item.units).toFixed(2)} @ ${formatCurrency(Number(entry.item.rate))}`
-                    return (
-                        `<li>${entry.dateLabel}: ${typeLabel}: ${itemLabel} ` +
-                        `(${detailLabel}): ${amountLabel}</li>`
-                    )
-                }
-            )
             .join('')
         sections.push(
             `<div class="report-footnote">` +

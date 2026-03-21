@@ -259,10 +259,10 @@ function formatYearAnchor(yearKey) {
         .replace(/(^-|-$)/g, '')
 }
 
-/** @param {string[]} periods @param {string} emptyValue */
-function formatPeriodsByYear(periods, emptyValue) {
+/** @param {string[]} periods */
+function groupPeriodsByYear(periods) {
     if (!periods.length) {
-        return emptyValue
+        return []
     }
     const grouped = /** @type {Record<string, string[]>} */ ({})
     periods.forEach((period) => {
@@ -273,24 +273,42 @@ function formatPeriodsByYear(periods, emptyValue) {
         }
         grouped[year].push(String(period).replace(/\s*\d{4}$/, ''))
     })
-    return Object.entries(grouped)
-        .map(([year, items]) => `${year}: ${items.join(', ')}`)
+    return Object.entries(grouped).map(([year, items]) => ({
+        year,
+        items,
+    }))
+}
+
+/** @param {Record<string, string[]> | null | undefined} groupedMonths */
+function groupMonthsByYear(groupedMonths) {
+    if (!groupedMonths) {
+        return []
+    }
+    const entries = Object.entries(groupedMonths).filter(
+        ([, months]) => months.length
+    )
+    return entries.map(([year, months]) => ({ year, months }))
+}
+
+/** @param {string[]} periods @param {string} emptyValue */
+function formatPeriodsByYear(periods, emptyValue) {
+    const grouped = groupPeriodsByYear(periods)
+    if (!grouped.length) {
+        return emptyValue
+    }
+    return grouped
+        .map(({ year, items }) => `${year}: ${items.join(', ')}`)
         .join('; ')
 }
 
 /** @param {Record<string, string[]> | null | undefined} groupedMonths */
 function formatMonthsByYear(groupedMonths) {
-    if (!groupedMonths) {
+    const grouped = groupMonthsByYear(groupedMonths)
+    if (!grouped.length) {
         return 'None'
     }
-    const entries = Object.entries(groupedMonths).filter(
-        ([, months]) => months.length
-    )
-    if (!entries.length) {
-        return 'None'
-    }
-    return entries
-        .map(([year, months]) => `${year}: ${months.join(', ')}`)
+    return grouped
+        .map(({ year, months }) => `${year}: ${months.join(', ')}`)
         .join('; ')
 }
 
@@ -476,12 +494,18 @@ export function buildSummaryViewModel(context, meta) {
                     ? formatDateLabel(entry.parsedDate)
                     : entry.record.payrollDoc?.processDate?.date || 'Unknown'
         ) ?? []
+    const groupedMissingMonths = groupMonthsByYear(
+        context.missingMonths?.missingMonthsByYear
+    )
+    const groupedFlaggedPeriods = groupPeriodsByYear(flaggedPeriods)
+    const groupedLowConfidencePeriods = groupPeriodsByYear(lowConfidencePeriods)
     const pdfCount = entries.length
     const metaRows = [
         {
             id: 'payroll',
             label: 'Payroll',
             value: `${meta.dateRangeLabel || 'Unknown'} · ${pdfCount} PDF${pdfCount !== 1 ? 's' : ''}`,
+            displayValue: `${meta.dateRangeLabel || 'Unknown'} · ${pdfCount} PDF${pdfCount !== 1 ? 's' : ''}`,
         },
         {
             id: 'pension',
@@ -489,11 +513,15 @@ export function buildSummaryViewModel(context, meta) {
             value: contributionMeta.fileCount
                 ? `${contributionMeta.dateRangeLabel || 'Unknown'} · ${contributionMeta.fileCount} file${contributionMeta.fileCount !== 1 ? 's' : ''} (${contributionMeta.recordCount ?? 0} records)`
                 : 'None',
+            displayValue: contributionMeta.fileCount
+                ? `${contributionMeta.dateRangeLabel || 'Unknown'} · ${contributionMeta.fileCount} file${contributionMeta.fileCount !== 1 ? 's' : ''} (${contributionMeta.recordCount ?? 0} records)`
+                : 'None',
         },
         {
             id: 'worker-profile',
             label: 'Worker profile',
             value: null,
+            displayValue: null,
             workerProfile,
         },
         {
@@ -502,16 +530,27 @@ export function buildSummaryViewModel(context, meta) {
             value: formatMonthsByYear(
                 context.missingMonths?.missingMonthsByYear
             ),
+            displayValue: formatMonthsByYear(
+                context.missingMonths?.missingMonthsByYear
+            ),
+            groupedMonths: groupedMissingMonths,
+            emptyLabel: 'None',
         },
         {
             id: 'flagged-periods',
             label: 'Flagged periods',
             value: formatPeriodsByYear(flaggedPeriods, 'None'),
+            displayValue: formatPeriodsByYear(flaggedPeriods, 'None'),
+            groupedPeriods: groupedFlaggedPeriods,
+            emptyLabel: 'None',
         },
         {
             id: 'low-confidence-periods',
             label: 'Low confidence periods',
             value: formatPeriodsByYear(lowConfidencePeriods, '0'),
+            displayValue: formatPeriodsByYear(lowConfidencePeriods, '0'),
+            groupedPeriods: groupedLowConfidencePeriods,
+            emptyLabel: '0',
         },
     ]
     const yearSummaryRows = Array.from(yearGroups.entries())

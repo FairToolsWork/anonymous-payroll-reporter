@@ -543,6 +543,11 @@ button.next-action:hover {
     border-right-width: 0;
 }
 
+.btn-group button svg {
+    width: 1.2em;
+    height: 1.2em;
+}
+
 .btn-group button:first-child {
     border-radius: var(--radius-pill) 0 0 var(--radius-pill);
 }
@@ -830,10 +835,11 @@ button.next-action:hover {
 .pill.inline {
     display: inline;
     padding: 2px var(--space-6);
-    margin: 2px 0;
+    margin: 4px 0;
     font-size: inherit;
     font-weight: inherit;
     font-family: inherit;
+    line-height: var(--text-md);
 }
 
 .pill--warn {
@@ -1378,7 +1384,7 @@ button.hol-calc-btn {
 
 .progress {
     height: 10px;
-    background: var(--ink-10);
+    background: var(--days-fresh-bg);
     border-radius: var(--radius-pill);
     overflow: hidden;
     margin-top: var(--space-12);
@@ -1388,8 +1394,8 @@ button.hol-calc-btn {
     height: 100%;
     background: linear-gradient(
         90deg,
-        var(--accent) 0%,
-        color-mix(in srgb, var(--accent) 65%, var(--card)) 100%
+        var(--accent-green) 0%,
+        color-mix(in srgb, var(--accent-green) 65%, var(--card)) 100%
     );
     transition: width 0.2s ease;
 }
