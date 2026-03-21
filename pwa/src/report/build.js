@@ -26,9 +26,9 @@ import {
     formatContributionDifference,
     formatCurrency,
     formatDeduction,
-    formatMiscLabel,
     ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
+import { buildPayslipViewModel } from './report_view_model.js'
 import {
     formatDateKey,
     formatDateLabel,
@@ -1188,121 +1188,51 @@ function buildContributionRecency(
  */
 function renderReportCell(entry) {
     const record = entry.record
-    const validation = entry.validation || { flags: [], lowConfidence: false }
-    const parsedDate = entry.parsedDate
-    const dateLabel = parsedDate
-        ? formatDateLabel(parsedDate)
-        : record.payrollDoc?.processDate?.date || 'Unknown'
-    const combined =
-        (record.payrollDoc?.deductions?.pensionEE?.amount || 0) +
-        (record.payrollDoc?.deductions?.pensionER?.amount || 0)
+    const payslipViewModel = buildPayslipViewModel(entry)
     const noImages = Boolean(
         globalThis?.location &&
         new URLSearchParams(globalThis.location.search).get('noimg') === '1'
     )
     const imageHtml =
-        !noImages && record.imageData
-            ? `<img class="report-image" src="${record.imageData}" alt="${dateLabel}" />`
+        !noImages && payslipViewModel.imageData
+            ? `<img class="report-image" src="${payslipViewModel.imageData}" alt="${payslipViewModel.dateLabel}" />`
             : ''
-    const hourlyPayments = /** @type {PayrollPayments["hourly"]} */ (
-        record.payrollDoc?.payments?.hourly || {}
+    const corePaymentRows = payslipViewModel.paymentRows.filter(
+        (row) => row.group === 'core'
     )
-    const basicHours = hourlyPayments.basic?.units || 0
-    const basicRate = hourlyPayments.basic?.rate || 0
-    const basicAmount = hourlyPayments.basic?.amount || 0
-    const holidayHours = hourlyPayments.holiday?.units || 0
-    const holidayRate = hourlyPayments.holiday?.rate || 0
-    const holidayAmount = hourlyPayments.holiday?.amount || 0
-    const salaryPayments = /** @type {PayrollPayments["salary"]} */ (
-        record.payrollDoc?.payments?.salary || {}
+    const miscPaymentRows = payslipViewModel.paymentRows.filter(
+        (row) => row.group === 'misc'
     )
-    const basicSalaryAmount = salaryPayments.basic?.amount ?? null
-    const holidaySalaryUnits = salaryPayments.holiday?.units ?? null
-    const holidaySalaryRate = salaryPayments.holiday?.rate ?? null
-    const holidaySalaryAmount = salaryPayments.holiday?.amount ?? null
-    const miscPayments = record.payrollDoc?.payments?.misc || []
-    const miscDeductions = record.payrollDoc?.deductions?.misc || []
-    const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
-    const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0
-    const nestEmployee = record.payrollDoc?.deductions?.pensionEE?.amount || 0
-    const nestEmployer = record.payrollDoc?.deductions?.pensionER?.amount || 0
-    const netPay = record.payrollDoc?.netPay?.amount || 0
-    const hasHolidayHourly = [holidayHours, holidayRate, holidayAmount].some(
-        (value) => value !== null && value !== 0
+    const coreDeductionRows = payslipViewModel.deductionRows.filter(
+        (row) => row.group === 'core'
     )
-    const hasHolidaySalary = [
-        holidaySalaryUnits,
-        holidaySalaryRate,
-        holidaySalaryAmount,
-    ].some((value) => value !== null && value !== 0)
-    const corePaymentRows = []
-    if (basicHours || basicRate || basicAmount) {
-        corePaymentRows.push({
-            label: 'Basic Hours',
-            units: basicHours,
-            rate: basicRate,
-            amount: basicAmount,
-        })
-    }
-    if (hasHolidayHourly) {
-        corePaymentRows.push({
-            label: 'Holiday Hours',
-            units: holidayHours,
-            rate: holidayRate,
-            amount: holidayAmount,
-        })
-    }
-    if (basicSalaryAmount !== null) {
-        corePaymentRows.push({
-            label: 'Basic Salary',
-            units: null,
-            rate: null,
-            amount: basicSalaryAmount,
-        })
-    }
-    if (hasHolidaySalary) {
-        corePaymentRows.push({
-            label: 'Holiday Salary',
-            units: holidaySalaryUnits,
-            rate: holidaySalaryRate,
-            amount: holidaySalaryAmount,
-        })
-    }
-    const nestEmployeeClass = nestEmployee === 0 ? 'pension-zero' : ''
-    const nestEmployerClass = nestEmployer === 0 ? 'pension-zero' : ''
-
-    const warningItems = []
-    if (validation.flags.length) {
-        warningItems.push(
-            ...validation.flags.map((flag) => `<li>${flag.label}</li>`)
-        )
-    }
+    const miscDeductionRows = payslipViewModel.deductionRows.filter(
+        (row) => row.group === 'misc'
+    )
+    const summaryDeductionRows = payslipViewModel.deductionRows.filter(
+        (row) => row.group === 'summary'
+    )
+    const warningItems = payslipViewModel.warnings.map(
+        (/** @type {string} */ warning) => `<li>${warning}</li>`
+    )
     const warningsHtml = warningItems.length
         ? `<div class="notice callout"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
         : ''
 
     const rows = [
         '<table class="report-table">',
-        `<tr class="report-row--section-start"><th class="row-header" align="left">Date</th><td>${dateLabel}</td></tr>`,
+        `<tr class="report-row--section-start"><th class="row-header" align="left">Date</th><td>${payslipViewModel.dateLabel}</td></tr>`,
         '<tr><th class="row-header" align="left" colspan="2">Payments</th></tr>',
     ]
-
-    const entryHolidaySummary = buildEntryHolidaySummary(entry)
-    const holidayImpliedDays =
-        entryHolidaySummary.kind === 'hours_days'
-            ? entryHolidaySummary.estimatedDays.toFixed(1)
-            : null
 
     for (const item of corePaymentRows) {
         const breakdown =
             item.units != null && item.rate != null && item.rate !== 0
                 ? ` (${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))})`
                 : ''
-        const isHolidayHourly = item.label === 'Holiday Hours'
-        const estSuffix =
-            isHolidayHourly && holidayImpliedDays !== null
-                ? ` <span class="holiday-est-days">est ${holidayImpliedDays} days holiday</span>`
-                : ''
+        const estSuffix = item.holidayEstimatedDaysSuffix
+            ? ` <span class="holiday-est-days">${item.holidayEstimatedDaysSuffix}</span>`
+            : ''
         rows.push(
             `<tr><th align="left">${item.label}${breakdown}${estSuffix}</th><td>${formatCurrency(
                 item.amount || 0
@@ -1310,12 +1240,12 @@ function renderReportCell(entry) {
         )
     }
 
-    if (miscPayments.length) {
+    if (miscPaymentRows.length) {
         rows.push(
             '<tr><th class="row-header" align="left" colspan="2">Misc Earnings</th></tr>',
-            ...miscPayments.map(
+            ...miscPaymentRows.map(
                 (item) =>
-                    `<tr><th align="left">${formatMiscLabel(item)}</th><td>${formatCurrency(
+                    `<tr><th align="left">${item.label}</th><td>${formatCurrency(
                         item.amount || 0
                     )}</td></tr>`
             )
@@ -1323,64 +1253,75 @@ function renderReportCell(entry) {
     }
 
     rows.push(
-        '<tr><th class="row-header" align="left" colspan="2">Deductions</th></tr>',
-        `<tr><th align="left">PAYE Tax</th><td>${formatDeduction(payeTax)}</td></tr>`,
-        `<tr><th align="left">National Insurance</th><td>${formatDeduction(
-            nationalInsurance
-        )}</td></tr>`,
-        `<tr><th align="left">NEST Corp - EE</th>` +
-            `<td class="${nestEmployeeClass}">${formatDeduction(nestEmployee)}</td></tr>`,
-        `<tr><th align="left">NEST Corp - ER <sup>†</sup></th>` +
-            `<td class="${nestEmployerClass}">( ${formatContribution(nestEmployer)} )</td></tr>`
+        '<tr><th class="row-header" align="left" colspan="2">Deductions</th></tr>'
     )
+    coreDeductionRows.forEach((item) => {
+        const amountLabel =
+            item.amountType === 'deduction'
+                ? formatDeduction(item.amount || 0)
+                : `( ${formatContribution(item.amount || 0)} )`
+        const amountClass =
+            (item.id === 'nest-ee' || item.id === 'nest-er') &&
+            item.amount === 0
+                ? 'pension-zero'
+                : ''
+        const marker = item.marker ? ` <sup>${item.marker}</sup>` : ''
+        rows.push(
+            `<tr><th align="left">${item.label}${marker}</th><td class="${amountClass}">${amountLabel}</td></tr>`
+        )
+    })
 
-    if (miscDeductions.length) {
+    if (miscDeductionRows.length) {
         rows.push(
             '<tr><th class="row-header" align="left" colspan="2">Misc Deductions</th></tr>',
-            ...miscDeductions.map(
+            ...miscDeductionRows.map(
                 (item) =>
-                    `<tr><th align="left">${formatMiscLabel(item)}</th><td>${formatDeduction(
+                    `<tr><th align="left">${item.label}</th><td>${formatDeduction(
                         item.amount
                     )}</td></tr>`
             )
         )
     }
 
-    rows.push(
-        `<tr><th class="row-header" align="left">Combined NEST</th><td>${formatCurrency(combined)}</td></tr>`,
-        `<tr class="report-row--total"><th class="row-header" align="left">Net Pay (after deductions)</th><td>${formatCurrency(netPay)}</td></tr>`,
-        '</table>'
-    )
+    summaryDeductionRows.forEach((item) => {
+        const rowClass =
+            item.id === 'net-pay' ? ' class="report-row--total"' : ''
+        rows.push(
+            `<tr${rowClass}><th class="row-header" align="left">${item.label}</th><td>${formatCurrency(item.amount || 0)}</td></tr>`
+        )
+    })
+    rows.push('</table>')
 
     let holidayAnalysisFootnote = ''
-    if (
-        holidayImpliedDays !== null &&
-        entryHolidaySummary.kind === 'hours_days'
-    ) {
-        const avgHrsPerDay = entryHolidaySummary.avgHoursPerDay.toFixed(2)
-        const avgHrsPerWeek = entryHolidaySummary.avgWeeklyHours.toFixed(2)
-        const days = entryHolidaySummary.typicalDays
+    if (payslipViewModel.holidayAnalysis) {
+        const holidayAnalysis = payslipViewModel.holidayAnalysis
+        const avgHrsPerDay = holidayAnalysis.avgHoursPerDay.toFixed(2)
+        const avgHrsPerWeek = holidayAnalysis.avgHoursPerWeek.toFixed(2)
+        const days = holidayAnalysis.typicalDays
         holidayAnalysisFootnote =
             `<div class="notice">` +
             `<p><b>Holiday analysis</b> (year average, <i>estimate only</i>):</p>` +
             `<ul><li>Avg ${avgHrsPerWeek}\u00a0hrs/week over ${days}\u00a0days \u2192 1\u00a0day\u00a0\u2248\u00a0${avgHrsPerDay}\u00a0hrs.</li>` +
-            `<li>This payslip: ${entryHolidaySummary.holidayHours.toFixed(2)}\u00a0hrs\u00a0\u2248\u00a0${holidayImpliedDays}\u00a0days.</li></ul>` +
-            `<p>If <b>${holidayImpliedDays}</b>\u00a0days doesn\u2019t match the days you agreed, ask your employer how they calculated the number of hours for holiday.</p>` +
+            `<li>This payslip: ${holidayAnalysis.holidayHours.toFixed(2)}\u00a0hrs\u00a0\u2248\u00a0${holidayAnalysis.estimatedDays}\u00a0days.</li></ul>` +
+            `<p>If <b>${holidayAnalysis.estimatedDays}</b>\u00a0days doesn\u2019t match the days you agreed, ask your employer how they calculated the number of hours for holiday.</p>` +
             `</div>`
     }
 
-    const cellClass = validation.lowConfidence
+    const cellClass = payslipViewModel.flags.lowConfidence
         ? 'report-cell is-low-confidence'
         : 'report-cell'
-    const erFootnote =
-        '<p class="report-footnote-row"><sup>†</sup> ' +
-        'Employer contribution — paid by the employer on top of your salary, ' +
-        'not deducted from your net pay.' +
-        '</p>'
-    const aprilBoundaryFootnote =
-        parsedDate instanceof Date && parsedDate.getMonth() === 3
-            ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE_HTML}</p>`
-            : ''
+    const employerContributionNote = payslipViewModel.footerNotes.find(
+        (note) => note.id === 'employer-contribution'
+    )
+    const aprilBoundaryNote = payslipViewModel.footerNotes.find(
+        (note) => note.id === 'april-boundary'
+    )
+    const erFootnote = employerContributionNote
+        ? `<p class="report-footnote-row"><sup>${employerContributionNote.marker}</sup> ${employerContributionNote.text}</p>`
+        : ''
+    const aprilBoundaryFootnote = aprilBoundaryNote
+        ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE_HTML}</p>`
+        : ''
 
     return `
     <div class="${cellClass}">

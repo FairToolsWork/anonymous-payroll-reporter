@@ -10,6 +10,7 @@ import {
     formatMiscLabel,
     ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
+import { buildPayslipViewModel } from './report_view_model.js'
 import { getCalendarMonthFromFiscalIndex } from './tax_year_utils.js'
 import {
     buildEntryHolidaySummary,
@@ -1135,18 +1136,15 @@ function renderPayslipPage(doc, entry) {
     const pageNumber = /** @type {any} */ (doc).getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
 
-    const record = entry.record
-    const dateLabel = entry.parsedDate
-        ? formatEntryDateLabel(entry.parsedDate)
-        : record?.payrollDoc?.processDate?.date || 'Unknown'
+    const payslipViewModel = buildPayslipViewModel(entry)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(FONT_HEADING)
     doc.setTextColor('#000000')
-    doc.text(`Payslip details - ${dateLabel}`, PAGE_MARGIN, y)
+    doc.text(`Payslip details - ${payslipViewModel.dateLabel}`, PAGE_MARGIN, y)
     y += FONT_HEADING + LINE_GAP
 
-    const imageData = normalizeImageData(entry.record?.imageData || null)
+    const imageData = normalizeImageData(payslipViewModel.imageData || null)
     if (imageData) {
         try {
             const props = doc.getImageProperties(imageData)
@@ -1180,91 +1178,18 @@ function renderPayslipPage(doc, entry) {
         }
     }
 
-    const hourlyPayments = record?.payrollDoc?.payments?.hourly || {}
-    const salaryPayments = record?.payrollDoc?.payments?.salary || {}
-    const miscPayments = record?.payrollDoc?.payments?.misc || []
-    const validation = entry.validation || { flags: [], lowConfidence: false }
-
     /** @type {Array<Array<string>>} */
     const paymentRows = []
-    const entryHolidaySummary = buildEntryHolidaySummary(entry)
-    const holidayImpliedDays =
-        entryHolidaySummary.kind === 'hours_days'
-            ? entryHolidaySummary.estimatedDays.toFixed(1)
-            : null
-    const basicHours = hourlyPayments.basic?.units || 0
-    const basicRate = hourlyPayments.basic?.rate || 0
-    const basicAmount = hourlyPayments.basic?.amount || 0
-    const holidayHoursUnits = hourlyPayments.holiday?.units || 0
-    const holidayRate = hourlyPayments.holiday?.rate || 0
-    const holidayAmount = hourlyPayments.holiday?.amount || 0
-    const basicSalaryAmount = salaryPayments.basic?.amount ?? null
-    const holidaySalaryUnits = salaryPayments.holiday?.units ?? null
-    const holidaySalaryRate = salaryPayments.holiday?.rate ?? null
-    const holidaySalaryAmount = salaryPayments.holiday?.amount ?? null
-    const hasHolidayHourly = [
-        holidayHoursUnits,
-        holidayRate,
-        holidayAmount,
-    ].some((value) => value !== null && value !== 0)
-    const hasHolidaySalary = [
-        holidaySalaryUnits,
-        holidaySalaryRate,
-        holidaySalaryAmount,
-    ].some((value) => value !== null && value !== 0)
-
-    /** @type {Array<{ label: string, units: number | null, rate: number | null, amount: number | null }>} */
-    const corePaymentRows = []
-    if (basicHours || basicRate || basicAmount) {
-        corePaymentRows.push({
-            label: 'Basic Hours',
-            units: basicHours,
-            rate: basicRate,
-            amount: basicAmount,
-        })
-    }
-    if (hasHolidayHourly) {
-        corePaymentRows.push({
-            label: 'Holiday Hours',
-            units: holidayHoursUnits,
-            rate: holidayRate,
-            amount: holidayAmount,
-        })
-    }
-    if (basicSalaryAmount !== null) {
-        corePaymentRows.push({
-            label: 'Basic Salary',
-            units: null,
-            rate: null,
-            amount: basicSalaryAmount,
-        })
-    }
-    if (hasHolidaySalary) {
-        corePaymentRows.push({
-            label: 'Holiday Salary',
-            units: holidaySalaryUnits,
-            rate: holidaySalaryRate,
-            amount: holidaySalaryAmount,
-        })
-    }
-
-    corePaymentRows.forEach((item) => {
+    payslipViewModel.paymentRows.forEach((item) => {
         const breakdown =
             item.units != null && item.rate != null && item.rate !== 0
                 ? ` (${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))})`
                 : ''
-        const estSuffix =
-            item.label === 'Holiday Hours' && holidayImpliedDays !== null
-                ? ` - est ${holidayImpliedDays} days holiday`
-                : ''
+        const estSuffix = item.holidayEstimatedDaysSuffix
+            ? ` - ${item.holidayEstimatedDaysSuffix}`
+            : ''
         paymentRows.push([
             `${item.label}${breakdown}${estSuffix}`,
-            formatCurrency(item.amount || 0),
-        ])
-    })
-    miscPayments.forEach((/** @type {any} */ item) => {
-        paymentRows.push([
-            formatMiscLabel(item),
             formatCurrency(item.amount || 0),
         ])
     })
@@ -1280,10 +1205,8 @@ function renderPayslipPage(doc, entry) {
         y
     )
 
-    if (
-        holidayImpliedDays !== null &&
-        entryHolidaySummary.kind === 'hours_days'
-    ) {
+    if (payslipViewModel.holidayAnalysis) {
+        const holidayAnalysis = payslipViewModel.holidayAnalysis
         y = writeHeading(doc, 'Holiday analysis', y, {
             fontSize: FONT_BODY,
             preGap: 0,
@@ -1292,38 +1215,23 @@ function renderPayslipPage(doc, entry) {
         y = writeText(
             doc,
             [
-                'Year average, estimate only.',
-                `Avg ${entryHolidaySummary.avgWeeklyHours.toFixed(2)} hrs/week over ${entryHolidaySummary.typicalDays} days -> 1 day ≈ ${entryHolidaySummary.avgHoursPerDay.toFixed(2)} hrs.`,
-                `This payslip: ${entryHolidaySummary.holidayHours.toFixed(2)} hrs ≈ ${holidayImpliedDays} days.`,
-                `If ${holidayImpliedDays} days doesn't match the days you agreed, ask your employer how they calculated the number of hours for holiday.`,
+                holidayAnalysis.intro,
+                ...holidayAnalysis.items,
+                holidayAnalysis.footer,
             ],
             y,
             { fontSize: FONT_SMALL }
         )
     }
 
-    const miscDeductions = record?.payrollDoc?.deductions?.misc || []
-    const payeTax = record?.payrollDoc?.deductions?.payeTax?.amount || 0
-    const natIns = record?.payrollDoc?.deductions?.natIns?.amount || 0
-    const nestEE = record?.payrollDoc?.deductions?.pensionEE?.amount || 0
-    const nestER = record?.payrollDoc?.deductions?.pensionER?.amount || 0
-    const netPay = record?.payrollDoc?.netPay?.amount || 0
-
-    /** @type {Array<Array<string>>} */
-    const deductionRows = [
-        ['PAYE Tax', formatDeduction(payeTax)],
-        ['National Insurance', formatDeduction(natIns)],
-        ['NEST Corp - EE', formatDeduction(nestEE)],
-        ['NEST Corp - ER', formatContribution(nestER)],
-    ]
-    miscDeductions.forEach((/** @type {any} */ item) => {
-        deductionRows.push([
-            formatMiscLabel(item),
-            formatDeduction(item.amount || 0),
-        ])
-    })
-    deductionRows.push(['Combined NEST', formatCurrency(nestEE + nestER)])
-    deductionRows.push(['Net Pay (after deductions)', formatCurrency(netPay)])
+    const deductionRows = payslipViewModel.deductionRows.map((item) => [
+        item.label,
+        item.amountType === 'deduction'
+            ? formatDeduction(item.amount || 0)
+            : item.amountType === 'contribution'
+              ? formatContribution(item.amount || 0)
+              : formatCurrency(item.amount || 0),
+    ])
 
     y = writeTable(
         doc,
@@ -1331,25 +1239,21 @@ function renderPayslipPage(doc, entry) {
         y
     )
 
-    const validationFlags = validation.flags || []
-    if (validationFlags.length) {
+    if (payslipViewModel.warnings.length) {
         y = writeHeading(doc, 'Warnings', y, { fontSize: FONT_BODY })
         y = writeText(
             doc,
-            validationFlags.map((/** @type {any} */ f) => `• ${f.label}`),
+            payslipViewModel.warnings.map(
+                (/** @type {string} */ warning) => `• ${warning}`
+            ),
             y,
             { fontSize: FONT_SMALL }
         )
     }
-    y = writeText(
-        doc,
-        '† Employer contribution — paid by the employer on top of your salary, not deducted from your net pay.',
-        y,
-        { fontSize: FONT_SMALL }
-    )
-    if (entry.parsedDate instanceof Date && entry.parsedDate.getMonth() === 3) {
-        y = writeText(doc, APRIL_BOUNDARY_NOTE, y, { fontSize: FONT_SMALL })
-    }
+    payslipViewModel.footerNotes.forEach((note) => {
+        const noteText = note.marker ? `${note.marker} ${note.text}` : note.text
+        y = writeText(doc, noteText, y, { fontSize: FONT_SMALL })
+    })
     return pageNumber
 }
 
