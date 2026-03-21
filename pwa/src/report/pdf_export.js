@@ -81,6 +81,18 @@ function stripHtml(value) {
 }
 
 /**
+ * Sanitizes text for PDF rendering by removing HTML and control characters.
+ *
+ * IMPORTANT: jsPDF's Helvetica font has limited Unicode support. Characters not in the
+ * font (e.g., ≈ U+2248, → U+2192, • U+2022) can corrupt the text rendering state,
+ * causing letter spacing issues in subsequent text. This corruption persists even after
+ * autoTable calls and affects splitTextToSize calculations.
+ *
+ * If you encounter spaced-out letters in PDF text after tables or special content:
+ * 1. Check for Unicode characters beyond basic ASCII/Latin-1 (codes > 255)
+ * 2. Replace with ASCII equivalents: ≈ → ~, → → ->, • → -, etc.
+ * 3. The issue manifests as corrupted charSpace state that cannot be reset via setCharSpace(0)
+ *
  * @param {string | number | null | undefined} value
  * @returns {string}
  */
@@ -867,7 +879,7 @@ function renderPayslipPage(doc, entry) {
         const holidayAnalysis = payslipViewModel.holidayAnalysis
         y = writeHeading(doc, 'Holiday analysis', y, {
             fontSize: FONT_BODY,
-            preGap: 0,
+            preGap: HEADING_PRE_GAP,
             gap: LINE_GAP,
         })
         y = writeText(

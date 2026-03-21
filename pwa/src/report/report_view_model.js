@@ -210,8 +210,11 @@ export function buildPayslipViewModel(entry) {
                   title: 'Holiday analysis',
                   intro: 'Year average, estimate only.',
                   items: [
-                      `Avg ${entryHolidaySummary.avgWeeklyHours.toFixed(2)} hrs/week over ${entryHolidaySummary.typicalDays} days -> 1 day ≈ ${entryHolidaySummary.avgHoursPerDay.toFixed(2)} hrs.`,
-                      `This payslip: ${entryHolidaySummary.holidayHours.toFixed(2)} hrs ≈ ${holidayEstimatedDays} days.`,
+                      // NOTE: Use ~ instead of ≈ (U+2248) - the ≈ character is not in jsPDF's
+                      // Helvetica font and corrupts text rendering state, causing letter spacing
+                      // issues in PDF exports. See sanitizeText() in pdf_export.js for details.
+                      `Avg ${entryHolidaySummary.avgWeeklyHours.toFixed(2)} hrs/week over ${entryHolidaySummary.typicalDays} days -> 1 day ~${entryHolidaySummary.avgHoursPerDay.toFixed(2)} hrs.`,
+                      `This payslip: ${entryHolidaySummary.holidayHours.toFixed(2)} hrs ~${holidayEstimatedDays} days.`,
                   ],
                   footer: `If ${holidayEstimatedDays} days doesn't match the days you agreed, ask your employer how they calculated the number of hours for holiday.`,
                   estimatedDays: holidayEstimatedDays,
