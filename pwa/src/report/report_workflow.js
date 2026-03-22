@@ -5,6 +5,50 @@ import { buildReport } from './build.js'
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
 /**
+ * @returns {number}
+ */
+function getPdfConcurrency() {
+    const navigatorRef =
+        typeof navigator !== 'undefined' ? navigator : undefined
+    const hardwareConcurrency =
+        typeof navigatorRef?.hardwareConcurrency === 'number'
+            ? navigatorRef.hardwareConcurrency
+            : null
+    const deviceMemory =
+        typeof (
+            /** @type {{ deviceMemory?: number }} */ (navigatorRef)
+                ?.deviceMemory
+        ) === 'number'
+            ? /** @type {{ deviceMemory?: number }} */ (navigatorRef)
+                  .deviceMemory
+            : null
+
+    if (!hardwareConcurrency || hardwareConcurrency < 2) {
+        return 1
+    }
+    if (deviceMemory !== null && deviceMemory <= 2) {
+        return 1
+    }
+    if (
+        hardwareConcurrency >= 8 &&
+        deviceMemory !== null &&
+        deviceMemory >= 8
+    ) {
+        return 4
+    }
+    if (
+        hardwareConcurrency >= 8 ||
+        (hardwareConcurrency >= 6 && deviceMemory !== null && deviceMemory >= 4)
+    ) {
+        return 3
+    }
+    if (hardwareConcurrency >= 4) {
+        return 2
+    }
+    return 1
+}
+
+/**
  * @param {{
  *  pdfFiles: File[],
  *  excelFiles?: File[],
@@ -73,80 +117,135 @@ export async function runPayrollReportWorkflow(options) {
             timing.start('workflow.pdf.total')
         }
         try {
-            for (let i = 0; i < pdfFiles.length; i += 1) {
-                const file = pdfFiles[i]
-                if (typeof onProgress === 'function') {
-                    onProgress({ current: i + 1, total: totalSteps, file })
-                }
-                try {
-                    if (timing?.enabled) {
-                        timing.start('workflow.pdf.file', {
-                            'workflow.pdf.fileName': file.name || 'Unknown',
+            const pdfConcurrency = Math.min(getPdfConcurrency(), 4)
+            if (timing?.enabled) {
+                timing.setMeta('workflow.pdfConcurrency', pdfConcurrency)
+            }
+
+            /** @type {Array<{ record: any | null } | null>} */
+            const pdfResults = new Array(pdfFiles.length).fill(null)
+            /** @type {Array<any | null>} */
+            const pdfDebugResults = new Array(pdfFiles.length).fill(null)
+            let nextIndex = 0
+            /** @type {Error | null} */
+            let fatalError = null
+
+            const runPdfWorker = async () => {
+                while (nextIndex < pdfFiles.length && !fatalError) {
+                    const index = nextIndex
+                    nextIndex += 1
+                    const file = pdfFiles[index]
+                    if (typeof onProgress === 'function') {
+                        onProgress({
+                            current: index + 1,
+                            total: totalSteps,
+                            file,
                         })
                     }
-                    const { record: payrollRecord, debug: recordDebug } =
-                        await parsePayrollPdf(file, pdfPassword)
-                    if (timing?.enabled) {
-                        timing.end('workflow.pdf.file')
-                        timing.increment('workflow.pdf.success')
-                    }
-                    if (captureDebug && !debug) {
-                        debug = recordDebug
-                    }
-                    payrollRecord.imageData = recordDebug.imageData
+                    let pdfFileStartedAt = null
+                    try {
+                        pdfFileStartedAt = timing?.enabled
+                            ? globalThis.performance.now()
+                            : null
+                        const { record: payrollRecord, debug: recordDebug } =
+                            await parsePayrollPdf(file, pdfPassword)
+                        if (timing?.enabled && pdfFileStartedAt !== null) {
+                            timing.record(
+                                'workflow.pdf.file',
+                                globalThis.performance.now() - pdfFileStartedAt,
+                                {
+                                    'workflow.pdf.fileName':
+                                        file.name || 'Unknown',
+                                }
+                            )
+                            timing.increment('workflow.pdf.success')
+                        }
+                        pdfDebugResults[index] = recordDebug
+                        payrollRecord.imageData = recordDebug.imageData
 
-                    const employeeName = payrollRecord.employee?.name || null
-                    const employer = payrollRecord.employer || null
-                    const payPeriod =
-                        payrollRecord.payrollDoc?.processDate?.date || null
+                        const employeeName =
+                            payrollRecord.employee?.name || null
+                        const employer = payrollRecord.employer || null
+                        const payPeriod =
+                            payrollRecord.payrollDoc?.processDate?.date || null
 
-                    if (
-                        requireEmployeeDetails &&
-                        (!employeeName || !employer)
-                    ) {
                         if (
-                            payPeriod &&
-                            !failedPayPeriods.includes(payPeriod)
+                            requireEmployeeDetails &&
+                            (!employeeName || !employer)
                         ) {
-                            failedPayPeriods.push(payPeriod)
+                            if (
+                                payPeriod &&
+                                !failedPayPeriods.includes(payPeriod)
+                            ) {
+                                failedPayPeriods.push(payPeriod)
+                            }
+                            if (!failedFiles.includes(file.name)) {
+                                failedFiles.push(file.name)
+                            }
+                            continue
+                        }
+
+                        pdfResults[index] = { record: payrollRecord }
+                    } catch (err) {
+                        if (timing?.enabled && pdfFileStartedAt !== null) {
+                            timing.record(
+                                'workflow.pdf.file',
+                                globalThis.performance.now() - pdfFileStartedAt,
+                                {
+                                    'workflow.pdf.fileName':
+                                        file.name || 'Unknown',
+                                }
+                            )
+                            timing.increment('workflow.pdf.failure')
+                        }
+                        const e = /** @type {any} */ (err)
+                        console.error('Payroll: PDF parse failed', {
+                            file: file?.name || 'Unknown',
+                            message: e?.message,
+                            error: e,
+                        })
+                        if (e?.message === 'PASSWORD_REQUIRED') {
+                            const passwordError =
+                                /** @type {Error & { fileName?: string }} */ (
+                                    new Error('PASSWORD_REQUIRED')
+                                )
+                            passwordError.fileName = file.name
+                            fatalError = passwordError
+                            throw passwordError
+                        }
+                        if (e?.message === 'INCORRECT_PASSWORD') {
+                            const passwordError =
+                                /** @type {Error & { fileName?: string }} */ (
+                                    new Error('INCORRECT_PASSWORD')
+                                )
+                            passwordError.fileName = file.name
+                            fatalError = passwordError
+                            throw passwordError
                         }
                         if (!failedFiles.includes(file.name)) {
                             failedFiles.push(file.name)
                         }
-                        continue
                     }
+                }
+            }
 
-                    records.push(payrollRecord)
-                } catch (err) {
-                    if (timing?.enabled) {
-                        timing.end('workflow.pdf.file')
-                        timing.increment('workflow.pdf.failure')
-                    }
-                    const e = /** @type {any} */ (err)
-                    console.error('Payroll: PDF parse failed', {
-                        file: file?.name || 'Unknown',
-                        message: e?.message,
-                        error: e,
-                    })
-                    if (e?.message === 'PASSWORD_REQUIRED') {
-                        const passwordError =
-                            /** @type {Error & { fileName?: string }} */ (
-                                new Error('PASSWORD_REQUIRED')
-                            )
-                        passwordError.fileName = file.name
-                        throw passwordError
-                    }
-                    if (e?.message === 'INCORRECT_PASSWORD') {
-                        const passwordError =
-                            /** @type {Error & { fileName?: string }} */ (
-                                new Error('INCORRECT_PASSWORD')
-                            )
-                        passwordError.fileName = file.name
-                        throw passwordError
-                    }
-                    if (!failedFiles.includes(file.name)) {
-                        failedFiles.push(file.name)
-                    }
+            const workerCount = Math.max(
+                1,
+                Math.min(pdfConcurrency, pdfFiles.length)
+            )
+            const workers = []
+            for (let i = 0; i < workerCount; i += 1) {
+                workers.push(runPdfWorker())
+            }
+            await Promise.all(workers)
+
+            for (let i = 0; i < pdfResults.length; i += 1) {
+                const result = pdfResults[i]
+                if (captureDebug && !debug && pdfDebugResults[i]) {
+                    debug = pdfDebugResults[i]
+                }
+                if (result?.record) {
+                    records.push(result.record)
                 }
             }
         } finally {
