@@ -15,6 +15,7 @@
  *     basicRate: number | null,
  *     holidayHours: number,
  *     holidayRate: number | null,
+ *     salariedPay: number,
  *     payeTax: number,
  *     pensionEE: number,
  *     flagIds: string[]
@@ -33,6 +34,7 @@ export function buildRunSnapshot(records, reportContext, contributionData) {
         const holiday = hourly.holiday ?? {}
         const deductions = payrollDoc.deductions ?? {}
 
+        const salariedBasic = payrollDoc.payments?.salary?.basic ?? {}
         const period = payrollDoc.processDate?.date ?? 'Unknown'
         const netPay = payrollDoc.netPay?.amount ?? 0
         const basicHours = basic.units ?? 0
@@ -51,6 +53,7 @@ export function buildRunSnapshot(records, reportContext, contributionData) {
                 : holidayHours > 0 && holidayAmount > 0
                   ? holidayAmount / holidayHours
                   : null
+        const salariedPay = salariedBasic.amount ?? 0
         const payeTax = deductions.payeTax?.amount ?? 0
         const pensionEE = deductions.pensionEE?.amount ?? 0
         const rawFlags = entry.validation?.flags ?? []
@@ -65,6 +68,7 @@ export function buildRunSnapshot(records, reportContext, contributionData) {
             basicRate,
             holidayHours,
             holidayRate,
+            salariedPay,
             payeTax,
             pensionEE,
             flagIds,

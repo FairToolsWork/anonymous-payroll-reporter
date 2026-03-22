@@ -285,3 +285,20 @@ The `pensionEE` and `pensionER` amounts on payslips are employer-reported. If th
   delta:      number,   // sum of monthly deltas = yearEndBalance
 }
 ```
+
+---
+
+## Related Documentation
+
+| Document                            | Relationship                                                                                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/TESTING.md`                  | Full test strategy — §"Test Layers" describes the integration and snapshot layers that cover contribution reconciliation                                                  |
+| `generate_fixtures/README_EXCEL.md` | Documents how synthetic pension contribution Excel fixtures are generated, including variant fixtures (missing EE/ER contributions) used by `excel_contribution.test.mjs` |
+
+### Tests
+
+| Test file                           | What it verifies                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/run_snapshot.test.mjs`       | Full 13-payslip snapshot regression including the `contributions[]` array — any drift in reconciliation output fails this test |
+| `tests/excel_contribution.test.mjs` | Parses NEST pension contribution Excel files and compares against expected JSON snapshots                                      |
+| `tests/report_workflow.test.mjs`    | End-to-end report assembly from PDF + Excel fixtures, including contribution totals                                            |

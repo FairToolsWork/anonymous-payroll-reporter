@@ -9,6 +9,7 @@
             "basicRate": 9.299999999999999,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 61.47,
             "pensionEE": 44.59,
             "flagIds": []
@@ -20,6 +21,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 117.73,
             "pensionEE": 59.39,
             "flagIds": []
@@ -31,6 +33,7 @@
             "basicRate": 10,
             "holidayHours": 4,
             "holidayRate": 10,
+            "salariedPay": 0,
             "payeTax": 243.94,
             "pensionEE": 92.61,
             "flagIds": []
@@ -42,6 +45,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 171.8,
             "pensionEE": 73.62,
             "flagIds": []
@@ -53,6 +57,7 @@
             "basicRate": 10,
             "holidayHours": 4,
             "holidayRate": 10,
+            "salariedPay": 0,
             "payeTax": 71.23,
             "pensionEE": 47.16,
             "flagIds": []
@@ -64,6 +69,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 262.72,
             "pensionEE": 97.34,
             "flagIds": []
@@ -75,6 +81,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 135.74,
             "pensionEE": 64.13,
             "flagIds": []
@@ -86,6 +93,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 227.83,
             "pensionEE": 88.37,
             "flagIds": []
@@ -97,6 +105,7 @@
             "basicRate": 10,
             "holidayHours": 7,
             "holidayRate": 10,
+            "salariedPay": 0,
             "payeTax": 112.99,
             "pensionEE": 58.15,
             "flagIds": []
@@ -108,6 +117,7 @@
             "basicRate": 10,
             "holidayHours": 7,
             "holidayRate": 10,
+            "salariedPay": 0,
             "payeTax": 239.17,
             "pensionEE": 91.35,
             "flagIds": []
@@ -119,6 +129,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 68.42,
             "pensionEE": 46.41,
             "flagIds": []
@@ -130,6 +141,7 @@
             "basicRate": 10,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 243.9,
             "pensionEE": 92.6,
             "flagIds": []
@@ -141,6 +153,7 @@
             "basicRate": 10.42498023715415,
             "holidayHours": 0,
             "holidayRate": null,
+            "salariedPay": 0,
             "payeTax": 169.09,
             "pensionEE": 72.91,
             "flagIds": []

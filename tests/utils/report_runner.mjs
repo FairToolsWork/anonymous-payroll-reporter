@@ -82,7 +82,7 @@ function buildFileFromPath(filePath) {
 }
 
 /**
- * @param {{ pdfPaths: string[], excelPaths?: string[], pdfPassword?: string, captureDebug?: boolean, requireEmployeeDetails?: boolean, includeReportContext?: boolean }} options
+ * @param {{ pdfPaths: string[], excelPaths?: string[], pdfPassword?: string, captureDebug?: boolean, requireEmployeeDetails?: boolean, includeReportContext?: boolean, workerProfile?: any }} options
  * @returns {Promise<{
  *  records: any[],
  *  report: { html: string, filename: string, stats: any } | null,
@@ -118,5 +118,6 @@ export async function runReportFromFixtures(options) {
         captureDebug: Boolean(options?.captureDebug),
         requireEmployeeDetails: options?.requireEmployeeDetails,
         includeReportContext: options?.includeReportContext,
+        workerProfile: options?.workerProfile,
     })
 }

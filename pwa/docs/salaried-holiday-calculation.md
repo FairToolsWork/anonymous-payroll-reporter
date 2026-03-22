@@ -245,3 +245,18 @@ This warning does not affect the day calculation — it is informational only.
 | Per-month day estimate  | ✗ Annual only                    | ✗ Annual only                    |
 | Statutory reference     | 52-week rolling average          | Daily rate from annual salary    |
 | Zero-hours support      | ✓ Can set `typicalDays = 0`      | ✗ Minimum 0.5 days required      |
+
+---
+
+## Related Documentation
+
+| Document                                     | Relationship                                                                                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/TESTING.md`                           | Full test strategy — §"Salary Worker Tests — `salary_snapshot.test.mjs`" describes all good-place and bad-place scenarios that exercise this calculation path |
+| `pwa/docs/hourly-holiday-pay-calculation.md` | Counterpart document covering Signal A and B rate checks for hourly workers, and the reasoning for why those checks do not apply here                         |
+
+### Tests
+
+| Test file                        | What it verifies                                                                                                                                                                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/salary_snapshot.test.mjs` | Synthetic in-memory records covering full-time, fractional FTE, and holiday-pay-present good-place scenarios; deduction violation bad-place scenarios; verifies `salariedPay` capture, absence of holiday rate flags, and correct net pay and `pensionEE` values |

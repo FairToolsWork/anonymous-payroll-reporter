@@ -151,6 +151,102 @@
             }
         },
         {
+            "id": "good-place-predictable",
+            "inputs": "generate_fixtures/payroll_inputs_good_place_predictable.json",
+            "output_dir": "tests/test_files/report-workflow/fixtures-good-predictable",
+            "months": [
+                "2025-04",
+                "2025-05",
+                "2025-06",
+                "2025-07",
+                "2025-08",
+                "2025-09",
+                "2025-10",
+                "2025-11",
+                "2025-12",
+                "2026-01",
+                "2026-02",
+                "2026-03",
+                "2026-04",
+                "2026-05"
+            ],
+            "employee": {
+                "employer": "The Good Place Restaurant Group Ltd"
+            }
+        },
+        {
+            "id": "bad-place-predictable",
+            "inputs": "generate_fixtures/payroll_inputs_bad_place_predictable.json",
+            "output_dir": "tests/test_files/report-workflow/fixtures-bad-predictable",
+            "months": [
+                "2025-04",
+                "2025-05",
+                "2025-06",
+                "2025-07",
+                "2025-08",
+                "2025-09",
+                "2025-10",
+                "2025-11",
+                "2025-12",
+                "2026-01",
+                "2026-02",
+                "2026-03",
+                "2026-04",
+                "2026-05"
+            ],
+            "employee": {
+                "employer": "The Bad Place Staffing Ltd"
+            }
+        },
+        {
+            "id": "good-place-zero-hours",
+            "inputs": "generate_fixtures/payroll_inputs_good_place_zero_hours.json",
+            "output_dir": "tests/test_files/report-workflow/fixtures-good-zero-hours",
+            "months": [
+                "2025-04",
+                "2025-05",
+                "2025-06",
+                "2025-07",
+                "2025-08",
+                "2025-09",
+                "2025-10",
+                "2025-11",
+                "2025-12",
+                "2026-01",
+                "2026-02",
+                "2026-03",
+                "2026-04",
+                "2026-05"
+            ],
+            "employee": {
+                "employer": "The Good Place Restaurant Group Ltd"
+            }
+        },
+        {
+            "id": "bad-place-zero-hours",
+            "inputs": "generate_fixtures/payroll_inputs_bad_place_zero_hours.json",
+            "output_dir": "tests/test_files/report-workflow/fixtures-bad-zero-hours",
+            "months": [
+                "2025-04",
+                "2025-05",
+                "2025-06",
+                "2025-07",
+                "2025-08",
+                "2025-09",
+                "2025-10",
+                "2025-11",
+                "2025-12",
+                "2026-01",
+                "2026-02",
+                "2026-03",
+                "2026-04",
+                "2026-05"
+            ],
+            "employee": {
+                "employer": "The Bad Place Staffing Ltd"
+            }
+        },
+        {
             "id": "pdf-parse-edge-cases",
             "output_dir": "tests/test_files/pdf-parse/edge-fixtures",
             "months": ["2024-04", "2024-05", "2024-06"],

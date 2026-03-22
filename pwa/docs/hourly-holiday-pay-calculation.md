@@ -85,6 +85,8 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 **Effect:** Scenario A produces false negatives; Scenario B is partially mitigated. Both are accepted approximations given that weekly hours data is unavailable.
 
+For zero-hours workers, this divergence can be material. If a worker's average working week is 25 hours but a given payslip shows only 8 holiday hours, the per-hour check assesses whether those 8 hours were paid at the correct hourly rate. The statutory per-week method would instead ask whether the employer paid at least a full week's average earnings for that week of leave — i.e. approximately 25h worth of pay, not 8h worth. The gap between the two methods grows as the holiday units on the payslip diverge from the worker's typical weekly hours. Zero-hours workers who routinely take short bursts of holiday rather than full-week absences should treat the rate check as a lower bound and verify against their employer's weekly earnings figure.
+
 **Mitigation:** This is an accepted approximation. The tool's purpose is to help workers identify _potential_ underpayment and ask questions — not to make a legal determination. Week-by-week hours data would be required to resolve this, and it is not present in monthly payslips.
 
 ---
@@ -145,9 +147,24 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 **Effect:** When `typicalDays = 0`, days-taken estimates are suppressed — converting hours to days requires a shift-length assumption the tool does not have. Rate checks (Signals A and B) continue to operate normally.
 
-**Mitigation:** The tool computes an hours-based entitlement instead: `entitlementHours = avgWeeklyHours × 5.6`. This follows directly from the statutory framework for irregular-hours workers (_Harper Trust v Brazel_ [2022] UKSC 21), which defines entitlement as 5.6 weeks of average weekly hours — no `typicalDays` value is required. The report displays the total holiday hours taken, the estimated annual entitlement in hours (derived from the rolling 52-week average), and the hours remaining. The statutory holiday entitlement field in the UI is disabled (days-based entitlement is not applicable for these workers).
+**Mitigation:** The tool computes an hours-based entitlement instead: `entitlementHours = avgWeeklyHours × 5.6`. This follows directly from the statutory framework for irregular-hours workers (Harpur Trust v Brazel\_ [2022] UKSC 21), which defines entitlement as 5.6 weeks of average weekly hours — no `typicalDays` value is required. The report displays the total holiday hours taken, the estimated annual entitlement in hours (derived from the rolling 52-week average), and the hours remaining. The statutory holiday entitlement field in the UI is disabled (days-based entitlement is not applicable for these workers).
 
 **Enhanced contractual entitlement:** Because `statutoryHolidayDays` is disabled when `typicalDays = 0`, the calculation is anchored to the statutory minimum of 5.6 weeks. Workers whose contract grants more than 5.6 weeks (e.g. 30 days on a 5-day week = 6.0 weeks) will see the statutory floor only — the additional entitlement is not reflected in the hours-remaining figure. For a worker on a regular pattern who happens to set `typicalDays = 0`, this means the result is accurate for the 28-day statutory case (`avgWeeklyHours × 5.6` is algebraically equivalent to `28 days × avgHoursPerDay` when typical days = 5) but will understate remaining entitlement if enhanced contractual days apply. Workers with enhanced entitlement should use `typicalDays > 0` and set `statutoryHolidayDays` to their actual contractual figure.
+
+---
+
+### 11. Holiday-only payslip with insufficient prior history — no basis for comparison
+
+**What it means:** Signal A requires a basic hourly rate derivable from the **same payslip** (`hourly.basic.units > 0` and `hourly.basic.amount > 0`). Signal B requires at least 3 prior eligible months. A payslip that records only holiday pay and zero basic hours satisfies neither condition: `basicRate` cannot be inferred from the payslip itself, and if fewer than 3 prior payslips with basic hours exist, Signal B is also unavailable.
+
+**Effect:** The tool produces no flag and no warning for that month. This affects two real-world situations:
+
+- **Workers in their first 1–2 months of employment** who take holiday before a reference pool of 3 months has accumulated. Signal B is always unavailable; Signal A is only available if the holiday month also contains basic hours.
+- **Any month where the worker took all hours as holiday** (zero basic hours on the payslip). Neither signal has a reference rate.
+
+The system has no data against which to assess the implied holiday rate. This is an unavoidable consequence of the tool operating solely from payslip data — without a same-payslip basic rate or a rolling reference, there is nothing to compare the holiday rate against.
+
+**Mitigation:** None within the tool. Workers in this situation should compare the rate implied by `holidayAmount ÷ holidayUnits` on the affected payslip against the hourly rate stated in their employment contract or offer letter. Once 3 prior months of payslips with basic hours exist, Signal B becomes available and will flag any underpayment from that point forward.
 
 ---
 
@@ -452,3 +469,27 @@ When a worker profile is provided, the report checks for contradictions between 
 This typically indicates a contract change mid-dataset. The warning is advisory only — no calculations are suppressed. Workers who changed contract type part-way through should run separate reports for each contract period to get accurate holiday rate checks and day estimates for each period.
 
 ---
+
+## Related Documentation
+
+| Document                                   | Relationship                                                                                                                                                                                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/TESTING.md`                         | Full test strategy — §"Hourly Worker Tests — Fixture Profiles" and §"Flag Suppression Behaviour" describe the fixture profiles and assertion patterns that exercise this methodology                                                         |
+| `generate_fixtures/FIXTURE_BASELINES.md`   | Independent first-principles verification of expected flag behaviour for all four fixture profiles (good/bad × predictable/zero-hours), including per-month gross pay tables, rolling reference calculations, and NI/PAYE threshold analysis |
+| `pwa/docs/salaried-holiday-calculation.md` | Counterpart document covering the salaried path — day estimation logic and the reasons rate checks are not performed for salaried workers                                                                                                    |
+
+### Unit tests
+
+| Test file                      | What it verifies                                                                                                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/hol_pay_flags.test.mjs` | `buildHolidayPayFlags` — Signal A and B logic, tolerance, suppression, minimum-period threshold, tax-year boundary crossing; `buildRollingReference` and `isReferenceEligible` edge cases |
+| `tests/hol_calc.test.mjs`      | Holiday calculation display utilities — average weekly pay, expected hours, expected pay amounts                                                                                          |
+
+### Snapshot tests
+
+| Test file                                      | Profile                      | Key assertions                                                                                                                       |
+| ---------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/run_snapshot_good_predictable.test.mjs` | Good-place, consistent hours | No flags on any entry across all slice sizes; per-entry `flagIds` sweep on 14-month run                                              |
+| `tests/run_snapshot_bad_predictable.test.mjs`  | Bad-place, consistent hours  | Signal A asserted specifically on 3-month slice (first holiday month, < 3 prior months); Signal A or B on later slices               |
+| `tests/run_snapshot_good_zero_hours.test.mjs`  | Good-place, variable hours   | No holiday rate flags despite variable `basicHours`; positive `nat_ins_zero`/`paye_zero` assertions on five below-threshold months   |
+| `tests/run_snapshot_bad_zero_hours.test.mjs`   | Bad-place, variable hours    | Signal A specifically on 3-month slice; Signal A or B on later slices; positive `nat_ins_zero`/`paye_zero` on below-threshold months |

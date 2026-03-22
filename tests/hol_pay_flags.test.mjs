@@ -596,6 +596,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
                 basicUnits: 100,
                 basicRate: 15.0,
                 basicAmount: 1500,
+                monthIndex: 1,
                 yearKey: '2024/25',
                 parsedDate: new Date(2024, 0, 15),
             }),
@@ -603,6 +604,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
                 basicUnits: 200,
                 basicRate: 15.0,
                 basicAmount: 3000,
+                monthIndex: 2,
                 yearKey: '2024/25',
                 parsedDate: new Date(2024, 1, 15),
             }),
@@ -610,6 +612,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
                 basicUnits: 150,
                 basicRate: 12.0,
                 basicAmount: 1800,
+                monthIndex: 3,
                 yearKey: '2024/25',
                 parsedDate: new Date(2024, 2, 15),
             }),
@@ -618,6 +621,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
             basicUnits: 160,
             basicRate: 14.0,
             basicAmount: 2240,
+            monthIndex: 4,
             yearKey: '2024/25',
             parsedDate: new Date(2024, 3, 15),
         })
@@ -625,15 +629,12 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
         buildYearHolidayContext(entries, { typicalDays: 0 })
 
         const ctx = targetEntry.holidayContext
-        // With 4 entries but only 4 months (Jan, Feb, Mar, Apr), hasBaseline should be true
-        // However, the entries need to be in the same year for the rolling window
         expect(ctx.typicalDays).toBe(0)
-        if (ctx.hasBaseline) {
-            expect(ctx.avgHoursPerDay).toBe(0)
-            expect(isNaN(ctx.avgHoursPerDay)).toBe(false)
-            expect(ctx.avgWeeklyHours).toBeGreaterThan(0)
-            expect(ctx.avgRatePerHour).toBeGreaterThan(0)
-        }
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.avgHoursPerDay).toBe(0)
+        expect(isNaN(ctx.avgHoursPerDay)).toBe(false)
+        expect(ctx.avgWeeklyHours).toBeGreaterThan(0)
+        expect(ctx.avgRatePerHour).toBeGreaterThan(0)
     })
 
     it('handles typicalDays = 0.5 (minimum salaried workers)', () => {
