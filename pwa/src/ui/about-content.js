@@ -17,6 +17,7 @@ export const AboutContent = defineComponent({
                 type="button"
                 @click="$emit('close')"
                 aria-label="Close about panel"
+                autofocus
             >
                 Close
             </button>

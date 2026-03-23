@@ -338,7 +338,7 @@
             </section>
             <section class="card hol-calc-page">
                 <header>
-                    <h2>Holiday Pay Calculator (Hourly Workers)</h2>
+                    <h3>Holiday Pay Calculator (Hourly Workers)</h3>
                 </header>
                 <div class="notice no-left-border">
                     <p>
@@ -354,9 +354,9 @@
                         manually verify your holiday pay.
                     </p>
                 </div>
-                <details open="">
+                <details name="holidayCal">
                     <summary>
-                        <h3>What questions does it answer?</h3>
+                        <h4>What questions does it answer?</h4>
                     </summary>
                     <div class="notice info no-left-border">
                         <ol>
@@ -382,9 +382,9 @@
                         </ol>
                     </div>
                 </details>
-                <details>
+                <details name="holidayCal">
                     <summary>
-                        <h3>Before you start — gather your data</h3>
+                        <h4>Before you start — gather your data</h4>
                     </summary>
                     <div class="notice info no-left-border">
                         <ol>
@@ -795,7 +795,7 @@
                 </div>
             </section>
             <dialog
-                class="modal-dialog"
+                class="modal-dialog calc-modal"
                 ref="holCalcDialog"
                 aria-label="Holiday Pay Calculator"
                 @click="onHolCalcBackdropClick"
@@ -808,6 +808,7 @@
                         type="button"
                         @click="closeHolCalc"
                         aria-label="Close holiday pay calculator"
+                        autofocus
                     >
                         Close
                     </button>
@@ -823,6 +824,7 @@
                                         name="holCalcMode"
                                         value="hourly"
                                         v-model="holCalcMode"
+                                        id="hol-calc-mode-hourly"
                                     />
                                     <span>Hours &amp; rate</span>
                                 </label>
@@ -941,9 +943,12 @@
                         </div>
                         <div class="hol-calc-result field-hint notice info">
                             <p>
-                                † The correct entitlement is
-                                <b>a week's pay per week of holiday</b>. These
-                                per-day figures are a convenience estimate only.
+                                † The HMRC rules state that
+                                <b
+                                    >a week of holiday pay should equiate to a
+                                    52 week average of regular pay</b
+                                >. These per-day figures are a convenience
+                                estimate only.
                             </p>
                         </div>
                     </div>

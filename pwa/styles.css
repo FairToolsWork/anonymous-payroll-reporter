@@ -359,6 +359,7 @@ button.primary:hover {
     background: var(--accent-green-dark);
 }
 
+button:focus,
 button:focus-visible {
     outline: 3px solid var(--accent-45);
     outline-offset: 3px;
@@ -855,11 +856,6 @@ button.next-action:hover {
     box-shadow: var(--shadow);
 }
 
-summary * {
-    padding: 0;
-    margin: 0;
-}
-
 .pill * {
     color: var(--card);
 }
@@ -930,19 +926,9 @@ summary::before {
     font-size: inherit;
 }
 
-details[open] summary::before {
-    content: '\2212';
-    color: var(--paper);
-}
-
-details[open] summary {
-    background-color: var(--accent);
-    color: var(--paper);
-    border-top-left-radius: var(--radius-12);
-    border-top-right-radius: var(--radius-12);
-    padding: var(--space-12);
-    margin: calc(var(--space-12) * -1) calc(var(--space-12) * -1) 0;
-    box-shadow: var(--shadow-2);
+summary * {
+    padding: 0;
+    margin: 0;
 }
 
 details {
@@ -956,18 +942,23 @@ details {
     overflow: hidden;
 }
 
+details[open] summary::before {
+    content: '\2212';
+    color: var(--paper);
+}
+
+details[open]:first-child summary {
+    background-color: var(--accent);
+    color: var(--paper);
+    border-top-left-radius: var(--radius-12);
+    border-top-right-radius: var(--radius-12);
+    padding: var(--space-12);
+    margin: calc(var(--space-12) * -1) calc(var(--space-12) * -1) 0;
+    box-shadow: var(--shadow-2);
+}
+
 details + details {
     margin-top: var(--space-8);
-}
-
-.hol-calc-page details:last-child {
-    margin-bottom: var(--space-12) !important;
-}
-
-.details-content {
-    height: 0;
-    overflow: hidden;
-    transition: height 0.2s ease;
 }
 
 details[open] .details-content > * {
@@ -988,11 +979,14 @@ details:not([open]):hover summary::before {
     color: var(--card);
 }
 
-.prep .card header {
-    place-content: center flex-start;
-    align-items: center;
-    gap: 12px;
-    flex-direction: row;
+details:last-child {
+    margin-bottom: var(--space-12) !important;
+}
+
+.details-content {
+    height: 0;
+    overflow: hidden;
+    transition: height 0.2s ease;
 }
 
 @keyframes details-reveal {
@@ -1007,7 +1001,14 @@ details:not([open]):hover summary::before {
     }
 }
 
-.card summary::-webkit-details-marker {
+.prep .card header {
+    place-content: center flex-start;
+    align-items: center;
+    gap: 12px;
+    flex-direction: row;
+}
+
+summary::-webkit-details-marker {
     display: none;
 }
 
@@ -1046,26 +1047,20 @@ details .notice {
     border-left-width: 1px;
 }
 
-.calc-bg {
-    border: 1px solid var(--ink-50);
+dialog.modal-dialog.calc-modal {
     background: var(--paper);
     color: var(--notice-text);
-    padding: 3rem;
-}
 
-button.hol-calc-btn {
-    width: 100%;
-    margin-top: var(--space-24);
+    /* padding: 2.5rem 3rem; */
 }
 
 .hol-calc {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-12);
-    border: 1px solid var(--notice-bg);
+    border: none;
     background: var(--paper);
     color: var(--notice-text);
-    padding: 3rem;
 }
 
 @media (width >= 480px) {
@@ -1110,6 +1105,11 @@ button.hol-calc-btn {
     flex-direction: column;
     gap: 10px;
     padding-bottom: 24px;
+}
+
+.hol-calc-btn {
+    width: 100%;
+    margin-top: var(--space-24);
 }
 
 .hol-resources ul {

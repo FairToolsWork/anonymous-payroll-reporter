@@ -1946,18 +1946,10 @@ export function initPayrollApp() {
                 },
                 /** @this {PayrollAppInstance} @param {MouseEvent} event @returns {void} */
                 onAboutBackdropClick(event) {
-                    const rect = this.$refs.aboutDialog?.getBoundingClientRect()
-                    if (!rect) {
+                    if (event.target !== this.$refs.aboutDialog) {
                         return
                     }
-                    if (
-                        event.clientX < rect.left ||
-                        event.clientX > rect.right ||
-                        event.clientY < rect.top ||
-                        event.clientY > rect.bottom
-                    ) {
-                        this.closeAbout()
-                    }
+                    this.closeAbout()
                 },
                 /** @this {PayrollAppInstance} @returns {void} */
                 openHolCalc() {
@@ -1975,19 +1967,10 @@ export function initPayrollApp() {
                 },
                 /** @this {PayrollAppInstance} @param {MouseEvent} event @returns {void} */
                 onHolCalcBackdropClick(event) {
-                    const rect =
-                        this.$refs.holCalcDialog?.getBoundingClientRect()
-                    if (!rect) {
+                    if (event.target !== this.$refs.holCalcDialog) {
                         return
                     }
-                    if (
-                        event.clientX < rect.left ||
-                        event.clientX > rect.right ||
-                        event.clientY < rect.top ||
-                        event.clientY > rect.bottom
-                    ) {
-                        this.closeHolCalc()
-                    }
+                    this.closeHolCalc()
                 },
             },
             /** @this {PayrollAppInstance} @returns {void} */
