@@ -87,6 +87,7 @@
     --info-bg: hsl(217deg 89% 61% / 8%);
     --info-text: hsl(217deg 58% 32%);
     --shadow: 0 18px 45px hsl(36deg 9% 11% / 12%);
+    --shadow-2: 0 3px 6px hsl(36deg 9% 11% / 34%);
     --font-fam: 'Space Grotesk', arial, sans-serif;
 
     font-family: var(--font-fam);
@@ -181,7 +182,7 @@ a {
     position: relative;
     display: inline-flex;
     align-self: center;
-    top: 0.25em;
+    margin-inline-start: var(--space-6);
 }
 
 .app-shell {
@@ -218,38 +219,11 @@ a {
     font-size: var(--text-sm);
 }
 
-.no-esm-screen {
+.update-banner.no-esm-banner {
     display: none;
-    padding: var(--space-32) var(--space-20);
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    width: 100%;
 }
 
-.no-esm-card {
-    max-width: 536px;
-    width: 100%;
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: var(--space-32);
-    box-shadow: var(--shadow);
-}
-
-.no-esm-actions {
-    margin-top: var(--space-20);
-    display: flex;
-    justify-content: center;
-}
-
-.no-esm-actions .primary {
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.no-esm .no-esm-screen {
+.no-esm .update-banner.no-esm-banner {
     display: flex;
 }
 
@@ -287,6 +261,8 @@ a {
     justify-content: space-between;
     gap: var(--space-24);
     margin-bottom: var(--space-32);
+    padding-bottom: var(--space-12);
+    border-bottom: 1px solid var(--ink-32);
 }
 
 @media (width <= 355px) {
@@ -300,9 +276,11 @@ a {
     display: flex;
     align-items: center;
     gap: var(--space-8);
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
     color: var(--muted);
-    margin: -12px 0 28px;
+    margin: -28px 0 28px;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--ink-32);
 }
 
 .app-breadcrumb a {
@@ -368,6 +346,7 @@ button.primary,
 button.ghost {
     padding: var(--space-12) var(--space-20);
     font-weight: 600;
+    font-size: var(--text-lg);
 }
 
 button.primary {
@@ -405,6 +384,19 @@ button.primary.accent {
 button.secondary.accent:hover,
 button.primary.accent:hover {
     background: var(--accent-dark);
+    filter: brightness(0.88);
+}
+
+button.secondary.accent-green,
+button.primary.accent-green {
+    flex-shrink: 0;
+    background: var(--accent-green);
+    color: var(--card);
+}
+
+button.secondary.accent-green:hover,
+button.primary.accent-green:hover {
+    background: var(--accent-green-dark);
     filter: brightness(0.88);
 }
 
@@ -854,16 +846,31 @@ button.next-action:hover {
     align-items: center;
 }
 
-.pill * {
-    color: var(--card);
-}
-
 .card {
     min-height: 100%;
     background: var(--card);
     padding: var(--space-24);
+    margin: var(--space-12) var(--space-8);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+}
+
+summary * {
+    padding: 0;
+    margin: 0;
+}
+
+.pill * {
+    color: var(--card);
+}
+
+details img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid;
+    border-radius: 5px;
+    margin: var(--space-8) auto;
 }
 
 .modal-content img {
@@ -888,6 +895,13 @@ button.next-action:hover {
     justify-content: space-between;
 }
 
+.card header:has(svg) {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: var(--space-12);
+}
+
 .card ul {
     padding: 0 0 0 var(--space-16);
 }
@@ -896,27 +910,42 @@ button.next-action:hover {
     margin: var(--space-16) 0;
 }
 
-.card summary {
+summary {
     cursor: pointer;
     font-weight: 600;
     color: var(--accent-dark);
     list-style: none;
+    display: inline-flex;
+    align-items: baseline;
+    width: stretch;
+    width: -webkit-fill-available;
 }
 
-.card summary::before {
+summary::before {
     content: '+';
     display: inline-block;
     margin-right: var(--space-8);
     color: var(--accent);
     font-weight: 700;
+    font-size: inherit;
 }
 
-.card details[open] summary::before {
+details[open] summary::before {
     content: '\2212';
+    color: var(--paper);
 }
 
-.card details {
-    margin-top: var(--space-12);
+details[open] summary {
+    background-color: var(--accent);
+    color: var(--paper);
+    border-top-left-radius: var(--radius-12);
+    border-top-right-radius: var(--radius-12);
+    padding: var(--space-12);
+    margin: calc(var(--space-12) * -1) calc(var(--space-12) * -1) 0;
+    box-shadow: var(--shadow-2);
+}
+
+details {
     border: 1px solid var(--ink-50);
     border-radius: var(--radius-12);
     padding: var(--space-8) var(--space-12);
@@ -927,31 +956,35 @@ button.next-action:hover {
     overflow: hidden;
 }
 
-.card .details-content {
+details + details {
+    margin-top: var(--space-8);
+}
+
+.hol-calc-page details:last-child {
+    margin-bottom: var(--space-12) !important;
+}
+
+.details-content {
     height: 0;
     overflow: hidden;
     transition: height 0.2s ease;
 }
 
-.card details[open] .details-content > * {
+details[open] .details-content > * {
     animation: details-reveal 0.2s ease;
 }
 
-.card details + details {
-    margin-top: var(--space-8);
-}
-
-.card details:not([open]):hover {
+details:not([open]):hover {
     cursor: pointer;
     background: var(--accent);
     color: var(--card);
 }
 
-.card details:not([open]):hover summary {
+details:not([open]):hover summary {
     color: var(--card);
 }
 
-.card details:not([open]):hover summary::before {
+details:not([open]):hover summary::before {
     color: var(--card);
 }
 
@@ -989,6 +1022,14 @@ button.next-action:hover {
     color: var(--notice-text);
 }
 
+details .notice {
+    margin-top: var(--space-8);
+}
+
+.notice:first-of-type {
+    margin-top: 0;
+}
+
 .notice.info {
     background: var(--info-bg);
     border-color: var(--info-border);
@@ -1012,21 +1053,9 @@ button.next-action:hover {
     padding: 3rem;
 }
 
-.card details .notice {
-    margin-top: var(--space-8);
-}
-
-.card details img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border: 1px solid;
-    border-radius: 5px;
-    margin: var(--space-8) auto;
-}
-
 button.hol-calc-btn {
     width: 100%;
+    margin-top: var(--space-24);
 }
 
 .hol-calc {
@@ -1070,6 +1099,25 @@ button.hol-calc-btn {
 .hol-calc-result strong {
     font-size: var(--text-lg);
     white-space: nowrap;
+}
+
+.hol-calc-page,
+.hol-guidance,
+.hol-resources {
+    padding: var(--space-24);
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 24px;
+}
+
+.hol-resources ul {
+    padding: 0 0 0 var(--space-16);
+}
+
+.hol-resources li {
+    margin: var(--space-8) 0;
 }
 
 .spinner {
@@ -1143,12 +1191,19 @@ button.hol-calc-btn {
     pointer-events: none;
 }
 
-.worker-profile-fields .radio-toggle {
+.radio-toggle {
     display: flex;
     gap: var(--space-8);
     flex-wrap: wrap;
-    margin-top: var(--space-4);
     width: 100%;
+}
+
+.worker-profile-fields .radio-toggle {
+    margin-top: var(--space-4);
+}
+
+.hol-calc-mode-field {
+    grid-column: 1 / -1;
 }
 
 .radio-option {

@@ -31,6 +31,7 @@ export function holCalcExpectedWeeklyPay(totalHours, hourlyRate) {
 /**
  * Estimated hours for a given number of holiday days taken.
  * Uses typical working days per week to derive a daily slice.
+ * Returns DASH when workDaysPerWeek is 0 (unknown/irregular pattern).
  * Note: this is a convenience estimate — the legal entitlement is weekly.
  * @param {number} totalHours
  * @param {number} workDaysPerWeek
@@ -46,6 +47,7 @@ export function holCalcExpectedHours(totalHours, workDaysPerWeek, daysTaken) {
 
 /**
  * Estimated £ pay for a given number of holiday days taken.
+ * Returns DASH when workDaysPerWeek is 0 (unknown/irregular pattern).
  * Note: this is a convenience estimate — the legal entitlement is weekly.
  * @param {number} totalHours
  * @param {number} hourlyRate
@@ -69,4 +71,32 @@ export function holCalcExpectedPay(
             hourlyRate
         ).toFixed(2)
     )
+}
+
+/**
+ * Estimated £ pay for a given number of holiday days taken, derived from total gross.
+ * Returns DASH when workDaysPerWeek is 0 (unknown/irregular pattern).
+ * @param {number} totalGross
+ * @param {number} workDaysPerWeek
+ * @param {number} daysTaken
+ * @returns {string}
+ */
+export function holCalcGrossExpectedPay(
+    totalGross,
+    workDaysPerWeek,
+    daysTaken
+) {
+    if (!totalGross || !workDaysPerWeek || !daysTaken) return DASH
+    return '£' + ((totalGross / WEEKS / workDaysPerWeek) * daysTaken).toFixed(2)
+}
+
+/**
+ * Expected £ pay per week of holiday derived from total gross earnings.
+ * This correctly handles variable pay (overtime premiums, bonuses, pay rises).
+ * @param {number} totalGross
+ * @returns {string}
+ */
+export function holCalcGrossWeeklyPay(totalGross) {
+    if (!totalGross) return DASH
+    return '£' + (totalGross / WEEKS).toFixed(2)
 }

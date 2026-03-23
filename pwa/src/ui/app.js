@@ -4,6 +4,7 @@ import {
     ACTIVE_PAYROLL_FORMAT,
     ACTIVE_PENSION_FORMAT,
 } from '../parse/active_format.js'
+import { AboutContent } from './about-content.js'
 import {
     DEBUG_ENABLED,
     DEBUG_LEVEL,
@@ -17,6 +18,8 @@ import {
     holCalcExpectedHours,
     holCalcExpectedPay,
     holCalcExpectedWeeklyPay,
+    holCalcGrossExpectedPay,
+    holCalcGrossWeeklyPay,
 } from './hol_calc.js'
 
 /**
@@ -74,6 +77,8 @@ import {
  * @property {number} holCalcRate
  * @property {number} holCalcDaysTaken
  * @property {number} holCalcWorkDays
+ * @property {string} holCalcMode
+ * @property {number} holCalcGross
  */
 
 /**
@@ -481,7 +486,9 @@ export function initPayrollApp() {
                     holCalcHours: 0,
                     holCalcRate: 0,
                     holCalcDaysTaken: 1,
-                    holCalcWorkDays: 5,
+                    holCalcWorkDays: 0,
+                    holCalcMode: 'hourly',
+                    holCalcGross: 0,
                     dragActive: false,
                     debugEnabled: DEBUG_ENABLED,
                     error: '',
@@ -554,6 +561,18 @@ export function initPayrollApp() {
                         this.holCalcWorkDays,
                         this.holCalcDaysTaken
                     )
+                },
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcGrossExpectedPay() {
+                    return holCalcGrossExpectedPay(
+                        this.holCalcGross,
+                        this.holCalcWorkDays,
+                        this.holCalcDaysTaken
+                    )
+                },
+                /** @this {PayrollAppInstance} @returns {string} */
+                holCalcGrossWeeklyPay() {
+                    return holCalcGrossWeeklyPay(this.holCalcGross)
                 },
                 /** @this {PayrollAppInstance} @returns {number} */
                 progressPercent() {
@@ -2166,5 +2185,6 @@ export function initPayrollApp() {
     )
 
     const app = createApp(appConfig)
+    app.component('about-content', AboutContent)
     app.mount('#app')
 }

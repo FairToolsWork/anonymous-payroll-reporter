@@ -28,7 +28,7 @@
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;display=swap"
             rel="stylesheet"
         />
-        <title>Holiday Calculations</title>
+        <title>Hourly &amp; Salary Holiday Pay Explained</title>
         <link rel="icon" href="/icons/manifest-icon-192.maskable.png" />
         <link rel="apple-touch-icon" href="/icons/apple-icon-180.png" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -253,27 +253,32 @@
             </svg>
             Offline — some sharing services may not be available.
         </div>
-        <section class="no-esm-screen" aria-live="polite">
-            <div class="no-esm-card">
-                <p class="eyebrow">Browser update required</p>
-                <h1>Unsupported browser</h1>
-                <p class="subhead">
-                    This app requires a browser that supports JavaScript
-                    modules. Please update your browser to continue.
-                </p>
-                <div class="no-esm-actions">
-                    <a
-                        class="primary"
-                        href="https://browsehappy.com/"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        Update browser
-                    </a>
-                </div>
-            </div>
-        </section>
-        <div class="update-banner" id="update-banner" hidden>
+        <div
+            class="update-banner no-esm-banner"
+            aria-live="polite"
+            aria-atomic="true"
+        >
+            <p>
+                <strong>Unsupported browser.</strong> This app requires a
+                browser that supports JavaScript modules. Please update your
+                browser to continue.
+            </p>
+            <a
+                class="primary on-dk"
+                href="https://browsehappy.com/"
+                target="_blank"
+                rel="noopener"
+            >
+                Update browser
+            </a>
+        </div>
+        <div
+            class="update-banner"
+            aria-live="polite"
+            aria-atomic="true"
+            id="update-banner"
+            hidden
+        >
             <p>Update available. Refresh to load the latest version.</p>
             <button
                 class="primary on-dk"
@@ -323,9 +328,627 @@
             </header>
             <app-breadcrumb current="Holiday Calculations"></app-breadcrumb>
             <section class="page-hero">
-                <h2>Holiday Calculations</h2>
-                <p>Coming soon.</p>
+                <header>
+                    <h2>Hourly &amp; Salary Holiday Pay Explained</h2>
+                </header>
+                <p>
+                    Understand your holiday pay entitlement, or use the
+                    calculator below to estimate what you should have been paid.
+                </p>
             </section>
+            <section class="card hol-calc-page">
+                <header>
+                    <h2>Holiday Pay Calculator (Hourly Workers)</h2>
+                </header>
+                <div class="notice no-left-border">
+                    <p>
+                        For hourly workers whose pay or hours vary — including
+                        irregular-hours, zero-hours, and anyone receiving
+                        overtime, bonuses, or commission — holiday pay must be
+                        based on average earnings over the
+                        <strong>52 paid weeks</strong>.
+                    </p>
+                    <p>
+                        This calculator is for when the reporter flags your
+                        holiday pay for further review, or if you want to
+                        manually verify your holiday pay.
+                    </p>
+                </div>
+                <details open="">
+                    <summary>
+                        <h3>What questions does it answer?</h3>
+                    </summary>
+                    <div class="notice info no-left-border">
+                        <ol>
+                            <li>
+                                <b>"What is a week of holiday worth to me?"</b>
+                                <br />
+                                The correct figure under UK law (average weekly
+                                pay from the last 52 paid weeks). This applies
+                                to every irregular hours worker regardless of
+                                schedule.
+                            </li>
+                            <li>
+                                <b>
+                                    "For the X days I took off, how many hours
+                                    and how much pay should I have received?"
+                                </b>
+                                <br />
+                                A convenience estimate for workers who know
+                                their typical days per week, letting them
+                                cross-check what the payslip shows for a
+                                specific holiday period.
+                            </li>
+                        </ol>
+                    </div>
+                </details>
+                <details>
+                    <summary>
+                        <h3>Before you start — gather your data</h3>
+                    </summary>
+                    <div class="notice info no-left-border">
+                        <ol>
+                            <li>
+                                Identify your last
+                                <b>52 weeks of normal pay</b> — not necessarily
+                                the last 52 calendar weeks. Skip any week where
+                                you received only SSP, SMP, SPP, adoption pay,
+                                or no pay at all, replacing it with the next
+                                earlier paid week (going back up to
+                                <b>104 weeks</b> if needed).
+                            </li>
+                            <li>
+                                <b>Flat rate?</b> Add up your total hours across
+                                those 52 weeks and use
+                                <b>Hours &amp; rate</b> mode. Include overtime
+                                hours only if they are paid at the same rate as
+                                ordinary hours.
+                            </li>
+                            <li>
+                                <b>Variable pay?</b> If you had premium
+                                overtime, bonuses, commission, or a pay rise
+                                during this period, add up your total gross
+                                earnings (before tax and deductions) for those
+                                same 52 eligible weeks and use
+                                <b>Total Gross Pay</b> mode instead.
+                            </li>
+                        </ol>
+                    </div>
+
+                    <p class="notice">
+                        The legally correct entitlement is
+                        <b>a week's pay per week of holiday</b>. The per-day
+                        figures are a convenience estimate only.
+                    </p>
+                </details>
+
+                <button
+                    type="button"
+                    class="primary accent-green hol-calc-btn"
+                    @click="openHolCalc"
+                    aria-haspopup="dialog"
+                >
+                    Holiday Pay Calculator
+                </button>
+            </section>
+            <section class="hol-guidance">
+                <header>
+                    <h2>How holidays are calculated</h2>
+                </header>
+                <details name="guidance" open="" class="notice no-left-border">
+                    <summary>
+                        <h3>Hourly &amp; Irregular Hours Workers</h3>
+                    </summary>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M21 8q.8 0 1.4.6T23 10v2q0 .175-.038.375t-.112.375l-3 7.05q-.225.5-.75.85T18 21h-8q-.825 0-1.412-.587T8 19V8.825q0-.4.163-.762t.437-.638l5.425-5.4q.375-.35.888-.425t.987.175t.688.7t.087.925L15.55 8zM4 21q-.825 0-1.412-.587T2 19v-9q0-.825.588-1.412T4 8t1.413.588T6 10v9q0 .825-.587 1.413T4 21"
+                                />
+                            </svg>
+                            <h3>What you're entitled to</h3>
+                        </header>
+                        <p>
+                            From April 2020, irregular-hours and part-year
+                            workers must have their holiday pay calculated as
+                            their average weekly pay over the previous 52 paid
+                            weeks — not a flat rate. You're entitled to a
+                            minimum of
+                            <strong>5.6 weeks' paid holiday per year</strong>
+                            (28 days for a standard 5-day week; proportionally
+                            fewer for part-time workers).
+                        </p>
+                        <p>
+                            If you work
+                            <strong>fixed hours at a fixed rate</strong>, your
+                            holiday pay is simply your normal weekly pay — no
+                            averaging is needed.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M5 22q-.825 0-1.412-.587T3 20V6q0-.825.588-1.412T5 4h1V3q0-.425.288-.712T7 2t.713.288T8 3v1h8V3q0-.425.288-.712T17 2t.713.288T18 3v1h1q.825 0 1.413.588T21 6v6.375q0 .425-.288.713t-.712.287t-.712-.288t-.288-.712V10H5v10h6.225q.425 0 .7.288T12.2 21t-.287.713T11.2 22zm11.525-2.325l3.55-3.55q.3-.3.7-.3t.7.3t.3.713t-.3.712L17.25 21.8q-.3.3-.712.3t-.713-.3L13.7 19.675q-.3-.3-.3-.712t.3-.713t.713-.3t.712.3z"
+                                />
+                            </svg>
+                            <h3>How the report reads your holiday hours</h3>
+                        </header>
+                        <p>
+                            Unlike salaried payslips, hourly payslips include a
+                            dedicated line item showing holiday hours and the
+                            rate applied to them. The report reads these
+                            directly — no estimation from a monetary amount is
+                            needed.
+                        </p>
+                        <p>
+                            The report then checks whether the rate on that
+                            holiday line is correct. Use the Holiday Pay
+                            Calculator above to work out what your rate should
+                            be based on your 52-week average.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M6 22q-.825 0-1.412-.587T4 20V4q0-.825.588-1.412T6 2h8.075q.45 0 .85.188t.675.537l3.925 4.725q.225.275.35.6t.125.675V17.8q0 .5-.462.688t-.813-.163L15.45 15q.275-.425.413-.925T16 13q0-1.65-1.175-2.825T12 9t-2.825 1.175T8 13t1.175 2.825T12 17q.575 0 1.075-.137T14 16.45l3.875 3.85q.475.475.225 1.088t-.925.612zm6-7q-.825 0-1.412-.587T10 13t.588-1.412T12 11t1.413.588T14 13t-.587 1.413T12 15"
+                                />
+                            </svg>
+                            <h3>What the report checks</h3>
+                        </header>
+                        <p>
+                            When you run a report, the tool looks for two types
+                            of potential underpayment on any payslip containing
+                            holiday hours:
+                        </p>
+                        <ul>
+                            <li>
+                                <strong>Same-payslip check.</strong> Is the rate
+                                applied to your holiday hours lower than your
+                                basic hourly rate on the same payslip?
+                            </li>
+                            <li>
+                                <strong>52-week rolling average check.</strong>
+                                Is the implied holiday rate lower than your
+                                average hourly rate over the prior 52 paid
+                                weeks?
+                            </li>
+                        </ul>
+                        <p>
+                            A flag means the figures are worth investigating —
+                            not that you were definitely underpaid.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M12 18q.65 0 1.075-.425T13.5 16.5t-.425-1.075T12 15t-1.075.425T10.5 16.5t.425 1.075T12 18m0-4.5q.65 0 1.075-.425T13.5 12t-.425-1.075T12 10.5t-1.075.425T10.5 12t.425 1.075T12 13.5M12 9q.65 0 1.075-.425T13.5 7.5t-.425-1.075T12 6t-1.075.425T10.5 7.5t.425 1.075T12 9m-5 6v-1.15q-1.025-.275-1.8-1.012t-1.05-1.763q-.05-.425.225-.75t.7-.325H7V8.85q-1.025-.275-1.8-1.012T4.15 6.075q-.05-.425.225-.75t.7-.325H7q0-.825.588-1.412T9 3h6q.825 0 1.413.588T17 5h1.925q.425 0 .7.325t.225.75Q19.575 7.1 18.8 7.838T17 8.85V10h1.925q.425 0 .7.325t.225.75q-.275 1.025-1.05 1.763T17 13.85V15h1.925q.425 0 .7.325t.225.75q-.275 1.025-1.05 1.763T17 18.85V19q0 .825-.587 1.413T15 21H9q-.825 0-1.412-.587T7 19v-.15q-1.025-.275-1.8-1.012t-1.05-1.763q-.05-.425.225-.75t.7-.325zm2 4h6V5H9zm0 0V5z"
+                                />
+                            </svg>
+                            <h3>Known limitations</h3>
+                        </header>
+                        <ul>
+                            <li>
+                                <strong
+                                    >Monthly payslips, not weekly
+                                    records.</strong
+                                >
+                                The statutory calculation works week by week.
+                                Because payslips are monthly, any month
+                                containing statutory sick or maternity pay is
+                                excluded in full — the tool cannot split it week
+                                by week. This is conservative but means slightly
+                                fewer periods may be included in the reference
+                                average.
+                            </li>
+                            <li>
+                                <strong
+                                    >Overtime and regular bonuses are not
+                                    included.</strong
+                                >
+                                The report uses only your basic hourly pay to
+                                build the reference average. If you regularly
+                                receive overtime or contractual commission, your
+                                true average weekly earnings will be higher —
+                                and the report may miss genuine underpayment.
+                            </li>
+                            <li>
+                                <strong
+                                    >No flag does not mean no problem.</strong
+                                >
+                                If you regularly receive overtime or bonuses,
+                                verify your holiday pay manually against your
+                                full average weekly earnings.
+                            </li>
+                        </ul>
+                    </div>
+                </details>
+                <details name="guidance" class="notice no-left-border">
+                    <summary>
+                        <h3>Salaried Workers</h3>
+                    </summary>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M21 8q.8 0 1.4.6T23 10v2q0 .175-.038.375t-.112.375l-3 7.05q-.225.5-.75.85T18 21h-8q-.825 0-1.412-.587T8 19V8.825q0-.4.163-.762t.437-.638l5.425-5.4q.375-.35.888-.425t.987.175t.688.7t.087.925L15.55 8zM4 21q-.825 0-1.412-.587T2 19v-9q0-.825.588-1.412T4 8t1.413.588T6 10v9q0 .825-.587 1.413T4 21"
+                                />
+                            </svg>
+                            <h3>What you're entitled to</h3>
+                        </header>
+                        <p>
+                            Salaried workers are entitled to a minimum of
+                            <strong>5.6 weeks' paid holiday per year</strong>
+                            — 28 days for a standard 5-day week, proportionally
+                            fewer for part-time. Your holiday pay is simply your
+                            <strong>normal salary</strong>: it continues
+                            unchanged during annual leave. The key question is
+                            not <em>at what rate</em> you were paid, but
+                            <em>how many days</em> were taken and whether your
+                            entitlement remains.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M5 22q-.825 0-1.412-.587T3 20V6q0-.825.588-1.412T5 4h1V3q0-.425.288-.712T7 2t.713.288T8 3v1h8V3q0-.425.288-.712T17 2t.713.288T18 3v1h1q.825 0 1.413.588T21 6v6.375q0 .425-.288.713t-.712.287t-.712-.288t-.288-.712V10H5v10h6.225q.425 0 .7.288T12.2 21t-.287.713T11.2 22zm11.525-2.325l3.55-3.55q.3-.3.7-.3t.7.3t.3.713t-.3.712L17.25 21.8q-.3.3-.712.3t-.713-.3L13.7 19.675q-.3-.3-.3-.712t.3-.713t.713-.3t.712.3z"
+                                />
+                            </svg>
+                            <h3>How the report estimates days taken</h3>
+                        </header>
+                        <p>
+                            Sage UK payslips record holiday pay as a monetary
+                            amount only — no day count is included. The report
+                            estimates days taken by working backwards from the
+                            amount:
+                        </p>
+                        <ol>
+                            <li>
+                                It derives your daily rate from your total basic
+                                salary for the year.
+                            </li>
+                            <li>
+                                It divides the holiday pay amount by that daily
+                                rate to estimate days taken.
+                            </li>
+                            <li>
+                                It subtracts days taken from your entitlement to
+                                show days remaining.
+                            </li>
+                        </ol>
+                        <p>
+                            Results are approximate (shown with ≈). Make sure
+                            <strong>typical days per week</strong> is set
+                            correctly in the worker profile — the default is 5,
+                            which will produce incorrect results for part-time
+                            workers.
+                        </p>
+                    </div>
+                    <div class="card">
+                        <header>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <path
+                                    fill="currentColor"
+                                    d="M2.725 21q-.275 0-.5-.137t-.35-.363t-.137-.488t.137-.512l9.25-16q.15-.25.388-.375T12 3t.488.125t.387.375l9.25 16q.15.25.138.513t-.138.487t-.35.363t-.5.137zm1.725-2h15.1L12 6zM12 18q.425 0 .713-.288T13 17t-.288-.712T12 16t-.712.288T11 17t.288.713T12 18m0-3q.425 0 .713-.288T13 14v-3q0-.425-.288-.712T12 10t-.712.288T11 11v3q0 .425.288.713T12 15m0-2.5"
+                                />
+                            </svg>
+                            <h3>Known limitations</h3>
+                        </header>
+                        <ul>
+                            <li>
+                                <strong>Constant salary assumed.</strong>
+                                The daily rate is derived from your total salary
+                                for the year. A mid-year pay rise blends two
+                                rates together, which can slightly skew the day
+                                estimate. If you had a pay rise mid-year, you
+                                may want to run two reports, one for each
+                                period.
+                            </li>
+                            <li>
+                                <strong>No rate underpayment check.</strong>
+                                For salaried workers your salary is your holiday
+                                pay, so the report does not flag whether the
+                                rate itself was correct.
+                            </li>
+                            <li>
+                                <strong>Part-time settings matter.</strong>
+                                If you work part-time and the "typical days per
+                                week" is left at the default of 5, the day count
+                                will be significantly wrong. Set it to your
+                                actual contracted days before running the
+                                report.
+                            </li>
+                        </ul>
+                    </div>
+                </details>
+            </section>
+            <section class="hol-resources">
+                <header>
+                    <h2>Resources</h2>
+                </header>
+                <div class="card">
+                    <header>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                        >
+                            <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                            <path
+                                fill="currentColor"
+                                d="M2.725 21q-.275 0-.5-.137t-.35-.363t-.137-.488t.137-.512l9.25-16q.15-.25.388-.375T12 3t.488.125t.387.375l9.25 16q.15.25.138.513t-.138.487t-.35.363t-.5.137zm1.725-2h15.1L12 6zM12 18q.425 0 .713-.288T13 17t-.288-.712T12 16t-.712.288T11 17t.288.713T12 18m0-3q.425 0 .713-.288T13 14v-3q0-.425-.288-.712T12 10t-.712.288T11 11v3q0 .425.288.713T12 15m0-2.5"
+                            />
+                        </svg>
+                        <h3>If you think you've been underpaid</h3>
+                    </header>
+                    <ul>
+                        <li>
+                            Ask your employer for their
+                            <strong>week-by-week pay records</strong>. Under the
+                            Employment Rights Act 1996, they are legally
+                            required to provide these on request.
+                        </li>
+                        <li>
+                            Contact
+                            <a
+                                href="https://www.acas.org.uk/"
+                                target="_blank"
+                                rel="noopener"
+                                >ACAS</a
+                            >
+                            for free, impartial advice on pay disputes.
+                        </li>
+                        <li>
+                            Seek help from
+                            <a
+                                href="https://www.citizensadvice.org.uk/"
+                                target="_blank"
+                                rel="noopener"
+                                >Citizens Advice</a
+                            >
+                            if you're unsure how to proceed.
+                        </li>
+                    </ul>
+                    <h3>Other resources</h3>
+                    <ul>
+                        <li>
+                            ACAS:
+                            <a
+                                href="https://www.acas.org.uk/checking-holiday-entitlement/calculating-holiday-pay"
+                                target="_blank"
+                                rel="noopener"
+                                >Calculating Holiday Pay</a
+                            >
+                        </li>
+                        <li>
+                            ACAS:
+                            <a
+                                href="https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay"
+                                target="_blank"
+                                rel="noopener"
+                                >Holiday pay for irregular hours and part-year
+                                workers</a
+                            >
+                        </li>
+                        <li>
+                            GOV.UK:
+                            <a
+                                href="https://www.gov.uk/calculate-your-holiday-entitlement"
+                                target="_blank"
+                                rel="noopener"
+                                >Calculate your holiday entitlement</a
+                            >
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <dialog
+                class="modal-dialog"
+                ref="holCalcDialog"
+                aria-label="Holiday Pay Calculator"
+                @click="onHolCalcBackdropClick"
+                @close="onHolCalcDialogClose"
+            >
+                <div class="modal-header">
+                    <h2>Holiday Pay Calculator</h2>
+                    <button
+                        class="modal-close ghost"
+                        type="button"
+                        @click="closeHolCalc"
+                        aria-label="Close holiday pay calculator"
+                    >
+                        Close
+                    </button>
+                </div>
+                <div class="modal-content">
+                    <div class="hol-calc calc-bg">
+                        <div class="field hol-calc-mode-field">
+                            <span><b>Calculate using</b></span>
+                            <div class="radio-toggle">
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        name="holCalcMode"
+                                        value="hourly"
+                                        v-model="holCalcMode"
+                                    />
+                                    <span>Hours &amp; rate</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        name="holCalcMode"
+                                        value="gross"
+                                        v-model="holCalcMode"
+                                    />
+                                    <span>Total gross pay</span>
+                                </label>
+                            </div>
+                            <span class="field-hint notice info"
+                                >Use <b>'Total Gross Pay'</b> (your pay before
+                                deductions) if you have recieved bonus,
+                                commissions, or if your hourly wage has
+                                increased across the 52 week period.</span
+                            >
+                        </div>
+                        <label class="field">
+                            Total hours worked <br />(over 52 paid weeks)
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                placeholder="e.g. 800"
+                                autocomplete="off"
+                                v-model.number="holCalcHours"
+                            />
+                        </label>
+                        <label class="field" v-show="holCalcMode === 'hourly'">
+                            <br />Hourly rate (£)
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="e.g. 12.71"
+                                autocomplete="off"
+                                v-model.number="holCalcRate"
+                            />
+                        </label>
+                        <label class="field" v-show="holCalcMode === 'gross'">
+                            Total gross pay<br />
+                            (over 52 paid weeks) (£)
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="e.g. 18500"
+                                autocomplete="off"
+                                v-model.number="holCalcGross"
+                            />
+                        </label>
+                        <label class="field">
+                            Typical working days per week
+                            <input
+                                type="number"
+                                min="0"
+                                max="7"
+                                step="1"
+                                placeholder="0 if unknown"
+                                autocomplete="off"
+                                v-model.number="holCalcWorkDays"
+                            />
+                        </label>
+                        <label class="field">
+                            Holiday days taken
+                            <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="e.g. 2"
+                                autocomplete="off"
+                                v-model.number="holCalcDaysTaken"
+                                :disabled="holCalcWorkDays === 0"
+                            />
+                        </label>
+                        <div class="hol-calc-result field-hint notice info">
+                            <i
+                                >If you do not work a regular schedule choose
+                                <b>'0'</b> here.</i
+                            >
+                        </div>
+                        <div class="hol-calc-result notice no-left-border">
+                            <span>Avg hours per week of holiday:</span>
+                            <strong>{{ holCalcAvgWeekly }}</strong>
+                        </div>
+                        <div class="hol-calc-result notice no-left-border">
+                            <span>Expected £ per week of holiday:</span>
+                            <strong v-show="holCalcMode === 'hourly'"
+                                >{{ holCalcExpectedWeeklyPay }}</strong
+                            >
+                            <strong v-show="holCalcMode === 'gross'"
+                                >{{ holCalcGrossWeeklyPay }}</strong
+                            >
+                        </div>
+                        <div class="hol-calc-result notice no-left-border">
+                            <span
+                                >Est. hours for {{ holCalcDaysTaken }}
+                                day(s)†:</span
+                            >
+                            <strong>{{ holCalcExpectedHours }}</strong>
+                        </div>
+                        <div class="hol-calc-result notice no-left-border">
+                            <span
+                                >Est. £ for {{ holCalcDaysTaken }}
+                                day(s)†:</span
+                            >
+                            <strong v-show="holCalcMode === 'hourly'"
+                                >{{ holCalcExpectedPay }}</strong
+                            >
+                            <strong v-show="holCalcMode === 'gross'"
+                                >{{ holCalcGrossExpectedPay }}</strong
+                            >
+                        </div>
+                        <div class="hol-calc-result field-hint notice info">
+                            <p>
+                                † The correct entitlement is
+                                <b>a week's pay per week of holiday</b>. These
+                                per-day figures are a convenience estimate only.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </dialog>
             <dialog
                 class="modal-dialog"
                 ref="aboutDialog"
@@ -333,177 +956,7 @@
                 @click="onAboutBackdropClick"
                 @close="onAboutDialogClose"
             >
-                <div class="modal-header">
-                    <h2>About</h2>
-                    <button
-                        class="modal-close ghost"
-                        type="button"
-                        @click="closeAbout"
-                        aria-label="Close about panel"
-                    >
-                        Close
-                    </button>
-                </div>
-                <div class="modal-content">
-                    <p class="eyebrow">
-                        Anonymous Payroll Reporter
-                        <span class="pill inline ghost"
-                            >Release {{ appVersion }}</span
-                        >
-                    </p>
-                    <h3>About The Project</h3>
-                    <p>
-                        This tool was created for a group of UK hospitality
-                        workers who found themselves in an impossible position:
-                        they trusted their employer to handle their pay, and
-                        pension contributions correctly, only to discover that
-                        trust had been badly abused. What happened to them isn't
-                        rare, and it should never fall on workers to become
-                        forensic accountants just to understand their own
-                        payslips.
-                    </p>
-                    <p>This project exists because they deserved better.</p>
-                    <h3>What this tool does</h3>
-                    <p>
-                        The Anonymous Payroll Reporter helps workers check
-                        whether their employer has been paying the correct
-                        pension contributions. It analyses payroll data and
-                        pension spreadsheets, highlights discrepancies, and
-                        produces a clear, worker‑friendly report you can use to
-                        understand what’s going on.
-                    </p>
-                    <p>
-                        It’s designed for people who don’t have HR departments,
-                        legal teams, or accountants behind them—just the right
-                        to be paid fairly.
-                    </p>
-                    <h3>Can I try it out without uploading my own files?</h3>
-                    <p>
-                        Yes. We provide a small training pack of dummy payslips
-                        and pension files so you can learn how the tool works.
-                        Download, unzip, and upload the files to follow along
-                        with the walkthrough.
-                        <a
-                            href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/main/demo_files/anonymous-payroll-reporter-demo-files.zip"
-                            download="anonymous-payroll-reporter-demo-files.zip"
-                            class="demo-download-link"
-                            >Download sample files</a
-                        >
-                    </p>
-                    <h3>Will this work for me?</h3>
-                    <p>
-                        It depends on the payroll system your employer uses. The
-                        tool currently supports <b>Sage Payroll</b> and
-                        <b>Nest Pensions</b>, and it works best when your
-                        payslip follows the standard layout used by those
-                        systems.
-                    </p>
-                    <p>
-                        Because employers often customise their payslips—even
-                        when using the same payroll software—some layouts may
-                        not be recognised. If your payslip looks noticeably
-                        different from the example below, the tool may not
-                        interpret it correctly. The project is keen to expand
-                        support for additional payroll systems, so please let us
-                        know if you find yourself in this situation.
-                    </p>
-                    <p>
-                        To check compatibility, compare your payslip with the
-                        sample layout shown here. If the structure and labels
-                        are similar, the tool should work as expected. If not,
-                        you may see incomplete or inaccurate results.
-                    </p>
-                    <img
-                        src="/imgs/example-payslip.png"
-                        alt="Example payslip layout"
-                        width="566"
-                        height="375"
-                    />
-                    <h3>Open source and community‑driven</h3>
-                    <p>
-                        The project lives here:
-                        <a
-                            href="https://github.com/FairToolsWork/anonymous-payroll-reporter"
-                            target="_blank"
-                            rel="noopener"
-                            >https://github.com/FairToolsWork</a
-                        >
-                    </p>
-                    <p>
-                        If you find a bug or want to suggest an improvement, you
-                        can open an issue here:
-                        <a
-                            href="https://github.com/FairToolsWork/anonymous-payroll-reporter/issues"
-                            >https://github.com/FairToolsWork/anonymous-payroll-reporter/issues</a
-                        >
-                    </p>
-                    <h3>Privacy &amp; Safety</h3>
-                    <p>
-                        Your data never leaves your device. All calculations
-                        happen entirely in your browser. Nothing is uploaded,
-                        nothing is stored, and nothing is sent to any server.
-                        You can close the tab and walk away knowing your
-                        information stays with you.
-                    </p>
-                    <p>
-                        The code is fully open source and licensed under MIT, so
-                        anyone can inspect, audit, or improve it.
-                    </p>
-                    <h3>Why it’s anonymous</h3>
-                    <p>
-                        Workers deserve tools that protect them. Many people
-                        cannot safely raise concerns about payroll errors or
-                        pension underpayments without risking retaliation. This
-                        tool gives you a way to understand the facts first,
-                        privately and safely, before deciding what to do next.
-                    </p>
-                    <h3>Credits &amp; Legal</h3>
-                    <p>
-                        This project was built for workers by a team of one, and
-                        aspires to grow with workers’ needs.
-                        Contributions—technical or otherwise—are welcome.
-                    </p>
-                    <p class="credits-copyright">
-                        Sample fixtures include layouts derived from
-                        <b>Sage (UK) payroll documents</b> and
-                        <b>Nest Pension contribution reports</b>. These
-                        materials are used solely for testing and instructional
-                        demonstration within this project.
-                    </p>
-                    <p>
-                        © Sage (UK) Limited. All rights reserved. <br />
-                        © Nest Pensions. All rights reserved.
-                    </p>
-                    <p>
-                        All <b>Sage</b> and <b>Nest</b> names, trademarks, and
-                        logos remain the property of their respective owners.
-                    </p>
-                    <p>
-                        <b
-                            >These notices apply only to the original marks and
-                            materials of Sage (UK) Ltd and Nest Pensions; all
-                            documents generated by this project are independent
-                            works and are not affiliated with or endorsed by
-                            either organisation.</b
-                        >
-                    </p>
-                    <h3>Colophon</h3>
-                    <ul class="colophon">
-                        <li>
-                            Icons:
-                            <a href="https://fonts.google.com/icons/"
-                                >Material Symbols by Google</a
-                            >
-                        </li>
-                        <li>
-                            Typeface:
-                            <a
-                                href="https://fonts.google.com/specimen/Space+Grotesk"
-                                >Space Grotesk by Florian Karsten</a
-                            >
-                        </li>
-                    </ul>
-                </div>
+                <about-content :app-version="appVersion" @close="closeAbout" />
             </dialog>
         </main>
         <script>
