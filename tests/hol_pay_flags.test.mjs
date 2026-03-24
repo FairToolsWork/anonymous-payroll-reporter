@@ -724,6 +724,287 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
     })
 })
 
+describe('buildYearHolidayContext — pre/post April 2024 entitlement method', () => {
+    function makeRefEntries(startYear) {
+        return [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                monthIndex: 1,
+                yearKey: `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`,
+                parsedDate: new Date(startYear, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                monthIndex: 2,
+                yearKey: `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`,
+                parsedDate: new Date(startYear, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                monthIndex: 3,
+                yearKey: `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`,
+                parsedDate: new Date(startYear, 2, 15),
+            }),
+        ]
+    }
+
+    it('uses 5.6-weeks method for leave year starting before April 2024', () => {
+        const entries = makeRefEntries(2023)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 4,
+            yearKey: '2023/24',
+            parsedDate: new Date(2023, 6, 15),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 4,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(false)
+        const totalWeeks = (31 + 28 + 31) / 7
+        const avgWeeklyHours = (100 + 200 + 150) / totalWeeks
+        expect(ctx.entitlementHours).toBeCloseTo(avgWeeklyHours * 5.6, 1)
+    })
+
+    it('uses 12.07% accrual method for leave year starting on/after April 2024', () => {
+        const entries = makeRefEntries(2024)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 4,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 6, 15),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 4,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(true)
+        const totalWeeks = (31 + 29 + 31) / 7
+        const avgWeeklyHours = (100 + 200 + 150) / totalWeeks
+        expect(ctx.entitlementHours).toBeCloseTo(
+            avgWeeklyHours * 52 * 0.1207,
+            1
+        )
+    })
+
+    it('crossover run: pre-2024 entry uses 5.6×, post-2024 entry uses 12.07%', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                monthIndex: 10,
+                yearKey: '2023/24',
+                parsedDate: new Date(2023, 9, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                monthIndex: 11,
+                yearKey: '2023/24',
+                parsedDate: new Date(2023, 10, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                monthIndex: 12,
+                yearKey: '2023/24',
+                parsedDate: new Date(2023, 11, 15),
+            }),
+        ]
+
+        const preCutoffEntry = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 1,
+            yearKey: '2023/24',
+            parsedDate: new Date(2024, 0, 15),
+        })
+
+        const postCutoffEntry = makeEntry({
+            basicUnits: 170,
+            basicRate: 14.0,
+            basicAmount: 2380,
+            monthIndex: 5,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        entries.push(preCutoffEntry, postCutoffEntry)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 4,
+        })
+
+        const preCutoffCtx = preCutoffEntry.holidayContext
+        expect(preCutoffCtx.hasBaseline).toBe(true)
+        expect(preCutoffCtx.useAccrualMethod).toBe(false)
+        expect(preCutoffCtx.entitlementHours).toBeDefined()
+
+        const postCutoffCtx = postCutoffEntry.holidayContext
+        expect(postCutoffCtx.hasBaseline).toBe(true)
+        expect(postCutoffCtx.useAccrualMethod).toBe(true)
+        expect(postCutoffCtx.entitlementHours).toBeDefined()
+
+        // Post-2024 entitlement should be higher than pre-2024 for similar hours
+        expect(postCutoffCtx.entitlementHours).toBeGreaterThan(
+            preCutoffCtx.entitlementHours
+        )
+    })
+
+    it('January leave year starting Jan 2024 uses 5.6× (before April cutoff)', () => {
+        const entries = makeRefEntries(2023)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 2,
+            yearKey: '2023/24',
+            parsedDate: new Date(2024, 1, 15),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 1,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(false)
+    })
+
+    it('January leave year starting Jan 2025 uses 12.07% (after April cutoff)', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 100,
+                basicRate: 15.0,
+                basicAmount: 1500,
+                monthIndex: 10,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 9, 15),
+            }),
+            makeEntry({
+                basicUnits: 200,
+                basicRate: 15.0,
+                basicAmount: 3000,
+                monthIndex: 11,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 10, 15),
+            }),
+            makeEntry({
+                basicUnits: 150,
+                basicRate: 12.0,
+                basicAmount: 1800,
+                monthIndex: 12,
+                yearKey: '2024/25',
+                parsedDate: new Date(2024, 11, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 2,
+            yearKey: '2025/26',
+            parsedDate: new Date(2025, 1, 15),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 1,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(true)
+    })
+
+    it('entry exactly on leave year start date (1 Apr 2024) uses 12.07%', () => {
+        const entries = makeRefEntries(2024)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 4,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 3, 1),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 4,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(true)
+    })
+
+    it('entry day before leave year start (31 Mar 2024) uses 5.6×', () => {
+        const entries = makeRefEntries(2023)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 12,
+            yearKey: '2023/24',
+            parsedDate: new Date(2024, 2, 31),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 0,
+            leaveYearStartMonth: 4,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBe(false)
+    })
+
+    it('does not set useAccrualMethod for workers with typicalDays > 0', () => {
+        const entries = makeRefEntries(2024)
+        const target = makeEntry({
+            basicUnits: 160,
+            basicRate: 14.0,
+            basicAmount: 2240,
+            monthIndex: 4,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 6, 15),
+        })
+        entries.push(target)
+        buildYearHolidayContext(entries, {
+            typicalDays: 5,
+            leaveYearStartMonth: 4,
+        })
+
+        const ctx = target.holidayContext
+        expect(ctx.hasBaseline).toBe(true)
+        expect(ctx.useAccrualMethod).toBeUndefined()
+        expect(ctx.entitlementHours).toBeUndefined()
+    })
+})
+
 describe('isReferenceEligible', () => {
     it('returns true for a normal basic-hours entry', () => {
         const entry = makeEntry({ basicUnits: 160, basicRate: 14.5 })

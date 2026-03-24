@@ -301,7 +301,8 @@ function formatPdfYearSummaryHolidayText(holidaySummary) {
         holidayCell =
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
             `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `(${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk x 5.6)\n` +
+            `(${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk ${holidaySummary.useAccrualMethod ? 'x 52 x 12.07%' : 'x 5.6 wks'})\n` +
+            `${holidaySummary.useAccrualMethod ? '12.07% accrual method - leave years from Apr 2024' : '5.6 weeks method - leave years before Apr 2024'}\n` +
             `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}`
     } else {
         const variableNote = holidaySummary.hasVariablePattern

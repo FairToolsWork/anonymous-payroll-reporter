@@ -5,12 +5,28 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 /**
  * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
- * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number }} HolidayContext
+ * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
  */
 
 /** @type {number} £0.05/hr tolerance — covers float rounding without masking real discrepancies */
 export const HOLIDAY_RATE_TOLERANCE = 0.05
+
+/** Leave years starting on or after this date use the 12.07% accrual method */
+const ACCRUAL_CUTOFF = new Date(2024, 3, 1) // 1 April 2024
+
+/**
+ * Returns the start date of the leave year containing the given entry date.
+ * @param {Date} entryDate
+ * @param {number} leaveYearStartMonth - 1-indexed month (1=Jan, 4=Apr)
+ * @returns {Date}
+ */
+function getLeaveYearStart(entryDate, leaveYearStartMonth) {
+    const year = entryDate.getFullYear()
+    const month = entryDate.getMonth() + 1
+    const leaveYear = month >= leaveYearStartMonth ? year : year - 1
+    return new Date(leaveYear, leaveYearStartMonth - 1, 1)
+}
 
 /**
  * Pay title substrings (lower-cased) that identify statutory / non-regular pay.
@@ -325,6 +341,7 @@ export function buildYearHolidayContext(entries, workerProfile) {
         workerProfile?.typicalDays != null && workerProfile.typicalDays >= 0
             ? workerProfile.typicalDays
             : 0
+    const leaveYearStartMonth = workerProfile?.leaveYearStartMonth ?? 4
 
     const sortedEntries = [...entries].sort((a, b) => {
         const aTime = a.parsedDate?.getTime() ?? 0
@@ -352,6 +369,11 @@ export function buildYearHolidayContext(entries, workerProfile) {
         const avgHoursPerDay =
             typicalDays > 0 ? avgWeeklyHours / typicalDays : 0
         const avgRatePerHour = ref.totalBasicPay / ref.totalBasicHours
+        const useAccrual =
+            typicalDays === 0 && entry.parsedDate
+                ? getLeaveYearStart(entry.parsedDate, leaveYearStartMonth) >=
+                  ACCRUAL_CUTOFF
+                : false
 
         anyEntry.holidayContext = {
             hasBaseline: true,
@@ -361,7 +383,13 @@ export function buildYearHolidayContext(entries, workerProfile) {
             typicalDays,
             entitlementHours:
                 typicalDays === 0 && avgWeeklyHours > 0
-                    ? avgWeeklyHours * 5.6
+                    ? useAccrual
+                        ? avgWeeklyHours * 52 * 0.1207
+                        : avgWeeklyHours * 5.6
+                    : undefined,
+            useAccrualMethod:
+                typicalDays === 0 && avgWeeklyHours > 0
+                    ? useAccrual
                     : undefined,
         }
         if (timing?.enabled) {

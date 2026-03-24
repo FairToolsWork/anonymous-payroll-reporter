@@ -125,7 +125,8 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
             `<span class="summary-breakdown">` +
             `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
-            ` (${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk × 5.6)<br>` +
+            ` (${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk ${holidaySummary.useAccrualMethod ? '× 52 × 12.07%' : '× 5.6 wks'})` +
+            `<br><em>${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}</em><br>` +
             `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}` +
             `</span>` +
             leaveYearNote

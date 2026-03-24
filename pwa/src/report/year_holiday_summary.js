@@ -5,6 +5,7 @@
  *   avgWeeklyHours?: number,
  *   typicalDays?: number,
  *   entitlementHours?: number,
+ *   useAccrualMethod?: boolean,
  * }} HolidayContextLike
  */
 
@@ -89,6 +90,7 @@
  *   avgWeeklyHours: number,
  *   hoursRemaining: number,
  *   overrun: boolean,
+ *   useAccrualMethod: boolean,
  * }} YearHolidaySummaryHourlyHours
  */
 
@@ -307,6 +309,7 @@ export function buildYearHolidaySummary(
     const lastTypicalDays = lastEntryCtx?.typicalDays ?? null
     const lastEntitlementHours = lastEntryCtx?.entitlementHours ?? 0
     const lastAvgWeeklyHours = lastEntryCtx?.avgWeeklyHours ?? 0
+    const lastUseAccrual = lastEntryCtx?.useAccrualMethod ?? false
     if (
         lastEntryCtx?.hasBaseline &&
         lastTypicalDays === 0 &&
@@ -321,6 +324,7 @@ export function buildYearHolidaySummary(
             avgWeeklyHours: lastAvgWeeklyHours,
             hoursRemaining: Math.max(0, hoursRemainingRaw),
             overrun: hoursRemainingRaw < 0,
+            useAccrualMethod: lastUseAccrual,
         }
     }
 
