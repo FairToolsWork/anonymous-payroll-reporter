@@ -312,7 +312,7 @@ export function buildHolidayPayFlags(entries) {
  * hasBaseline is false when fewer than 3 months of basic hours exist in the rolling window.
  *
  * @param {HolidayEntry[]} entries
- * @param {{ workerType?: string, typicalDays?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} workerProfile
+ * @param {{ workerType?: string, typicalDays?: number, statutoryHolidayDays?: number | null, leaveYearStartMonth?: number } | null} workerProfile
  * @returns {void}
  */
 export function buildYearHolidayContext(entries, workerProfile) {
@@ -324,7 +324,7 @@ export function buildYearHolidayContext(entries, workerProfile) {
     const typicalDays =
         workerProfile?.typicalDays != null && workerProfile.typicalDays >= 0
             ? workerProfile.typicalDays
-            : 5
+            : 0
 
     const sortedEntries = [...entries].sort((a, b) => {
         const aTime = a.parsedDate?.getTime() ?? 0

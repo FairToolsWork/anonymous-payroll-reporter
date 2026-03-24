@@ -192,7 +192,7 @@ export function buildDiffDisplay(value, isZeroReview = false) {
 }
 
 /**
- * @param {{ workerTypeLabel?: string, typicalDays?: number, statutoryHolidayDays?: number, leaveYearStartMonthName?: string, hasVariablePattern?: boolean } | null | undefined} workerProfile
+ * @param {{ workerTypeLabel?: string, typicalDays?: number, statutoryHolidayDays?: number | null, leaveYearStartMonthName?: string, hasVariablePattern?: boolean } | null | undefined} workerProfile
  * @returns {{ typeValue: string, typicalDaysValue: string, entitlementValue: string, leaveYearValue: string }}
  */
 export function buildWorkerProfileDisplay(workerProfile) {
@@ -201,7 +201,10 @@ export function buildWorkerProfileDisplay(workerProfile) {
         typicalDaysValue: workerProfile?.hasVariablePattern
             ? 'Variable pattern'
             : `${workerProfile?.typicalDays ?? 0} days/week`,
-        entitlementValue: `${workerProfile?.statutoryHolidayDays ?? 28} days/year`,
+        entitlementValue:
+            workerProfile?.statutoryHolidayDays != null
+                ? `${workerProfile.statutoryHolidayDays} days/year`
+                : 'N/A (accrual-based)',
         leaveYearValue: workerProfile?.leaveYearStartMonthName || 'April',
     }
 }

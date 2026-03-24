@@ -947,7 +947,7 @@ details[open] summary::before {
     color: var(--paper);
 }
 
-details[open]:first-child summary {
+details[open] > summary {
     background-color: var(--accent);
     color: var(--paper);
     border-top-left-radius: var(--radius-12);

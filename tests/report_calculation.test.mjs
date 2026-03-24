@@ -994,14 +994,14 @@ describe('workerProfile — salaried holiday day estimation', () => {
         expect(context.workerProfile.statutoryHolidayDays).toBe(28)
     })
 
-    it('buildReport context.workerProfile defaults are applied when no workerProfile passed', () => {
+    it('buildReport context.workerProfile defaults to zero-hours baseline when no workerProfile passed', () => {
         const records = [
             buildSalaryRecord({ basicSalary: 3000, holidaySalary: 0 }),
         ]
         const { context } = buildReport(records)
         expect(context.workerProfile.workerType).toBeNull()
-        expect(context.workerProfile.typicalDays).toBe(5)
-        expect(context.workerProfile.statutoryHolidayDays).toBe(28)
+        expect(context.workerProfile.typicalDays).toBe(0)
+        expect(context.workerProfile.statutoryHolidayDays).toBeNull()
     })
 
     it('contract-type mismatch: hourly profile with salary payslip triggers warning', () => {

@@ -24,7 +24,7 @@
  */
 
 /**
- * @typedef {{ workerType?: string | null, typicalDays?: number, statutoryHolidayDays?: number, leaveYearStartMonth?: number }} WorkerProfileLike
+ * @typedef {{ workerType?: string | null, typicalDays?: number, statutoryHolidayDays?: number | null, leaveYearStartMonth?: number }} WorkerProfileLike
  */
 
 /**
@@ -233,8 +233,8 @@ export function buildYearHolidaySummary(
     workerProfile
 ) {
     const workerType = workerProfile?.workerType ?? null
-    const typicalDays = workerProfile?.typicalDays ?? 5
-    const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? 28
+    const typicalDays = workerProfile?.typicalDays ?? 0
+    const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? null
     const leaveYearStartMonth = workerProfile?.leaveYearStartMonth ?? 4
     const firstEntry = entriesForYear[0] || null
     const firstLeaveYearKey = firstEntry?.leaveYearKey ?? null
@@ -262,7 +262,7 @@ export function buildYearHolidaySummary(
                 ? basicSalaryAmount / monthsInYear / workingDaysPerMonth
                 : 0
         const daysTaken = dailyRate > 0 ? holidaySalaryAmount / dailyRate : null
-        if (daysTaken !== null) {
+        if (daysTaken !== null && statutoryHolidayDays !== null) {
             const daysRemainingRaw = statutoryHolidayDays - daysTaken
             return {
                 kind: 'salary_days',
@@ -289,14 +289,16 @@ export function buildYearHolidaySummary(
         firstTypicalDays > 0
     ) {
         const daysTaken = holidayHours / firstAvgHoursPerDay
-        const daysRemainingRaw = statutoryHolidayDays - daysTaken
-        return {
-            kind: 'hourly_days',
-            leaveYearLabel,
-            holidayHours,
-            daysTaken,
-            daysRemaining: Math.max(0, daysRemainingRaw),
-            overrun: daysRemainingRaw < 0,
+        if (statutoryHolidayDays !== null) {
+            const daysRemainingRaw = statutoryHolidayDays - daysTaken
+            return {
+                kind: 'hourly_days',
+                leaveYearLabel,
+                holidayHours,
+                daysTaken,
+                daysRemaining: Math.max(0, daysRemainingRaw),
+                overrun: daysRemainingRaw < 0,
+            }
         }
     }
 

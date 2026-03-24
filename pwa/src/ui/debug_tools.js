@@ -1,3 +1,5 @@
+import { UNKNOWN_APP_VERSION } from './app_version.js'
+
 /** @type {string | null} */
 export const DEBUG_LEVEL = new URLSearchParams(window.location.search).get(
     'debug'
@@ -42,6 +44,54 @@ export function logMemoryUsage(label) {
         limitMb: toMb(memory.jsHeapSizeLimit),
     })
     void logUserAgentMemory(label)
+}
+
+/**
+ * @this {import('./app.js').PayrollAppInstance}
+ * @returns {void}
+ */
+export function copyDebugOutput() {
+    const payload = [
+        `App version: ${this.appVersion || UNKNOWN_APP_VERSION}`,
+        '=== Debug: PDF Source File ===',
+        this.debugInfo.pdfSource || '<empty>',
+        '=== Debug: Extracted Text ===',
+        this.debugText || '<empty>',
+        '=== Debug: Parsed Values ===',
+        this.debugInfo.parsed || '<empty>',
+        '=== Debug: Regex Matches ===',
+        this.debugInfo.matches || '<empty>',
+        '=== Debug: Excel Source File ===',
+        this.debugInfo.excelSource || '<empty>',
+        '=== Debug: Excel Raw Rows (first 20) ===',
+        this.debugInfo.excelRows || '<empty>',
+        '=== Debug: Excel Parsed Entries (first 20) ===',
+        this.debugInfo.excelParsed || '<empty>',
+        '=== Debug: Run Snapshot ===',
+        this.debugInfo.runSnapshot || '<empty>',
+    ].join('\n\n')
+
+    try {
+        navigator.clipboard.writeText(payload)
+        console.log('Debug output copied to clipboard')
+    } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = payload
+        textarea.setAttribute('readonly', '')
+        textarea.className = 'clipboard-copy-buffer'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+    } finally {
+        this.debugCopySuccess = true
+        if (this.debugCopyResetTimer) {
+            clearTimeout(this.debugCopyResetTimer)
+        }
+        this.debugCopyResetTimer = setTimeout(() => {
+            this.debugCopySuccess = false
+        }, 2000)
+    }
 }
 
 /** @param {string} label */

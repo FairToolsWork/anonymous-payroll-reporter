@@ -133,11 +133,11 @@ For zero-hours workers, this divergence can be material. If a worker's average w
 
 ### 9. `typicalDays` assumption in context display
 
-**What it means:** `buildYearHolidayContext` uses `workerProfile.typicalDays` (defaulting to 5) to convert `avgWeeklyHours` into `avgHoursPerDay`. The "estimated N days holiday" annotation in the report relies on this figure.
+**What it means:** `buildYearHolidayContext` uses `workerProfile.typicalDays` (defaulting to 0 — variable/zero-hours pattern) to convert `avgWeeklyHours` into `avgHoursPerDay`. The "estimated N days holiday" annotation in the report relies on this figure. When `typicalDays` is 0, days-based estimates are suppressed and the report shows hours-based entitlement instead.
 
-**Effect:** A worker contracted for 3 days per week will see an over-estimated day count unless the caller supplies `typicalDays: 3`. The assumption is visible in the annotation label.
+**Effect:** Workers on fixed-hours contracts must actively set their `typicalDays` value in the worker profile to see accurate day estimates. The zero-hours baseline ensures that workers with irregular patterns are not given misleading day counts by default.
 
-**Mitigation:** The `typicalDays` value used is surfaced in the rendered output so the worker can identify and correct a wrong assumption.
+**Mitigation:** The `typicalDays` value used is surfaced in the rendered output so the worker can identify and correct a wrong assumption. When `typicalDays` is 0, the UI disables the statutory entitlement field and displays "N/A (accrual-based)" instead of a fixed day count.
 
 ---
 
@@ -385,7 +385,7 @@ holidayContext = {
 }
 ```
 
-`typicalDays` defaults to 5 when not supplied by the caller via `workerProfile`. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
+`typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
 
 **Zero-hours handling:** When `typicalDays = 0` (hourly workers only), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours = avgWeeklyHours × 5.6` — the statutory annual entitlement in hours under _Harper Trust v Brazel_ [2022] UKSC 21. Both `avgWeeklyHours` and `avgRatePerHour` are preserved for rate validation and entitlement display.
 
@@ -421,13 +421,13 @@ The worker profile panel provides optional context that improves report accuracy
 | Field                         | Type                      | Default                          | Effect                                                                                                           |
 | ----------------------------- | ------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Worker type                   | Radio (hourly / salaried) | hourly                           | Controls which fields are shown; used for mismatch detection                                                     |
-| Statutory holiday entitlement | days/year                 | 28 (UK minimum)                  | Used to compute days remaining in Annual Totals; disabled when `typicalDays = 0` for hourly workers              |
-| Typical days per week         | number                    | 5 (hourly: 0–7, salaried: 0.5–7) | Used as divisor for `avgHoursPerDay` and salaried `dailyRate`; set to `0` for zero-hours/irregular-hours workers |
+| Statutory holiday entitlement | days/year                 | null (N/A — accrual-based)       | Used to compute days remaining in Annual Totals; null when `typicalDays = 0`; must be set by fixed-hours workers |
+| Typical days per week         | number                    | 0 (hourly: 0–7, salaried: 0.5–7) | Used as divisor for `avgHoursPerDay` and salaried `dailyRate`; 0 = zero-hours/irregular-hours baseline           |
 | Holiday year start month      | 1–12                      | 4 (April)                        | Controls which holiday hours are grouped together for the days estimate                                          |
 
 None of the above fields affect the underlying payslip parsing or the 52-week rolling reference calculation. The calculation engine is payslip-data-driven.
 
-**Zero-hours workers:** Hourly workers can set `typicalDays = 0` to indicate a highly variable work pattern. When set to zero:
+**Zero-hours baseline:** The default profile assumes a zero-hours/irregular-hours worker (`typicalDays = 0`, `statutoryHolidayDays = null`). This is deliberate — zero-hours contracts are prevalent, and defaulting to a fixed 5-day/28-day assumption would silently produce incorrect entitlement figures for these workers. Standard-hours workers will see 0 days and N/A entitlement on first use, prompting them to enter their actual values. When `typicalDays = 0`:
 
 - Days-taken estimates are suppressed (no shift-length assumption available)
 - The statutory holiday entitlement field becomes disabled in the UI

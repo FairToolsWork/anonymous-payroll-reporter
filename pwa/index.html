@@ -333,7 +333,7 @@
                 <button
                     class="primary accent"
                     type="button"
-                    @click="openAbout"
+                    @click="openDialog('aboutDialog')"
                     aria-haspopup="dialog"
                 >
                     About
@@ -343,10 +343,13 @@
                 class="modal-dialog"
                 ref="aboutDialog"
                 aria-label="About"
-                @click="onAboutBackdropClick"
-                @close="onAboutDialogClose"
+                @click="onDialogBackdropClick('aboutDialog', $event)"
+                @close="onDialogClose"
             >
-                <about-content :app-version="appVersion" @close="closeAbout" />
+                <about-content
+                    :app-version="appVersion"
+                    @close="closeDialog('aboutDialog')"
+                />
             </dialog>
             <section class="prep collapse-section">
                 <div class="collapse-header">
@@ -1214,7 +1217,10 @@
                                 </label>
                             </div>
                         </div>
-                        <details v-show="workerProfile.workerType === 'hourly'">
+                        <details
+                            class="field-hint notice info no-left-border"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
                             <summary>
                                 Zero/irregular hours workers
                                 <svg
@@ -1301,13 +1307,6 @@
                                 <br />
                                 (5.6 × days/week, capped at 28)
                             </span>
-                            <!-- <span
-                                class="field-hint notice info"
-                                v-if="isZeroHoursWorker"
-                            >
-                                For irregular-hours, the system will estimate
-                                your holiday entitlement from your payslip info.
-                            </span> -->
                         </label>
                         <label class="field">
                             <span>Holiday year start month</span>
@@ -1329,11 +1328,30 @@
                                     <option :value="12">December</option>
                                 </select>
                             </div>
-                            <span class="field-hint notice info"
-                                >The month your holiday year begins - this
-                                should appear in your contract, or ask your
-                                manager.
-                            </span>
+                            <details
+                                class="field-hint notice info no-left-border"
+                            >
+                                <summary>
+                                    Holiday Year
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
+                                <p>
+                                    The month your holiday year begins - this
+                                    should appear in your contract, or ask your
+                                    manager.
+                                </p>
+                            </details>
                         </label>
                     </div>
                 </div>

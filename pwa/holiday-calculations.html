@@ -320,7 +320,7 @@
                 <button
                     class="primary accent"
                     type="button"
-                    @click="openAbout"
+                    @click="openDialog('aboutDialog')"
                     aria-haspopup="dialog"
                 >
                     About
@@ -329,108 +329,14 @@
             <app-breadcrumb current="Holiday Calculations"></app-breadcrumb>
             <section class="page-hero">
                 <header>
-                    <h2>Hourly &amp; Salary Holiday Pay Explained</h2>
+                    <h2>Holiday Pay Explained</h2>
                 </header>
                 <p>
                     Understand your holiday pay entitlement, or use the
                     calculator below to estimate what you should have been paid.
                 </p>
             </section>
-            <section class="card hol-calc-page">
-                <header>
-                    <h3>Holiday Pay Calculator (Hourly Workers)</h3>
-                </header>
-                <div class="notice no-left-border">
-                    <p>
-                        For hourly workers whose pay or hours vary — including
-                        irregular-hours, zero-hours, and anyone receiving
-                        overtime, bonuses, or commission — holiday pay must be
-                        based on average earnings over the
-                        <strong>52 paid weeks</strong>.
-                    </p>
-                    <p>
-                        This calculator is for when the reporter flags your
-                        holiday pay for further review, or if you want to
-                        manually verify your holiday pay.
-                    </p>
-                </div>
-                <details name="holidayCal">
-                    <summary>
-                        <h4>What questions does it answer?</h4>
-                    </summary>
-                    <div class="notice info no-left-border">
-                        <ol>
-                            <li>
-                                <b>"What is a week of holiday worth to me?"</b>
-                                <br />
-                                The correct figure under UK law (average weekly
-                                pay from the last 52 paid weeks). This applies
-                                to every irregular hours worker regardless of
-                                schedule.
-                            </li>
-                            <li>
-                                <b>
-                                    "For the X days I took off, how many hours
-                                    and how much pay should I have received?"
-                                </b>
-                                <br />
-                                A convenience estimate for workers who know
-                                their typical days per week, letting them
-                                cross-check what the payslip shows for a
-                                specific holiday period.
-                            </li>
-                        </ol>
-                    </div>
-                </details>
-                <details name="holidayCal">
-                    <summary>
-                        <h4>Before you start — gather your data</h4>
-                    </summary>
-                    <div class="notice info no-left-border">
-                        <ol>
-                            <li>
-                                Identify your last
-                                <b>52 weeks of normal pay</b> — not necessarily
-                                the last 52 calendar weeks. Skip any week where
-                                you received only SSP, SMP, SPP, adoption pay,
-                                or no pay at all, replacing it with the next
-                                earlier paid week (going back up to
-                                <b>104 weeks</b> if needed).
-                            </li>
-                            <li>
-                                <b>Flat rate?</b> Add up your total hours across
-                                those 52 weeks and use
-                                <b>Hours &amp; rate</b> mode. Include overtime
-                                hours only if they are paid at the same rate as
-                                ordinary hours.
-                            </li>
-                            <li>
-                                <b>Variable pay?</b> If you had premium
-                                overtime, bonuses, commission, or a pay rise
-                                during this period, add up your total gross
-                                earnings (before tax and deductions) for those
-                                same 52 eligible weeks and use
-                                <b>Total Gross Pay</b> mode instead.
-                            </li>
-                        </ol>
-                    </div>
 
-                    <p class="notice">
-                        The legally correct entitlement is
-                        <b>a week's pay per week of holiday</b>. The per-day
-                        figures are a convenience estimate only.
-                    </p>
-                </details>
-
-                <button
-                    type="button"
-                    class="primary accent-green hol-calc-btn"
-                    @click="openHolCalc"
-                    aria-haspopup="dialog"
-                >
-                    Holiday Pay Calculator
-                </button>
-            </section>
             <section class="hol-guidance">
                 <header>
                     <h2>How holidays are calculated</h2>
@@ -713,6 +619,101 @@
                     </div>
                 </details>
             </section>
+            <section class="card hol-calc-page">
+                <header>
+                    <h3>Holiday Pay Calculator (for Hourly Workers)</h3>
+                </header>
+                <div class="notice no-left-border">
+                    <p>
+                        For hourly workers whose pay or hours vary — including
+                        irregular-hours, zero-hours, and anyone receiving
+                        overtime, bonuses, or commission — holiday pay must be
+                        based on average earnings over the
+                        <strong>52 paid weeks</strong>.
+                    </p>
+                    <p>
+                        This calculator is for when the reporter flags your
+                        holiday pay for further review, or if you want to
+                        manually verify your holiday pay.
+                    </p>
+                </div>
+                <details name="holidayCal">
+                    <summary>
+                        <h4>What questions does it answer?</h4>
+                    </summary>
+                    <div class="notice info no-left-border">
+                        <ol>
+                            <li>
+                                <b>"What is a week of holiday worth to me?"</b>
+                                <br />
+                                The correct figure under UK law (average weekly
+                                pay from the last 52 paid weeks). This applies
+                                to every irregular hours worker regardless of
+                                schedule.
+                            </li>
+                            <li>
+                                <b>
+                                    "For the X days I took off, how many hours
+                                    and how much pay should I have received?"
+                                </b>
+                                <br />
+                                A convenience estimate for workers who know
+                                their typical days per week, letting them
+                                cross-check what the payslip shows for a
+                                specific holiday period.
+                            </li>
+                        </ol>
+                    </div>
+                </details>
+                <details name="holidayCal">
+                    <summary>
+                        <h4>Before you start — gather your data</h4>
+                    </summary>
+                    <div class="notice info no-left-border">
+                        <ol>
+                            <li>
+                                Identify your last
+                                <b>52 weeks of normal pay</b> — not necessarily
+                                the last 52 calendar weeks. Skip any week where
+                                you received only SSP, SMP, SPP, adoption pay,
+                                or no pay at all, replacing it with the next
+                                earlier paid week (going back up to
+                                <b>104 weeks</b> if needed).
+                            </li>
+                            <li>
+                                <b>Flat rate?</b> Add up your total hours across
+                                those 52 weeks and use
+                                <b>Hours &amp; rate</b> mode. Include overtime
+                                hours only if they are paid at the same rate as
+                                ordinary hours.
+                            </li>
+                            <li>
+                                <b>Variable pay?</b> If you had premium
+                                overtime, bonuses, commission, or a pay rise
+                                during this period, add up your total gross
+                                earnings (before tax and deductions) for those
+                                same 52 eligible weeks and use
+                                <b>Total Gross Pay</b> mode instead.
+                            </li>
+                        </ol>
+                    </div>
+
+                    <p class="notice">
+                        The legally correct entitlement is
+                        <b>a week's pay per week of holiday</b>. The per-day
+                        figures are a convenience estimate only.
+                    </p>
+                </details>
+
+                <button
+                    type="button"
+                    class="primary accent-green hol-calc-btn"
+                    @click="openHolCalc"
+                    aria-haspopup="dialog"
+                >
+                    Holiday Pay Calculator
+                </button>
+            </section>
             <section class="hol-resources">
                 <header>
                     <h2>Resources</h2>
@@ -794,19 +795,20 @@
                     </ul>
                 </div>
             </section>
+
             <dialog
                 class="modal-dialog calc-modal"
                 ref="holCalcDialog"
                 aria-label="Holiday Pay Calculator"
-                @click="onHolCalcBackdropClick"
-                @close="onHolCalcDialogClose"
+                @click="onDialogBackdropClick('holCalcDialog', $event)"
+                @close="onDialogClose"
             >
                 <div class="modal-header">
                     <h2>Holiday Pay Calculator</h2>
                     <button
                         class="modal-close ghost"
                         type="button"
-                        @click="closeHolCalc"
+                        @click="closeDialog('holCalcDialog')"
                         aria-label="Close holiday pay calculator"
                         autofocus
                     >
@@ -958,10 +960,13 @@
                 class="modal-dialog"
                 ref="aboutDialog"
                 aria-label="About"
-                @click="onAboutBackdropClick"
-                @close="onAboutDialogClose"
+                @click="onDialogBackdropClick('aboutDialog', $event)"
+                @close="onDialogClose"
             >
-                <about-content :app-version="appVersion" @close="closeAbout" />
+                <about-content
+                    :app-version="appVersion"
+                    @close="closeDialog('aboutDialog')"
+                />
             </dialog>
         </main>
         <script>

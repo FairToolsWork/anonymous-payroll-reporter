@@ -64,10 +64,10 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
- * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }} WorkerProfileContext
+ * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -85,7 +85,7 @@ function formatYearAnchor(yearKey) {
 }
 
 /**
- * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonthName: string }} workerProfile
+ * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string }} workerProfile
  * @returns {string}
  */
 function formatWorkerProfileHtml(workerProfile) {
@@ -174,7 +174,7 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @param {{ typicalDays?: number, workerType?: string, statutoryHolidayDays?: number, leaveYearStartMonth?: number } | null} [workerProfile=null]
+ * @param {{ typicalDays?: number, workerType?: string, statutoryHolidayDays?: number | null, leaveYearStartMonth?: number } | null} [workerProfile=null]
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
@@ -229,8 +229,8 @@ export function buildReport(
             })
         })
         const workerType = workerProfile?.workerType ?? null
-        const typicalDays = workerProfile?.typicalDays ?? 5
-        const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? 28
+        const typicalDays = workerProfile?.typicalDays ?? 0
+        const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? null
 
         timeBuildPhase('buildReport.holidayFlags', () => {
             buildHolidayPayFlags(entries)

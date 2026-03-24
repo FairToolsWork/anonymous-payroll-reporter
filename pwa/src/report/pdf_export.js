@@ -272,7 +272,7 @@ export function formatDiff(value) {
 // ─── Data helpers ─────────────────────────────────────────────────────────────
 
 /**
- * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonthName: string, hasVariablePattern: boolean }} workerProfile
+ * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string, hasVariablePattern: boolean }} workerProfile
  * @returns {string}
  */
 function formatPdfWorkerProfileLine(workerProfile) {

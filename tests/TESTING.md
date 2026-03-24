@@ -25,18 +25,19 @@ Because of this, all flags it raises are phrased as prompts for the worker to ve
 
 Pure logic tests with no file I/O. Cover:
 
-| File                               | Covers                                                                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `hol_calc.test.mjs`                | Holiday pay calculation utilities (rolling avg weekly pay, expected hours, expected pay amounts)                               |
-| `hol_pay_flags.test.mjs`           | `buildHolidayPayFlags` — signal A (rate below basic) and signal B (rate below rolling average), suppression logic between them |
-| `report_calculation.test.mjs`      | Contribution summary totals, validation flag logic, tolerance checks, missing-month detection, tax year boundary handling      |
-| `hourly_pay_calculations.test.mjs` | `buildValidation` — PAYE/NI zero flags, gross mismatch, net mismatch, payment line cross-checks                                |
-| `tax_year_utils.test.mjs`          | Date parsing, tax year key derivation, fiscal month indexing, weeks-in-period calculation                                      |
-| `pdf_formatters.test.mjs`          | Number and date formatting utilities                                                                                           |
-| `parse_utils.test.mjs`             | PDF text extraction utilities                                                                                                  |
-| `report_view_model.test.mjs`       | Report view model construction                                                                                                 |
-| `sage_uk_parser.test.mjs`          | Sage UK PDF format parser (field extraction from text)                                                                         |
-| `debug_tools.test.mjs`             | Timing and debug utility                                                                                                       |
+| File                                   | Covers                                                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `hol_calc.test.mjs`                    | Holiday pay calculation utilities (rolling avg weekly pay, expected hours, expected pay amounts)                                         |
+| `hol_pay_flags.test.mjs`               | `buildHolidayPayFlags` — signal A (rate below basic) and signal B (rate below rolling average), suppression logic between them           |
+| `report_calculation.test.mjs`          | Contribution summary totals, validation flag logic, tolerance checks, missing-month detection, tax year boundary handling                |
+| `hourly_pay_calculations.test.mjs`     | `buildValidation` — PAYE/NI zero flags, gross mismatch, net mismatch, payment line cross-checks                                          |
+| `tax_year_utils.test.mjs`              | Date parsing, tax year key derivation, fiscal month indexing, weeks-in-period calculation                                                |
+| `pdf_formatters.test.mjs`              | Number and date formatting utilities                                                                                                     |
+| `parse_utils.test.mjs`                 | PDF text extraction utilities                                                                                                            |
+| `report_view_model.test.mjs`           | Report view model construction                                                                                                           |
+| `variable_worker_entitlement.test.mjs` | Worker profile defaults: zero-hours baseline (`typicalDays=0`, `statutoryHolidayDays=null`); explicit salaried/hourly profiles preserved |
+| `sage_uk_parser.test.mjs`              | Sage UK PDF format parser (field extraction from text)                                                                                   |
+| `debug_tools.test.mjs`                 | Timing and debug utility                                                                                                                 |
 
 ### 2. Integration Tests
 
@@ -91,7 +92,7 @@ See §"Snapshot Tests" below for full detail.
 | Fewer than 3 months in dataset             | `hasBaseline: false`                                                                     |
 | 3+ months of data                          | `avgWeeklyHours` and `avgHoursPerDay` computed correctly                                 |
 | `workerProfile.typicalDays` provided       | Used as divisor for `avgHoursPerDay`                                                     |
-| `workerProfile` is null                    | `typicalDays` defaults to 5                                                              |
+| `workerProfile` is null                    | `typicalDays` defaults to 0 (zero-hours baseline)                                        |
 | Months with different rates                | `avgRatePerHour` is hours-weighted average, not simple mean                              |
 | Prior-year entries within rolling window   | Included in context                                                                      |
 | `hasBaseline: false` but `typicalDays` set | `typicalDays` present in `holidayContext` even without a baseline                        |
@@ -323,3 +324,4 @@ pnpm exec vitest run tests/utils/regenerate_profile_snapshot.test.mjs
 - **Scottish tax rates in fixtures only** — the synthetic PDF fixtures are generated using Scottish income tax bands (19%/20%/21%/42%), which differ from rUK bands (20%/40%). This affects only the PAYE figures stamped onto the fixture PDFs and the corresponding expected snapshot values. The system itself never computes PAYE — it reads whatever figure the employer printed on the payslip and reports it unchanged. Real workers on rUK rates will have their actual payslips processed correctly.
 - **Holiday flags apply to hourly workers only** — the `buildHolidayPayFlags` function exits immediately if `hourly.basic.units` is zero or absent. Salaried workers do not receive holiday rate anomaly flags.
 - **Salary snapshot tests are fixture-free** — they use synthetic in-memory records and run without any PDF generation step.
+- **Zero-hours baseline for defaults** — when no `workerProfile` is provided, `typicalDays` defaults to 0 and `statutoryHolidayDays` defaults to null. This reflects the zero-hours/irregular-hours worker baseline. Tests that need specific worker profiles (salaried, hourly fixed-schedule) must pass an explicit `workerProfile` object. See `variable_worker_entitlement.test.mjs` for coverage of all profile variants.

@@ -50,13 +50,13 @@ This assumes the worker's salary was the same throughout all months in the year.
 
 ### 3. `typicalDays` dependency
 
-`workingDaysPerMonth` is calculated as `(typicalDays × 52) / 12`. If the worker's `typicalDays` value is wrong (e.g. defaulting to 5 for a part-time worker who works 3 days per week), the daily rate and day count will be incorrect.
+`workingDaysPerMonth` is calculated as `(typicalDays × 52) / 12`. The default `typicalDays` is 0 (zero-hours baseline), which means salaried workers **must** set their typical days to get a day estimate — the system will not assume 5 days by default.
 
-**Effect:** A 3-day-per-week worker using the default of 5 will have their daily rate overstated by ~67% and their days taken understated by ~40%.
+**Effect:** A salaried worker who does not set `typicalDays` will see only the raw £ holiday amount, with no day estimate. A worker who sets the wrong value (e.g. 5 for a 3-day-per-week contract) will see a distorted day count.
 
-**Mitigation:** The `typicalDays` field in the worker profile panel should be set correctly. The value used is visible in the field hint in the UI, which shows the suggested statutory entitlement based on `typicalDays`.
+**Mitigation:** The `typicalDays` field in the worker profile panel should be set correctly. When a user switches to salaried worker type, the UI enforces a minimum of 0.5 days and auto-populates 5 days if the current value is below the minimum. The suggested statutory entitlement is shown in the field hint.
 
-**Note:** Salaried workers must enter at least 0.5 days per week (the minimum allowed value). Unlike hourly workers, salaried workers cannot set `typicalDays = 0` as the daily rate calculation requires a valid working pattern.
+**Note:** Salaried workers must enter at least 0.5 days per week (the minimum allowed value). Unlike hourly workers, salaried workers cannot set `typicalDays = 0` as the daily rate calculation requires a valid working pattern. The UI enforces this by auto-correcting to 5 days when switching to the salaried type from a zero-hours baseline.
 
 ---
 
@@ -78,12 +78,12 @@ Sage UK payslips do not populate `salary.holiday.units` — the holiday amount i
 
 ## Worker Profile Fields Used
 
-| Field                         | Default      | Effect                                                                            |
-| ----------------------------- | ------------ | --------------------------------------------------------------------------------- |
-| Worker type                   | hourly       | Must be set to **Salaried** to activate this path                                 |
-| Typical days per week         | 5 (min: 0.5) | Used in `workingDaysPerMonth` and `dailyRate`; must be ≥ 0.5 for salaried workers |
-| Statutory holiday entitlement | 28 days/year | Used to compute `daysRemaining`                                                   |
-| Holiday year start month      | 4 (April)    | Controls which entries are grouped together for the holiday day estimate          |
+| Field                         | Default                    | Effect                                                                                                                 |
+| ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Worker type                   | hourly                     | Must be set to **Salaried** to activate this path; switching auto-sets `typicalDays` to 5 if currently 0               |
+| Typical days per week         | 0 (min: 0.5 for salaried)  | Used in `workingDaysPerMonth` and `dailyRate`; auto-corrected to 5 when switching to salaried from zero-hours baseline |
+| Statutory holiday entitlement | null (N/A — accrual-based) | Used to compute `daysRemaining`; null until set by the worker; auto-suggested when `typicalDays` is set                |
+| Holiday year start month      | 4 (April)                  | Controls which entries are grouped together for the holiday day estimate                                               |
 
 ---
 
@@ -106,8 +106,8 @@ When `leaveYearStartMonth === 4` (the default), the leave year exactly matches t
 | `yearBasicSalaryAmount`   | Sum of `salary.basic.amount` across all entries for the leave year         |
 | `yearHolidaySalaryAmount` | Sum of `salary.holiday.amount` across all entries for the leave year       |
 | `monthsInYear`            | Count of distinct `monthIndex` values among entries for the leave year     |
-| `typicalDays`             | `workerProfile.typicalDays` (default 5)                                    |
-| `statutoryHolidayDays`    | `workerProfile.statutoryHolidayDays` (default 28)                          |
+| `typicalDays`             | `workerProfile.typicalDays` (default 0 — zero-hours baseline)              |
+| `statutoryHolidayDays`    | `workerProfile.statutoryHolidayDays` (default null — accrual-based)        |
 | `leaveYearStartMonth`     | `workerProfile.leaveYearStartMonth` (default 4 — April, matching tax year) |
 
 ---
@@ -162,6 +162,8 @@ overrun       = statutoryHolidayDays − daysTaken < 0
 ```
 
 Days remaining is floored at zero for display. If the raw difference is negative, the report appends `(entitlement exceeded)` / `EXCEEDED` to the cell. `build.js` uses a named intermediate `salaryDaysRemainingRaw` for clarity; `pdf_export.js` inlines the subtraction.
+
+**Null guard:** If `statutoryHolidayDays` is null (zero-hours baseline, or the worker has not yet set their entitlement), the days-remaining calculation is skipped entirely and only the `salary_amount` kind is returned (showing the raw £ holiday amount). This prevents the report from computing `null − daysTaken` and producing invalid output.
 
 ---
 

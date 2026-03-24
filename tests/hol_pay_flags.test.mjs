@@ -479,7 +479,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
         expect(ctx.avgHoursPerDay).toBeCloseTo(avgWeekly / 4, 2)
     })
 
-    it('defaults typicalDays to 5 when workerProfile is null', () => {
+    it('defaults typicalDays to 0 when workerProfile is null', () => {
         const entries = []
         for (let i = 0; i < 3; i++) {
             entries.push(
@@ -502,7 +502,7 @@ describe('buildYearHolidayContext — hours-per-day context', () => {
         buildYearHolidayContext(entries, null)
         const ctx = targetEntry.holidayContext
         expect(ctx.hasBaseline).toBe(true)
-        expect(ctx.typicalDays).toBe(5)
+        expect(ctx.typicalDays).toBe(0)
     })
 
     it('computes avgRatePerHour as weighted average of basic amounts / units', () => {

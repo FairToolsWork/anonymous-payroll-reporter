@@ -332,8 +332,8 @@ function buildWorkerProfileMeta(workerProfile) {
         'December',
     ]
     const workerType = workerProfile?.workerType ?? null
-    const typicalDays = workerProfile?.typicalDays ?? 5
-    const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? 28
+    const typicalDays = workerProfile?.typicalDays ?? 0
+    const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? null
     const leaveYearStartMonth = workerProfile?.leaveYearStartMonth ?? 4
     return {
         workerType,
