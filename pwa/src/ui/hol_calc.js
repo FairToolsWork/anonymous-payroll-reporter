@@ -100,3 +100,17 @@ export function holCalcGrossWeeklyPay(totalGross) {
     if (!totalGross) return DASH
     return '£' + (totalGross / WEEKS).toFixed(2)
 }
+
+/**
+ * Annual holiday entitlement in hours for irregular/zero-hours workers.
+ * Uses the 12.07% accrual method (statutory since 1 April 2024).
+ * 12.07% = 5.6 weeks / (52 − 5.6) weeks, accounting for the fact
+ * that holiday weeks are non-working weeks.
+ * @param {number} totalHours
+ * @returns {string}
+ */
+export function holCalcEntitlementHours(totalHours) {
+    if (!totalHours) return DASH
+    // return ((totalHours / WEEKS) * 5.6).toFixed(1) + ' hrs' //(pre 2024 method)
+    return (totalHours * 0.1207).toFixed(1) + ' hrs'
+}

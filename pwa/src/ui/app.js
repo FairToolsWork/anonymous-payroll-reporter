@@ -17,6 +17,7 @@ import {
 } from './app_dialogs.js'
 import {
     holCalcAvgWeekly,
+    holCalcEntitlementHours,
     holCalcExpectedHours,
     holCalcExpectedPay,
     holCalcExpectedWeeklyPay,
@@ -152,6 +153,7 @@ import { copyDebugOutput, DEBUG_ENABLED, DEBUG_LEVEL } from './debug_tools.js'
  *     holCalcExpectedWeeklyPay: string,
  *     holCalcExpectedHours: string,
  *     holCalcExpectedPay: string,
+ *     holCalcEntitlementHours: string,
  *     canRunReport: boolean,
  *     canShare: boolean,
  *     suggestedStatutoryDays: number | null,
@@ -291,6 +293,7 @@ export function initPayrollApp() {
                 holCalcExpectedPay,
                 holCalcGrossExpectedPay,
                 holCalcGrossWeeklyPay,
+                holCalcEntitlementHours,
                 progressPercent,
                 canRunReport,
                 canShare,

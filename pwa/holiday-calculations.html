@@ -341,7 +341,7 @@
                 <header>
                     <h2>How holidays are calculated</h2>
                 </header>
-                <details name="guidance" open="" class="notice no-left-border">
+                <details name="guidance" class="notice no-left-border">
                     <summary>
                         <h3>Hourly &amp; Irregular Hours Workers</h3>
                     </summary>
@@ -629,7 +629,8 @@
                         irregular-hours, zero-hours, and anyone receiving
                         overtime, bonuses, or commission — holiday pay must be
                         based on average earnings over the
-                        <strong>52 paid weeks</strong>.
+                        <strong>52 paid weeks</strong> using the 12.07% accrual
+                        method which became statutory as of April 1, 2024.
                     </p>
                     <p>
                         This calculator is for when the reporter flags your
@@ -637,66 +638,57 @@
                         manually verify your holiday pay.
                     </p>
                 </div>
-                <details name="holidayCal">
+                <details name="holidayCal" class="notice info no-left-border">
                     <summary>
                         <h4>What questions does it answer?</h4>
                     </summary>
-                    <div class="notice info no-left-border">
-                        <ol>
-                            <li>
-                                <b>"What is a week of holiday worth to me?"</b>
-                                <br />
-                                The correct figure under UK law (average weekly
-                                pay from the last 52 paid weeks). This applies
-                                to every irregular hours worker regardless of
-                                schedule.
-                            </li>
-                            <li>
-                                <b>
-                                    "For the X days I took off, how many hours
-                                    and how much pay should I have received?"
-                                </b>
-                                <br />
-                                A convenience estimate for workers who know
-                                their typical days per week, letting them
-                                cross-check what the payslip shows for a
-                                specific holiday period.
-                            </li>
-                        </ol>
-                    </div>
+                    <ol>
+                        <li>
+                            <b>"What is a week of holiday worth to me?"</b>
+                            <br />
+                            The correct figure under UK law (average weekly pay
+                            from the last 52 paid weeks). This applies to every
+                            irregular hours worker regardless of schedule.
+                        </li>
+                        <li>
+                            <b>
+                                "For the X days I took off, how many hours and
+                                how much pay should I have received?"
+                            </b>
+                            <br />
+                            A convenience estimate for workers who know their
+                            typical days per week, letting them cross-check what
+                            the payslip shows for a specific holiday period.
+                        </li>
+                    </ol>
                 </details>
-                <details name="holidayCal">
+                <details name="holidayCal" class="notice info no-left-border">
                     <summary>
                         <h4>Before you start — gather your data</h4>
                     </summary>
-                    <div class="notice info no-left-border">
-                        <ol>
-                            <li>
-                                Identify your last
-                                <b>52 weeks of normal pay</b> — not necessarily
-                                the last 52 calendar weeks. Skip any week where
-                                you received only SSP, SMP, SPP, adoption pay,
-                                or no pay at all, replacing it with the next
-                                earlier paid week (going back up to
-                                <b>104 weeks</b> if needed).
-                            </li>
-                            <li>
-                                <b>Flat rate?</b> Add up your total hours across
-                                those 52 weeks and use
-                                <b>Hours &amp; rate</b> mode. Include overtime
-                                hours only if they are paid at the same rate as
-                                ordinary hours.
-                            </li>
-                            <li>
-                                <b>Variable pay?</b> If you had premium
-                                overtime, bonuses, commission, or a pay rise
-                                during this period, add up your total gross
-                                earnings (before tax and deductions) for those
-                                same 52 eligible weeks and use
-                                <b>Total Gross Pay</b> mode instead.
-                            </li>
-                        </ol>
-                    </div>
+                    <ol>
+                        <li>
+                            Identify your last
+                            <b>52 weeks of normal pay</b> — not necessarily the
+                            last 52 calendar weeks. Skip any week where you
+                            received only SSP, SMP, SPP, adoption pay, or no pay
+                            at all, replacing it with the next earlier paid week
+                            (going back up to <b>104 weeks</b> if needed).
+                        </li>
+                        <li>
+                            <b>Flat rate?</b> Add up your total hours across
+                            those 52 weeks and use <b>Hours &amp; rate</b> mode.
+                            Include overtime hours only if they are paid at the
+                            same rate as ordinary hours.
+                        </li>
+                        <li>
+                            <b>Variable pay?</b> If you had premium overtime,
+                            bonuses, commission, or a pay rise during this
+                            period, add up your total gross earnings (before tax
+                            and deductions) for those same 52 eligible weeks and
+                            use <b>Total Gross Pay</b> mode instead.
+                        </li>
+                    </ol>
 
                     <p class="notice">
                         The legally correct entitlement is
@@ -784,6 +776,16 @@
                             >
                         </li>
                         <li>
+                            ACAS:
+                            <a
+                                href="https://www.acas.org.uk/checking-holiday-entitlement"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                >Holiday entitlement</a
+                            >
+                        </li>
+
+                        <li>
                             GOV.UK:
                             <a
                                 href="https://www.gov.uk/calculate-your-holiday-entitlement"
@@ -842,10 +844,9 @@
                             </div>
                             <span class="field-hint notice info"
                                 >Use <b>'Total Gross Pay'</b> (your pay before
-                                deductions) if you have recieved bonus,
-                                commissions, or if your hourly wage has
-                                increased across the 52 week period.</span
-                            >
+                                deductions) — for example due to bonuses,
+                                commission, overtime premiums, or a pay rise.
+                            </span>
                         </div>
                         <label class="field">
                             Total hours worked <br />(over 52 paid weeks)
@@ -899,16 +900,17 @@
                                 type="number"
                                 min="1"
                                 step="1"
-                                placeholder="e.g. 2"
+                                :placeholder="holCalcWorkDays === 0 ? 'N/A' : 'e.g. 2'"
                                 autocomplete="off"
-                                v-model.number="holCalcDaysTaken"
+                                :value="holCalcWorkDays === 0 ? '' : holCalcDaysTaken"
+                                @input="holCalcDaysTaken = parseInt($event.target.value) || 1"
                                 :disabled="holCalcWorkDays === 0"
                             />
                         </label>
                         <div class="hol-calc-result field-hint notice info">
                             <i
                                 >If you do not work a regular schedule choose
-                                <b>'0'</b> here.</i
+                                <b>'0'</b> for typical days.</i
                             >
                         </div>
                         <div class="hol-calc-result notice no-left-border">
@@ -924,14 +926,20 @@
                                 >{{ holCalcGrossWeeklyPay }}</strong
                             >
                         </div>
-                        <div class="hol-calc-result notice no-left-border">
+                        <div
+                            v-show="holCalcWorkDays > 0"
+                            class="hol-calc-result notice no-left-border"
+                        >
                             <span
                                 >Est. hours for {{ holCalcDaysTaken }}
                                 day(s)†:</span
                             >
                             <strong>{{ holCalcExpectedHours }}</strong>
                         </div>
-                        <div class="hol-calc-result notice no-left-border">
+                        <div
+                            v-show="holCalcWorkDays > 0"
+                            class="hol-calc-result notice no-left-border"
+                        >
                             <span
                                 >Est. £ for {{ holCalcDaysTaken }}
                                 day(s)†:</span
@@ -943,14 +951,45 @@
                                 >{{ holCalcGrossExpectedPay }}</strong
                             >
                         </div>
-                        <div class="hol-calc-result field-hint notice info">
+                        <div
+                            v-show="holCalcWorkDays > 0"
+                            class="hol-calc-result field-hint notice info"
+                        >
                             <p>
                                 † The HMRC rules state that
                                 <b
-                                    >a week of holiday pay should equiate to a
-                                    52 week average of regular pay</b
+                                    >a week of holiday pay should equate to a 52
+                                    week average of regular pay</b
                                 >. These per-day figures are a convenience
                                 estimate only.
+                            </p>
+                        </div>
+                        <div
+                            v-show="holCalcWorkDays === 0"
+                            class="hol-calc-result notice no-left-border"
+                        >
+                            <span>Annual holiday entitlement:</span>
+                            <strong>{{ holCalcEntitlementHours }}</strong>
+                        </div>
+                        <div
+                            v-show="holCalcWorkDays === 0"
+                            class="hol-calc-result field-hint notice info"
+                        >
+                            <p>
+                                Since April 2024, irregular hours workers accrue
+                                holiday at <b>12.07%</b> of hours worked each
+                                pay period. Your payslip may show holiday as
+                                <b>hours × hourly rate</b>. To check you have
+                                received the correct amount, add up all the
+                                holiday hours on your payslips for the year and
+                                compare to the annual holiday entitlement shown
+                                above.
+                            </p>
+                            <p>
+                                If the total holiday hours paid over the year is
+                                less than {{ holCalcEntitlementHours }}, your
+                                employer may not be meeting the statutory
+                                minimum.
                             </p>
                         </div>
                     </div>

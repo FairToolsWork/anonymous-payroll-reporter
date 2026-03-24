@@ -1,5 +1,6 @@
 import {
     holCalcAvgWeekly as holCalcAvgWeeklyRaw,
+    holCalcEntitlementHours as holCalcEntitlementHoursRaw,
     holCalcExpectedHours as holCalcExpectedHoursRaw,
     holCalcExpectedPay as holCalcExpectedPayRaw,
     holCalcExpectedWeeklyPay as holCalcExpectedWeeklyPayRaw,
@@ -66,4 +67,12 @@ export function holCalcGrossExpectedPay() {
  */
 export function holCalcGrossWeeklyPay() {
     return holCalcGrossWeeklyPayRaw(this.holCalcGross)
+}
+
+/**
+ * @this {import('./app.js').PayrollAppInstance}
+ * @returns {string}
+ */
+export function holCalcEntitlementHours() {
+    return holCalcEntitlementHoursRaw(this.holCalcHours)
 }

@@ -1086,6 +1086,11 @@ dialog.modal-dialog.calc-modal {
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.hol-calc-result:has(p) {
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--space-8);
     margin-top: var(--space-4);
     font-size: var(--text-sm);
