@@ -383,9 +383,7 @@ export function buildYearHolidayContext(entries, workerProfile) {
             typicalDays,
             entitlementHours:
                 typicalDays === 0 && avgWeeklyHours > 0
-                    ? useAccrual
-                        ? avgWeeklyHours * 52 * 0.1207
-                        : avgWeeklyHours * 5.6
+                    ? avgWeeklyHours * 5.6
                     : undefined,
             useAccrualMethod:
                 typicalDays === 0 && avgWeeklyHours > 0

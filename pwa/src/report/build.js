@@ -94,6 +94,42 @@ function formatWorkerProfileHtml(workerProfile) {
 }
 
 /**
+ * @param {any} summary
+ * @returns {string}
+ */
+function formatTotalHolidayBreakdown(summary) {
+    if (!summary) return ''
+    if (summary.kind === 'salary_days') {
+        return (
+            `<br><span class="summary-breakdown">` +
+            `≈${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? ' (entitlement exceeded)' : ''}` +
+            `</span>`
+        )
+    }
+    if (summary.kind === 'hourly_days') {
+        return (
+            `<br><span class="summary-breakdown">` +
+            `≈${summary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
+            `<br>${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' (entitlement exceeded)' : ''}` +
+            `<br>≈${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} remaining` +
+            `</span>`
+        )
+    }
+    if (summary.kind === 'hourly_hours') {
+        return (
+            `<br><span class="summary-breakdown">` +
+            `≈${summary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
+            `<br>${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' (entitlement exceeded)' : ''}` +
+            `<br><em>${summary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}</em>` +
+            `</span>`
+        )
+    }
+    return ''
+}
+
+/**
  * @param {any} holidaySummary
  * @returns {string}
  */
@@ -114,9 +150,13 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
     }
     if (holidaySummary.kind === 'hourly_days') {
         return (
-            `${holidaySummary.holidayHours.toFixed(2)} hrs<br>` +
-            `<span class="summary-breakdown">≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
-            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}</span>` +
+            `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
+            `<span class="summary-breakdown">` +
+            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}<br>` +
+            `≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
+            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining` +
+            `</span>` +
             leaveYearNote
         )
     }
@@ -124,10 +164,9 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
         return (
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
             `<span class="summary-breakdown">` +
-            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
-            ` (${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk ${holidaySummary.useAccrualMethod ? '× 52 × 12.07%' : '× 5.6 wks'})` +
-            `<br><em>${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}</em><br>` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}` +
+            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}<br>` +
+            `<em>${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}</em>` +
             `</span>` +
             leaveYearNote
         )
@@ -143,9 +182,17 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
  * @returns {string}
  */
 function formatYearRowHolidayHtml(holidaySummary) {
-    return holidaySummary.kind === 'hours_days'
-        ? `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">≈${holidaySummary.estimatedDays.toFixed(1)} days</span>`
-        : `${holidaySummary.holidayHours.toFixed(2)} hrs`
+    if (holidaySummary.kind === 'hours_days') {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">≈${holidaySummary.estimatedDays.toFixed(1)} days</span>`
+    }
+    if (
+        holidaySummary.kind === 'hours_only' &&
+        holidaySummary.accruedHours !== null &&
+        holidaySummary.accruedHours > 0
+    ) {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">+${holidaySummary.accruedHours.toFixed(1)} hrs accrued</span>`
+    }
+    return `${holidaySummary.holidayHours.toFixed(2)} hrs`
 }
 
 /**
@@ -769,6 +816,7 @@ export function buildReport(
                         missingMonths: {
                             missingMonthsByYear,
                         },
+                        workerProfile,
                     },
                     openingBalance2
                 )
@@ -1332,7 +1380,7 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                     '<tr>' +
                     `<th>${row.label}</th>` +
                     `<td>${row.hours.toFixed(2)}</td>` +
-                    `<td>${row.holidayHours.toFixed(2)}</td>` +
+                    `<td>${row.holidayHours.toFixed(2)}${formatTotalHolidayBreakdown(row.yearHolidaySummary)}</td>` +
                     `<td>${formatBreakdownCell(
                         row.payrollContribution.total,
                         row.payrollContribution.ee,

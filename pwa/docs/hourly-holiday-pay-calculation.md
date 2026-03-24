@@ -147,9 +147,20 @@ For zero-hours workers, this divergence can be material. If a worker's average w
 
 **Effect:** When `typicalDays = 0`, days-taken estimates are suppressed — converting hours to days requires a shift-length assumption the tool does not have. Rate checks (Signals A and B) continue to operate normally.
 
-**Mitigation:** The tool computes an hours-based entitlement instead: `entitlementHours = avgWeeklyHours × 5.6`. This follows directly from the statutory framework for irregular-hours workers (Harpur Trust v Brazel\_ [2022] UKSC 21), which defines entitlement as 5.6 weeks of average weekly hours — no `typicalDays` value is required. The report displays the total holiday hours taken, the estimated annual entitlement in hours (derived from the rolling 52-week average), and the hours remaining. The statutory holiday entitlement field in the UI is disabled (days-based entitlement is not applicable for these workers).
+**Mitigation:** The tool computes an hours-based entitlement instead. The **projected annual entitlement** uses the same formula for all leave years:
 
-**Enhanced contractual entitlement:** Because `statutoryHolidayDays` is disabled when `typicalDays = 0`, the calculation is anchored to the statutory minimum of 5.6 weeks. Workers whose contract grants more than 5.6 weeks (e.g. 30 days on a 5-day week = 6.0 weeks) will see the statutory floor only — the additional entitlement is not reflected in the hours-remaining figure. For a worker on a regular pattern who happens to set `typicalDays = 0`, this means the result is accurate for the 28-day statutory case (`avgWeeklyHours × 5.6` is algebraically equivalent to `28 days × avgHoursPerDay` when typical days = 5) but will understate remaining entitlement if enhanced contractual days apply. Workers with enhanced entitlement should use `typicalDays > 0` and set `statutoryHolidayDays` to their actual contractual figure.
+- **Annual projection (all leave years):** `entitlementHours = avgWeeklyHours × 5.6`
+
+The label displayed to the worker differs based on when their leave year starts:
+
+- **Leave years starting before 1 April 2024:** "5.6 week avg. method"
+- **Leave years starting on or after 1 April 2024:** "12.07% accrual method"
+
+This reflects the statutory framework for irregular-hours workers. The 5.6 weeks method derives from _Harpur Trust v Brazel_ [2022] UKSC 21, which defines entitlement as 5.6 weeks of average weekly hours. From April 2024, the Employment Rights (Amendment, Revocation and Transitional Provision) Regulations 2023 introduced the 12.07% accrual method for irregular-hours and part-year workers.
+
+**Why both methods project the same annual total:** The 12.07% rate is derived as `5.6 ÷ 46.4`, where 46.4 = 52 working weeks − 5.6 weeks of statutory leave. Applied per-period to basic hours worked and summed over a full year, it yields `avgWeeklyHours × 5.6`. The difference between the two methods is the **accrual mechanism** (up-front grant vs. per-period accumulation), not the annual entitlement total. Both methods require no `typicalDays` value. The report displays the total holiday hours taken, the estimated annual entitlement in hours (derived from the rolling 52-week average), the calculation method label, and the hours remaining. For post-2024 leave years, monthly reports additionally show the per-period accrued hours (`+X hrs accrued`) to make the 12.07% mechanism visible. The statutory holiday entitlement field in the UI is disabled (days-based entitlement is not applicable for these workers).
+
+**Enhanced contractual entitlement:** Because `statutoryHolidayDays` is disabled when `typicalDays = 0`, the calculation is anchored to the statutory minimum. Workers whose contract grants more than the statutory minimum (e.g. 30 days on a 5-day week = 6.0 weeks) will see the statutory floor only — the additional entitlement is not reflected in the hours-remaining figure. For a worker on a regular pattern who happens to set `typicalDays = 0`, this means the result is accurate for the 28-day statutory case (the pre-2024 method `avgWeeklyHours × 5.6` is algebraically equivalent to `28 days × avgHoursPerDay` when typical days = 5) but will understate remaining entitlement if enhanced contractual days apply. Workers with enhanced entitlement should use `typicalDays > 0` and set `statutoryHolidayDays` to their actual contractual figure.
 
 ---
 
@@ -382,12 +393,20 @@ holidayContext = {
   avgHoursPerDay,
   avgRatePerHour,
   typicalDays,
+  entitlementHours: (if typicalDays = 0),
+  useAccrualMethod: (if typicalDays = 0)
 }
 ```
 
 `typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
 
-**Zero-hours handling:** When `typicalDays = 0` (hourly workers only), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours = avgWeeklyHours × 5.6` — the statutory annual entitlement in hours under _Harper Trust v Brazel_ [2022] UKSC 21. Both `avgWeeklyHours` and `avgRatePerHour` are preserved for rate validation and entitlement display.
+**Zero-hours handling:** When `typicalDays = 0` (irregular-hours workers), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours` and sets the `useAccrualMethod` flag:
+
+- **Annual projection (all leave years):** `entitlementHours = avgWeeklyHours × 5.6`
+- **Leave years starting before 1 April 2024:** `useAccrualMethod = false` (displays "5.6 week avg. method")
+- **Leave years starting on or after 1 April 2024:** `useAccrualMethod = true` (displays "12.07% accrual method")
+
+The leave year start date is determined by the `leaveYearStartMonth` field in the worker profile (default: April). The tool computes which leave year the entry falls into, then compares that leave year's start date to the April 2024 cutoff. The `useAccrualMethod` flag controls only the label shown to the worker — the annual projection formula is identical for both methods because 12.07% per-period accrual over a full year mathematically yields `avgWeeklyHours × 5.6`. Both `avgWeeklyHours` and `avgRatePerHour` are preserved for rate validation and entitlement display.
 
 ---
 
@@ -432,9 +451,13 @@ None of the above fields affect the underlying payslip parsing or the 52-week ro
 - Days-taken estimates are suppressed (no shift-length assumption available)
 - The statutory holiday entitlement field becomes disabled in the UI
 - Rate checks (Signals A and B) continue to operate normally
-- The report displays an hours-based entitlement: `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6)` and `Z hrs remaining`, using the most recent entry's 52-week rolling context
+- The report displays an hours-based entitlement using `avgWeeklyHours × 5.6` for the annual projection, with the label indicating the legislative framework:
+    - **Pre-April 2024 leave years:** `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "5.6 week avg. method"
+    - **April 2024+ leave years:** `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "12.07% accrual method"
+    - For April 2024+ leave years, monthly reports additionally show `+Z hrs accrued` to make the 12.07% per-period mechanism visible
+- Shows `Z hrs remaining` using the most recent entry's 52-week rolling context
 - Falls back to `Days estimate not shown — variable work pattern` if no 52-week baseline exists (fewer than 3 eligible prior months)
-- **Enhanced entitlement caveat:** the calculation is anchored to the statutory 5.6-week minimum; workers with enhanced contractual entitlement above this should set `typicalDays > 0` and enter their actual `statutoryHolidayDays` instead
+- **Enhanced entitlement caveat:** the calculation is anchored to the statutory minimum; workers with enhanced contractual entitlement above this should set `typicalDays > 0` and enter their actual `statutoryHolidayDays` instead
 
 ### Leave year grouping
 

@@ -295,15 +295,16 @@ function formatPdfYearSummaryHolidayText(holidaySummary) {
         holidayCell = formatCurrency(holidaySummary.holidayAmount)
     } else if (holidaySummary.kind === 'hourly_days') {
         holidayCell =
-            `${holidaySummary.holidayHours.toFixed(2)} hrs\n` +
-            `(${holidaySummary.daysTaken.toFixed(1)}d taken, ${holidaySummary.daysRemaining.toFixed(1)} rem${holidaySummary.overrun ? ' EXCEEDED' : ''})`
+            `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
+            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
+            `~${holidaySummary.daysTaken.toFixed(1)}d taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
     } else if (holidaySummary.kind === 'hourly_hours') {
         holidayCell =
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
             `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `(${holidaySummary.avgWeeklyHours.toFixed(1)} avg hrs/wk ${holidaySummary.useAccrualMethod ? 'x 52 x 12.07%' : 'x 5.6 wks'})\n` +
-            `${holidaySummary.useAccrualMethod ? '12.07% accrual method - leave years from Apr 2024' : '5.6 weeks method - leave years before Apr 2024'}\n` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}`
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
+            `${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}`
     } else {
         const variableNote = holidaySummary.hasVariablePattern
             ? '\n(Variable pattern)'
@@ -316,11 +317,45 @@ function formatPdfYearSummaryHolidayText(holidaySummary) {
     return holidayCell
 }
 
+/** @param {any} summary */
+function formatPdfTotalHolidayBreakdown(summary) {
+    if (!summary) return ''
+    if (summary.kind === 'salary_days') {
+        return (
+            `\n~${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? ' EXCEEDED' : ''}`
+        )
+    }
+    if (summary.kind === 'hourly_days') {
+        return (
+            `\n${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}` +
+            `\n~${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} days remaining`
+        )
+    }
+    if (summary.kind === 'hourly_hours') {
+        return (
+            `\n~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+            `${summary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}\n` +
+            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}`
+        )
+    }
+    return ''
+}
+
 /** @param {any} holidaySummary */
 function formatPdfYearRowHolidayText(holidaySummary) {
-    return holidaySummary.kind === 'hours_days'
-        ? `${holidaySummary.holidayHours.toFixed(2)} hrs\n(${holidaySummary.estimatedDays.toFixed(1)}d)`
-        : holidaySummary.holidayHours.toFixed(2)
+    if (holidaySummary.kind === 'hours_days') {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(${holidaySummary.estimatedDays.toFixed(1)}d)`
+    }
+    if (
+        holidaySummary.kind === 'hours_only' &&
+        holidaySummary.accruedHours !== null &&
+        holidaySummary.accruedHours > 0
+    ) {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(+${holidaySummary.accruedHours.toFixed(1)} accrued)`
+    }
+    return holidaySummary.holidayHours.toFixed(2)
 }
 
 /** @param {{ dateLabel: string, type: string, label: string, amount: number }} item */
@@ -687,7 +722,10 @@ function renderYearPage(
                 ? [
                       row.label,
                       row.hours.toFixed(2),
-                      row.holidayHours.toFixed(2),
+                      row.holidayHours.toFixed(2) +
+                          formatPdfTotalHolidayBreakdown(
+                              row.yearHolidaySummary
+                          ),
                       formatBreakdown(
                           row.payrollContribution.total,
                           row.payrollContribution.ee,

@@ -803,11 +803,19 @@ export function buildYearViewModel(
             flagRefs: [],
         })
     }
+    const workerProfile = context.workerProfile || null
+    const leaveYearGroups = buildLeaveYearGroups(yearEntries)
+    const yearHolidaySummary = buildYearHolidaySummary(
+        yearEntries,
+        leaveYearGroups,
+        workerProfile
+    )
     footerRows.push({
         id: 'total',
         label: 'Total',
         hours: totalHours,
         holidayHours: totalHolidayHours,
+        yearHolidaySummary,
         payrollContribution: {
             total: totalPayrollContribution,
             ee: totalPayrollEE,

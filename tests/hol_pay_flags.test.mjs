@@ -797,12 +797,7 @@ describe('buildYearHolidayContext — pre/post April 2024 entitlement method', (
         const ctx = target.holidayContext
         expect(ctx.hasBaseline).toBe(true)
         expect(ctx.useAccrualMethod).toBe(true)
-        const totalWeeks = (31 + 29 + 31) / 7
-        const avgWeeklyHours = (100 + 200 + 150) / totalWeeks
-        expect(ctx.entitlementHours).toBeCloseTo(
-            avgWeeklyHours * 52 * 0.1207,
-            1
-        )
+        expect(ctx.entitlementHours).toBeCloseTo(ctx.avgWeeklyHours * 5.6, 1)
     })
 
     it('crossover run: pre-2024 entry uses 5.6×, post-2024 entry uses 12.07%', () => {
@@ -867,9 +862,17 @@ describe('buildYearHolidayContext — pre/post April 2024 entitlement method', (
         expect(postCutoffCtx.useAccrualMethod).toBe(true)
         expect(postCutoffCtx.entitlementHours).toBeDefined()
 
-        // Post-2024 entitlement should be higher than pre-2024 for similar hours
-        expect(postCutoffCtx.entitlementHours).toBeGreaterThan(
-            preCutoffCtx.entitlementHours
+        // Pre-2024 uses avgWeeklyHours × 5.6
+        expect(preCutoffCtx.entitlementHours).toBeCloseTo(
+            preCutoffCtx.avgWeeklyHours * 5.6,
+            2
+        )
+
+        // Post-2024 also projects avgWeeklyHours × 5.6 (12.07% accrual
+        // is the per-period mechanism, not the annual projection)
+        expect(postCutoffCtx.entitlementHours).toBeCloseTo(
+            postCutoffCtx.avgWeeklyHours * 5.6,
+            2
         )
     })
 

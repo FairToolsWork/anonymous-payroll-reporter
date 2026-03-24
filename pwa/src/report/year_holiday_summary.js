@@ -44,6 +44,7 @@
  *   kind: 'hours_only',
  *   holidayHours: number,
  *   hasVariablePattern: boolean,
+ *   accruedHours: number | null,
  * }} EntryHolidaySummaryHoursOnly
  */
 
@@ -75,6 +76,8 @@
  *   kind: 'hourly_days',
  *   leaveYearLabel: string | null,
  *   holidayHours: number,
+ *   entitlementHours: number,
+ *   hoursRemaining: number,
  *   daysTaken: number,
  *   daysRemaining: number,
  *   overrun: boolean,
@@ -214,12 +217,24 @@ export function buildEntryHolidaySummary(entry) {
         }
     }
 
+    const basicHours =
+        entry.record?.payrollDoc?.payments?.hourly?.basic?.units ?? 0
+    const useAccrual = entryCtx?.useAccrualMethod ?? false
+    const accruedHours =
+        entryCtx?.hasBaseline &&
+        entryCtx.typicalDays === 0 &&
+        useAccrual &&
+        basicHours > 0
+            ? basicHours * 0.1207
+            : null
+
     return {
         kind: 'hours_only',
         holidayHours,
         hasVariablePattern: Boolean(
             entryCtx?.hasBaseline && entryCtx.typicalDays === 0
         ),
+        accruedHours,
     }
 }
 
@@ -293,10 +308,14 @@ export function buildYearHolidaySummary(
         const daysTaken = holidayHours / firstAvgHoursPerDay
         if (statutoryHolidayDays !== null) {
             const daysRemainingRaw = statutoryHolidayDays - daysTaken
+            const entitlementHours = statutoryHolidayDays * firstAvgHoursPerDay
+            const hoursRemainingRaw = entitlementHours - holidayHours
             return {
                 kind: 'hourly_days',
                 leaveYearLabel,
                 holidayHours,
+                entitlementHours,
+                hoursRemaining: Math.max(0, hoursRemainingRaw),
                 daysTaken,
                 daysRemaining: Math.max(0, daysRemainingRaw),
                 overrun: daysRemainingRaw < 0,
