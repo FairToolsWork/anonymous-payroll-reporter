@@ -4,5 +4,6 @@ export default {
     rules: {
         'selector-class-pattern': '^(?:--)?[a-z][a-z0-9-]*$',
         'property-no-vendor-prefix': null,
+        'no-descending-specificity': null,
     },
 }

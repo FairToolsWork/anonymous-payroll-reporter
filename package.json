@@ -30,7 +30,7 @@
         "csslint": "stylelint .",
         "csslint:fix": "stylelint . --fix",
         "format": "prettier --write .",
-        "precommit": "pnpm format && pnpm jslint && pnpm csslint && pnpm check:js && pnpm fixtures:check && pnpm pwa:build && pnpm test:all",
+        "precommit": "pnpm format && pnpm jslint && pnpm csslint && pnpm check:js && pnpm fixtures:check && pnpm fixtures:expected-pdf && pnpm fixtures:expected-excel && pnpm pwa:build && pnpm test:all",
         "prepare": "husky install",
         "pwa:dev": "vite",
         "pwa:build": "vite build",

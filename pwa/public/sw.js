@@ -2,6 +2,7 @@ const CACHE_NAME = 'payroll-pwa-v3.4.4' // x-release-please-version
 const CDN_CACHE_LIMIT = 8
 const CORE_ASSETS = [
     './index.html',
+    './holiday-calculations.html',
     './styles.css',
     './app.js',
     './pdfjs.js',

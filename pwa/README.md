@@ -50,11 +50,13 @@ Open `pwa/index.html` in a browser or serve the folder with any static server.
 | `?debug=1` | Debug panel: extracted PDF text, parsed values, regex matches, Excel raw rows and parsed entries. Copy-to-clipboard button.              |
 | `?debug=2` | Everything in `?debug=1`, plus forces the update banner to appear on mount (for testing the SW update UI without a real waiting worker). |
 | `?mem=1`   | Logs JS heap usage during runs (start, periodic progress, Excel start, finish). Also attempts memory attribution when supported.         |
+| `?time=1`  | Logs timing totals, counters, maxima, and metadata for report runs so slow phases can be identified from the final timing summary.       |
 | `?noimg=1` | Skips PDF image extraction and removes report `<img>` tags. Testing so far shows no measurable impact on JS heap usage or SW cache size. |
 
 ```text
 index.html?debug=1
 index.html?debug=2
+index.html?time=1&mem=1
 ```
 
 ## Deploying changes

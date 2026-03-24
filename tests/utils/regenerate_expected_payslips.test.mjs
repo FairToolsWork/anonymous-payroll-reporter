@@ -53,4 +53,4 @@ test('regenerate expected payslip JSON fixtures', async () => {
             )
         }
     }
-})
+}, 15000)

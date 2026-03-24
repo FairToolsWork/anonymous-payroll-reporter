@@ -234,6 +234,19 @@
         />
     </head>
     <body>
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            style="display: none; visibility: hidden"
+        >
+            <symbol viewBox="0 0 24 24" id="ic-baseline-help-outline">
+                <!-- Icon from Google Material Icons by Material Design Authors - https://github.com/material-icons/material-icons/blob/master/LICENSE -->
+                <path
+                    fill="currentColor"
+                    d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5c0-2.21-1.79-4-4-4"
+                ></path>
+            </symbol>
+        </svg>
         <div class="offline-banner" aria-live="polite" aria-atomic="true">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -253,27 +266,32 @@
             </svg>
             Offline — some sharing services may not be available.
         </div>
-        <section class="no-esm-screen" aria-live="polite">
-            <div class="no-esm-card">
-                <p class="eyebrow">Browser update required</p>
-                <h1>Unsupported browser</h1>
-                <p class="subhead">
-                    This app requires a browser that supports JavaScript
-                    modules. Please update your browser to continue.
-                </p>
-                <div class="no-esm-actions">
-                    <a
-                        class="primary"
-                        href="https://browsehappy.com/"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        Update browser
-                    </a>
-                </div>
-            </div>
-        </section>
-        <div class="update-banner" id="update-banner" hidden>
+        <div
+            class="update-banner no-esm-banner"
+            aria-live="polite"
+            aria-atomic="true"
+        >
+            <p>
+                <strong>Unsupported browser.</strong> This app requires a
+                browser that supports JavaScript modules. Please update your
+                browser to continue.
+            </p>
+            <a
+                class="primary on-dk"
+                href="https://browsehappy.com/"
+                target="_blank"
+                rel="noopener"
+            >
+                Update browser
+            </a>
+        </div>
+        <div
+            class="update-banner"
+            aria-live="polite"
+            aria-atomic="true"
+            id="update-banner"
+            hidden
+        >
             <p>Update available. Refresh to load the latest version.</p>
             <button
                 class="primary on-dk"
@@ -315,7 +333,7 @@
                 <button
                     class="primary accent"
                     type="button"
-                    @click="openAbout"
+                    @click="openDialog('aboutDialog')"
                     aria-haspopup="dialog"
                 >
                     About
@@ -325,286 +343,13 @@
                 class="modal-dialog"
                 ref="aboutDialog"
                 aria-label="About"
-                @click="onAboutBackdropClick"
-                @close="onAboutDialogClose"
+                @click="onDialogBackdropClick('aboutDialog', $event)"
+                @close="onDialogClose"
             >
-                <div class="modal-header">
-                    <h2>About</h2>
-                    <button
-                        class="modal-close ghost"
-                        type="button"
-                        @click="closeAbout"
-                        aria-label="Close about panel"
-                    >
-                        Close
-                    </button>
-                </div>
-                <div class="modal-content">
-                    <p class="eyebrow">
-                        Anonymous Payroll Reporter
-                        <span class="pill inline ghost"
-                            >Release {{ appVersion }}</span
-                        >
-                    </p>
-                    <h3>About The Project</h3>
-                    <p>
-                        This tool was created for a group of UK hospitality
-                        workers who found themselves in an impossible position:
-                        they trusted their employer to handle their pay, and
-                        pension contributions correctly, only to discover that
-                        trust had been badly abused. What happened to them isn't
-                        rare, and it should never fall on workers to become
-                        forensic accountants just to understand their own
-                        payslips.
-                    </p>
-                    <p>This project exists because they deserved better.</p>
-                    <h3>What this tool does</h3>
-                    <p>
-                        The Anonymous Payroll Reporter helps workers check
-                        whether their employer has been paying the correct
-                        pension contributions. It analyses payroll data and
-                        pension spreadsheets, highlights discrepancies, and
-                        produces a clear, worker‑friendly report you can use to
-                        understand what’s going on.
-                    </p>
-                    <p>
-                        It’s designed for people who don’t have HR departments,
-                        legal teams, or accountants behind them—just the right
-                        to be paid fairly.
-                    </p>
-                    <h3>Can I try it out without uploading my own files?</h3>
-                    <p>
-                        Yes. We provide a small training pack of dummy payslips
-                        and pension files so you can learn how the tool works.
-                        Download, unzip, and upload the files to follow along
-                        with the walkthrough.
-                        <a
-                            href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/main/demo_files/anonymous-payroll-reporter-demo-files.zip"
-                            download="anonymous-payroll-reporter-demo-files.zip"
-                            class="demo-download-link"
-                            >Download sample files</a
-                        >
-                    </p>
-                    <h3>Will this work for me?</h3>
-                    <p>
-                        It depends on the payroll system your employer uses. The
-                        tool currently supports <b>Sage Payroll</b> and
-                        <b>Nest Pensions</b>, and it works best when your
-                        payslip follows the standard layout used by those
-                        systems.
-                    </p>
-                    <p>
-                        Because employers often customise their payslips—even
-                        when using the same payroll software—some layouts may
-                        not be recognised. If your payslip looks noticeably
-                        different from the example below, the tool may not
-                        interpret it correctly. The project is keen to expand
-                        support for additional payroll systems, so please let us
-                        know if you find yourself in this situation.
-                    </p>
-                    <p>
-                        To check compatibility, compare your payslip with the
-                        sample layout shown here. If the structure and labels
-                        are similar, the tool should work as expected. If not,
-                        you may see incomplete or inaccurate results.
-                    </p>
-                    <img
-                        src="/imgs/example-payslip.png"
-                        alt="Example payslip layout"
-                        width="566"
-                        height="375"
-                    />
-                    <h3>Open source and community‑driven</h3>
-                    <p>
-                        The project lives here:
-                        <a
-                            href="https://github.com/FairToolsWork/anonymous-payroll-reporter"
-                            target="_blank"
-                            rel="noopener"
-                            >https://github.com/FairToolsWork</a
-                        >
-                    </p>
-                    <p>
-                        If you find a bug or want to suggest an improvement, you
-                        can open an issue here:
-                        <a
-                            href="https://github.com/FairToolsWork/anonymous-payroll-reporter/issues"
-                            >https://github.com/FairToolsWork/anonymous-payroll-reporter/issues</a
-                        >
-                    </p>
-                    <h3>Privacy &amp; Safety</h3>
-                    <p>
-                        Your data never leaves your device. All calculations
-                        happen entirely in your browser. Nothing is uploaded,
-                        nothing is stored, and nothing is sent to any server.
-                        You can close the tab and walk away knowing your
-                        information stays with you.
-                    </p>
-                    <p>
-                        The code is fully open source and licensed under MIT, so
-                        anyone can inspect, audit, or improve it.
-                    </p>
-                    <h3>Why it’s anonymous</h3>
-                    <p>
-                        Workers deserve tools that protect them. Many people
-                        cannot safely raise concerns about payroll errors or
-                        pension underpayments without risking retaliation. This
-                        tool gives you a way to understand the facts first,
-                        privately and safely, before deciding what to do next.
-                    </p>
-                    <h3>Credits & Legal</h3>
-                    <p>
-                        This project was built for workers by a team of one, and
-                        aspires to grow with workers’ needs.
-                        Contributions—technical or otherwise—are welcome.
-                    </p>
-                    <p class="credits-copyright">
-                        Sample fixtures include layouts derived from
-                        <b>Sage (UK) payroll documents</b> and
-                        <b>Nest Pension contribution reports</b>. These
-                        materials are used solely for testing and instructional
-                        demonstration within this project.
-                    </p>
-                    <p>
-                        © Sage (UK) Limited. All rights reserved. <br />
-                        © Nest Pensions. All rights reserved.
-                    </p>
-                    <p>
-                        All <b>Sage</b> and <b>Nest</b> names, trademarks, and
-                        logos remain the property of their respective owners.
-                    </p>
-                    <p>
-                        <b
-                            >These notices apply only to the original marks and
-                            materials of Sage (UK) Ltd and Nest Pensions; all
-                            documents generated by this project are independent
-                            works and are not affiliated with or endorsed by
-                            either organisation.</b
-                        >
-                    </p>
-                    <h3>Colophon</h3>
-                    <ul class="colophon">
-                        <li>
-                            Icons:
-                            <a href="https://fonts.google.com/icons/"
-                                >Material Symbols by Google</a
-                            >
-                        </li>
-                        <li>
-                            Typeface:
-                            <a
-                                href="https://fonts.google.com/specimen/Space+Grotesk"
-                                >Space Grotesk by Florian Karsten</a
-                            >
-                        </li>
-                    </ul>
-                </div>
-            </dialog>
-            <dialog
-                class="modal-dialog"
-                ref="holCalcDialog"
-                aria-label="Holiday Pay Calculator"
-                @click="onHolCalcBackdropClick"
-                @close="onHolCalcDialogClose"
-            >
-                <div class="modal-header">
-                    <h2>Holiday Pay Calculator</h2>
-                    <button
-                        class="modal-close ghost"
-                        type="button"
-                        @click="closeHolCalc"
-                        aria-label="Close holiday pay calculator"
-                    >
-                        Close
-                    </button>
-                </div>
-                <div class="modal-content">
-                    <div class="notice">
-                        <p>
-                            For irregular hours workers, holiday pay is based on
-                            your average pay over the last
-                            <strong>52 paid weeks</strong>. Only include weeks
-                            where you actually received normal pay — skip any
-                            weeks on statutory sick pay, maternity/paternity
-                            pay, or unpaid leave, and replace them with earlier
-                            paid weeks (going back up to 104 weeks if needed).
-                        </p>
-                        <p>
-                            The legally correct entitlement is expressed as
-                            <strong>a week's pay per week of holiday</strong>.
-                            The per-day figures below are a convenience estimate
-                            only.
-                        </p>
-                    </div>
-                    <div class="hol-calc calc-bg">
-                        <label>
-                            Total hours worked (52 paid weeks)
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                placeholder="e.g. 800"
-                                autocomplete="off"
-                                v-model.number="holCalcHours"
-                            />
-                        </label>
-                        <label>
-                            Hourly rate (£)
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="e.g. 12.71"
-                                autocomplete="off"
-                                v-model.number="holCalcRate"
-                            />
-                        </label>
-                        <label>
-                            Typical working days per week
-                            <input
-                                type="number"
-                                min="1"
-                                max="7"
-                                step="1"
-                                autocomplete="off"
-                                v-model.number="holCalcWorkDays"
-                            />
-                        </label>
-                        <label>
-                            Holiday days taken
-                            <input
-                                type="number"
-                                min="1"
-                                step="1"
-                                placeholder="e.g. 2"
-                                autocomplete="off"
-                                v-model.number="holCalcDaysTaken"
-                            />
-                        </label>
-                        <div class="hol-calc-result notice">
-                            <span>Avg hours per week of holiday:</span>
-                            <strong>{{ holCalcAvgWeekly }}</strong>
-                        </div>
-                        <div class="hol-calc-result notice">
-                            <span>Expected £ per week of holiday:</span>
-                            <strong>{{ holCalcExpectedWeeklyPay }}</strong>
-                        </div>
-                        <div class="hol-calc-result notice">
-                            <span
-                                >Est. hours for {{ holCalcDaysTaken }} day(s)
-                                <em>(estimate)</em>:</span
-                            >
-                            <strong>{{ holCalcExpectedHours }}</strong>
-                        </div>
-                        <div class="hol-calc-result notice">
-                            <span
-                                >Est. £ for {{ holCalcDaysTaken }} day(s)
-                                <em>(estimate)</em>:</span
-                            >
-                            <strong>{{ holCalcExpectedPay }}</strong>
-                        </div>
-                    </div>
-                </div>
+                <about-content
+                    :app-version="appVersion"
+                    @close="closeDialog('aboutDialog')"
+                />
             </dialog>
             <section class="prep collapse-section">
                 <div class="collapse-header">
@@ -626,7 +371,7 @@
                     :class="{ 'is-collapsed': collapsedSections.prep }"
                 >
                     <div
-                        class="collapse-grid notice"
+                        class="collapse-grid notice no-left-border"
                         id="prep-content"
                         :class="{ 'is-collapsed': collapsedSections.prep }"
                         @focusin="handleSectionFocus('prep')"
@@ -659,7 +404,21 @@
                                 </h3>
                             </header>
                             <details open="">
-                                <summary>What to collect</summary>
+                                <summary>
+                                    What to collect
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <ul>
                                     <li>
                                         From your email, download all your
@@ -667,9 +426,27 @@
                                         review — ideally, your full employment.
                                     </li>
                                     <li>
-                                        Grab your holiday request/approval forms
-                                        to check whether the holiday pay you
-                                        received matches what you were owed.
+                                        <b>Holidays:</b>
+                                        <ul>
+                                            <li>
+                                                Grab your holiday
+                                                request/approval forms to check
+                                                whether the holiday pay you
+                                                received matches what you were
+                                                owed.
+                                            </li>
+                                            <li>
+                                                Check your contract, or ask your
+                                                employer to confirm your holiday
+                                                allocation. Some companies offer
+                                                additional days over and above
+                                                the statutory minimums.
+                                            </li>
+                                            <li>
+                                                You will also need to know what
+                                                month your holidays roll over.
+                                            </li>
+                                        </ul>
                                     </li>
                                 </ul>
                                 <div class="notice">
@@ -730,7 +507,21 @@
                                 </div>
                             </details>
                             <details name="nest-top">
-                                <summary>What to download</summary>
+                                <summary>
+                                    What to download
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <p>
                                     Nest provides a pension contributions record
                                     for each financial year.
@@ -842,10 +633,39 @@
                                     <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
                                     <path
                                         fill="currentColor"
+                                        d="M12 12q-1.65 0-2.825-1.175T8 8t1.175-2.825T12 4t2.825 1.175T16 8t-1.175 2.825T12 12m-8 8v-2.8q0-.85.425-1.562T5.6 14.55q1.5-.75 3.113-1.15T12 13t3.288.4t3.112 1.15q.75.375 1.175 1.088T20 17.2V20zm8-10q.825 0 1.413-.587T14 8t-.587-1.412T12 6t-1.412.588T10 8t.588 1.413T12 10m4 5.7V18h2v-.8q0-.275-.125-.5t-.375-.35q-.35-.2-.737-.363T16 15.7m-6-.525V16.5h4v-1.325q-.5-.1-1-.137T12 15t-1 .038t-1 .137M6 18h2v-2.3q-.375.125-.763.288t-.737.362q-.25.125-.375.35T6 17.2zm10 0H8zM12 8"
+                                    />
+                                </svg>
+                                <h3>Set up your worker profile</h3>
+                            </header>
+                            <ul>
+                                <li>
+                                    Select your worker type (hourly or salaried)
+                                </li>
+                                <li>
+                                    Enter your typical working days per week
+                                </li>
+                                <li>
+                                    Adjust your statutory holiday entitlement
+                                    and holiday year start month if needed
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card">
+                            <header>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
                                         d="M16.5 19q1.05 0 1.775-.725T19 16.5t-.725-1.775T16.5 14t-1.775.725T14 16.5t.725 1.775T16.5 19m5.8 3.3q-.275.275-.7.275t-.7-.275l-2-2q-.525.35-1.137.525T16.5 21q-1.875 0-3.187-1.312T12 16.5t1.313-3.187T16.5 12t3.188 1.313T21 16.5q0 .65-.175 1.263T20.3 18.9l2 2q.275.275.275.7t-.275.7M5 22q-.825 0-1.412-.587T3 20V4q0-.825.588-1.412T5 2h7.175q.4 0 .763.15t.637.425l4.85 4.85q.275.275.425.638t.15.762v.45q0 .45-.363.725t-.812.15q-.325-.075-.65-.113T16.5 10q-2.95 0-4.75 2t-1.8 4.525q0 1.1.388 2.175t1.212 2.025q.35.375.162.825t-.637.45zm7-18v4q0 .425.288.713T13 9h4zl5 5z"
                                     />
                                 </svg>
-                                <h3>Upload Payslips &amp; Pension docs</h3>
+                                <h3>Upload Payslips + Pension docs</h3>
                             </header>
                             <ul>
                                 <li>
@@ -853,8 +673,8 @@
                                     required)
                                 </li>
                                 <li>
-                                    Upload your payroll and pension documents
-                                    (optional)
+                                    Upload your payroll and (optional) pension
+                                    documents
                                 </li>
                             </ul>
                         </div>
@@ -882,7 +702,7 @@
                         <!-- follow up -->
                         <h2>Step 3: Review & Report</h2>
 
-                        <div class="card hollidays">
+                        <div class="card holidays">
                             <header>
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -896,28 +716,20 @@
                                         d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2m0 16H5V10h14zm0-12H5V6h14zM9 14H7v-2h2zm4 0h-2v-2h2zm4 0h-2v-2h2zm-8 4H7v-2h2zm4 0h-2v-2h2zm4 0h-2v-2h2z"
                                     />
                                 </svg>
-                                <h3>Holliday Entitlement</h3>
+                                <h3>Holiday Entitlement</h3>
                             </header>
                             <p>
-                                As of 2020, for workers with irregular hours,
-                                your holiday pay must be based on your average
-                                pay over the last 52 paid weeks at the moment
-                                you take your holiday.
+                                The report shows estimated holiday days taken
+                                and flags potential pay discrepancies. For the
+                                full guide and pay calculator, see the Holiday
+                                Calculations page.
                             </p>
-                            <p>
-                                Your employer can look back up to 104 weeks to
-                                find 52 paid ones (or use fewer if you haven’t
-                                worked that long). That average weekly pay is
-                                what you should receive for a week of holiday.
-                            </p>
-                            <button
-                                type="button"
+                            <a
+                                href="holiday-calculations.html"
                                 class="primary accent hol-calc-btn"
-                                @click="openHolCalc"
-                                aria-haspopup="dialog"
                             >
-                                Holiday Pay Calculator
-                            </button>
+                                Holiday Pay Guide &amp; Calculator
+                            </a>
                             <p>Resources:</p>
                             <ul>
                                 <li>
@@ -926,8 +738,8 @@
                                         href="https://www.gov.uk/calculate-your-holiday-entitlement"
                                         target="_blank"
                                         rel="noopener"
-                                        title="Holliday Entitlement Calculator"
-                                        >Holliday Entitlement Calculator</a
+                                        title="Holiday Entitlement Calculator"
+                                        >Holiday Entitlement Calculator</a
                                     >
                                 </li>
                                 <li>
@@ -1050,7 +862,21 @@
                             </p>
 
                             <details>
-                                <summary>Email tips</summary>
+                                <summary>
+                                    Email tips
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <ul>
                                     <li>
                                         You can start informally,
@@ -1299,7 +1125,21 @@
                                 >.
                             </p>
                             <details>
-                                <summary>Whistelblowing</summary>
+                                <summary>
+                                    Whistelblowing
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
                                 <p>
                                     Reporting your employer to a regulator is
                                     known as whistleblowing. UK law provides
@@ -1342,6 +1182,195 @@
                 </div>
             </section>
             <section class="controls" v-cloak="">
+                <div class="card worker-profile-panel">
+                    <header>
+                        <h2>
+                            1: Worker Profile
+                            <span class="optional-label">(optional)</span>
+                        </h2>
+                        <p>
+                            These details help <i>estimate</i> how many days of
+                            holiday your payslips represent.
+                        </p>
+                    </header>
+                    <div class="worker-profile-fields">
+                        <div class="field">
+                            <span>Worker type</span>
+                            <div class="radio-toggle">
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        name="workerType"
+                                        value="hourly"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Hourly</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input
+                                        type="radio"
+                                        name="workerType"
+                                        value="salary"
+                                        v-model="workerProfile.workerType"
+                                    />
+                                    <span>Salaried</span>
+                                </label>
+                            </div>
+                        </div>
+                        <details
+                            class="field-hint notice info no-left-border"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
+                            <summary>
+                                Zero/irregular hours workers
+                                <svg
+                                    class="inline-icon"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    width="1.2em"
+                                    height="1.2em"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <use href="#ic-baseline-help-outline"></use>
+                                </svg>
+                            </summary>
+                            <p>
+                                If your shift pattern changes a lot, enter
+                                <b>0 days</b> and the system will estimate your
+                                holiday entitlement. Otherwise, enter the number
+                                of days a week you typically work.
+                            </p>
+                        </details>
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'hourly'"
+                        >
+                            <span>Days per week</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="7"
+                                step=".5"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
+
+                        <label
+                            class="field"
+                            v-show="workerProfile.workerType === 'salary'"
+                        >
+                            <span>Days per week</span>
+                            <input
+                                type="number"
+                                min="0.5"
+                                max="7"
+                                step=".5"
+                                placeholder="e.g. 5"
+                                autocomplete="off"
+                                v-model.number="workerProfile.typicalDays"
+                            />
+                        </label>
+                        <label class="field">
+                            <span
+                                >Statutory holiday entitlement (days/year)</span
+                            >
+                            <div class="field-button-group">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    step="any"
+                                    placeholder="N/A"
+                                    autocomplete="off"
+                                    :value="statutoryHolidayInputValue"
+                                    @input="updateStatutoryHolidayDays"
+                                    :disabled="isZeroHoursWorker"
+                                />
+                                <button
+                                    type="button"
+                                    class="auto-calculate-btn"
+                                    :disabled="isZeroHoursWorker || workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
+                                    @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
+                                >
+                                    Auto calculate
+                                </button>
+                            </div>
+                            <span class="field-hint">
+                                Statutory minimum for {{
+                                workerProfile.typicalDays }}d/week:
+                                <strong
+                                    >{{ suggestedStatutoryDays || '?' }}
+                                    days</strong
+                                >
+                                <br />
+                                (5.6 × days/week, capped at 28)
+                            </span>
+                            <span
+                                v-if="entitlementBelowMinimum"
+                                class="field-hint field-hint--warning"
+                            >
+                                ⚠ This is below the statutory minimum of {{
+                                suggestedStatutoryDays }} days for a {{
+                                workerProfile.typicalDays }}-day week. Employers
+                                cannot legally offer less than 5.6 weeks of paid
+                                holiday. Check your contract or speak to
+                                <a
+                                    href="https://www.acas.org.uk/checking-holiday-entitlement"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    >ACAS</a
+                                >.
+                            </span>
+                        </label>
+                        <label class="field">
+                            <span>Holiday year start month</span>
+                            <div class="select-wrap">
+                                <select
+                                    v-model.number="workerProfile.leaveYearStartMonth"
+                                >
+                                    <option :value="1">January</option>
+                                    <option :value="2">February</option>
+                                    <option :value="3">March</option>
+                                    <option :value="4">April (tax year)</option>
+                                    <option :value="5">May</option>
+                                    <option :value="6">June</option>
+                                    <option :value="7">July</option>
+                                    <option :value="8">August</option>
+                                    <option :value="9">September</option>
+                                    <option :value="10">October</option>
+                                    <option :value="11">November</option>
+                                    <option :value="12">December</option>
+                                </select>
+                            </div>
+                            <details
+                                class="field-hint notice info no-left-border"
+                            >
+                                <summary>
+                                    Holiday Year
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use
+                                            href="#ic-baseline-help-outline"
+                                        ></use>
+                                    </svg>
+                                </summary>
+                                <p>
+                                    The month your holiday year begins - this
+                                    should appear in your contract, or ask your
+                                    manager.
+                                </p>
+                            </details>
+                        </label>
+                    </div>
+                </div>
                 <div
                     class="card upload-panel"
                     :class="{ 'is-drop-active': dragActive }"
@@ -1356,18 +1385,21 @@
                             <span>Release files to add them to the queue</span>
                         </div>
                     </div>
-                    <h2>1: Upload Payslips &amp; Pension docs</h2>
-                    <div class="instructions">
+                    <header>
+                        <h2>2: Payslips &amp; Pension</h2>
                         <p>
-                            Drag and drop your Payroll PDFs and Pension files
-                            here or choose multiple files.
+                            Drag &amp; drop / choose your Payroll and (optional)
+                            Pension files.
                         </p>
-                        <p class="notice">
-                            <b>Note:</b> Pension files are optional; if you
-                            don't have them, the report will skip pension
-                            comparisons.
-                        </p>
-                    </div>
+                    </header>
+                    <input
+                        type="text"
+                        name="pdf-username"
+                        value="pdf-document"
+                        autocomplete="username"
+                        style="display: none"
+                        readonly
+                    />
                     <label class="field password">
                         <span>PDF password</span>
                         <input
@@ -1420,11 +1452,13 @@
                     </div>
                 </div>
                 <div class="card status-panel">
-                    <h2>2: Run &amp; Review</h2>
-                    <p class="instructions" v-if="status === 'idle'">
-                        Once your files are selected, run the report, and the
-                        results will appear below.
-                    </p>
+                    <header>
+                        <h2>3: Run &amp; Review</h2>
+                        <p>
+                            Once your files are selected, run the report, and
+                            the results will appear below.
+                        </p>
+                    </header>
                     <div class="run-actions">
                         <label class="disclaimer inline">
                             <input
@@ -1433,9 +1467,10 @@
                             />
                             <span>
                                 <i
-                                    >I understand this report may contain
-                                    processing errors or omissions, and I am
-                                    responsible for verifying its accuracy.</i
+                                    >I understand this report is only a guide,
+                                    not a legal determination of pay, holiday or
+                                    pension calculations, and I am responsible
+                                    for verifying its accuracy.</i
                                 >
                             </span>
                         </label>
@@ -1454,8 +1489,7 @@
                         files
                     </p>
                     <p v-if="parsingExcel">
-                        Parsing PDF Payroll &amp; Excel Pension contribution
-                        history…
+                        Processing Payroll &amp; Pension docs...
                     </p>
                     <p v-if="status === 'rendering'">Rendering report…</p>
                     <p v-if="error" class="error">{{ error }}</p>
@@ -1475,71 +1509,6 @@
                         ></div>
                     </div>
                     <div class="completion" v-if="reportReady">
-                        <h3 id="report-summary">Report summary</h3>
-                        <ul class="stats">
-                            <li>
-                                <span>Generated</span
-                                ><strong>{{ reportTimestamp }}</strong>
-                            </li>
-                            <li>
-                                <span>PDF files</span
-                                ><strong>{{ fileCount }}</strong>
-                            </li>
-                            <li>
-                                <span>PDF Date range</span
-                                ><strong
-                                    >{{ reportStats.dateRangeLabel }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Excel files</span>
-                                <strong>
-                                    {{ reportStats.contributionMeta.fileCount }}
-                                    ({{ reportStats.contributionMeta.recordCount
-                                    }} records)
-                                </strong>
-                            </li>
-                            <li>
-                                <span>Excel date range</span
-                                ><strong
-                                    >{{
-                                    reportStats.contributionMeta.dateRangeLabel
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Missing months</span>
-                                <strong
-                                    class="missing-months"
-                                    v-html="reportStats.missingMonthsHtml"
-                                ></strong>
-                            </li>
-                            <li>
-                                <span>Flagged months</span>
-                                <strong class="validation-pill"
-                                    >{{
-                                    reportStats.validationSummary.flaggedCount
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Low confidence months</span>
-                                <strong class="validation-pill"
-                                    >{{
-                                    reportStats.validationSummary.lowConfidenceCount
-                                    }}</strong
-                                >
-                            </li>
-                            <li>
-                                <span>Flagged periods</span>
-                                <strong class="validation-list">
-                                    {{ ((reportStats.validationSummary
-                                    &amp;&amp;
-                                    reportStats.validationSummary.flaggedPeriods)
-                                    || []).join(", ") || "None" }}
-                                </strong>
-                            </li>
-                        </ul>
                         <div class="btn-group">
                             <button
                                 id="download-pdf-btn"
@@ -1619,8 +1588,8 @@
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    width="1em"
-                                    height="1em"
+                                    width="1.2em"
+                                    height="1.2em"
                                     viewBox="0 0 24 24"
                                     aria-hidden="true"
                                 >
@@ -1675,28 +1644,56 @@
                     {{ debugCopySuccess ? "Copied ✓" : "Copy debug output" }}
                 </button>
                 <p class="debug-app-version">App version: {{ appVersion }}</p>
-                <h2>Debug: Extracted Text (first PDF)</h2>
-                <pre v-if="debugText">{{ debugText }}</pre>
-                <p v-else="">No debug text captured yet.</p>
-                <h3>Debug: Parsed Values</h3>
-                <pre v-if="debugInfo.parsed">{{ debugInfo.parsed }}</pre>
-                <p v-else="">No parsed values captured yet.</p>
-                <h3>Debug: Regex Matches</h3>
-                <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
-                <p v-else="">No regex matches captured yet.</p>
-                <h3>Debug: Excel Source File (first Excel)</h3>
-                <pre v-if="debugInfo.excelSource">
+                <details>
+                    <summary>Debug: PDF Source File (first PDF)</summary>
+                    <pre v-if="debugInfo.pdfSource">
+{{ debugInfo.pdfSource }}</pre
+                    >
+                    <p v-else="">No PDF source captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Extracted Text (first PDF)</summary>
+                    <pre v-if="debugText">{{ debugText }}</pre>
+                    <p v-else="">No debug text captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Parsed Values</summary>
+                    <pre v-if="debugInfo.parsed">{{ debugInfo.parsed }}</pre>
+                    <p v-else="">No parsed values captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Regex Matches</summary>
+                    <pre v-if="debugInfo.matches">{{ debugInfo.matches }}</pre>
+                    <p v-else="">No regex matches captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Excel Source File (first Excel)</summary>
+                    <pre v-if="debugInfo.excelSource">
 {{ debugInfo.excelSource }}</pre
-                >
-                <p v-else="">No Excel source captured yet.</p>
-                <h3>Debug: Excel Raw Rows (first 20)</h3>
-                <pre v-if="debugInfo.excelRows">{{ debugInfo.excelRows }}</pre>
-                <p v-else="">No Excel rows captured yet.</p>
-                <h3>Debug: Excel Parsed Entries (first 20)</h3>
-                <pre v-if="debugInfo.excelParsed">
+                    >
+                    <p v-else="">No Excel source captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Excel Raw Rows (first 20)</summary>
+                    <pre v-if="debugInfo.excelRows">
+{{ debugInfo.excelRows }}</pre
+                    >
+                    <p v-else="">No Excel rows captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Excel Parsed Entries (first 20)</summary>
+                    <pre v-if="debugInfo.excelParsed">
 {{ debugInfo.excelParsed }}</pre
-                >
-                <p v-else="">No Excel parsed entries captured yet.</p>
+                    >
+                    <p v-else="">No Excel parsed entries captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Run Snapshot</summary>
+                    <pre v-if="debugInfo.runSnapshot">
+{{ debugInfo.runSnapshot }}</pre
+                    >
+                    <p v-else="">No run snapshot captured yet.</p>
+                </details>
             </section>
         </main>
         <script>

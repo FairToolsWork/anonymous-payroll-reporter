@@ -8,11 +8,11 @@ import {
     formatContributionDifference,
 } from '../pwa/src/report/build.js'
 import {
-    buildContributionSummary,
-    getTaxYearKey,
     sumDeductionsForNetPay,
     sumPayments,
-} from '../pwa/src/report/report_calculations.js'
+} from '../pwa/src/report/hourly_pay_calculations.js'
+import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
+import { getTaxYearKey } from '../pwa/src/report/tax_year_utils.js'
 import {
     buildBrowserShims,
     runReportFromFixtures,
@@ -255,7 +255,7 @@ describe('report workflow', () => {
             expect(hasNetMismatchFlag).toBe(isMismatch)
         })
 
-        expect(result.report.html).toContain('Payroll Report -')
+        expect(result.report.html).toContain('Payroll Report \u2014')
         expect(result.report.html).toContain('<th>Tax Year</th>')
         expect(result.report.html).toContain('<th>Hours</th>')
         expect(result.report.html).toContain('<th>Payroll Cont. (EE+ER)</th>')
@@ -267,7 +267,9 @@ describe('report workflow', () => {
         expect(result.report.html).toContain('<th>Accumulated Over/Under</th>')
         expect(result.report.html).toContain('<th>Last Contribution Date</th>')
         expect(result.report.html).toContain('<th>Month</th>')
-        expect(result.report.html).toContain('<th>Holiday Used (Units)</th>')
+        expect(result.report.html).toContain(
+            '<th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>'
+        )
         expect(result.report.html).toContain('<th>Over / Under</th>')
         expect(result.report.html).toContain('<th>Total</th>')
         result.reportContext.yearKeys.forEach((yearKey) => {
@@ -283,7 +285,7 @@ describe('report workflow', () => {
                 `<h2 id="year-summary-${yearAnchor}">${yearLabel} Summary:`
             )
             expect(result.report.html).toContain(
-                `<h2 class="year-header" id="year-monthly-${yearAnchor}">${yearLabel}</h2>`
+                `<h2 class="year-header" id="year-monthly-${yearAnchor}">Payslips: ${yearLabel}</h2>`
             )
             const yearMissing =
                 result.reportContext.missingMonths.missingMonthsByYear[

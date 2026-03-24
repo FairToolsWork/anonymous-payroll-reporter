@@ -49,10 +49,11 @@ PENS_QUAL_UPPER_MONTHLY = 0.0
 PENS_EMPLOYEE_RATE = 0.0
 PENS_EMPLOYER_RATE = 0.0
 
-def load_inputs():
-    if not INPUTS_PATH.exists():
-        raise FileNotFoundError(f"Missing payroll inputs file: {INPUTS_PATH}")
-    with INPUTS_PATH.open("r", encoding="utf-8") as handle:
+def load_inputs(path=None):
+    target = path or INPUTS_PATH
+    if not target.exists():
+        raise FileNotFoundError(f"Missing payroll inputs file: {target}")
+    with target.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     if not isinstance(payload, dict):
         raise ValueError("Payroll inputs must be a JSON object")
@@ -286,6 +287,19 @@ def load_structure(structure_path):
 
 def apply_structure(payload):
     FORMAT_PROCESSOR.configure(payload)
+
+
+def _build_month_meta():
+    meta = {}
+    for idx, (year, month_number, label) in enumerate(MONTHS):
+        month_key = f"{year}-{month_number:02d}"
+        meta[month_key] = {
+            "index": idx,
+            "year": year,
+            "month_number": month_number,
+            "label": label,
+        }
+    return meta
 
 
 def apply_inputs(payload):
@@ -562,20 +576,12 @@ def resolve_output_dir(value):
 
 
 def main(check_only=False):
-    inputs_payload = load_inputs()
-    apply_inputs(inputs_payload)
+    global_inputs_payload = load_inputs()
+    apply_inputs(global_inputs_payload)
+    global_adjusted_dataset = apply_holiday_adjustments(DATASET)
+    global_month_meta = _build_month_meta()
 
-    adjusted_dataset = apply_holiday_adjustments(DATASET)
-    month_meta = {}
-    for idx, (year, month_number, label) in enumerate(MONTHS):
-        month_key = f"{year}-{month_number:02d}"
-        month_meta[month_key] = {
-            "index": idx,
-            "year": year,
-            "month_number": month_number,
-            "label": label,
-        }
-    default_months = [entry["month"] for entry in adjusted_dataset]
+    default_months = [entry["month"] for entry in global_adjusted_dataset]
     runs, default_structure_ref = load_run_config()
     if runs is None:
         runs = [
@@ -588,6 +594,16 @@ def main(check_only=False):
     for run in runs:
         if not isinstance(run, dict):
             raise ValueError("Each run must be a JSON object")
+        run_inputs_ref = run.get("inputs")
+        if run_inputs_ref:
+            run_inputs_path = resolve_source_path(run_inputs_ref)
+            run_inputs_payload = load_inputs(run_inputs_path)
+            apply_inputs(run_inputs_payload)
+            adjusted_dataset = apply_holiday_adjustments(DATASET)
+            month_meta = _build_month_meta()
+        else:
+            adjusted_dataset = global_adjusted_dataset
+            month_meta = global_month_meta
         structure_ref = run.get("structure") or default_structure_ref
         if not structure_ref:
             raise ValueError(
@@ -623,7 +639,7 @@ def main(check_only=False):
             raise ValueError("missing_months must be an array when provided")
         months = [month for month in months if month not in set(missing_months)]
         for month in months:
-            if month not in month_meta:
+            if month not in month_meta:  # noqa: F821 — bound above in loop
                 raise ValueError(f"Unknown month in run config: {month}")
         employee = run.get("employee") or {}
         if not isinstance(employee, dict):
@@ -634,6 +650,9 @@ def main(check_only=False):
         fixture_overrides = run.get("fixture_overrides") or {}
         if fixture_overrides and not isinstance(fixture_overrides, dict):
             raise ValueError("fixture_overrides must be an object when provided")
+        employee_name = employee.get("name") if "name" in employee else None
+        employer_name = employee.get("employer") if "employer" in employee else None
+        employee_nat_ins = employee.get("nat_ins_number") if "nat_ins_number" in employee else None
         employee_address = employee.get("address") if "address" in employee else None
         if employee_address is not None and not isinstance(employee_address, list):
             raise ValueError("employee.address must be an array when provided")
@@ -682,7 +701,7 @@ def main(check_only=False):
                 idx,
                 label,
                 year,
-                reset_payrun=(year == 2025 and month_number == 4),
+                reset_payrun=(month_number == 4 and idx > 0),
                 employee_name=month_employee_name,
                 employee_nat_ins=month_employee_nat_ins,
                 employer_name=month_employer_name,

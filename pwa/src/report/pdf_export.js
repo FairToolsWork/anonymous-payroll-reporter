@@ -1,13 +1,20 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatMonthLabel } from '../parse/parser_config.js'
-import { getCalendarMonthFromFiscalIndex } from './report_calculations.js'
 import {
+    buildContributionBreakdownParts,
+    buildContributionRecencyDisplay,
+    buildDiffDisplay,
+    buildMiscReviewDisplay,
+    buildWorkerProfileDisplay,
     formatContribution,
     formatCurrency,
     formatDeduction,
-    formatMiscLabel,
 } from './report_formatters.js'
+import {
+    buildPayslipViewModel,
+    buildSummaryViewModel,
+    buildYearViewModel,
+} from './report_view_model.js'
 
 /**
  * Testing constraints: jsPDF requires a DOM constructor and autoTable relies on
@@ -28,21 +35,8 @@ import {
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 
-const APRIL_BOUNDARY_NOTE =
-    'Note: April payslips may include pay accrued across the 6 April tax year boundary. ' +
-    'This tool cannot determine how the employer has attributed hours or amounts between tax years, ' +
-    'which may cause discrepancies in year-end figures.'
-
-const ZERO_TAX_ALLOWANCE_NOTE =
-    'Note: PAYE Tax / National Insurance may be £0 when monthly pay is below £1,048 ' +
-    '(Personal Allowance £12,570 per year for 2025/26 and 2026/27).'
-
-const ACCUMULATED_TOTALS_NOTE =
-    'Note: Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). ' +
-    'Positive values indicate an overpayment; negative values indicate an underpayment to your pension.'
-
 const PAGE_MARGIN = 40
-const LINE_GAP = 4
+const LINE_GAP = 6
 const SECTION_GAP = 4
 const HEADING_PRE_GAP = 16
 const FONT_TITLE = 16
@@ -53,14 +47,6 @@ const FONT_SMALL = 9
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {number | null} value
- * @returns {string}
- */
-function formatOrNA(value) {
-    return value === null ? 'N/A' : formatCurrency(value)
-}
-
-/**
  * Formats a contribution total with its EE/ER breakdown on a second line.
  * @param {number} total
  * @param {number} ee
@@ -68,7 +54,8 @@ function formatOrNA(value) {
  * @returns {string}
  */
 function formatBreakdown(total, ee, er) {
-    return `${formatCurrency(total)}\n(EE ${formatCurrency(ee)} / ER ${formatCurrency(er)})`
+    const parts = buildContributionBreakdownParts(total, ee, er, false)
+    return `${parts.totalLabel}\n(${parts.breakdownLabel})`
 }
 
 /**
@@ -81,7 +68,8 @@ function formatBreakdown(total, ee, er) {
  */
 function formatBreakdownOrNA(total, ee, er) {
     if (total === null) return 'N/A'
-    return `${formatCurrency(total)}\n(EE ${formatOrNA(ee)} / ER ${formatOrNA(er)})`
+    const parts = buildContributionBreakdownParts(total, ee, er, true)
+    return `${parts.totalLabel}\n(${parts.breakdownLabel})`
 }
 
 /**
@@ -93,6 +81,18 @@ function stripHtml(value) {
 }
 
 /**
+ * Sanitizes text for PDF rendering by removing HTML and control characters.
+ *
+ * IMPORTANT: jsPDF's Helvetica font has limited Unicode support. Characters not in the
+ * font (e.g., ≈ U+2248, → U+2192, • U+2022) can corrupt the text rendering state,
+ * causing letter spacing issues in subsequent text. This corruption persists even after
+ * autoTable calls and affects splitTextToSize calculations.
+ *
+ * If you encounter spaced-out letters in PDF text after tables or special content:
+ * 1. Check for Unicode characters beyond basic ASCII/Latin-1 (codes > 255)
+ * 2. Replace with ASCII equivalents: ≈ → ~, → → ->, • → -, etc.
+ * 3. The issue manifests as corrupted charSpace state that cannot be reset via setCharSpace(0)
+ *
  * @param {string | number | null | undefined} value
  * @returns {string}
  */
@@ -122,21 +122,6 @@ function sanitizeTextLines(value) {
         return value.map((line) => sanitizeText(line))
     }
     return sanitizeText(value)
-}
-
-/**
- * @param {Date | null} date
- * @returns {string}
- */
-function formatEntryDateLabel(date) {
-    if (!(date instanceof Date)) {
-        return 'Unknown'
-    }
-    return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    })
 }
 
 /**
@@ -274,77 +259,109 @@ function writeTable(doc, tableData, cursorY, opts = {}) {
     return finalY + SECTION_GAP
 }
 
-// ─── Diff colour helpers ─────────────────────────────────────────────────────
-
-const DIFF_POSITIVE_COLOR = '#8a6014'
-const DIFF_NEGATIVE_COLOR = '#c0391a'
-const DIFF_NEUTRAL_COLOR = '#2d7a4f'
-
 /**
  * Returns the text and a semantic text colour for a diff value.
  * @param {number | null} value
  * @returns {{ text: string, color: string | null }}
  */
 export function formatDiff(value) {
-    if (value === null) {
-        return { text: 'N/A', color: null }
-    }
-    const rounded = Number(value.toFixed(2))
-    const text = formatCurrency(value)
-    if (rounded === 0) return { text, color: DIFF_NEUTRAL_COLOR }
-    if (rounded > 0) return { text, color: DIFF_POSITIVE_COLOR }
-    return { text, color: DIFF_NEGATIVE_COLOR }
-}
-
-/**
- * Renders one or more notes anchored to the page bottom margin, stacking upward.
- * @param {jsPDF} doc
- * @param {string[]} notes
- */
-function writePageFooterNotes(doc, notes) {
-    if (!notes.length) return
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(FONT_SMALL)
-    doc.setTextColor('#555555')
-    const width = maxWidth(doc)
-    const lineHeight = FONT_SMALL * 1.3
-    const bottom = pageHeight(doc) - PAGE_MARGIN
-    let footerY = bottom
-    for (let i = notes.length - 1; i >= 0; i -= 1) {
-        const lines = doc.splitTextToSize(sanitizeText(notes[i]), width)
-        footerY -= lines.length * lineHeight
-        doc.text(lines, PAGE_MARGIN, footerY)
-        footerY -= LINE_GAP
-    }
+    const diff = buildDiffDisplay(value)
+    return { text: diff.text, color: diff.color }
 }
 
 // ─── Data helpers ─────────────────────────────────────────────────────────────
 
 /**
- * @typedef {{ type: 'payment' | 'deduction', dateLabel: string, item: any }} MiscFootnote
+ * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string, hasVariablePattern: boolean }} workerProfile
+ * @returns {string}
  */
+function formatPdfWorkerProfileLine(workerProfile) {
+    const display = buildWorkerProfileDisplay(workerProfile)
+    return (
+        `Type: ${display.typeValue} · ${display.typicalDaysValue}` +
+        ` · Entitlement: ${display.entitlementValue}` +
+        ` · Leave year: ${display.leaveYearValue}`
+    )
+}
 
-/**
- * @param {any[]} entries
- * @returns {MiscFootnote[]}
- */
-function collectMiscFootnotes(entries) {
-    /** @type {MiscFootnote[]} */
-    const result = []
-    entries.forEach((entry) => {
-        const dateLabel = entry.parsedDate
-            ? formatEntryDateLabel(entry.parsedDate)
-            : entry.record?.payrollDoc?.processDate?.date || 'Unknown'
-        const miscPayments = entry.record?.payrollDoc?.payments?.misc || []
-        const miscDeductions = entry.record?.payrollDoc?.deductions?.misc || []
-        miscPayments.forEach((/** @type {any} */ item) => {
-            result.push({ type: 'payment', dateLabel, item })
-        })
-        miscDeductions.forEach((/** @type {any} */ item) => {
-            result.push({ type: 'deduction', dateLabel, item })
-        })
-    })
-    return result
+/** @param {any} holidaySummary */
+function formatPdfYearSummaryHolidayText(holidaySummary) {
+    let holidayCell
+    if (holidaySummary.kind === 'salary_days') {
+        holidayCell =
+            `${formatCurrency(holidaySummary.holidayAmount)}\n` +
+            `(${holidaySummary.daysTaken.toFixed(1)}d taken, ${holidaySummary.daysRemaining.toFixed(1)} rem${holidaySummary.overrun ? ' EXCEEDED' : ''})`
+    } else if (holidaySummary.kind === 'salary_amount') {
+        holidayCell = formatCurrency(holidaySummary.holidayAmount)
+    } else if (holidaySummary.kind === 'hourly_days') {
+        holidayCell =
+            `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
+            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
+            `~${holidaySummary.daysTaken.toFixed(1)}d taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
+    } else if (holidaySummary.kind === 'hourly_hours') {
+        holidayCell =
+            `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
+            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
+            `${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}`
+    } else {
+        const variableNote = holidaySummary.hasVariablePattern
+            ? '\n(Variable pattern)'
+            : ''
+        holidayCell = `${holidaySummary.holidayHours.toFixed(2)} hrs${variableNote}`
+    }
+    if (holidaySummary.leaveYearLabel) {
+        holidayCell += `\n(${holidaySummary.leaveYearLabel})`
+    }
+    return holidayCell
+}
+
+/** @param {any} summary */
+function formatPdfTotalHolidayBreakdown(summary) {
+    if (!summary) return ''
+    if (summary.kind === 'salary_days') {
+        return (
+            `\n~${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? ' EXCEEDED' : ''}`
+        )
+    }
+    if (summary.kind === 'hourly_days') {
+        return (
+            `\n${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}` +
+            `\n~${summary.daysTaken.toFixed(1)} days taken` +
+            ` / ${summary.daysRemaining.toFixed(1)} days remaining`
+        )
+    }
+    if (summary.kind === 'hourly_hours') {
+        return (
+            `\n~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
+            `${summary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}\n` +
+            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}`
+        )
+    }
+    return ''
+}
+
+/** @param {any} holidaySummary */
+function formatPdfYearRowHolidayText(holidaySummary) {
+    if (holidaySummary.kind === 'hours_days') {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(${holidaySummary.estimatedDays.toFixed(1)}d)`
+    }
+    if (
+        holidaySummary.kind === 'hours_only' &&
+        holidaySummary.accruedHours !== null &&
+        holidaySummary.accruedHours > 0
+    ) {
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(+${holidaySummary.accruedHours.toFixed(1)} accrued)`
+    }
+    return holidaySummary.holidayHours.toFixed(2)
+}
+
+/** @param {{ dateLabel: string, type: string, label: string, amount: number }} item */
+function formatPdfMiscReviewLine(item) {
+    const display = buildMiscReviewDisplay(item)
+    return `${item.dateLabel}: ${display.typeLabel}: ${item.label}: ${display.amountLabel}`
 }
 
 // ─── Page sections ────────────────────────────────────────────────────────────
@@ -357,6 +374,8 @@ function collectMiscFootnotes(entries) {
  */
 function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
+    const summaryViewModel = buildSummaryViewModel(context, meta)
+    const summaryHeading = summaryViewModel.heading
 
     /**
      * @param {string | string[]} text
@@ -380,39 +399,82 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     }
 
     y = writeCenteredText(
-        `Payroll Report - ${meta.employeeName || 'Unknown'}`,
+        `Payroll Report - ${summaryHeading.employeeName}`,
         y,
         { fontSize: FONT_TITLE, bold: true }
     )
-    y = writeCenteredText(`Date range: ${meta.dateRangeLabel || 'Unknown'}`, y)
+    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y)
+    if (summaryHeading.generatedLabel) {
+        y = writeCenteredText(`Generated: ${summaryHeading.generatedLabel}`, y)
+    }
     y += LINE_GAP
 
-    if (context.missingMonths?.missingMonthsLabel) {
-        y = writeCenteredText(
-            `Missing months: ${stripHtml(context.missingMonths.missingMonthsLabel)}`,
-            y,
-            { fontSize: FONT_SMALL }
-        )
-    }
+    const metaRows = summaryViewModel.metaRows.map((/** @type {any} */ row) => [
+        sanitizeText(row.label),
+        sanitizeText(
+            row.id === 'worker-profile' && row.workerProfile
+                ? formatPdfWorkerProfileLine(row.workerProfile)
+                : (row.displayValue ?? row.value ?? '')
+        ),
+    ])
+    y += LINE_GAP
+    autoTable(doc, {
+        startY: y,
+        head: [],
+        body: metaRows,
+        theme: 'plain',
+        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        tableWidth: maxWidth(doc),
+        columnStyles: {
+            0: {
+                fontStyle: 'bold',
+                textColor: [110, 105, 100],
+                cellWidth: 100,
+            },
+            1: { textColor: [30, 28, 25] },
+        },
+        styles: {
+            font: 'helvetica',
+            fontSize: FONT_SMALL,
+            cellPadding: { top: 2, right: 4, bottom: 2, left: 4 },
+            overflow: 'linebreak',
+            fillColor: [248, 246, 243],
+            lineColor: [215, 210, 202],
+            lineWidth: 0.3,
+        },
+        tableLineColor: [194, 189, 182],
+        tableLineWidth: 0.5,
+    })
+    y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
+    y += SECTION_GAP
 
-    if (context.validationSummary?.validationPill) {
-        y = writeCenteredText(
-            stripHtml(context.validationSummary.validationPill),
-            y,
-            { fontSize: FONT_SMALL }
-        )
+    if (summaryViewModel.contractTypeMismatchWarning) {
+        y += SECTION_GAP
+        const warningText =
+            'WARNING: ' +
+            sanitizeText(summaryViewModel.contractTypeMismatchWarning)
+        const WARN_ACCENT_W = 4
+        const WARN_PAD_H = 10
+        const WARN_PAD_V = 6
+        const warnBoxX = PAGE_MARGIN
+        const warnBoxW = maxWidth(doc)
+        const warnTextX = warnBoxX + WARN_ACCENT_W + WARN_PAD_H
+        const warnAvailWidth = warnBoxW - WARN_ACCENT_W - WARN_PAD_H * 2
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(FONT_SMALL)
+        const warnLines = doc.splitTextToSize(warningText, warnAvailWidth)
+        const warnLineH = FONT_SMALL * 1.3
+        const warnTextH = warnLines.length * warnLineH
+        const warnBoxH = warnTextH + WARN_PAD_V * 2
+        doc.setFillColor(253, 244, 237)
+        doc.roundedRect(warnBoxX, y, warnBoxW, warnBoxH, 2, 2, 'F')
+        doc.setFillColor(194, 84, 45)
+        doc.rect(warnBoxX, y, WARN_ACCENT_W, warnBoxH, 'F')
+        doc.setTextColor(74, 40, 0)
+        doc.text(warnLines, warnTextX, y + WARN_PAD_V + FONT_SMALL)
+        doc.setTextColor(0, 0, 0)
+        y += warnBoxH + SECTION_GAP
     }
-
-    const footerY = pageHeight(doc) - PAGE_MARGIN
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(FONT_SMALL)
-    doc.setTextColor('#000000')
-    doc.text(
-        sanitizeText(`App version: ${meta.appVersion || 'Unknown'}`),
-        pageWidth(doc) / 2,
-        footerY,
-        { align: 'center' }
-    )
 
     y += LINE_GAP
     y = writeHeading(doc, 'Year Summary', y)
@@ -421,58 +483,28 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     const yearRows = []
     /** @type {Array<string | null>} */
     const yearRowDiffColors = []
-    context.yearGroups.forEach(
-        (/** @type {any} */ entriesForYear, /** @type {string} */ yearKey) => {
-            const yearEntries = /** @type {any[]} */ (entriesForYear)
-            const hours = yearEntries.reduce(
-                (acc, e) =>
-                    acc +
-                    (e.record?.payrollDoc?.payments?.hourly?.basic?.units || 0),
-                0
-            )
-            const payEE = yearEntries.reduce(
-                (acc, e) =>
-                    acc +
-                    (e.record?.payrollDoc?.deductions?.pensionEE?.amount || 0),
-                0
-            )
-            const payER = yearEntries.reduce(
-                (acc, e) =>
-                    acc +
-                    (e.record?.payrollDoc?.deductions?.pensionER?.amount || 0),
-                0
-            )
-            const payTotal = payEE + payER
-            const recon = entriesForYear.reconciliation || null
-            const repEE = recon?.totals?.actualEE ?? null
-            const repER = recon?.totals?.actualER ?? null
-            const repTotal =
-                repEE === null || repER === null ? null : repEE + repER
-            const overUnder = repTotal === null ? null : repTotal - payTotal
-            const zeroReview =
-                repTotal !== null && payTotal === 0 && repTotal === 0
-            const diff = zeroReview
-                ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
-                : formatDiff(overUnder)
-            const hasFlags = yearEntries.some(
-                (e) => e.validation?.flags?.length
-            )
-            yearRows.push([
-                String(yearKey || 'Unknown'),
-                hours.toFixed(2),
-                formatBreakdown(payTotal, payEE, payER),
-                formatBreakdownOrNA(repTotal, repEE, repER),
-                diff.text,
-                hasFlags ? '!' : '-',
-            ])
-            yearRowDiffColors.push(diff.color)
-        }
-    )
-
-    const yearKeys = /** @type {string[]} */ ([])
-    context.yearGroups.forEach(
-        (/** @type {any} */ _v, /** @type {string} */ k) => yearKeys.push(k)
-    )
+    const yearKeys = summaryViewModel.yearSummaryRows.map((row) => row.yearKey)
+    summaryViewModel.yearSummaryRows.forEach((/** @type {any} */ row) => {
+        const diff = buildDiffDisplay(row.overUnder, row.zeroReview)
+        yearRows.push([
+            String(row.yearKey || 'Unknown'),
+            row.hours.toFixed(2),
+            formatPdfYearSummaryHolidayText(row.holidaySummary),
+            formatBreakdown(
+                row.payrollContribution.total,
+                row.payrollContribution.ee,
+                row.payrollContribution.er
+            ),
+            formatBreakdownOrNA(
+                row.reportedContribution.total,
+                row.reportedContribution.ee,
+                row.reportedContribution.er
+            ),
+            diff.text,
+            row.hasFlags ? '!' : '-',
+        ])
+        yearRowDiffColors.push(diff.color)
+    })
 
     y = writeTable(
         doc,
@@ -481,6 +513,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 [
                     'Tax Year',
                     'Hours',
+                    'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'YE Over/Under',
@@ -492,7 +525,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         y,
         {
             didParseCell(data) {
-                if (data.section === 'body' && data.column.index === 4) {
+                if (data.section === 'body' && data.column.index === 5) {
                     const color = yearRowDiffColors[data.row.index] ?? null
                     if (color) {
                         data.cell.styles.textColor = color
@@ -523,24 +556,14 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
 
     y = writeHeading(doc, 'Accumulated Totals', y)
 
-    const totals = context.contributionTotals
-    const contributionRecency = context.contributionRecency || null
-    const daysCount =
-        contributionRecency &&
-        typeof contributionRecency.daysSinceContribution === 'number'
-            ? contributionRecency.daysSinceContribution
-            : null
-    const daysThreshold = contributionRecency?.daysThreshold ?? 30
-    const daysSince = daysCount !== null ? `${daysCount} days` : 'N/A'
-    const daysColor =
-        daysCount === null
-            ? null
-            : daysCount > daysThreshold
-              ? '#c0391a'
-              : '#2d7a4f'
-    const lastContributionCell = contributionRecency
-        ? `${contributionRecency.lastContributionLabel}\n${daysSince}`
-        : context.contributionSummary?.years
+    const totals = summaryViewModel.accumulatedTotals
+    const recencyDisplay = buildContributionRecencyDisplay(
+        totals.contributionRecency,
+        30
+    )
+    const lastContributionCell = totals.contributionRecency
+        ? `${recencyDisplay.lastContributionLabel}\n${recencyDisplay.daysLabel}`
+        : totals.hasContributionSummary
           ? 'See year details'
           : 'N/A'
     y = writeTable(
@@ -557,16 +580,16 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             ],
             body: [
                 [
-                    meta.dateRangeLabel || 'Unknown',
+                    totals.dateRangeLabel || meta.dateRangeLabel || 'Unknown',
                     formatBreakdown(
-                        totals.payrollContribution,
-                        totals.payrollEE,
-                        totals.payrollER
+                        totals.payrollContribution.total,
+                        totals.payrollContribution.ee,
+                        totals.payrollContribution.er
                     ),
                     formatBreakdownOrNA(
-                        totals.reportedContribution,
-                        totals.pensionEE,
-                        totals.pensionER
+                        totals.reportedContribution.total,
+                        totals.reportedContribution.ee,
+                        totals.reportedContribution.er
                     ),
                     formatDiff(totals.contributionDifference).text,
                     lastContributionCell,
@@ -586,54 +609,29 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                         data.cell.styles.fontStyle = 'bold'
                     }
                 }
-                if (data.column.index === 4 && daysColor) {
-                    data.cell.styles.textColor = daysColor
+                if (data.column.index === 4 && recencyDisplay.color) {
+                    data.cell.styles.textColor = recencyDisplay.color
                     data.cell.styles.fontStyle = 'bold'
                 }
             },
         }
     )
 
-    y += 12
-    y = writeText(doc, ACCUMULATED_TOTALS_NOTE, y, { fontSize: FONT_SMALL })
-
-    const hasAprilEntry = context.entries.some(
-        (/** @type {any} */ e) =>
-            e.parsedDate instanceof Date && e.parsedDate.getMonth() === 3
-    )
-    const hasLowPretaxPay = context.entries.some((/** @type {any} */ e) => {
-        const gross = e.record?.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < 1048
-    })
-    const summaryPageNotes = []
-    if (hasAprilEntry) summaryPageNotes.push(APRIL_BOUNDARY_NOTE)
-    if (hasLowPretaxPay) summaryPageNotes.push(ZERO_TAX_ALLOWANCE_NOTE)
-    writePageFooterNotes(doc, summaryPageNotes)
-
-    const summaryFootnotes = collectMiscFootnotes(context.entries)
-    if (summaryFootnotes.length) {
+    if (summaryViewModel.miscReviewItems.length) {
         y = writeHeading(doc, 'Misc entries to review', y)
         y = writeText(
             doc,
-            summaryFootnotes.map((f) => {
-                const typeLabel =
-                    f.type === 'deduction' ? 'Deduction' : 'Payment'
-                const amountLabel =
-                    f.type === 'deduction'
-                        ? formatDeduction(f.item.amount || 0)
-                        : formatCurrency(f.item.amount || 0)
-                return `${f.dateLabel}: ${typeLabel}: ${formatMiscLabel(f.item)}: ${amountLabel}`
-            }),
+            summaryViewModel.miscReviewItems.map((/** @type {any} */ item) =>
+                formatPdfMiscReviewLine(item)
+            ),
             y,
             { fontSize: FONT_SMALL }
         )
     }
-
-    const flaggedPeriods = context.validationSummary?.flaggedPeriods || []
-    if (flaggedPeriods.length) {
-        y = writeHeading(doc, 'Flagged periods', y)
-        writeText(doc, flaggedPeriods.join(', '), y, {
-            fontSize: FONT_SMALL,
+    if (summaryViewModel.notes.length) {
+        y += LINE_GAP
+        summaryViewModel.notes.forEach((/** @type {any} */ note) => {
+            y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
         })
     }
 }
@@ -644,146 +642,107 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
  * @param {string} yearKey
  * @param {any} context
  * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
+ * @param {number} openingBalance
  * @returns {number}
  */
-function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
+function renderYearPage(
+    doc,
+    entriesForYear,
+    yearKey,
+    context,
+    pageNumbers,
+    openingBalance
+) {
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
+    const yearViewModel = buildYearViewModel(
+        entriesForYear,
+        String(yearKey),
+        context,
+        openingBalance
+    )
 
-    y = writeHeading(doc, `${String(yearKey || 'Unknown')} Summary`, y, {
-        preGap: 0,
-    })
-
-    const missingForYear =
-        context.missingMonths?.missingMonthsByYear?.[yearKey] || []
-    if (missingForYear.length) {
-        y = writeText(doc, `Missing months: ${missingForYear.join(', ')}`, y, {
-            fontSize: FONT_SMALL,
-        })
+    y = writeHeading(
+        doc,
+        `${yearViewModel.heading.yearKey} Summary: ${context.employeeName || 'Unknown'}`,
+        y,
+        {
+            preGap: 0,
+        }
+    )
+    if (yearViewModel.missingMonths.length) {
+        y = writeText(
+            doc,
+            `Missing months: ${yearViewModel.missingMonths.join(', ')}`,
+            y,
+            {
+                fontSize: FONT_SMALL,
+            }
+        )
     }
 
-    const monthEntries = new Map()
-    entriesForYear.forEach((/** @type {any} */ entry) => {
-        if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
-            if (!monthEntries.has(entry.monthIndex)) {
-                monthEntries.set(entry.monthIndex, [])
-            }
-            monthEntries.get(entry.monthIndex).push(entry)
-        }
-    })
-
-    const reconciliation = entriesForYear.reconciliation || null
     /** @type {Array<Array<string>>} */
     const bodyRows = []
     /** @type {Array<string | null>} */
     const diffColorByRow = []
     /** @type {Array<number | null>} */
     const payslipIndexByRow = []
-    let totalHours = 0
-    let totalHolidayUnits = 0
-    let totalPayEE = 0
-    let totalPayER = 0
-    let totalPayContrib = 0
-    let totalRepEE = null
-    let totalRepER = null
+    yearViewModel.rows.forEach((/** @type {any} */ row) => {
+        const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
+        bodyRows.push([
+            row.monthLabel,
+            row.hours.toFixed(2),
+            formatPdfYearRowHolidayText(row.holidaySummary),
+            formatBreakdown(
+                row.payrollContribution.total,
+                row.payrollContribution.ee,
+                row.payrollContribution.er
+            ),
+            formatBreakdownOrNA(
+                row.reportedContribution.total,
+                row.reportedContribution.ee,
+                row.reportedContribution.er
+            ),
+            rowDiff.text,
+            row.flagRefs.length ? row.flagRefs.join('; ') : '-',
+        ])
+        diffColorByRow.push(rowDiff.color)
+        payslipIndexByRow.push(row.globalEntryIndex ?? null)
+    })
 
-    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
-        const entries = /** @type {any[]} */ (
-            monthEntries.get(monthIndex) || []
+    /** @type {Array<Array<string>>} */
+    const footRows = []
+    /** @type {Array<string | null>} */
+    const footDiffColors = []
+    yearViewModel.footerRows.forEach((/** @type {any} */ row) => {
+        const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
+        footRows.push(
+            row.id === 'total'
+                ? [
+                      row.label,
+                      row.hours.toFixed(2),
+                      row.holidayHours.toFixed(2) +
+                          formatPdfTotalHolidayBreakdown(
+                              row.yearHolidaySummary
+                          ),
+                      formatBreakdown(
+                          row.payrollContribution.total,
+                          row.payrollContribution.ee,
+                          row.payrollContribution.er
+                      ),
+                      formatBreakdownOrNA(
+                          row.reportedContribution.total,
+                          row.reportedContribution.ee,
+                          row.reportedContribution.er
+                      ),
+                      rowDiff.text,
+                      '-',
+                  ]
+                : [row.label, '', '', '', '', rowDiff.text, '']
         )
-        const calendarMonthIndex = getCalendarMonthFromFiscalIndex(monthIndex)
-        const calendarMonth = calendarMonthIndex
-            ? formatMonthLabel(calendarMonthIndex)
-            : 'Unknown'
-        const reconMonth = reconciliation?.months?.get(monthIndex) || null
-        const actualEE = reconMonth?.actualEE ?? null
-        const actualER = reconMonth?.actualER ?? null
-        const repContrib =
-            actualEE === null || actualER === null ? null : actualEE + actualER
-
-        if (entries.length) {
-            entries.forEach((entry, entryIndex) => {
-                const globalEntryIndex = context.entries.indexOf(entry)
-                const rec = entry.record || null
-                const hours =
-                    rec?.payrollDoc?.payments?.hourly?.basic?.units || 0
-                const holidayHourlyUnits =
-                    rec?.payrollDoc?.payments?.hourly?.holiday?.units || 0
-                const holidaySalaryUnits =
-                    rec?.payrollDoc?.payments?.salary?.holiday?.units || 0
-                const holidayUnits = holidayHourlyUnits + holidaySalaryUnits
-                const nestEE =
-                    rec?.payrollDoc?.deductions?.pensionEE?.amount || 0
-                const nestER =
-                    rec?.payrollDoc?.deductions?.pensionER?.amount || 0
-                const payContrib = nestEE + nestER
-                const overUnder =
-                    repContrib === null ? null : repContrib - payContrib
-                const zeroReview =
-                    repContrib !== null && payContrib === 0 && repContrib === 0
-                const rowDiff = zeroReview
-                    ? { text: formatCurrency(0), color: DIFF_POSITIVE_COLOR }
-                    : formatDiff(overUnder)
-                const flagSummary = entry.validation?.flags?.length
-                    ? entry.validation.flags
-                          .map((/** @type {any} */ f) => f.noteIndex ?? f.label)
-                          .join('; ')
-                    : '-'
-                const monthLabel =
-                    entries.length > 1
-                        ? `${calendarMonth} (${entryIndex + 1})`
-                        : calendarMonth
-
-                bodyRows.push([
-                    monthLabel,
-                    hours.toFixed(2),
-                    holidayUnits.toFixed(2),
-                    formatBreakdown(payContrib, nestEE, nestER),
-                    formatBreakdownOrNA(repContrib, actualEE, actualER),
-                    rowDiff.text,
-                    flagSummary,
-                ])
-                diffColorByRow.push(rowDiff.color)
-                payslipIndexByRow.push(
-                    globalEntryIndex >= 0 ? globalEntryIndex : null
-                )
-
-                totalHours += hours
-                totalHolidayUnits += holidayUnits
-                totalPayEE += nestEE
-                totalPayER += nestER
-                totalPayContrib += payContrib
-            })
-        } else {
-            const overUnder = repContrib === null ? null : repContrib - 0
-            const emptyDiff = formatDiff(overUnder)
-            bodyRows.push([
-                calendarMonth,
-                '0.00',
-                '0.00',
-                formatBreakdown(0, 0, 0),
-                formatBreakdownOrNA(repContrib, actualEE, actualER),
-                emptyDiff.text,
-                '-',
-            ])
-            diffColorByRow.push(emptyDiff.color)
-            payslipIndexByRow.push(null)
-        }
-    }
-
-    if (reconciliation) {
-        totalRepEE = reconciliation.totals?.actualEE ?? null
-        totalRepER = reconciliation.totals?.actualER ?? null
-    }
-    const totalRepContrib =
-        totalRepEE === null || totalRepER === null
-            ? null
-            : (totalRepEE || 0) + (totalRepER || 0)
-    const totalOverUnder =
-        totalRepContrib === null ? null : totalRepContrib - totalPayContrib
-
-    const totalOverUnderDiff = formatDiff(totalOverUnder)
+        footDiffColors.push(rowDiff.color)
+    })
 
     y = writeTable(
         doc,
@@ -792,7 +751,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 [
                     'Month',
                     'Hours',
-                    'Holiday Units',
+                    'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'Over/Under',
@@ -800,21 +759,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 ],
             ],
             body: bodyRows,
-            foot: [
-                [
-                    'Total',
-                    totalHours.toFixed(2),
-                    totalHolidayUnits.toFixed(2),
-                    formatBreakdown(totalPayContrib, totalPayEE, totalPayER),
-                    formatBreakdownOrNA(
-                        totalRepContrib,
-                        totalRepEE,
-                        totalRepER
-                    ),
-                    totalOverUnderDiff.text,
-                    '-',
-                ],
-            ],
+            foot: footRows,
         },
         y,
         {
@@ -823,7 +768,7 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
                 if (data.column.index === 5) {
                     const color =
                         data.section === 'foot'
-                            ? totalOverUnderDiff.color
+                            ? (footDiffColors[data.row.index] ?? null)
                             : (diffColorByRow[data.row.index] ?? null)
                     if (color) {
                         data.cell.styles.textColor = color
@@ -856,58 +801,37 @@ function renderYearPage(doc, entriesForYear, yearKey, context, pageNumbers) {
         }
     )
 
-    const yearFlagNotes = /** @type {string[]} */ ([])
-    const yearFlagIndexById = new Map()
-    entriesForYear.forEach((/** @type {any} */ entry) => {
-        const entryFlags = entry.validation?.flags || []
-        entryFlags.forEach((/** @type {any} */ flag) => {
-            if (!yearFlagIndexById.has(flag.id)) {
-                yearFlagIndexById.set(flag.id, yearFlagNotes.length + 1)
-                yearFlagNotes.push(flag.label)
-            }
-        })
-    })
-    if (yearFlagNotes.length) {
+    if (yearViewModel.miscReviewItems.length) {
+        y = writeHeading(doc, 'Misc entries to review', y)
+        y = writeText(
+            doc,
+            yearViewModel.miscReviewItems.map((/** @type {any} */ item) =>
+                formatPdfMiscReviewLine(item)
+            ),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
+    if (yearViewModel.flagNotes.length) {
         y = writeHeading(doc, 'Flag notes', y)
         y = writeText(
             doc,
-            yearFlagNotes.map((label, i) => `${i + 1}. ${label}`),
+            yearViewModel.flagNotes.map(
+                (/** @type {any} */ note) => `${note.index}. ${note.label}`
+            ),
             y,
             { fontSize: FONT_SMALL }
         )
     }
 
-    const yearHasAprilEntry = entriesForYear.some(
-        (/** @type {any} */ e) =>
-            e.parsedDate instanceof Date && e.parsedDate.getMonth() === 3
-    )
-    const yearLowPretaxPay = entriesForYear.some((/** @type {any} */ e) => {
-        const gross = e.record?.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < 1048
-    })
-    const yearPageNotes = []
-    if (yearHasAprilEntry) yearPageNotes.push(APRIL_BOUNDARY_NOTE)
-    if (yearLowPretaxPay) yearPageNotes.push(ZERO_TAX_ALLOWANCE_NOTE)
-    writePageFooterNotes(doc, yearPageNotes)
-
-    const yearFootnotes = collectMiscFootnotes(entriesForYear)
-    if (yearFootnotes.length) {
-        y = writeHeading(doc, 'Misc entries to review', y)
-        writeText(
-            doc,
-            yearFootnotes.map((f) => {
-                const typeLabel =
-                    f.type === 'deduction' ? 'Deduction' : 'Payment'
-                const amountLabel =
-                    f.type === 'deduction'
-                        ? formatDeduction(f.item.amount || 0)
-                        : formatCurrency(f.item.amount || 0)
-                return `${f.dateLabel}: ${typeLabel}: ${formatMiscLabel(f.item)}: ${amountLabel}`
-            }),
-            y,
-            { fontSize: FONT_SMALL }
-        )
+    if (yearViewModel.notes.length) {
+        y += LINE_GAP
+        yearViewModel.notes.forEach((/** @type {any} */ note) => {
+            y = writeText(doc, note.text, y, { fontSize: FONT_SMALL })
+        })
     }
+
     return pageNumber
 }
 
@@ -921,18 +845,15 @@ function renderPayslipPage(doc, entry) {
     const pageNumber = /** @type {any} */ (doc).getCurrentPageInfo().pageNumber
     let y = PAGE_MARGIN
 
-    const record = entry.record
-    const dateLabel = entry.parsedDate
-        ? formatEntryDateLabel(entry.parsedDate)
-        : record?.payrollDoc?.processDate?.date || 'Unknown'
+    const payslipViewModel = buildPayslipViewModel(entry)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(FONT_HEADING)
     doc.setTextColor('#000000')
-    doc.text(`Payslip details - ${dateLabel}`, PAGE_MARGIN, y)
+    doc.text(`Payslip details - ${payslipViewModel.dateLabel}`, PAGE_MARGIN, y)
     y += FONT_HEADING + LINE_GAP
 
-    const imageData = normalizeImageData(entry.record?.imageData || null)
+    const imageData = normalizeImageData(payslipViewModel.imageData || null)
     if (imageData) {
         try {
             const props = doc.getImageProperties(imageData)
@@ -966,37 +887,18 @@ function renderPayslipPage(doc, entry) {
         }
     }
 
-    const hourlyPayments = record?.payrollDoc?.payments?.hourly || {}
-    const salaryPayments = record?.payrollDoc?.payments?.salary || {}
-    const miscPayments = record?.payrollDoc?.payments?.misc || []
-
     /** @type {Array<Array<string>>} */
     const paymentRows = []
-    const basicHours = hourlyPayments.basic?.units || 0
-    const basicAmount = hourlyPayments.basic?.amount || 0
-    const holidayHoursUnits = hourlyPayments.holiday?.units || 0
-    const holidayAmount = hourlyPayments.holiday?.amount || 0
-    const basicSalaryAmount = salaryPayments.basic?.amount ?? null
-    const holidaySalaryAmount = salaryPayments.holiday?.amount ?? null
-
-    if (basicHours || basicAmount) {
-        paymentRows.push(['Basic Hours', formatCurrency(basicAmount)])
-    }
-    if (holidayHoursUnits || holidayAmount) {
-        paymentRows.push(['Holiday Hours', formatCurrency(holidayAmount)])
-    }
-    if (basicSalaryAmount !== null) {
-        paymentRows.push(['Basic Salary', formatCurrency(basicSalaryAmount)])
-    }
-    if (holidaySalaryAmount !== null) {
+    payslipViewModel.paymentRows.forEach((item) => {
+        const breakdown =
+            item.units != null && item.rate != null && item.rate !== 0
+                ? ` (${Number(item.units).toFixed(2)} @ ${formatCurrency(Number(item.rate))})`
+                : ''
+        const estSuffix = item.holidayEstimatedDaysSuffix
+            ? ` - ${item.holidayEstimatedDaysSuffix}`
+            : ''
         paymentRows.push([
-            'Holiday Salary',
-            formatCurrency(holidaySalaryAmount),
-        ])
-    }
-    miscPayments.forEach((/** @type {any} */ item) => {
-        paymentRows.push([
-            formatMiscLabel(item),
+            `${item.label}${breakdown}${estSuffix}`,
             formatCurrency(item.amount || 0),
         ])
     })
@@ -1012,28 +914,33 @@ function renderPayslipPage(doc, entry) {
         y
     )
 
-    const miscDeductions = record?.payrollDoc?.deductions?.misc || []
-    const payeTax = record?.payrollDoc?.deductions?.payeTax?.amount || 0
-    const natIns = record?.payrollDoc?.deductions?.natIns?.amount || 0
-    const nestEE = record?.payrollDoc?.deductions?.pensionEE?.amount || 0
-    const nestER = record?.payrollDoc?.deductions?.pensionER?.amount || 0
-    const netPay = record?.payrollDoc?.netPay?.amount || 0
+    if (payslipViewModel.holidayAnalysis) {
+        const holidayAnalysis = payslipViewModel.holidayAnalysis
+        y = writeHeading(doc, 'Holiday analysis', y, {
+            fontSize: FONT_BODY,
+            preGap: HEADING_PRE_GAP,
+            gap: LINE_GAP,
+        })
+        y = writeText(
+            doc,
+            [
+                holidayAnalysis.intro,
+                ...holidayAnalysis.items,
+                holidayAnalysis.footer,
+            ],
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
 
-    /** @type {Array<Array<string>>} */
-    const deductionRows = [
-        ['PAYE Tax', formatDeduction(payeTax)],
-        ['National Insurance', formatDeduction(natIns)],
-        ['NEST Corp - EE', formatDeduction(nestEE)],
-        ['NEST Corp - ER', formatContribution(nestER)],
-    ]
-    miscDeductions.forEach((/** @type {any} */ item) => {
-        deductionRows.push([
-            formatMiscLabel(item),
-            formatDeduction(item.amount || 0),
-        ])
-    })
-    deductionRows.push(['Combined NEST', formatCurrency(nestEE + nestER)])
-    deductionRows.push(['Net Pay (after deductions)', formatCurrency(netPay)])
+    const deductionRows = payslipViewModel.deductionRows.map((item) => [
+        item.label,
+        item.amountType === 'deduction'
+            ? formatDeduction(item.amount || 0)
+            : item.amountType === 'contribution'
+              ? formatContribution(item.amount || 0)
+              : formatCurrency(item.amount || 0),
+    ])
 
     y = writeTable(
         doc,
@@ -1041,24 +948,21 @@ function renderPayslipPage(doc, entry) {
         y
     )
 
-    const natInsNumber = record?.employee?.natInsNumber || ''
-    if (!natInsNumber) {
-        y = writeText(doc, 'Warning: National Insurance number missing.', y, {
-            fontSize: FONT_SMALL,
-            bold: true,
-        })
-    }
-
-    const validationFlags = entry.validation?.flags || []
-    if (validationFlags.length) {
+    if (payslipViewModel.warnings.length) {
         y = writeHeading(doc, 'Warnings', y, { fontSize: FONT_BODY })
         y = writeText(
             doc,
-            validationFlags.map((/** @type {any} */ f) => `• ${f.label}`),
+            payslipViewModel.warnings.map(
+                (/** @type {string} */ warning) => `• ${warning}`
+            ),
             y,
             { fontSize: FONT_SMALL }
         )
     }
+    payslipViewModel.footerNotes.forEach((note) => {
+        const noteText = note.marker ? `${note.marker} ${note.text}` : note.text
+        y = writeText(doc, noteText, y, { fontSize: FONT_SMALL })
+    })
     return pageNumber
 }
 
@@ -1073,7 +977,7 @@ function renderPayslipPage(doc, entry) {
  * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null } }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta?: { fileCount: number, recordCount: number, dateRangeLabel: string }, reportGeneratedLabel?: string, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency?: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile?: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number, leaveYearStartMonth: number }, contractTypeMismatchWarning?: string | null, leaveYearGroups?: Map<string, YearEntries>, employeeName?: string }} ReportContext
  */
 
 /**
@@ -1093,20 +997,46 @@ export async function exportReportPdf(context, meta) {
     /** @type {Map<number, number>} */
     const payslipPageNumbers = new Map()
 
-    context.entries.forEach((entry, index) => {
-        const pageNumber = renderPayslipPage(doc, entry)
-        payslipPageNumbers.set(index, pageNumber)
+    const pdfYearKeys = /** @type {string[]} */ ([])
+    context.yearGroups.forEach(
+        (/** @type {any} */ _v, /** @type {string} */ k) =>
+            pdfYearKeys.push(String(k || 'Unknown'))
+    )
+
+    // Pre-calculate payslip page numbers so year pages can link to them.
+    // Final page order: 1=summary (inserted last), 2..Y+1=year pages, Y+2..end=payslips.
+    const firstPayslipPage = pdfYearKeys.length + 2
+    context.entries.forEach((_, index) => {
+        payslipPageNumbers.set(index, firstPayslipPage + index)
     })
 
+    context.employeeName = meta.employeeName || 'Unknown'
+
     context.yearGroups.forEach((entriesForYear, yearKey) => {
+        const strYearKey = String(yearKey || 'Unknown')
+        const yearIdx = pdfYearKeys.indexOf(strYearKey)
+        let openingBalance = 0
+        if (yearIdx > 0 && context.contributionSummary) {
+            for (let i = 0; i < yearIdx; i += 1) {
+                openingBalance +=
+                    context.contributionSummary.years.get(pdfYearKeys[i])
+                        ?.totals?.delta ?? 0
+            }
+        }
         const pageNumber = renderYearPage(
             doc,
             entriesForYear,
-            String(yearKey || 'Unknown'),
+            strYearKey,
             context,
-            { yearPageNumbers, payslipPageNumbers }
+            { yearPageNumbers, payslipPageNumbers },
+            openingBalance
         )
-        yearPageNumbers.set(String(yearKey || 'Unknown'), pageNumber)
+        yearPageNumbers.set(strYearKey, pageNumber)
+    })
+
+    context.entries.forEach((entry, index) => {
+        const pageNumber = renderPayslipPage(doc, entry)
+        payslipPageNumbers.set(index, pageNumber)
     })
 
     const docAny = /** @type {any} */ (doc)
