@@ -1307,6 +1307,22 @@
                                 <br />
                                 (5.6 × days/week, capped at 28)
                             </span>
+                            <span
+                                v-if="entitlementBelowMinimum"
+                                class="field-hint field-hint--warning"
+                            >
+                                ⚠ This is below the statutory minimum of {{
+                                suggestedStatutoryDays }} days for a {{
+                                workerProfile.typicalDays }}-day week. Employers
+                                cannot legally offer less than 5.6 weeks of paid
+                                holiday. Check your contract or speak to
+                                <a
+                                    href="https://www.acas.org.uk/checking-holiday-entitlement"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    >ACAS</a
+                                >.
+                            </span>
                         </label>
                         <label class="field">
                             <span>Holiday year start month</span>

@@ -35,6 +35,21 @@ export function isZeroHoursWorker() {
 
 /**
  * @this {import('./app.js').PayrollAppInstance}
+ * @returns {boolean}
+ */
+export function entitlementBelowMinimum() {
+    const suggested = this.suggestedStatutoryDays
+    const entered = this.workerProfile.statutoryHolidayDays
+    return (
+        suggested !== null &&
+        entered !== null &&
+        entered > 0 &&
+        entered < suggested
+    )
+}
+
+/**
+ * @this {import('./app.js').PayrollAppInstance}
  * @returns {string | number}
  */
 export function statutoryHolidayInputValue() {

@@ -59,6 +59,7 @@ import {
     UNKNOWN_APP_VERSION,
 } from './app_version.js'
 import {
+    entitlementBelowMinimum,
     isZeroHoursWorker,
     statutoryHolidayInputValue,
     suggestedStatutoryDays,
@@ -155,6 +156,7 @@ import { copyDebugOutput, DEBUG_ENABLED, DEBUG_LEVEL } from './debug_tools.js'
  *     canShare: boolean,
  *     suggestedStatutoryDays: number | null,
  *     isZeroHoursWorker: boolean,
+ *     entitlementBelowMinimum: boolean,
  *     statutoryHolidayInputValue: string | number,
  *     updateStatutoryHolidayDays(event: Event): void,
  *     sharePdf(): Promise<void>,
@@ -294,6 +296,7 @@ export function initPayrollApp() {
                 canShare,
                 suggestedStatutoryDays,
                 isZeroHoursWorker,
+                entitlementBelowMinimum,
                 statutoryHolidayInputValue,
             },
             watch: {
@@ -335,43 +338,6 @@ export function initPayrollApp() {
                         this.$nextTick(() => {
                             this._updatingWorkerProfile = false
                         })
-                    }
-                },
-                /** @this {PayrollAppInstance} @param {number} newHolidayDays */
-                'workerProfile.statutoryHolidayDays'(newHolidayDays) {
-                    if (this._updatingWorkerProfile) {
-                        return
-                    }
-                    const currentDays = this.workerProfile.typicalDays
-                    if (currentDays <= 0) {
-                        return
-                    }
-                    const statutoryMinimum =
-                        Math.round(Math.min(5.6 * currentDays, 28) * 10) / 10
-
-                    // If user sets holiday entitlement below statutory minimum, adjust typicalDays downward
-                    // Only adjust if the new value doesn't match the current statutory minimum
-                    if (
-                        newHolidayDays < statutoryMinimum &&
-                        newHolidayDays > 0 &&
-                        newHolidayDays !== statutoryMinimum
-                    ) {
-                        // Reverse calculation: days = holidayDays / 5.6
-                        const impliedDays = newHolidayDays / 5.6
-                        const newTypicalDays = Math.max(
-                            this.workerProfile.workerType === 'salary'
-                                ? 0.5
-                                : 0,
-                            Math.round(impliedDays * 10) / 10
-                        )
-                        // Only update if it would actually change the value (prevents watcher loop)
-                        if (newTypicalDays !== currentDays) {
-                            this._updatingWorkerProfile = true
-                            this.workerProfile.typicalDays = newTypicalDays
-                            this.$nextTick(() => {
-                                this._updatingWorkerProfile = false
-                            })
-                        }
                     }
                 },
                 /** @this {PayrollAppInstance} @param {string} newType */
