@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.5.0...anonymous-payroll-reporter-v3.5.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* **pwa:** include holiday calculator in build output via public asset placement ([8dd7ba4](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8dd7ba43f6dfb477ca336f25ac2f8ac624a89a44))
+
 ## [3.5.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.4...anonymous-payroll-reporter-v3.5.0) (2026-03-24)
 
 
