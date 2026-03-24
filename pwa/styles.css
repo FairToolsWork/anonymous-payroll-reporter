@@ -80,6 +80,7 @@
     --notice-text: hsl(35deg 52% 32%);
     --warning-bg: hsl(12deg 100% 95%);
     --warning-text: hsl(16deg 62% 47%);
+    --warning-border: hsl(16deg 62% 47%);
     --warning-callout-bg: hsl(0deg 68% 48% / 14%);
     --warning-callout-text: hsl(14deg 52% 32%);
     --warning-callout-border: hsl(42deg 68% 48% / 45%);
@@ -1037,6 +1038,12 @@ details .notice {
     color: var(--info-text);
 }
 
+.notice.error {
+    color: var(--warning-callout-text);
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
 .notice.callout {
     border-color: var(--warning-callout-border);
     background: var(--warning-callout-bg);
@@ -1383,6 +1390,7 @@ dialog.modal-dialog.calc-modal {
     flex-flow: column wrap;
     gap: var(--space-12);
     margin-top: var(--space-12);
+    margin-bottom: var(--space-12);
 }
 
 .disclaimer.inline {
@@ -1439,16 +1447,6 @@ dialog.modal-dialog.calc-modal {
 .upload.disabled {
     opacity: 0.5;
     pointer-events: none;
-}
-
-.error {
-    color: var(--warning-callout-text);
-    font-weight: 600;
-    background: var(--warning-bg);
-    border: 1px solid rgb(179 38 30 / 16%);
-    border: 1px solid color-mix(in srgb, var(--warning-bg) 10%, transparent);
-    padding: var(--space-12);
-    border-radius: var(--radius-12);
 }
 
 .progress {

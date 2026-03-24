@@ -62,7 +62,7 @@ export function stageFiles(rawFiles) {
     }
     if (duplicates.length) {
         this.notice =
-            'Warning: Duplicate files detected, these will be skipped automatically.'
+            'NOTICE: Duplicate files detected, these will be skipped automatically.'
     } else {
         this.notice = ''
     }

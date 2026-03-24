@@ -302,7 +302,7 @@ export async function processFiles(files) {
         })
         if (e && e.message === 'PASSWORD_REQUIRED') {
             this.error =
-                'A password is required for one or more of the uploaded PDF(s). Enter a password and try again.'
+                'ERROR: A password is required for one or more of the uploaded PDF(s). Enter a password and try again.'
             document.getElementById('pdf-password')?.focus()
         } else if (e && e.message === 'INCORRECT_PASSWORD') {
             const fileLabel = e?.fileName ? ` for ${e.fileName}` : ''
