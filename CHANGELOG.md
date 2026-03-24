@@ -1,5 +1,45 @@
 # Changelog
 
+## [3.5.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.4...anonymous-payroll-reporter-v3.5.0) (2026-03-24)
+
+
+### Features
+
+* **debug:** add run snapshot capture and expand debug UI sections ([db84e13](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/db84e135150c7be1e611a4041dc9cd1fd84ac2fc))
+* **debug:** add timing and memory diagnostics across report workflow ([e331f40](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/e331f40328cfb267ab74c28520f950e12989df6a))
+* **holiday:** add holiday calculations across app and modularize reporting math ([7fdf98c](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7fdf98c64c2a8d3167e8b7e8cda7c121d50fdacf))
+* **holiday:** add salaried holiday reference docs and tighten hourly notes ([046f69a](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/046f69a4870727b460e30e9c61249a957f74f158))
+* **holiday:** expand worker profile inputs and holiday day reporting ([32df50f](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/32df50ffd87805f01b8523e292a8e0a0b4305d21))
+* **holiday:** use rolling 52-week averages for holiday pay flags ([b065f45](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b065f4505a9f4d248167c160d7d3cfa35bae75c5))
+* **pwa/hol-calc:** add 12.07% accrual entitlement for zero-hours workers, improve calculator UX ([a96082f](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/a96082f81a30d7ab50e0d41f6f6f07a4a4412691))
+* **pwa/hol-calc:** add gross-pay mode, shared About component, zero-hours UX improvements ([2abeb51](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/2abeb51152c4ee59647b183457ef550db68e1650))
+* **pwa/holiday-calculations:** apply 12.07% accrual method for leave years from April 2024 ([c0c188b](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/c0c188b79d948c492e2fb6fb542ae80f8e6d36ce))
+* **pwa:** add holiday calculations page and navigation shell ([5272b47](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/5272b4768a2033ea0f730e5ec5e708c21cc4122e))
+* **report/holidays:** clarify accrual method labeling, align entitlement math, add alignment tests ([d75b5f5](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/d75b5f5a01b9f08dab0b254ab7e88c50c7c1f1fa))
+* **report:** add animated details and richer PDF year summaries ([7c45b7e](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7c45b7e7f12ef018476275c65c9fda89941e3455))
+* **report:** add PDF summary table and warning callout styling ([52e8ccf](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/52e8ccfe50b0a16c41978c76858e83bb3dcf7138))
+* **report:** add pension balance rollups and refine PDF year summaries ([e817fdc](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/e817fdc199eec24b9bbd4d974385c76ea68b9014))
+* **report:** add shared payslip view model and renderer parity ([8f0dba2](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8f0dba2f9c0d829953d506a98037d03598295f75))
+* **report:** add zero-hours entitlement hours and responsive UI tweaks ([30c10f3](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/30c10f3f37056d9f6e7d5b9f3e31a0c03e749efc))
+* **report:** animate details and extend PDF summary context ([f70179a](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/f70179a3efcaf17b0e5812381ca77252b226c262))
+* **report:** refine zero-hours handling and pension balance labeling ([2b8bf92](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/2b8bf928a6285a43d3905153d643d2c3b16a3864))
+* **report:** share summary and year view models across renderers ([c1026fe](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/c1026fe7d1404ab8c666c1c40b28a3c74efa760d))
+* **ui:** add leave-year controls and redesign worker profile layout ([742c7e9](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/742c7e91db926767ae67befc7500065d68272a7e))
+
+
+### Bug Fixes
+
+* **holiday:** guard salaried day estimates and stabilize rolling cutoff ([b214411](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b214411e72dea46dc695a2d688669ec633a4a99e))
+* **pdf:** avoid unsupported unicode in holiday analysis and improve layout spacing ([fe0eae1](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/fe0eae1af6c3c1a98097745064ee646aefcf6f9b))
+* **pwa/app_worker_profile:** clear statutory entitlement to null instead of zero on empty input ([7d07037](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7d0703722e056d080f62bd3223e6856ae7fa3272))
+* **pwa/app:** simplify modal backdrop detection, accessibility and CSS de-scoping improvements ([dcd6bb6](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/dcd6bb69be77302c0bd82f61edd451a917ed6382))
+* **pwa/worker-profile:** warn when statutory entitlement is below legal minimum, remove auto-adjust ([7135dd4](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7135dd4c9f3b4141824e407ac186b193f0684d75))
+
+
+### Performance Improvements
+
+* **report:** parallelize pdf parsing to speed multi-file workloads ([c555b37](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/c555b37dd513653cc8d35638d247b5f44219f006))
+
 ## [3.4.4](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.4.3...anonymous-payroll-reporter-v3.4.4) (2026-03-13)
 
 
