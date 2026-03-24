@@ -6,7 +6,8 @@
 export function updateStatutoryHolidayDays(event) {
     if (!this.isZeroHoursWorker) {
         const target = /** @type {HTMLInputElement} */ (event.target)
-        this.workerProfile.statutoryHolidayDays = parseFloat(target.value) || 0
+        this.workerProfile.statutoryHolidayDays =
+            parseFloat(target.value) || null
     }
 }
 
