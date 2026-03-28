@@ -297,18 +297,31 @@ export function buildYearHolidaySummary(
         }
     }
 
-    const firstEntryCtx = firstEntry?.holidayContext
-    const firstAvgHoursPerDay = firstEntryCtx?.avgHoursPerDay ?? 0
-    const firstTypicalDays = firstEntryCtx?.typicalDays ?? 0
+    /** Scan backwards for the last entry with a usable baseline (most data). */
+    let baselineCtx = null
+    for (let i = entriesForYear.length - 1; i >= 0; i--) {
+        const ctx = entriesForYear[i]?.holidayContext
+        if (
+            ctx?.hasBaseline &&
+            (ctx.avgHoursPerDay ?? 0) > 0 &&
+            (ctx.typicalDays ?? 0) > 0
+        ) {
+            baselineCtx = ctx
+            break
+        }
+    }
+    const baselineAvgHoursPerDay = baselineCtx?.avgHoursPerDay ?? 0
+    const baselineTypicalDays = baselineCtx?.typicalDays ?? 0
     if (
-        firstEntryCtx?.hasBaseline &&
-        firstAvgHoursPerDay > 0 &&
-        firstTypicalDays > 0
+        baselineCtx?.hasBaseline &&
+        baselineAvgHoursPerDay > 0 &&
+        baselineTypicalDays > 0
     ) {
-        const daysTaken = holidayHours / firstAvgHoursPerDay
+        const daysTaken = holidayHours / baselineAvgHoursPerDay
         if (statutoryHolidayDays !== null) {
             const daysRemainingRaw = statutoryHolidayDays - daysTaken
-            const entitlementHours = statutoryHolidayDays * firstAvgHoursPerDay
+            const entitlementHours =
+                statutoryHolidayDays * baselineAvgHoursPerDay
             const hoursRemainingRaw = entitlementHours - holidayHours
             return {
                 kind: 'hourly_days',

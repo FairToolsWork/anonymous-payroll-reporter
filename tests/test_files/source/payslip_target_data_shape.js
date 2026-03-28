@@ -75,7 +75,7 @@ export default {
             },
             misc: [
                 {
-                    title: 'Basic Hours-make up',
+                    title: 'Basic Hours make-up',
                     units: 56.5,
                     rate: 10,
                     amount: 565,

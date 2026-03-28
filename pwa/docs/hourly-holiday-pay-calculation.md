@@ -14,7 +14,7 @@ UK employment law distinguishes two categories of hourly worker for the purposes
 
 **Fixed-hours workers** receive a fixed number of hours per week at a fixed rate. Their statutory holiday pay entitlement is simply their normal weekly pay — i.e. the same hourly rate they receive for ordinary work. No historical averaging is required.
 
-**Irregular-hours and part-year workers** have no fixed schedule. Their holiday pay must be calculated as the average weekly pay over the previous 52 _paid_ weeks. Where a week falls within that window but the worker received only statutory sick pay, statutory maternity/paternity/adoption pay, or no pay at all, that week is skipped and an earlier week is substituted in its place — the employer looks back as far as needed, up to a maximum of 104 weeks, to find 52 weeks of ordinary pay. ([ACAS: Holiday pay for irregular hours and part-year workers](https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay))
+**Irregular-hours and part-year workers** have no fixed schedule. Their holiday pay must be calculated as the average weekly pay over the previous 52 _paid_ weeks. Where a week falls within that window but the worker received only statutory sick pay, statutory maternity/paternity/adoption pay, <i>or no pay at all</i>, that week is skipped and an earlier week is substituted in its place — your employer should also be looking back as far as needed, up to a maximum of 104 weeks, to find 52 weeks of ordinary pay. ([ACAS: Holiday pay for irregular hours and part-year workers](https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay))
 
 This is codified in the Employment Rights Act 1996 (as amended by the Employment Rights (Amendment, Revocation and Transitional Provision) Regulations 2023) and explained in ACAS guidance for irregular hours and part-year workers.
 
@@ -464,6 +464,12 @@ None of the above fields affect the underlying payslip parsing or the 52-week ro
 By default, the holiday hours total shown in each Annual Totals row is the sum of `hourly.holiday.units` for all payslips in that **tax year** (April – March). When `leaveYearStartMonth` is set to a different month, the tool instead sums holiday hours from the **leave year** group that the first entry of each tax year belongs to, and appends a **"Leave year: …"** note to the holiday cell.
 
 The 52-week rolling reference average (`avgHoursPerDay`) is computed per entry across all entries regardless of year grouping — it is unaffected by `leaveYearStartMonth`.
+
+### Baseline selection for the Annual Totals day estimate
+
+When converting the year's total holiday hours to estimated days, the year summary scans the year's entries **backwards** and uses the `avgHoursPerDay` from the **last entry with a valid baseline** (`hasBaseline: true`, `avgHoursPerDay > 0`, `typicalDays > 0`). The last entry typically has the most complete rolling reference (more eligible prior periods), making it the most representative snapshot available.
+
+This means a new starter whose first few months lack a baseline (fewer than 3 eligible prior periods) will still see a day estimate in the Annual Totals once enough payslips accumulate — even though those early entries individually could not produce a day estimate. If no entry in the year has a valid baseline, the summary falls back to hours-only display.
 
 ---
 

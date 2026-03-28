@@ -239,11 +239,19 @@
             aria-hidden="true"
             style="display: none; visibility: hidden"
         >
-            <symbol viewBox="0 0 24 24" id="ic-baseline-help-outline">
+            <symbol viewBox="0 0 24 24" id="help-outline">
                 <!-- Icon from Google Material Icons by Material Design Authors - https://github.com/material-icons/material-icons/blob/master/LICENSE -->
                 <path
                     fill="currentColor"
                     d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5c0-2.21-1.79-4-4-4"
+                ></path>
+            </symbol>
+
+            <symbol viewBox="0 0 24 24" id="open-in-new">
+                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                <path
+                    fill="currentColor"
+                    d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h14v-7h2v7q0 .825-.587 1.413T19 21zm4.7-5.3l-1.4-1.4L17.6 5H14V3h7v7h-2V6.4z"
                 ></path>
             </symbol>
         </svg>
@@ -312,6 +320,7 @@
                         leaves your computer.
                     </p>
                     <div class="pill-row">
+                        <span class="pill">UK Edition</span>
                         <span
                             v-if="activePayrollPill"
                             class="pill"
@@ -414,9 +423,7 @@
                                         height="1.2em"
                                         viewBox="0 0 24 24"
                                     >
-                                        <use
-                                            href="#ic-baseline-help-outline"
-                                        ></use>
+                                        <use href="#help-outline"></use>
                                     </svg>
                                 </summary>
                                 <ul>
@@ -482,7 +489,19 @@
                                 </h3>
                             </header>
                             <details name="nest-top" open="">
-                                <summary>Logging into NEST</summary>
+                                <summary>
+                                    Logging into NEST
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use href="#help-outline"></use>
+                                    </svg>
+                                </summary>
                                 <ul>
                                     <li>
                                         If you've never logged into NEST, first
@@ -491,8 +510,19 @@
                                             target="_blank"
                                             rel="noopener"
                                             href="https://www.nestpensions.org.uk/user/registration/enrolled/personal-details/nest-id/"
-                                            >Sign up for NEST</a
-                                        >
+                                            >Sign up for NEST
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use
+                                                    href="#open-in-new"
+                                                ></use></svg
+                                        ></a>
                                         <br />
                                     </li>
                                 </ul>
@@ -517,9 +547,7 @@
                                         height="1.2em"
                                         viewBox="0 0 24 24"
                                     >
-                                        <use
-                                            href="#ic-baseline-help-outline"
-                                        ></use>
+                                        <use href="#help-outline"></use>
                                     </svg>
                                 </summary>
                                 <p>
@@ -532,8 +560,17 @@
                                         href="https://member.nestpensions.org.uk/app/contributions/contribution-history"
                                         target="_blank"
                                         rel="noopener"
-                                        >NEST: Contribution history</a
-                                    >
+                                        >NEST: Contribution history
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
                                 </p>
                                 <ol>
                                     <li>
@@ -720,37 +757,290 @@
                             </header>
                             <p>
                                 The report shows estimated holiday days taken
-                                and flags potential pay discrepancies. For the
-                                full guide and pay calculator, see the Holiday
-                                Calculations page.
+                                and flags potential pay discrepancies.
                             </p>
-                            <a
-                                href="holiday-calculations.html"
-                                class="primary accent hol-calc-btn"
-                            >
-                                Holiday Pay Guide &amp; Calculator
-                            </a>
+                            <p>
+                                We have a full guide to help workers understand
+                                their entitlements, and a holiday pay calculator
+                                especially for hourly workers.
+                            </p>
+                            <p>
+                                <a
+                                    href="holiday-calculations.html"
+                                    class="button primary accent-green hol-calc-btn"
+                                >
+                                    Holiday Pay Guide &amp; Calculator
+                                </a>
+                            </p>
+                        </div>
+                        <div class="card pensions">
+                            <header>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
+                                        d="M14 13q-1.25 0-2.125-.875T11 10t.875-2.125T14 7t2.125.875T17 10t-.875 2.125T14 13m-7 3q-.825 0-1.412-.587T5 14V6q0-.825.588-1.412T7 4h14q.825 0 1.413.588T23 6v8q0 .825-.587 1.413T21 16zm2-2h10q0-.825.588-1.412T21 12V8q-.825 0-1.412-.587T19 6H9q0 .825-.587 1.413T7 8v4q.825 0 1.413.588T9 14m10 6H3q-.825 0-1.412-.587T1 18V8q0-.425.288-.712T2 7t.713.288T3 8v10h16q.425 0 .713.288T20 19t-.288.713T19 20M7 14V6z"
+                                    />
+                                </svg>
+                                <h3>Pension Payments</h3>
+                            </header>
+                            <p>
+                                The report shows the amounts deducted for
+                                pensions and flags potential pay discrepancies.
+                            </p>
+                            <h3>Pensions: Know Your Rights</h3>
+                            <ul class="pension-rights">
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            Eligibility
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <ul>
+                                            <li>
+                                                <strong>Auto‑enrolment:</strong>
+                                                Workers must be automatically
+                                                enrolled if they are
+                                                <i
+                                                    >aged 22 up to State Pension
+                                                    Age</i
+                                                >
+                                                and earn
+                                                <i>£10,000 or more per year</i>.
+                                            </li>
+
+                                            <li>
+                                                <strong
+                                                    >Right to opt in (with
+                                                    employer
+                                                    contributions):</strong
+                                                >
+                                                Workers earning
+                                                <i
+                                                    >between £6,240 and £9,999
+                                                    per year</i
+                                                >
+                                                should not be auto‑enrolled, but
+                                                may opt in. Employers must
+                                                contribute if they do.
+                                            </li>
+
+                                            <li>
+                                                <strong
+                                                    >Right to join (no employer
+                                                    contribution
+                                                    required):</strong
+                                                >
+                                                Workers earning
+                                                <i>below £6,240 per year</i> may
+                                                still join the pension scheme,
+                                                but employers are not required
+                                                to contribute.
+                                            </li>
+                                        </ul>
+                                    </details>
+                                </li>
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            Enrolment timing
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <p>
+                                            Employers must enrol eligible
+                                            workers within 6 weeks (or notify if
+                                            using up to 3‑month postponement).
+                                        </p>
+                                    </details>
+                                </li>
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            Minimum contributions
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <p>
+                                            For employees with qualifying
+                                            earnings between
+                                            <strong>£6,240 and £50,270</strong>,
+                                            the minimum pension contribution is
+                                            <strong
+                                                >8% of qualifying
+                                                earnings</strong
+                                            >
+                                            (3% from your employer and 5% from
+                                            your pay).
+                                        </p>
+
+                                        <p>
+                                            If you are in the
+                                            <strong>NEST</strong> pension
+                                            scheme, only <strong>4%</strong> is
+                                            deducted from your wage. The
+                                            remaining <strong>1%</strong> of
+                                            your 5% worker contribution is added
+                                            as
+                                            <i>government tax relief</i> inside
+                                            your NEST account.
+                                        </p>
+
+                                        <p class="notice">
+                                            <strong
+                                                >Qualifying Earnings
+                                                Explained:</strong
+                                            ><br />
+                                            Qualifying earnings are the portion
+                                            of your
+                                            <strong>gross pay</strong> between
+                                            <strong>£6,240 and £50,270</strong>.
+                                            Minimum pension contributions are
+                                            calculated only on this band
+                                            <i>before any other deductions</i>
+                                            such as student loan payments, PAYE
+                                            income tax, or National Insurance —
+                                            not on your full wage.
+                                        </p>
+                                    </details>
+                                </li>
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            On‑time payments
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <p>
+                                            Contributions must be paid to the
+                                            pension provider by the 22nd of the
+                                            following month.
+                                        </p>
+                                    </details>
+                                </li>
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            Opt‑outs
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <p>
+                                            Must be handled through the pension
+                                            provider; employer cannot pressure
+                                            or pre‑fill forms.
+                                        </p>
+                                    </details>
+                                </li>
+                                <li>
+                                    <details name="pension-rules">
+                                        <summary>
+                                            Re‑enrolment
+                                            <svg
+                                                class="inline-icon"
+                                                aria-hidden="true"
+                                                focusable="false"
+                                                width="1.2em"
+                                                height="1.2em"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <use href="#help-outline"></use>
+                                            </svg>
+                                        </summary>
+                                        <p>
+                                            Every 3 years employers must
+                                            re‑assess and re‑enrol eligible
+                                            staff.
+                                        </p>
+                                    </details>
+                                </li>
+                            </ul>
                             <p>Resources:</p>
                             <ul>
                                 <li>
-                                    HMRC:
-                                    <a
-                                        href="https://www.gov.uk/calculate-your-holiday-entitlement"
-                                        target="_blank"
-                                        rel="noopener"
-                                        title="Holiday Entitlement Calculator"
-                                        >Holiday Entitlement Calculator</a
-                                    >
-                                </li>
-                                <li>
                                     ACAS:
                                     <a
-                                        href="https://www.acas.org.uk/checking-holiday-entitlement/calculating-holiday-pay"
+                                        href="https://www.acas.org.uk/workplace-pensions"
                                         target="_blank"
                                         rel="noopener"
-                                        title="Calculating Holiday Pay"
-                                        >Calculating Holiday Pay</a
-                                    >
+                                        title="Understanding Workplace Pensions"
+                                        >Understanding Workplace Pensions
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
+                                </li>
+                                <li>
+                                    Citizens Advice:
+                                    <a
+                                        href="https://www.citizensadvice.org.uk/debt-and-money/pensions/types-of-pension/workplace-pensions/"
+                                        target="_blank"
+                                        rel="noopener"
+                                        title="Workplace Pension Types"
+                                        >Workplace Pension Types
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use>
+                                        </svg>
+                                    </a>
                                 </li>
                             </ul>
                         </div>
@@ -822,7 +1112,17 @@
                                     rel="noopener"
                                     title="Download the HMRC app"
                                     >HMRC app, available on the Apple App and
-                                    Google Play Stores</a
+                                    Google Play Stores
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use href="#open-in-new"></use>
+                                    </svg> </a
                                 >.
                             </p>
                             <p>Resources:</p>
@@ -833,8 +1133,17 @@
                                         target="_blank"
                                         rel="noopener"
                                         title="Download the HMRC app"
-                                        >The HMRC App</a
-                                    >
+                                        >The HMRC App
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
                                 </li>
                             </ul>
                         </div>
@@ -853,7 +1162,7 @@
                                         d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20zM20 8l-7.475 4.675q-.125.075-.262.113t-.263.037t-.262-.037t-.263-.113L4 8v10h16zm-8 3l8-5H4zM4 8v.25v-1.475v.025V6v.8v-.012V8.25zv10z"
                                     />
                                 </svg>
-                                <h3>B) Email your employer</h3>
+                                <h3>Email your employer</h3>
                             </header>
                             <p>
                                 If you spot discrepancies in your pay, tax, or
@@ -872,9 +1181,7 @@
                                         height="1.2em"
                                         viewBox="0 0 24 24"
                                     >
-                                        <use
-                                            href="#ic-baseline-help-outline"
-                                        ></use>
+                                        <use href="#help-outline"></use>
                                     </svg>
                                 </summary>
                                 <ul>
@@ -917,8 +1224,17 @@
                                     ACAS:
                                     <a
                                         href="https://www.acas.org.uk/how-to-raise-a-problem-at-work"
-                                        >How to raise a problem at work</a
-                                    >
+                                        >How to raise a problem at work
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
                                 </li>
                             </ul>
                         </div>
@@ -970,27 +1286,266 @@
                             </p>
                             <ul>
                                 <li>
+                                    <b>Scotland: </b>
                                     <a
                                         href="https://www.cas.org.uk/get-advice"
                                         target="_blank"
                                         rel="noopener"
-                                        alt="Find an ACAS branch in Scotland"
-                                        >Find a local branch in
-                                        <b>Scotland</b></a
-                                    >
+                                        alt="Find a branch in Scotland"
+                                        >Find a local branch
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use>
+                                        </svg>
+                                    </a>
                                 </li>
 
                                 <li>
+                                    <b>England &amp; Wales: </b>
                                     <a
                                         href="https://www.citizensadvice.org.uk/about-us/contact-us/nearby/"
                                         target="_blank"
                                         rel="noopener"
-                                        alt="Find an ACAS branch in England & Wales"
-                                        >Find a local branch in
-                                        <b>England &amp; Wales</b></a
-                                    >
+                                        alt="Find a branch in England & Wales"
+                                        >Find a local branch
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use>
+                                        </svg>
+                                    </a>
                                 </li>
                             </ul>
+                            <b>Northern Ireland:</b> Citizens Advice does not
+                            operate in Northern Ireland; however, they do
+                            maintain a list of like-minded resources for the
+                            region, which you can find here:
+                            <ul>
+                                <li>
+                                    <a
+                                        href="https://www.citizensadvice.org.uk/about-us/northern-ireland/"
+                                        target="_blank"
+                                        rel="noopener"
+                                        alt="Support in Northern Ireland"
+                                        >Support in Northern Ireland
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use>
+                                        </svg>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="card workpalce-advice">
+                            <header>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
+                                        d="M12 7q.425 0 .713-.288T13 6t-.288-.712T12 5t-.712.288T11 6t.288.713T12 7m0 8q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9t-.712.288T11 10v4q0 .425.288.713T12 15m-6 3l-2.3 2.3q-.475.475-1.088.213T2 19.575V4q0-.825.588-1.412T4 2h16q.825 0 1.413.588T22 4v12q0 .825-.587 1.413T20 18z"
+                                    />
+                                </svg>
+                                <h3>Free workplace help and advice</h3>
+                            </header>
+                            <h3></h3>
+                            <p>
+                                If you have a problem at work or a question
+                                about your rights, you can get free,
+                                confidential, and impartial help.
+                            </p>
+                            <p>
+                                If you work in England, Scotland, or Wales, you
+                                should contact
+                                <strong
+                                    >Advisory, Conciliation and Arbitration
+                                    Service (ACAS)</strong
+                                >
+                                or if you work in Northern Ireland, you should
+                                contact the
+                                <strong>Labour Relations Agency (LRA)</strong>.
+                            </p>
+                            <p>
+                                These organisations are there to help both
+                                workers and employers solve disputes over things
+                                like pay, holidays, or unfair treatment without
+                                needing to go to court. They don’t take sides
+                                and their advice is expert and up-to-date.
+                            </p>
+                            <ul>
+                                <li>
+                                    <a
+                                        href="https://www.acas.org.uk/contact"
+                                        rel="noopener"
+                                        title="Contact ACAS"
+                                        >Contact ACAS
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="https://www.lra.org.uk/contact"
+                                        rel="noopener"
+                                        title="Contact LRA"
+                                        >Contact LRA
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="card pensions-regulator">
+                            <header>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                    <path
+                                        fill="currentColor"
+                                        d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"
+                                    />
+                                </svg>
+                                <h3>Missing pension payments?</h3>
+                            </header>
+                            <p>
+                                If after 8 weeks of notifying your employer in
+                                writing, they have still not resolved pension
+                                issues (such as missing contributions or failing
+                                to enrol eligible staff), then there are a few
+                                steps you can take:
+                            </p>
+                            <ol>
+                                <li>
+                                    <a
+                                        href="https://www.pensions-ombudsman.org.uk/submit-complaint"
+                                        >Submit a complaint to The Pensions
+                                        Ombudsman
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use href="#open-in-new"></use></svg
+                                    ></a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="https://www.thepensionsregulator.gov.uk/en/contact-us/scheme-members-who-to-contact/report-concerns-about-your-workplace-pension"
+                                        >Report your employer to The Pensions
+                                        Regulator
+                                        <svg
+                                            class="inline-icon"
+                                            aria-hidden="true"
+                                            focusable="false"
+                                            width="1.2em"
+                                            height="1.2em"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <use
+                                                href="#open-in-new"
+                                            ></use></svg></a
+                                    >.
+                                </li>
+                            </ol>
+                            <details>
+                                <summary>
+                                    Whistleblowing
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use href="#help-outline"></use>
+                                    </svg>
+                                </summary>
+                                <p>
+                                    Reporting your employer to a regulator is
+                                    known as whistleblowing. UK law provides
+                                    protections for workers who report serious
+                                    wrongdoing.
+                                </p>
+                                <p>
+                                    Failing to pay pension contributions or to
+                                    enrol eligible employees counts as a
+                                    <b>serious breach</b>.
+                                </p>
+                                <p>
+                                    You can report anonymously, but the more
+                                    detail you provide, the easier it is for
+                                    regulators to take action.
+                                </p>
+                            </details>
+                            <p>Resources:</p>
+                            <p>
+                                Money Helper:
+                                <a
+                                    href="https://www.moneyhelper.org.uk/en/pensions-and-retirement/pension-problems/what-to-do-if-my-employer-doesnt-pay-my-pension-contributions"
+                                    target="_blank"
+                                    rel="noopener"
+                                    title="What to do if my employer doesnt pay my
+                                        pension contributions?"
+                                >
+                                    What to do if my employer doesn't pay my
+                                    pension contributions?
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use href="#open-in-new"></use>
+                                    </svg>
+                                </a>
+                            </p>
                         </div>
 
                         <div class="card union">
@@ -1025,108 +1580,7 @@
                                     target="_blank"
                                     rel="noopener"
                                     alt="Join Unite"
-                                    >Unite</a
-                                >
-                                has a strong presence in hospitality (among many
-                                other sectors). If you’re unsure which union
-                                fits your job,
-                                <a
-                                    href="https://www.tuc.org.uk/join-a-union"
-                                    target="_blank"
-                                    rel="noopener"
-                                    alt="Trades Union Congress - join a union"
-                                    >the Trades Union Congress (TUC)</a
-                                >
-                                can help you find the right one.
-                            </p>
-                            <p class="notice">
-                                <b>Note:</b> Many unions can’t offer full
-                                support for issues that happened
-                                <i>before</i> you joined, so it’s best to sign
-                                up early.
-                            </p>
-                        </div>
-
-                        <div class="card acas">
-                            <header>
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="90"
-                                    height="32"
-                                    viewBox="0 18 225 60"
-                                    focusable="false"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        fill="currentColor"
-                                        d="M29.3 20.4C13.5 20.4.7 33.2.7 49s12.8 28.6 28.6 28.6c5 0 9.6-1.3 13.7-3.5V24c-4-2.3-8.7-3.6-13.7-3.6m0 42.3c-7.6 0-13.7-6.1-13.7-13.7s6.1-13.7 13.7-13.7S43 41.4 43 49c0 7.5-6.1 13.7-13.7 13.7M57.9 22l-.1 26.9c0-10.8-6-20-14.8-24.9l.1-2.1h14.8ZM43 74c8.8-4.9 14.8-14.3 14.8-25.1V76H43zm108.1-53.6c-15.8 0-28.6 12.8-28.6 28.6s12.8 28.6 28.6 28.6c5 0 9.6-1.3 13.7-3.5V24c-4.1-2.3-8.8-3.6-13.7-3.6m0 42.3c-7.6 0-13.7-6.1-13.7-13.7s6.1-13.7 13.7-13.7 13.7 6.1 13.7 13.7c0 7.5-6.2 13.7-13.7 13.7M179.6 22v26.9c0-10.8-6-20-14.8-24.9v-2.1h14.8zm-14.8 52c8.8-4.9 14.8-14.3 14.8-25.1V76h-14.8zM90.2 35.2c-7.1.2-13.1 6-13.4 13.2-.3 7.8 6 14.3 13.7 14.3 6.4 0 11.7-4.3 13.3-10.2h15.1c-1.7 14.1-13.8 25-28.3 25C74.2 77.5 61 63.7 62.1 47 63 33.1 74 21.7 87.9 20.5c15.9-1.5 29.4 10.1 31.1 25.2h-15.1c-1.5-6.1-7.1-10.6-13.7-10.5m110.5 1.6c0-2.4 2.4-3.6 4.5-3.6 2.8 0 4.9 1.1 5 4h15.7c-1.1-11.4-9.8-16.8-20.5-16.8-10.3 0-20.7 6.4-20.7 17.6 0 7.5 6.4 11.6 12.7 13.9 2.3.9 4.6 1.6 6.9 2.4 2.9 1.2 7.2 2.3 7.2 6.2 0 2.8-3.2 4.1-5.6 4.1-3.2 0-5.6-1.6-6.1-4.9h-15.9c1.3 11.7 10.6 17.7 21.7 17.7 10.9 0 21.7-6.2 21.7-18.2.2-18.8-26.6-14-26.6-22.4"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        opacity="0.65"
-                                        d="M43 23.9c8.8 4.9 14.8 14.3 14.8 25.1s-6 20.2-14.8 25.1zm121.8 0V74c8.8-4.9 14.8-14.3 14.8-25.1s-6-20.2-14.8-25"
-                                    />
-                                </svg>
-                                <h3>ACAS</h3>
-                            </header>
-                            <p>
-                                ACAS (Advisory, Conciliation and Arbitration
-                                Service) is an independent public body offering
-                                free, impartial advice on workplace rights and
-                                disputes.
-                            </p>
-                            <p>
-                                They specialise in employment law and have the
-                                power to run mandatory Early Conciliation before
-                                a tribunal claim, as well as to provide
-                                independent arbitration for certain disputes,
-                                such as unfair dismissal.
-                            </p>
-                            <ul>
-                                <li>
-                                    <a href="https://www.acas.org.uk/contact"
-                                        >Free ACAS Helpline</a
-                                    >
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div class="card pensions-regulator">
-                            <header>
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="32"
-                                    height="32"
-                                    viewBox="0 0 129 131"
-                                >
-                                    <path
-                                        fill="currentColor"
-                                        d="M68.1,10.48a60.39,60.39,0,0,0-46.44,99l8.6-8.63a48.18,48.18,0,1,1,7.27,7.4h0l-.19-.15-8.52,8.62.12.11h0A60.38,60.38,0,1,0,68.1,10.48Z"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        d="M68.1,43.79A27.08,27.08,0,1,0,95.18,70.87,27.08,27.08,0,0,0,68.1,43.79Zm0,45.73A18.66,18.66,0,1,1,86.76,70.87,18.66,18.66,0,0,1,68.1,89.52Z"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        d="M19.79,111.34a4.1,4.1,0,0,0,0,5.78l1.53,1.52a4.1,4.1,0,0,0,5.78,0L50.82,95a27.21,27.21,0,0,1-7.4-7.34Z"
-                                    />
-                                </svg>
-                                <h3>The Pensions Regulator</h3>
-                            </header>
-                            <p>
-                                If your employer ignores or fails to resolve
-                                pension issues — such as missing contributions
-                                or failing to enrol eligible staff — you can
-                                report these breaches to
-                                <a
-                                    href="https://www.thepensionsregulator.gov.uk/en/contact-us/scheme-members-who-to-contact/report-concerns-about-your-workplace-pension"
-                                    >The Pensions Regulator</a
-                                >.
-                            </p>
-                            <details>
-                                <summary>
-                                    Whistelblowing
+                                    >Unite
                                     <svg
                                         class="inline-icon"
                                         aria-hidden="true"
@@ -1135,28 +1589,35 @@
                                         height="1.2em"
                                         viewBox="0 0 24 24"
                                     >
-                                        <use
-                                            href="#ic-baseline-help-outline"
-                                        ></use>
-                                    </svg>
-                                </summary>
-                                <p>
-                                    Reporting your employer to a regulator is
-                                    known as whistleblowing. UK law provides
-                                    protections for workers who report serious
-                                    wrongdoing.
-                                </p>
-                                <p>
-                                    Failing to pay pension contributions or to
-                                    enrol eligible employees counts as a
-                                    <b>serious breach</b>.
-                                </p>
-                                <p>
-                                    You can report anonymously, but the more
-                                    detail you provide, the easier it is for
-                                    regulators to take action.
-                                </p>
-                            </details>
+                                        <use href="#open-in-new"></use></svg
+                                ></a>
+                                has a strong presence in hospitality (among many
+                                other sectors). If you’re unsure which union
+                                fits your job,
+                                <a
+                                    href="https://www.tuc.org.uk/join-a-union"
+                                    target="_blank"
+                                    rel="noopener"
+                                    alt="Trades Union Congress - join a union"
+                                    >the Trades Union Congress (TUC)
+                                    <svg
+                                        class="inline-icon"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                        width="1.2em"
+                                        height="1.2em"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <use href="#open-in-new"></use></svg
+                                ></a>
+                                can help you find the right one.
+                            </p>
+                            <p class="notice">
+                                <b>Note:</b> Many unions can’t offer full
+                                support for issues that happened
+                                <i>before</i> you joined, so it’s best to sign
+                                up early.
+                            </p>
                         </div>
 
                         <button
@@ -1168,7 +1629,7 @@
                         >
                             <span v-cloak="">
                                 <!-- prettier-ignore -->
-                                {{ collapsedSections.prep ? 'Expand' : 'Collapse Section' }}
+                                {{ collapsedSections.prep ? 'Expand' : 'Collapse' }}
                             </span>
                         </button>
                     </div>
@@ -1228,7 +1689,7 @@
                                     height="1.2em"
                                     viewBox="0 0 24 24"
                                 >
-                                    <use href="#ic-baseline-help-outline"></use>
+                                    <use href="#help-outline"></use>
                                 </svg>
                             </summary>
                             <p>
@@ -1253,7 +1714,6 @@
                                 v-model.number="workerProfile.typicalDays"
                             />
                         </label>
-
                         <label
                             class="field"
                             v-show="workerProfile.workerType === 'salary'"
@@ -1291,7 +1751,7 @@
                                     :disabled="isZeroHoursWorker || workerProfile.statutoryHolidayDays === suggestedStatutoryDays"
                                     @click="workerProfile.statutoryHolidayDays = suggestedStatutoryDays"
                                 >
-                                    Auto calculate
+                                    Auto-calculate
                                 </button>
                             </div>
                             <span class="field-hint">
@@ -1310,15 +1770,7 @@
                             >
                                 ⚠ This is below the statutory minimum of {{
                                 suggestedStatutoryDays }} days for a {{
-                                workerProfile.typicalDays }}-day week. Employers
-                                cannot legally offer less than 5.6 weeks of paid
-                                holiday. Check your contract or speak to
-                                <a
-                                    href="https://www.acas.org.uk/checking-holiday-entitlement"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    >ACAS</a
-                                >.
+                                workerProfile.typicalDays }}-day work week.
                             </span>
                         </label>
                         <label class="field">
@@ -1345,7 +1797,7 @@
                                 class="field-hint notice info no-left-border"
                             >
                                 <summary>
-                                    Holiday Year
+                                    Holiday year
                                     <svg
                                         class="inline-icon"
                                         aria-hidden="true"
@@ -1354,9 +1806,7 @@
                                         height="1.2em"
                                         viewBox="0 0 24 24"
                                     >
-                                        <use
-                                            href="#ic-baseline-help-outline"
-                                        ></use>
+                                        <use href="#help-outline"></use>
                                     </svg>
                                 </summary>
                                 <p>
@@ -1435,7 +1885,9 @@
                                 {{ stagedPdfCount }} PDF(s), {{ stagedExcelCount
                                 }} Excel file(s) staged
                             </p>
-                            <p v-else="" class="file-count">No files staged</p>
+                            <p v-else="" class="file-count">
+                                No files added yet
+                            </p>
                             <button
                                 v-if="stagedFiles &amp;&amp; stagedFiles.length"
                                 class="secondary ghost reset"
@@ -1489,22 +1941,22 @@
                         Processing Payroll &amp; Pension docs...
                     </p>
                     <p v-if="status === 'rendering'">Rendering report…</p>
-                    <p v-if="error" class="notice error field-hint">
-                        {{ error }}
-                    </p>
                     <p v-if="notice" class="notice field-hint">{{ notice }}</p>
-                    <ul
-                        v-if="failedFiles &amp;&amp; failedFiles.length"
-                        class="error-list"
-                    >
-                        <li v-for="file in failedFiles" :key="file">
-                            {{ file }}
-                        </li>
-                    </ul>
+                    <div v-if="error" class="notice error field-hint">
+                        <p>{{ error }}</p>
+                        <ul
+                            v-if="failedFiles &amp;&amp; failedFiles.length"
+                            class="error-list"
+                        >
+                            <li v-for="file in failedFiles" :key="file">
+                                {{ file }}
+                            </li>
+                        </ul>
+                    </div>
                     <div class="progress" v-if="status === 'processing'">
                         <div
                             class="progress-bar"
-                            :style="{ width: progressPercent + '%' }"
+                            :style="{ 'inline-size': progressPercent + '%' }"
                         ></div>
                     </div>
                     <div class="completion" v-if="reportReady">

@@ -42,9 +42,9 @@ export const AboutContent = defineComponent({
             <h3>What this tool does</h3>
             <p>
                 The Anonymous Payroll Reporter helps workers check
-                whether their employer has been paying the correct
-                pension contributions. It analyses payroll data and
-                pension spreadsheets, highlights discrepancies, and
+                whether their employer has been paying the correct holiday
+                entitlements and pension contributions. It analyses payroll
+                data and pension spreadsheets, highlights discrepancies, and
                 produces a clear, worker&#8209;friendly report you can use to
                 understand what's going on.
             </p>
