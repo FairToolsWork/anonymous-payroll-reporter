@@ -4,6 +4,7 @@ import {
     holCalcExpectedWeeklyPay,
     holCalcExpectedHours,
     holCalcExpectedPay,
+    holCalcSuggestedStatutoryDays,
 } from '../pwa/src/ui/hol_calc.js'
 
 describe('holCalcAvgWeekly', () => {
@@ -99,5 +100,27 @@ describe('holCalcExpectedPay', () => {
 
     it('scales correctly with a 4-day working week', () => {
         expect(holCalcExpectedPay(800, 12.71, 4, 1)).toBe('£48.88')
+    })
+})
+
+describe('holCalcSuggestedStatutoryDays', () => {
+    it('returns null when days per week is 0', () => {
+        expect(holCalcSuggestedStatutoryDays(0)).toBeNull()
+    })
+
+    it('returns null when days per week is missing', () => {
+        expect(holCalcSuggestedStatutoryDays(null)).toBeNull()
+    })
+
+    it('calculates minimum entitlement for a 5-day week', () => {
+        expect(holCalcSuggestedStatutoryDays(5)).toBe(28)
+    })
+
+    it('calculates minimum entitlement for a 3-day week', () => {
+        expect(holCalcSuggestedStatutoryDays(3)).toBe(16.8)
+    })
+
+    it('caps entitlement at 28 days', () => {
+        expect(holCalcSuggestedStatutoryDays(6)).toBe(28)
     })
 })

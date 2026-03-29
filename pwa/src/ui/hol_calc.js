@@ -114,3 +114,14 @@ export function holCalcEntitlementHours(totalHours) {
     // return ((totalHours / WEEKS) * 5.6).toFixed(1) + ' hrs' //(pre 2024 method)
     return (totalHours * 0.1207).toFixed(1) + ' hrs'
 }
+
+/**
+ * Suggested minimum statutory holiday entitlement in days per year.
+ * Uses 5.6 x days/week, capped at 28 days.
+ * @param {number} workDaysPerWeek
+ * @returns {number | null}
+ */
+export function holCalcSuggestedStatutoryDays(workDaysPerWeek) {
+    if (!workDaysPerWeek || workDaysPerWeek <= 0) return null
+    return Math.round(Math.min(5.6 * workDaysPerWeek, 28) * 10) / 10
+}

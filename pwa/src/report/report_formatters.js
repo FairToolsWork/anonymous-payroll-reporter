@@ -13,7 +13,7 @@ export const PERSONAL_ALLOWANCE_MONTHLY = Math.round(
 )
 
 export const APRIL_BOUNDARY_NOTE =
-    'April payslips may include pay accrued across the 6 April tax year boundary. ' +
+    'April payslips may include pay accrued across the 6 April tax year boundary. <br/>' +
     'This tool cannot determine how the employer has attributed hours or amounts between tax years, ' +
     'which may cause discrepancies in year-end figures.'
 
@@ -22,7 +22,7 @@ export const ZERO_TAX_ALLOWANCE_NOTE =
     `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year for ${PERSONAL_ALLOWANCE_TAX_YEARS}).`
 
 export const ACCUMULATED_TOTALS_NOTE =
-    'Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). ' +
+    'Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). <br/>' +
     'Positive values indicate an overpayment; negative values indicate an underpayment to your pension.'
 
 /**

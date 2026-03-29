@@ -59,11 +59,14 @@ export const AboutContent = defineComponent({
                 and pension files so you can learn how the tool works.
                 Download, unzip, and upload the files to follow along
                 with the walkthrough.
-                <a
-                    href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/main/demo_files/anonymous-payroll-reporter-demo-files.zip"
+            </p>
+            <p>
+                <a href="https://raw.githubusercontent.com/FairToolsWork/anonymous-payroll-reporter/main/demo_files/anonymous-payroll-reporter-demo-files.zip"
                     download="anonymous-payroll-reporter-demo-files.zip"
                     class="demo-download-link"
-                >Download sample files</a>
+                >Download sample files
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="inline-icon"><!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE --><path fill="currentColor" d="M8 17h8q.425 0 .713-.288T17 16t-.288-.712T16 15H8q-.425 0-.712.288T7 16t.288.713T8 17m3-6.85l-.9-.875Q9.825 9 9.413 9t-.713.3q-.275.275-.275.7t.275.7l2.6 2.6q.3.3.7.3t.7-.3l2.6-2.6q.275-.275.287-.687T15.3 9.3q-.275-.275-.687-.288t-.713.263l-.9.875V7q0-.425-.288-.712T12 6t-.712.288T11 7zM12 22q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22"/></svg>
+                </a>
             </p>
             <h3>Will this work for me?</h3>
             <p>

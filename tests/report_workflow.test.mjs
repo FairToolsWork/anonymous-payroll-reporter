@@ -258,19 +258,29 @@ describe('report workflow', () => {
         expect(result.report.html).toContain('Payroll Report \u2014')
         expect(result.report.html).toContain('<th>Tax Year</th>')
         expect(result.report.html).toContain('<th>Hours</th>')
-        expect(result.report.html).toContain('<th>Payroll Cont. (EE+ER)</th>')
-        expect(result.report.html).toContain('<th>Reported (EE+ER)</th>')
-        expect(result.report.html).toContain('<th>YE Over / Under</th>')
-        expect(result.report.html).toContain('<th>Flags</th>')
+        expect(result.report.html).toContain(
+            '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th>'
+        )
+        expect(result.report.html).toMatch(
+            /<th(?:\s+[^>]*)?>Reported \(EE\+ER\)<\/th>/
+        )
+        expect(result.report.html).toMatch(
+            /<th(?:\s+[^>]*)?>YE Over \/ Under<\/th>/
+        )
+        expect(result.report.html).toMatch(/<th(?:\s+[^>]*)?>Flags<\/th>/)
         expect(result.report.html).toContain('<th colspan="2">Date Range</th>')
-        expect(result.report.html).toContain('<th>Reported (EE+ER)</th>')
+        expect(result.report.html).toMatch(
+            /<th(?:\s+[^>]*)?>Reported \(EE\+ER\)<\/th>/
+        )
         expect(result.report.html).toContain('<th>Accumulated Over/Under</th>')
         expect(result.report.html).toContain('<th>Last Contribution Date</th>')
         expect(result.report.html).toContain('<th>Month</th>')
         expect(result.report.html).toContain(
             '<th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>'
         )
-        expect(result.report.html).toContain('<th>Over / Under</th>')
+        expect(result.report.html).toMatch(
+            /<th(?:\s+[^>]*)?>Over \/ Under<\/th>/
+        )
         expect(result.report.html).toContain('<th>Total</th>')
         result.reportContext.yearKeys.forEach((yearKey) => {
             if (!yearKey || yearKey === 'Unknown') {
@@ -376,7 +386,9 @@ describe('report workflow', () => {
     it('uses N/A for reported totals when reconciliation is missing', () => {
         const record = buildRecord()
         const report = buildReport([record])
-        expect(report.html).toContain('<th>Reported (EE+ER)</th>')
+        expect(report.html).toMatch(
+            /<th(?:\s+[^>]*)?>Reported \(EE\+ER\)<\/th>/
+        )
         expect(report.html).toContain('<td>N/A</td>')
         expect(report.html).not.toContain('N/A EE / N/A ER')
     })

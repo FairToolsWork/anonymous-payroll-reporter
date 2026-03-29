@@ -180,6 +180,22 @@ body {
     }
 }
 
+h1 a {
+    text-decoration: none;
+    color: inherit;
+}
+
+ul.no-style {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+}
+
+ul.no-style li {
+    list-style: none;
+    padding-inline-start: 0;
+    margin-inline-start: 0;
+}
+
 a {
     color: var(--accent);
     font-weight: 600;
@@ -939,14 +955,14 @@ details img {
     gap: var(--space-12);
 }
 
-.card ul {
+ul {
     padding-block: 0;
     padding-inline: var(--space-16) 0;
-}
 
-.card li {
-    margin-block: var(--space-16);
-    margin-inline: 0;
+    & li {
+        margin-block: var(--space-16);
+        margin-inline: 0;
+    }
 }
 
 summary {
@@ -1146,7 +1162,7 @@ dialog.modal-dialog.calc-modal {
 }
 
 .hol-calc-result:has(p) {
-    flex-direction: column;
+    display: grid;
     align-items: stretch;
     gap: var(--space-8);
     margin-block-start: var(--space-4);
@@ -1751,13 +1767,6 @@ label.field span {
     color: var(--muted);
 }
 
-.missing-months {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8);
-    align-items: center;
-}
-
 .missing-group {
     display: inline-flex;
     flex-wrap: wrap;
@@ -1817,6 +1826,7 @@ label.field span {
     padding-inline: 0 var(--space-12);
     white-space: nowrap;
     vertical-align: top;
+    text-align: end;
 }
 
 .report-meta-table td {
@@ -1847,11 +1857,6 @@ label.field span {
     color: var(--muted);
     margin-block: var(--space-6) 0;
     margin-inline: 0;
-    text-align: center;
-}
-
-.report-missing .missing-months {
-    justify-content: center;
 }
 
 .report-validation {
@@ -1971,6 +1976,20 @@ label.field span {
     border-block-start: 2px solid black;
 }
 
+.summary-breakdown {
+    display: inline-block;
+    font-size: var(--text-xs);
+}
+
+.summary-table {
+    inline-size: 100%;
+}
+
+.report-table th,
+.summary-table th {
+    background-color: #f2f2f2;
+}
+
 .summary-table th,
 .summary-table td {
     font-weight: normal;
@@ -1979,23 +1998,58 @@ label.field span {
     padding-inline: 5px;
 }
 
-.summary-breakdown {
-    display: inline-block;
-    font-size: var(--text-xs);
+.summary-table thead th {
+    text-align: start;
+    overflow: hidden;
+    line-break: anywhere;
 }
 
-.report-table th,
-.summary-table th {
-    background-color: #f2f2f2;
+.summary-table .col-center {
+    text-align: center;
 }
 
-.summary-table {
-    inline-size: 100%;
+.summary-table tfoot th,
+.summary-table tfoot td {
+    font-weight: 600;
+}
+
+.summary-table thead th:nth-child(1) {
+    inline-size: 10%;
+} /* Month/Year */
+.summary-table thead th:nth-child(2) {
+    inline-size: 8%;
+} /* Hours */
+.summary-table thead th:nth-child(3) {
+    inline-size: 28%;
+} /* Holiday */
+.summary-table thead th:nth-child(4) {
+    inline-size: 18%;
+} /* Pension Payroll */
+.summary-table thead th:nth-child(5) {
+    inline-size: 18%;
+} /* Reported */
+.summary-table thead th:nth-child(6) {
+    inline-size: 10%;
+} /* Over/Under */
+.summary-table thead th:nth-child(7) {
+    inline-size: 8%;
+    text-align: center;
+} /* Flags */
+
+.summary-table th:nth-child(2),
+.summary-table td:nth-child(2),
+.summary-table th:nth-child(6),
+.summary-table td:nth-child(6),
+.summary-table th:nth-child(7),
+.summary-table td:nth-child(7),
+.summary-table .col-center {
+    text-align: center;
 }
 
 .holiday-est-days {
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-style: italic;
+    font-weight: 100;
     color: #3a5a8a;
     margin-inline-start: 6px;
 }
@@ -2006,17 +2060,6 @@ p.report-footnote-row {
     font-style: italic;
     margin-block: 4px 0;
     margin-inline: 3px;
-}
-
-.summary-table thead th {
-    text-align: start;
-    overflow: hidden;
-    line-break: anywhere;
-}
-
-.summary-table tfoot th,
-.summary-table tfoot td {
-    font-weight: 600;
 }
 
 .diff--positive {
@@ -2088,6 +2131,11 @@ p.report-footnote-row {
 .report-warning-list {
     margin: 0;
     padding-inline-start: var(--space-16);
+}
+
+.report-footnote li,
+.report-warning-list li {
+    margin-block: 0;
 }
 
 .report-warning-banner {

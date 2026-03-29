@@ -26,7 +26,7 @@ import {
 } from './year_holiday_summary.js'
 
 const EMPLOYER_CONTRIBUTION_NOTE =
-    'Employer contribution — paid by the employer on top of your salary, not deducted from your net pay.'
+    'Employer contribution — paid by the employer on top of your salary, not deducted from your pay.'
 
 /** @param {ReportEntry} entry */
 export function buildPayslipViewModel(entry) {

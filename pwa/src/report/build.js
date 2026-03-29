@@ -112,7 +112,7 @@ function formatTotalHolidayBreakdown(summary) {
             `<br><span class="summary-breakdown">` +
             `≈${summary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
             `<br>${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' (entitlement exceeded)' : ''}` +
-            `<br>≈${summary.daysTaken.toFixed(1)} days taken` +
+            `<br>≈ ${summary.daysTaken.toFixed(1)} days taken` +
             ` / ${summary.daysRemaining.toFixed(1)} remaining` +
             `</span>`
         )
@@ -126,6 +126,7 @@ function formatTotalHolidayBreakdown(summary) {
             `</span>`
         )
     }
+
     return ''
 }
 
@@ -152,9 +153,9 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
         return (
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
             `<span class="summary-breakdown">` +
-            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
+            `≈ ${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
             `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}<br>` +
-            `≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
+            `≈ ${holidaySummary.daysTaken.toFixed(1)} days taken` +
             ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining` +
             `</span>` +
             leaveYearNote
@@ -164,7 +165,7 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
         return (
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
             `<span class="summary-breakdown">` +
-            `≈${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
+            `≈ ${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
             `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' (entitlement exceeded)' : ''}<br>` +
             `<em>${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}</em>` +
             `</span>` +
@@ -183,7 +184,7 @@ function formatYearSummaryHolidayHtml(holidaySummary) {
  */
 function formatYearRowHolidayHtml(holidaySummary) {
     if (holidaySummary.kind === 'hours_days') {
-        return `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">≈${holidaySummary.estimatedDays.toFixed(1)} days</span>`
+        return `${holidaySummary.holidayHours.toFixed(2)} hrs <span class="summary-breakdown">(≈ ${holidaySummary.estimatedDays.toFixed(1)} days)</span>`
     }
     if (
         holidaySummary.kind === 'hours_only' &&
@@ -702,8 +703,8 @@ export function buildReport(
                         row.reportedContribution.er,
                         true
                     )}</td>` +
-                    `<td>${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
-                    `<td>${flagIcon}</td>` +
+                    `<td class="col-center">${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                    `<td class="col-center">${flagIcon}</td>` +
                     '</tr>'
                 )
             })
@@ -754,8 +755,8 @@ export function buildReport(
                 reportSections.push(
                     '<table class="summary-table"><thead><tr>' +
                         '<th>Tax Year</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
-                        '<th>Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
-                        '<th>YE Over / Under</th><th>Flags</th>' +
+                        '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
+                        '<th class="col-center">YE Over / Under</th><th class="col-center">Flags</th>' +
                         '</tr></thead>' +
                         `<tbody>${summaryYearRowsHtml}</tbody>` +
                         '</table>'
@@ -1225,7 +1226,7 @@ function renderReportCell(entry) {
             ? ` <span class="holiday-est-days">${item.holidayEstimatedDaysSuffix}</span>`
             : ''
         rows.push(
-            `<tr><th align="left">${item.label}${breakdown}${estSuffix}</th><td>${formatCurrency(
+            `<tr><th align="left">${item.label}${breakdown}<br/>${estSuffix}</th><td>${formatCurrency(
                 item.amount || 0
             )}</td></tr>`
         )
@@ -1291,7 +1292,7 @@ function renderReportCell(entry) {
         const days = holidayAnalysis.typicalDays
         holidayAnalysisFootnote =
             `<div class="notice">` +
-            `<p><b>Holiday analysis</b> (year average, <i>estimate only</i>):</p>` +
+            `<p><b>Holiday analysis</b> (accumulative year average, <i>estimate only</i>):</p>` +
             `<ul><li>Avg ${avgHrsPerWeek}\u00a0hrs/week over ${days}\u00a0days \u2192 1\u00a0day\u00a0\u2248\u00a0${avgHrsPerDay}\u00a0hrs.</li>` +
             `<li>This payslip: ${holidayAnalysis.holidayHours.toFixed(2)}\u00a0hrs\u00a0\u2248\u00a0${holidayAnalysis.estimatedDays}\u00a0days.</li></ul>` +
             `<p>If <b>${holidayAnalysis.estimatedDays}</b>\u00a0days doesn\u2019t match the days you agreed, ask your employer how they calculated the number of hours for holiday.</p>` +
@@ -1368,8 +1369,8 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 row.reportedContribution.er,
                 true
             )}</td>` +
-            `<td>${formatDiff(row.overUnder, row.zeroReview)}</td>` +
-            `<td class="${flagClass}">${flagSummary}</td>` +
+            `<td class="col-center">${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+            `<td class="col-center ${flagClass}">${flagSummary}</td>` +
             '</tr>'
         )
     })
@@ -1392,8 +1393,8 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                         row.reportedContribution.er,
                         true
                     )}</td>` +
-                    `<td>${formatDiff(row.overUnder, row.zeroReview)}</td>` +
-                    '<td>—</td>' +
+                    `<td class="col-center">${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+                    '<td class="col-center">—</td>' +
                     '</tr>'
                 )
             }
@@ -1401,8 +1402,8 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 '<tr>' +
                 `<th>${row.label}</th>` +
                 '<td colspan="4"></td>' +
-                `<td colspan="1">${formatDiff(row.overUnder, row.zeroReview)}</td>` +
-                '<td>—</td>' +
+                `<td class="col-center" colspan="1">${formatDiff(row.overUnder, row.zeroReview)}</td>` +
+                '<td class="col-center">—</td>' +
                 '</tr>'
             )
         }
@@ -1411,8 +1412,8 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         '<table class="summary-table">' +
             '<thead><tr>' +
             '<th>Month</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
-            '<th>Payroll Cont. (EE+ER)</th><th>Reported (EE+ER)</th>' +
-            '<th>Over / Under</th><th>Flags</th>' +
+            '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
+            '<th class="col-center">Over / Under</th><th class="col-center">Flags</th>' +
             '</tr></thead>' +
             `<tbody>${bodyRows.join('')}</tbody>` +
             '<tfoot>' +

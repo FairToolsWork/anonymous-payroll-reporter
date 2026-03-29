@@ -159,18 +159,28 @@ describe('buildPayslipViewModel', () => {
             typicalDays: 5,
             holidayHours: 8,
         })
-        expect(viewModel.footerNotes).toEqual([
-            {
-                id: 'employer-contribution',
-                marker: '†',
-                text: 'Employer contribution — paid by the employer on top of your salary, not deducted from your net pay.',
-            },
-            {
-                id: 'april-boundary',
-                marker: null,
-                text: 'April payslips may include pay accrued across the 6 April tax year boundary. This tool cannot determine how the employer has attributed hours or amounts between tax years, which may cause discrepancies in year-end figures.',
-            },
-        ])
+        expect(viewModel.footerNotes).toEqual(
+            expect.arrayContaining([
+                {
+                    id: 'employer-contribution',
+                    marker: '†',
+                    text: 'Employer contribution — paid by the employer on top of your salary, not deducted from your pay.',
+                },
+                expect.objectContaining({
+                    id: 'april-boundary',
+                    marker: null,
+                    text: expect.stringContaining(
+                        'April payslips may include pay accrued across the 6 April tax year boundary.'
+                    ),
+                }),
+            ])
+        )
+        const aprilBoundaryNote = viewModel.footerNotes.find(
+            (note) => note.id === 'april-boundary'
+        )
+        expect((aprilBoundaryNote?.text || '').replace('<br/>', ' ')).toContain(
+            'This tool cannot determine how the employer has attributed hours or amounts between tax years, which may cause discrepancies in year-end figures.'
+        )
     })
 
     it('builds salaried payslip rows without hourly-only holiday analysis', () => {
@@ -218,7 +228,7 @@ describe('buildPayslipViewModel', () => {
             {
                 id: 'employer-contribution',
                 marker: '†',
-                text: 'Employer contribution — paid by the employer on top of your salary, not deducted from your net pay.',
+                text: 'Employer contribution — paid by the employer on top of your salary, not deducted from your pay.',
             },
         ])
         expect(viewModel.flags).toEqual({

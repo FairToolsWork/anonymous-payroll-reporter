@@ -293,7 +293,7 @@
             <header class="app-header">
                 <div>
                     <p class="eyebrow">Offline &amp; Anonymous</p>
-                    <h1>Anonymous Payroll Reporter</h1>
+                    <h1><a href="/">Anonymous Payroll Reporter</a></h1>
                     <p class="subhead">
                         All processing happens in the browser — your data never
                         leaves your computer.
@@ -998,6 +998,27 @@
                                 <b>'0'</b> for typical days.</i
                             >
                         </div>
+                        <div
+                            v-show="holCalcWorkDays > 0"
+                            class="hol-calc-result notice no-left-border"
+                        >
+                            <span
+                                >Statutory minimum holidays for {{
+                                holCalcWorkDays }}d/week:</span
+                            >
+                            <strong
+                                >{{ holCalcSuggestedStatutoryDays }}
+                                days</strong
+                            >
+                        </div>
+
+                        <div
+                            v-show="holCalcWorkDays === 0"
+                            class="hol-calc-result notice no-left-border"
+                        >
+                            <span>Statutory minimum entitlement (annual):</span>
+                            <strong>{{ holCalcEntitlementHours }}</strong>
+                        </div>
                         <div class="hol-calc-result notice no-left-border">
                             <span>Avg hours per week of holiday:</span>
                             <strong>{{ holCalcAvgWeekly }}</strong>
@@ -1048,13 +1069,6 @@
                                 >. These per-day figures are a convenience
                                 estimate only.
                             </p>
-                        </div>
-                        <div
-                            v-show="holCalcWorkDays === 0"
-                            class="hol-calc-result notice no-left-border"
-                        >
-                            <span>Annual holiday entitlement:</span>
-                            <strong>{{ holCalcEntitlementHours }}</strong>
                         </div>
                         <div
                             v-show="holCalcWorkDays === 0"
