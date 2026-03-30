@@ -1,4 +1,10 @@
 import { getWeeksInPeriod } from './tax_year_utils.js'
+import {
+    HOLIDAY_ACCRUAL_CUTOFF,
+    HOLIDAY_RATE_TOLERANCE,
+} from './uk_thresholds.js'
+
+export { HOLIDAY_RATE_TOLERANCE } from './uk_thresholds.js'
 
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
@@ -9,11 +15,7 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
  */
 
-/** @type {number} £0.05/hr tolerance — covers float rounding without masking real discrepancies */
-export const HOLIDAY_RATE_TOLERANCE = 0.05
-
-/** Leave years starting on or after this date use the 12.07% accrual method */
-const ACCRUAL_CUTOFF = new Date(2024, 3, 1) // 1 April 2024
+const ACCRUAL_CUTOFF = HOLIDAY_ACCRUAL_CUTOFF
 
 /**
  * Returns the start date of the leave year containing the given entry date.

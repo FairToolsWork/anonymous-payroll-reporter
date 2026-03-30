@@ -948,6 +948,16 @@ function renderPayslipPage(doc, entry) {
         y
     )
 
+    if (payslipViewModel.flags.lowConfidence) {
+        y = writeHeading(doc, 'Low confidence', y, { fontSize: FONT_BODY })
+        y = writeText(
+            doc,
+            'Payments and deductions may not fully reconcile for this period.',
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+
     if (payslipViewModel.warnings.length) {
         y = writeHeading(doc, 'Warnings', y, { fontSize: FONT_BODY })
         y = writeText(

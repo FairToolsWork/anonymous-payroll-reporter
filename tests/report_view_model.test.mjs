@@ -290,6 +290,10 @@ describe('buildSummaryViewModel', () => {
             'april-boundary',
             'zero-tax-allowance',
         ])
+        expect(
+            viewModel.notes.find((note) => note.id === 'zero-tax-allowance')
+                ?.text
+        ).toContain('current configured UK rate')
     })
 })
 

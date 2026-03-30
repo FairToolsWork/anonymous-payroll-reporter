@@ -1,9 +1,8 @@
 import { formatMonthLabel } from '../parse/parser_config.js'
-
-/** @type {number} */
-const TAX_YEAR_START_MONTH_INDEX = 3
-/** @type {number} */
-const TAX_YEAR_START_DAY = 6
+import {
+    TAX_YEAR_START_DAY,
+    TAX_YEAR_START_MONTH_INDEX,
+} from './uk_thresholds.js'
 
 /** @type {Record<string, number>} */
 const DATE_MONTHS = {

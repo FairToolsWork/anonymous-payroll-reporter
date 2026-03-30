@@ -16,6 +16,10 @@ import {
     buildYearHolidayContext,
 } from './holiday_calculations.js'
 import { buildValidation } from './hourly_pay_calculations.js'
+import {
+    CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
+    PERSONAL_ALLOWANCE_MONTHLY,
+} from './uk_thresholds.js'
 import { buildContributionSummary } from './pension_calculations.js'
 import { buildReportEntries } from './report_calculations.js'
 import {
@@ -461,14 +465,14 @@ export function buildReport(
                             ?.amount
                     return (
                         typeof totalGrossPay === 'number' &&
-                        totalGrossPay < 1048
+                        totalGrossPay < PERSONAL_ALLOWANCE_MONTHLY
                     )
                 })
                 const contributionTotalsResult = buildContributionTotals(
                     entries,
                     contributionSummary
                 )
-                const daysThreshold = 30
+                const daysThreshold = CONTRIBUTION_RECENCY_DAYS_THRESHOLD
                 const contributionRecency = buildContributionRecency(
                     lastContributionDate,
                     reportRunDate,

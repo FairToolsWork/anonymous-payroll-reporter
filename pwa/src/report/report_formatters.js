@@ -3,14 +3,11 @@
  * @typedef {import("../parse/payroll.types.js").PayrollMiscDeduction} PayrollMiscDeduction
  */
 
-/** @type {number} Update this each tax year if the personal allowance changes */
-export const PERSONAL_ALLOWANCE_ANNUAL = 12570
-/** @type {string} Update this each tax year e.g. '2026/27 and 2027/28' */
-export const PERSONAL_ALLOWANCE_TAX_YEARS = '2025/26 and 2026/27'
-/** @type {number} */
-export const PERSONAL_ALLOWANCE_MONTHLY = Math.round(
-    PERSONAL_ALLOWANCE_ANNUAL / 12
-)
+import {
+    CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
+    PERSONAL_ALLOWANCE_ANNUAL,
+    PERSONAL_ALLOWANCE_MONTHLY,
+} from './uk_thresholds.js'
 
 export const APRIL_BOUNDARY_NOTE =
     'April payslips may include pay accrued across the 6 April tax year boundary. <br/>' +
@@ -19,7 +16,7 @@ export const APRIL_BOUNDARY_NOTE =
 
 export const ZERO_TAX_ALLOWANCE_NOTE =
     `PAYE Tax / National Insurance may be £0 when monthly pay is below £${PERSONAL_ALLOWANCE_MONTHLY.toLocaleString('en-GB')} ` +
-    `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year for ${PERSONAL_ALLOWANCE_TAX_YEARS}).`
+    `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year, based on the current configured UK rate).`
 
 export const ACCUMULATED_TOTALS_NOTE =
     'Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). <br/>' +
@@ -111,12 +108,12 @@ export function formatBreakdownCell(total, ee, er, allowNA = false) {
 
 /**
  * @param {{ daysSinceContribution: number | null, lastContributionLabel: string, daysThreshold?: number } | null | undefined} contributionRecency
- * @param {number} [fallbackDaysThreshold=30]
+ * @param {number} [fallbackDaysThreshold=CONTRIBUTION_RECENCY_DAYS_THRESHOLD]
  * @returns {{ daysCount: number | null, daysLabel: string, className: string | null, color: string | null, lastContributionLabel: string, daysThreshold: number }}
  */
 export function buildContributionRecencyDisplay(
     contributionRecency,
-    fallbackDaysThreshold = 30
+    fallbackDaysThreshold = CONTRIBUTION_RECENCY_DAYS_THRESHOLD
 ) {
     if (!contributionRecency) {
         return {

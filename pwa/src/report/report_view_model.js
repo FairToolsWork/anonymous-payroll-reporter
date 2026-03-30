@@ -9,6 +9,7 @@
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
  */
 import { formatMonthLabel } from '../parse/parser_config.js'
+import { PERSONAL_ALLOWANCE_MONTHLY } from './uk_thresholds.js'
 import {
     ACCUMULATED_TOTALS_NOTE,
     APRIL_BOUNDARY_NOTE,
@@ -579,7 +580,7 @@ export function buildSummaryViewModel(context, meta) {
     )
     const hasLowPretaxPay = entries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < 1048
+        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
     })
     if (hasAprilEntry) {
         notes.push({
@@ -852,7 +853,7 @@ export function buildYearViewModel(
     )
     const hasLowPretaxPay = yearEntries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < 1048
+        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
     })
     if (hasAprilEntry) {
         notes.push({
