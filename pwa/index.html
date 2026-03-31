@@ -20,6 +20,19 @@
                 }
             })()
         </script>
+        <script>
+            ;(() => {
+                const touchPoints = !!navigator.maxTouchPoints > 0
+                const coarsePointer =
+                    !!window.matchMedia('(pointer: coarse)').matches
+                const smallScreen =
+                    !!window.matchMedia('(max-width: 600px)').matches
+
+                if ((touchPoints && coarsePointer) || smallScreen) {
+                    document.documentElement.classList.add('mobile')
+                }
+            })()
+        </script>
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="stylesheet" href="styles.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -357,6 +370,8 @@
             >
                 <about-content
                     :app-version="appVersion"
+                    :rules-version="rulesVersion"
+                    :thresholds-version="thresholdsVersion"
                     @close="closeDialog('aboutDialog')"
                 />
             </dialog>
@@ -1921,6 +1936,54 @@
                         />
                     </label>
                     <div class="upload-btn-container">
+                        <div class="drag-drop-faux">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                            >
+                                <!-- Icon from Material Symbols by Google - https://github.com/google/material-design-icons/blob/master/LICENSE -->
+                                <filter id="inset-shadow">
+                                    <!-- Shadow offset -->
+                                    <feOffset dx="0" dy="0" />
+                                    <!-- Shadow blur -->
+                                    <feGaussianBlur
+                                        stdDeviation="1"
+                                        result="offset-blur"
+                                    />
+                                    <!-- Invert drop shadow to make an inset shadow-->
+                                    <feComposite
+                                        operator="out"
+                                        in="SourceGraphic"
+                                        in2="offset-blur"
+                                        result="inverse"
+                                    />
+                                    <!-- Cut colour inside shadow -->
+                                    <feFlood
+                                        flood-color="var(--ink)"
+                                        flood-opacity=".5"
+                                        result="color"
+                                    />
+                                    <feComposite
+                                        operator="in"
+                                        in="color"
+                                        in2="inverse"
+                                        result="shadow"
+                                    />
+                                    <!-- Placing shadow over element -->
+                                    <feComposite
+                                        operator="over"
+                                        in="shadow"
+                                        in2="SourceGraphic"
+                                    />
+                                </filter>
+                                <path
+                                    fill="currentColor"
+                                    d="M6 20q-.825 0-1.412-.587T4 18v-2q0-.425.288-.712T5 15t.713.288T6 16v2h12v-2q0-.425.288-.712T19 15t.713.288T20 16v2q0 .825-.587 1.413T18 20zm5-12.15L9.125 9.725q-.3.3-.712.288T7.7 9.7q-.275-.3-.288-.7t.288-.7l3.6-3.6q.15-.15.325-.212T12 4.425t.375.063t.325.212l3.6 3.6q.3.3.288.7t-.288.7q-.3.3-.712.313t-.713-.288L13 7.85V15q0 .425-.288.713T12 16t-.712-.288T11 15z"
+                                />
+                            </svg>
+                        </div>
                         <label
                             class="upload"
                             :class="{
@@ -1935,8 +1998,12 @@
                                 :disabled="status === 'processing'"
                                 @change="handleFiles"
                             />
-                            <span>Choose PDF/Excel files</span>
+                            <span
+                                ><span class="mobile-ctx">Or </span>choose
+                                PDF/Excel files</span
+                            >
                         </label>
+
                         <div class="upload-results">
                             <p
                                 v-if="stagedFiles &amp;&amp; stagedFiles.length"
@@ -1946,7 +2013,7 @@
                                 }} Excel file(s) staged
                             </p>
                             <p v-else="" class="file-count">
-                                No files added yet
+                                <i>No files added yet...</i>
                             </p>
                             <button
                                 v-if="stagedFiles &amp;&amp; stagedFiles.length"

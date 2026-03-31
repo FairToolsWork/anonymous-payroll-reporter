@@ -48,13 +48,13 @@
     /* Colors */
     --ink: hsl(36deg 9% 11%);
     --ink-05: hsl(36deg 9% 11% / 5%);
-    --ink-10: hsl(36deg 9% 11% / 100%);
     --ink-15: hsl(36deg 9% 11% / 15%);
     --ink-20: hsl(36deg 9% 11% / 20%);
     --ink-25: hsl(36deg 9% 11% / 25%);
     --ink-32: hsl(36deg 9% 11% / 32%);
-    --ink-50: hsl(36deg 9% 11% / 80%);
     --ink-55: hsl(36deg 9% 11% / 55%);
+    --ink-80: hsl(36deg 9% 11% / 80%);
+    --ink-100: hsl(36deg 9% 11% / 100%);
     --muted: hsl(40deg 7% 35%);
     --paper: hsl(37deg 31% 95%);
     --card: hsl(0deg 0% 100%);
@@ -829,7 +829,7 @@ label.next-action {
     padding-block-start: 1px;
 }
 
-@media (width <= 860px) {
+@media (width <= 1200px) {
     .controls {
         grid-template-columns: repeat(2, minmax(260px, 1fr));
     }
@@ -960,7 +960,7 @@ ul {
     padding-inline: var(--space-16) 0;
 
     & li {
-        margin-block: var(--space-16);
+        margin-block: var(--space-4);
         margin-inline: 0;
     }
 }
@@ -1178,7 +1178,7 @@ dialog.modal-dialog.calc-modal {
 .hol-guidance,
 .hol-resources {
     padding: var(--space-24);
-    max-inline-size: 860px;
+    max-inline-size: 1200px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -1347,6 +1347,10 @@ label.field span:first-of-type {
 .upload-panel {
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
 }
 
 .upload-panel.needs-acceptance {
@@ -1362,7 +1366,8 @@ label.field span:first-of-type {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding-block-start: 2em;
+    padding-block-start: var(--space-16);
+    gap: var(--space-8);
 }
 
 .drop-overlay {
@@ -1390,6 +1395,48 @@ label.field span:first-of-type {
 
 .drop-overlay span {
     color: var(--muted);
+}
+
+.drag-drop-faux {
+    block-size: 100%;
+    inline-size: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background-color: var(--ink-05);
+    border-radius: var(--radius-16);
+    border: 1px var(--ink-20) dashed;
+    transition: all 2s ease-in-out;
+    cursor: grab;
+    text-align: center;
+}
+
+.mobile .mobile-ctx,
+.mobile .drag-drop-faux {
+    display: none;
+    visibility: hidden;
+}
+
+.drag-drop-faux svg {
+    block-size: 50%;
+    inline-size: 50%;
+    color: var(--accent-60);
+}
+
+.drag-drop-faux:hover svg path {
+    color: var(--accent-70);
+    filter: url('#inset-shadow');
+    transition:
+        transform 0.8s ease-in-out,
+        all 0.3s ease-in-out;
+    transform: translateY(-0.5px);
+}
+
+.drag-drop-faux::after {
+    content: 'drag & drop files PDF/Excel files...';
+    color: var(--ink-55);
+    font-size: var(--text-sm);
 }
 
 .field {
@@ -1488,6 +1535,7 @@ label.field span:first-of-type {
     cursor: pointer;
     margin-block-start: var(--space-12);
     gap: var(--space-8);
+    text-align: center;
     transition:
         transform 0.2s ease,
         all 0.2s ease;
@@ -1565,57 +1613,6 @@ label.field span:first-of-type {
 .year-header {
     border-block-end: 1px solid var(--ink);
 }
-
-/*
-.report-summary-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.report-summary-name {
-    font-size: var(--text-base);
-    font-weight: 700;
-    color: var(--ink);
-}
-
-
-
-.report-summary-range {
-    font-size: var(--text-sm);
-    color: var(--muted);
-}
-
-
-.report-summary-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-6);
-    margin-block-start: var(--space-4);
-}
-.summary-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px var(--space-8);
-    border-radius: var(--radius-pill);
-    font-size: var(--text-xs);
-    font-weight: 600;
-}
-
-.summary-pill--neutral {
-    background: var(--ink-10);
-    color: var(--ink);
-}
-
-.summary-pill--ok {
-    background: rgb(30 120 60 / 12%);
-    color: #1a5c30;
-}
-
-.summary-pill--warn {
-    background: var(--accent-15);
-    color: var(--accent-dark);
-} */
 
 .btn {
     display: flex;
@@ -2309,6 +2306,16 @@ body.scroll-locked {
     padding-inline: var(--space-32);
     flex: 1 1 auto;
     min-block-size: 0;
+}
+
+.modal-content .eyebrow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    & .pill {
+        margin-block: 1px;
+    }
 }
 
 .modal-close {
