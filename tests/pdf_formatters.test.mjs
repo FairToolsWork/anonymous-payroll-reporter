@@ -683,3 +683,54 @@ describe('sanitizeText', () => {
         expect(result).toBe('£160.80 (EE £100.50 / ER £60.30)')
     })
 })
+
+// ─── buildContributionRecencyDisplay — centralized threshold ────────────────────────────
+
+describe('buildContributionRecencyDisplay — centralized threshold', () => {
+    let buildRecency
+    let CONTRIBUTION_RECENCY_DAYS_THRESHOLD
+
+    beforeAll(async () => {
+        const formatters =
+            await import('../pwa/src/report/report_formatters.js')
+        const thresholds = await import('../pwa/src/report/uk_thresholds.js')
+        buildRecency = formatters.buildContributionRecencyDisplay
+        CONTRIBUTION_RECENCY_DAYS_THRESHOLD =
+            thresholds.CONTRIBUTION_RECENCY_DAYS_THRESHOLD
+    })
+
+    it('CONTRIBUTION_RECENCY_DAYS_THRESHOLD is exported from uk_thresholds', () => {
+        expect(typeof CONTRIBUTION_RECENCY_DAYS_THRESHOLD).toBe('number')
+        expect(CONTRIBUTION_RECENCY_DAYS_THRESHOLD).toBeGreaterThan(0)
+    })
+
+    it('marks as stale when daysSinceContribution exceeds centralized threshold', () => {
+        const recency = {
+            lastContributionLabel: '01 Jan 2025',
+            daysSinceContribution: CONTRIBUTION_RECENCY_DAYS_THRESHOLD + 1,
+        }
+        const display = buildRecency(
+            recency,
+            CONTRIBUTION_RECENCY_DAYS_THRESHOLD
+        )
+        expect(display.className).toBe('days--stale')
+        expect(display.daysThreshold).toBe(CONTRIBUTION_RECENCY_DAYS_THRESHOLD)
+    })
+
+    it('marks as fresh when daysSinceContribution equals centralized threshold', () => {
+        const recency = {
+            lastContributionLabel: '01 Jan 2025',
+            daysSinceContribution: CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
+        }
+        const display = buildRecency(
+            recency,
+            CONTRIBUTION_RECENCY_DAYS_THRESHOLD
+        )
+        expect(display.className).toBe('days--fresh')
+    })
+
+    it('daysThreshold in output matches the centralized constant when fallback is used', () => {
+        const display = buildRecency(null)
+        expect(display.daysThreshold).toBe(CONTRIBUTION_RECENCY_DAYS_THRESHOLD)
+    })
+})

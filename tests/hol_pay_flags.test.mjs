@@ -106,6 +106,11 @@ describe('buildHolidayPayFlags — Signal A (same-payslip rate)', () => {
         expect(flag).toBeDefined()
         expect(flag.label).toMatch(/£10\.00\/hr implied/)
         expect(flag.label).toMatch(/£14\.50\/hr/)
+        expect(flag.ruleId).toBe('holiday_rate_below_basic')
+        expect(flag.inputs).toMatchObject({
+            impliedHolidayRate: 10,
+            basicRate: 14.5,
+        })
     })
 
     it('derives basic rate from amount/units when rate is null', () => {
@@ -180,6 +185,13 @@ describe('buildHolidayPayFlags — Signal B (rolling average rate)', () => {
         )
         expect(flag).toBeDefined()
         expect(flag.label).toMatch(/average basic rate/)
+        expect(flag.ruleId).toBe('holiday_rate_below_rolling_avg')
+        expect(flag.inputs).toMatchObject({
+            impliedHolidayRate: 10,
+            rollingAvgRate: 14.5,
+        })
+        expect(typeof flag.inputs.totalWeeks).toBe('number')
+        expect(typeof flag.inputs.periodsCounted).toBe('number')
     })
 
     it('does not fire Signal B when fewer than 3 eligible periods', () => {
@@ -1549,5 +1561,77 @@ describe('isReferenceEligible — statutory pay titles', () => {
             holidayAmount: 100,
         })
         expect(isReferenceEligible(entry)).toBe(false)
+    })
+})
+
+describe('flag evidence payload — ruleId and inputs fields', () => {
+    it('holiday_rate_below_basic flag carries ruleId matching id', () => {
+        const entry = makeEntry({
+            basicUnits: 100,
+            basicRate: 20.0,
+            holidayUnits: 8,
+            holidayRate: null,
+            holidayAmount: 8 * 12.0,
+        })
+        buildHolidayPayFlags([entry])
+        const flag = entry.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_basic'
+        )
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe(flag.id)
+    })
+
+    it('holiday_rate_below_basic inputs contain numeric impliedHolidayRate and basicRate', () => {
+        const entry = makeEntry({
+            basicUnits: 100,
+            basicRate: 20.0,
+            holidayUnits: 8,
+            holidayRate: null,
+            holidayAmount: 8 * 12.0,
+        })
+        buildHolidayPayFlags([entry])
+        const flag = entry.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_basic'
+        )
+        expect(typeof flag.inputs.impliedHolidayRate).toBe('number')
+        expect(typeof flag.inputs.basicRate).toBe('number')
+        expect(flag.inputs.impliedHolidayRate).toBeCloseTo(12.0)
+        expect(flag.inputs.basicRate).toBeCloseTo(20.0)
+    })
+
+    it('holiday_rate_below_rolling_avg flag inputs contain numeric rate and reference counts', () => {
+        const entries = []
+        for (let i = 0; i < 6; i++) {
+            entries.push(
+                makeEntry({
+                    basicUnits: 160,
+                    basicRate: 18.0,
+                    yearKey: '2024/25',
+                    monthIndex: i + 1,
+                    parsedDate: new Date(2024, i, 15),
+                })
+            )
+        }
+        const holidayEntry = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayRate: null,
+            holidayAmount: 8 * 9.0,
+            yearKey: '2024/25',
+            parsedDate: new Date(2024, 6, 15),
+        })
+        entries.push(holidayEntry)
+        buildHolidayPayFlags(entries)
+        const flag = holidayEntry.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_rolling_avg'
+        )
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe(flag.id)
+        expect(flag.inputs.impliedHolidayRate).toBeCloseTo(9.0)
+        expect(flag.inputs.rollingAvgRate).toBeCloseTo(18.0)
+        expect(flag.inputs.periodsCounted).toBeGreaterThanOrEqual(3)
+        expect(flag.inputs.totalWeeks).toBeGreaterThan(0)
     })
 })

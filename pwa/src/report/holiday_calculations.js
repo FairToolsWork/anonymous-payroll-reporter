@@ -10,7 +10,7 @@ export { HOLIDAY_RATE_TOLERANCE } from './uk_thresholds.js'
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
 /**
- * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
+ * @typedef {{ id: string, label: string, noteIndex?: number, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
@@ -301,6 +301,8 @@ export function buildHolidayPayFlags(entries) {
                     impliedHolidayRate,
                     basicRate,
                 }),
+                ruleId: 'holiday_rate_below_basic',
+                inputs: { impliedHolidayRate, basicRate },
             })
             if (timing?.enabled) {
                 timing.increment('holidayFlags.flag.holiday_rate_below_basic')
@@ -317,6 +319,13 @@ export function buildHolidayPayFlags(entries) {
                     periodsCounted: ref.periodsCounted,
                     limitedData: ref.limitedData,
                 }),
+                ruleId: 'holiday_rate_below_rolling_avg',
+                inputs: {
+                    impliedHolidayRate,
+                    rollingAvgRate,
+                    totalWeeks: ref.totalWeeks,
+                    periodsCounted: ref.periodsCounted,
+                },
             })
             if (timing?.enabled) {
                 timing.increment(

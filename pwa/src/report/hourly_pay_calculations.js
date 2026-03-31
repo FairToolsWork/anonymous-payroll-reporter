@@ -2,7 +2,7 @@
  * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
  * @typedef {import("../parse/payroll.types.js").PayrollDeductions} PayrollDeductions
  * @typedef {import("../parse/payroll.types.js").PayrollPayments} PayrollPayments
- * @typedef {{ id: string, label: string }} ValidationFlag
+ * @typedef {{ id: string, label: string, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult }} HourlyPayEntry
  */
@@ -114,6 +114,8 @@ export function buildValidation(entry) {
         flags.push({
             id: 'paye_zero',
             label: resolveFlagLabel('paye_zero', 'PAYE Tax missing or £0'),
+            ruleId: 'paye_zero',
+            inputs: { payeTax },
         })
     }
     if (nationalInsurance <= 0) {
@@ -123,6 +125,8 @@ export function buildValidation(entry) {
                 'nat_ins_zero',
                 'National Insurance missing or £0'
             ),
+            ruleId: 'nat_ins_zero',
+            inputs: { nationalInsurance },
         })
     }
 
@@ -147,6 +151,8 @@ export function buildValidation(entry) {
                         'payment_line_mismatch',
                         'A payment line units × rate does not match its amount'
                     ),
+                    ruleId: 'payment_line_mismatch',
+                    inputs: { computed: expected, reported: item.amount },
                 })
                 break
             }
@@ -167,6 +173,8 @@ export function buildValidation(entry) {
                     'gross_mismatch',
                     'Payments total does not match Total Gross Pay'
                 ),
+                ruleId: 'gross_mismatch',
+                inputs: { computed: paymentsTotal, reported: totalGrossPay },
             })
         }
     }
@@ -182,6 +190,8 @@ export function buildValidation(entry) {
                     'net_mismatch',
                     'Net Pay does not match payments less deductions'
                 ),
+                ruleId: 'net_mismatch',
+                inputs: { computed: expectedNet, reported: netPay },
             })
         }
     }

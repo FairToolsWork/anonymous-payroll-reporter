@@ -1548,3 +1548,168 @@ describe('leaveYearStartMonth — buildReport holiday cell grouping', () => {
         expect(html.length).toBeGreaterThan(100)
     })
 })
+
+describe('buildValidation — flag evidence payload', () => {
+    function buildValidationRecord(overrides = {}) {
+        return {
+            employee: { natInsNumber: null, ...overrides.employee },
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                payments: {
+                    hourly: {
+                        basic: { units: 100, rate: 10, amount: 1000 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: { totalGrossPay: { amount: 1000 } },
+                netPay: { amount: 1000 },
+                processDate: { date: '01/04/25 - 30/04/25' },
+                ...overrides.payrollDoc,
+            },
+        }
+    }
+
+    it('paye_zero flag carries ruleId and numeric inputs.payeTax', () => {
+        const record = buildValidationRecord()
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('paye_zero')
+        expect(typeof flag.inputs.payeTax).toBe('number')
+    })
+
+    it('nat_ins_zero flag carries ruleId and numeric inputs.nationalInsurance', () => {
+        const record = buildValidationRecord()
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('nat_ins_zero')
+        expect(typeof flag.inputs.nationalInsurance).toBe('number')
+    })
+
+    it('gross_mismatch flag carries ruleId and computed/reported inputs', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 50 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                payments: {
+                    hourly: {
+                        basic: { units: 100, rate: 10, amount: 1000 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: { totalGrossPay: { amount: 500 } },
+                netPay: { amount: 850 },
+                processDate: { date: '01/04/25 - 30/04/25' },
+            },
+        })
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'gross_mismatch')
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('gross_mismatch')
+        expect(typeof flag.inputs.computed).toBe('number')
+        expect(typeof flag.inputs.reported).toBe('number')
+        expect(flag.inputs.computed).toBeCloseTo(1000)
+        expect(flag.inputs.reported).toBeCloseTo(500)
+    })
+
+    it('net_mismatch flag carries ruleId and computed/reported inputs', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 50 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                payments: {
+                    hourly: {
+                        basic: { units: 100, rate: 10, amount: 1000 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: { totalGrossPay: { amount: 1000 } },
+                netPay: { amount: 999 },
+                processDate: { date: '01/04/25 - 30/04/25' },
+            },
+        })
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'net_mismatch')
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('net_mismatch')
+        expect(typeof flag.inputs.computed).toBe('number')
+        expect(typeof flag.inputs.reported).toBe('number')
+        expect(flag.inputs.computed).toBeCloseTo(850)
+        expect(flag.inputs.reported).toBeCloseTo(999)
+    })
+
+    it('payment_line_mismatch flag carries ruleId and computed/reported inputs', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 50 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                payments: {
+                    hourly: {
+                        basic: { units: 100, rate: 10, amount: 500 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: { totalGrossPay: { amount: 500 } },
+                netPay: { amount: 350 },
+                processDate: { date: '01/04/25 - 30/04/25' },
+            },
+        })
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'payment_line_mismatch')
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('payment_line_mismatch')
+        expect(flag.inputs.computed).toBeCloseTo(1000)
+        expect(flag.inputs.reported).toBeCloseTo(500)
+    })
+})
