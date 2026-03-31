@@ -1,4 +1,5 @@
 import { ACTIVE_PAYROLL_FORMAT } from '../parse/active_format.js'
+import { RULES_VERSION, THRESHOLDS_VERSION } from '../report/uk_thresholds.js'
 import { UNKNOWN_APP_VERSION } from './app_version.js'
 import { loadXlsx } from './app_xlsx.js'
 import { logMemoryUsage, MEMORY_LOG_EVERY, timingApi } from './debug_tools.js'
@@ -36,9 +37,14 @@ export function loadRunSnapshot() {
 /**
  * @param {string} reportHtml
  * @param {string} appVersion
+ * @param {{ rulesVersion?: string, thresholdsVersion?: string } | null} [auditMetadata=null]
  * @returns {string}
  */
-export function injectReportVersionFootnote(reportHtml, appVersion) {
+export function injectReportVersionFootnote(
+    reportHtml,
+    appVersion,
+    auditMetadata = null
+) {
     if (!reportHtml) {
         return reportHtml
     }
@@ -61,7 +67,12 @@ export function injectReportVersionFootnote(reportHtml, appVersion) {
         appVersion && appVersion !== UNKNOWN_APP_VERSION
             ? appVersion
             : UNKNOWN_APP_VERSION
-    const versionMarkup = `<p class="report-footnote">App version: ${versionLabel}</p>`
+    const rulesVersionLabel = auditMetadata?.rulesVersion || RULES_VERSION
+    const thresholdsVersionLabel =
+        auditMetadata?.thresholdsVersion || THRESHOLDS_VERSION
+    const versionMarkup =
+        `<p class="report-footnote">Release: ${versionLabel}</p>` +
+        `<p class="report-footnote">Rules: ${rulesVersionLabel} · Thresholds: ${thresholdsVersionLabel}</p>`
     return (
         reportHtml.slice(0, pageCloseIndex) +
         versionMarkup +
@@ -493,7 +504,11 @@ export async function processFiles(files) {
     }
 
     this.status = 'rendering'
-    this.reportHtml = injectReportVersionFootnote(report.html, this.appVersion)
+    this.reportHtml = injectReportVersionFootnote(
+        report.html,
+        this.appVersion,
+        report.context?.auditMetadata || null
+    )
     this.reportReady = true
     this.status = 'done'
     this.reportTimestamp = new Date().toLocaleString('en-GB')

@@ -7,6 +7,14 @@ export const AboutContent = defineComponent({
             type: String,
             default: '',
         },
+        rulesVersion: {
+            type: String,
+            default: '',
+        },
+        thresholdsVersion: {
+            type: String,
+            default: '',
+        },
     },
     emits: ['close'],
     template: `
@@ -25,7 +33,12 @@ export const AboutContent = defineComponent({
         <div class="modal-content">
             <p class="eyebrow">
                 Anonymous Payroll Reporter
+                <span
+                    v-if="rulesVersion && thresholdsVersion"
+                    class="pill inline ghost"
+                >Rules {{ rulesVersion }} · Thresholds {{ thresholdsVersion }}</span>
                 <span class="pill inline ghost">Release {{ appVersion }}</span>
+
             </p>
             <h3>About The Project</h3>
             <p>

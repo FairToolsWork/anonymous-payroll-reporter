@@ -60,6 +60,7 @@ import {
     getAppVersionFromDemoLink,
     UNKNOWN_APP_VERSION,
 } from './app_version.js'
+import { RULES_VERSION, THRESHOLDS_VERSION } from '../report/uk_thresholds.js'
 import {
     entitlementBelowMinimum,
     isZeroHoursWorker,
@@ -118,6 +119,8 @@ import { copyDebugOutput, DEBUG_ENABLED, DEBUG_LEVEL } from './debug_tools.js'
  * @property {boolean} parsingExcel
  * @property {boolean} staleInstance
  * @property {string} appVersion
+ * @property {string} rulesVersion
+ * @property {string} thresholdsVersion
  * @property {{ label: string, className: string } | null} activePayrollPill
  * @property {{ label: string, className: string } | null} activePensionPill
  * @property {{ workerType: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }} workerProfile
@@ -274,6 +277,8 @@ export function initPayrollApp() {
                     showScrollTop: false,
                     parsingExcel: false,
                     appVersion: UNKNOWN_APP_VERSION,
+                    rulesVersion: RULES_VERSION,
+                    thresholdsVersion: THRESHOLDS_VERSION,
                     activePayrollPill: ACTIVE_PAYROLL_FORMAT.label
                         ? {
                               label: ACTIVE_PAYROLL_FORMAT.label,
