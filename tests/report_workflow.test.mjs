@@ -2,16 +2,16 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { describe, expect, it } from 'vitest'
-import {
-    buildReport,
-    formatBreakdownCell,
-    formatContributionDifference,
-} from '../pwa/src/report/build.js'
+import { buildReport } from '../pwa/src/report/build.js'
 import {
     sumDeductionsForNetPay,
     sumPayments,
 } from '../pwa/src/report/hourly_pay_calculations.js'
 import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
+import {
+    buildContributionBreakdownParts,
+    buildDiffDisplay,
+} from '../pwa/src/report/report_formatters.js'
 import { getTaxYearKey } from '../pwa/src/report/tax_year_utils.js'
 import {
     buildBrowserShims,
@@ -36,6 +36,22 @@ const formatYearAnchor = (yearKey) =>
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
+
+const formatBreakdownCellHtml = (total, ee, er, allowNA = false) => {
+    if (allowNA && total === null) {
+        return 'N/A'
+    }
+    const parts = buildContributionBreakdownParts(total, ee, er, allowNA)
+    return `${parts.totalLabel}<br><span class="summary-breakdown">${parts.breakdownLabel}</span>`
+}
+
+const formatContributionDifferenceHtml = (value) => {
+    const diff = buildDiffDisplay(value)
+    if (diff.className === null) {
+        return 'N/A'
+    }
+    return `<span class="${diff.className}">${diff.text}</span>`
+}
 
 const buildRecord = (overrides = {}) => ({
     employee: { name: 'Test Person', natInsNumber: 'AB123456C' },
@@ -226,18 +242,18 @@ describe('report workflow', () => {
         )
 
         const contributionTotals = result.reportContext.contributionTotals
-        const payrollBreakdown = formatBreakdownCell(
+        const payrollBreakdown = formatBreakdownCellHtml(
             contributionTotals.payrollContribution,
             contributionTotals.payrollEE,
             contributionTotals.payrollER
         )
-        const reportedBreakdown = formatBreakdownCell(
+        const reportedBreakdown = formatBreakdownCellHtml(
             contributionTotals.reportedContribution,
             contributionTotals.pensionEE,
             contributionTotals.pensionER,
             true
         )
-        const differenceLabel = formatContributionDifference(
+        const differenceLabel = formatContributionDifferenceHtml(
             contributionTotals.contributionDifference
         )
 

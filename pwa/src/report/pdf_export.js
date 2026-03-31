@@ -1,18 +1,20 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
-    ACCRUAL_METHOD_AVG_WEEK_LABEL,
-    ACCRUAL_METHOD_HOURLY_LABEL,
+    ACCUMULATED_TOTALS_TITLE,
     buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
     buildDiffDisplay,
-    buildMiscReviewDisplay,
-    buildWorkerProfileDisplay,
+    buildHolidaySummaryDisplay,
+    buildMiscReviewLine,
+    buildWorkerProfileSummaryFields,
+    buildYearRowHolidayDisplay,
+    FLAG_NOTES_TITLE,
     formatContribution,
     formatCurrency,
     formatDeduction,
-    OVERRUN_SUFFIX,
-    VARIABLE_PATTERN_DAYS_NOTE,
+    MISC_REVIEW_TITLE,
+    YEAR_SUMMARY_TITLE,
 } from './report_formatters.js'
 import {
     buildPayslipViewModel,
@@ -280,93 +282,28 @@ export function formatDiff(value) {
  * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string, hasVariablePattern: boolean }} workerProfile
  * @returns {string}
  */
-function formatPdfWorkerProfileLine(workerProfile) {
-    const display = buildWorkerProfileDisplay(workerProfile)
-    return (
-        `Type: ${display.typeValue} · ${display.typicalDaysValue}` +
-        ` · Entitlement: ${display.entitlementValue}` +
-        ` · Leave year: ${display.leaveYearValue}`
-    )
+function renderWorkerProfileText(workerProfile) {
+    return buildWorkerProfileSummaryFields(workerProfile)
+        .map(({ label, value }) => `${label}: ${value}`)
+        .join(' · ')
+}
+
+/**
+ * @param {{ primaryLabel: string, detailLines: string[] }} display
+ * @returns {string}
+ */
+function renderDisplayText(display) {
+    return [display.primaryLabel, ...display.detailLines]
+        .filter(Boolean)
+        .join('\n')
 }
 
 /** @param {any} holidaySummary */
-function formatPdfYearSummaryHolidayText(holidaySummary) {
-    let holidayCell
-    if (holidaySummary.kind === 'salary_days') {
-        holidayCell =
-            `${formatCurrency(holidaySummary.holidayAmount)}\n` +
-            `${holidaySummary.daysTaken.toFixed(1)}d taken, ${holidaySummary.daysRemaining.toFixed(1)} rem${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`
-    } else if (holidaySummary.kind === 'salary_amount') {
-        holidayCell = formatCurrency(holidaySummary.holidayAmount)
-    } else if (holidaySummary.kind === 'hourly_days') {
-        holidayCell =
-            `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
-            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}\n` +
-            `~${holidaySummary.daysTaken.toFixed(1)}d taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
-    } else if (holidaySummary.kind === 'hourly_hours') {
-        holidayCell =
-            `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
-            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}\n` +
-            `${holidaySummary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}`
-    } else {
-        const variableNote = holidaySummary.hasVariablePattern
-            ? `\n${VARIABLE_PATTERN_DAYS_NOTE}`
-            : ''
-        holidayCell = `${holidaySummary.holidayHours.toFixed(2)} hrs${variableNote}`
-    }
-    if (holidaySummary.leaveYearLabel) {
-        holidayCell += `\n(${holidaySummary.leaveYearLabel})`
-    }
-    return holidayCell
-}
-
-/** @param {any} summary */
-function formatPdfTotalHolidayBreakdown(summary) {
-    if (!summary) return ''
-    if (summary.kind === 'salary_days') {
-        return (
-            `\n~${summary.daysTaken.toFixed(1)} days taken` +
-            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`
-        )
-    }
-    if (summary.kind === 'hourly_days') {
-        return (
-            `\n${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}` +
-            `\n~${summary.daysTaken.toFixed(1)} days taken` +
-            ` / ${summary.daysRemaining.toFixed(1)} days remaining`
-        )
-    }
-    if (summary.kind === 'hourly_hours') {
-        return (
-            `\n~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${summary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}\n` +
-            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`
-        )
-    }
-    return ''
-}
-
-/** @param {any} holidaySummary */
-function formatPdfYearRowHolidayText(holidaySummary) {
-    if (holidaySummary.kind === 'hours_days') {
-        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(${holidaySummary.estimatedDays.toFixed(1)}d)`
-    }
-    if (
-        holidaySummary.kind === 'hours_only' &&
-        holidaySummary.accruedHours !== null &&
-        holidaySummary.accruedHours > 0
-    ) {
-        return `${holidaySummary.holidayHours.toFixed(2)} hrs\n(+${holidaySummary.accruedHours.toFixed(1)} accrued)`
-    }
-    return holidaySummary.holidayHours.toFixed(2)
-}
-
-/** @param {{ dateLabel: string, type: string, label: string, amount: number }} item */
-function formatPdfMiscReviewLine(item) {
-    const display = buildMiscReviewDisplay(item)
-    return `${item.dateLabel}: ${display.typeLabel}: ${item.label}: ${display.amountLabel}`
+function renderYearRowHolidayText(holidaySummary) {
+    const display = buildYearRowHolidayDisplay(holidaySummary)
+    return [display.primaryLabel, ...display.detailLines]
+        .filter(Boolean)
+        .join('\n')
 }
 
 // ─── Page sections ────────────────────────────────────────────────────────────
@@ -418,7 +355,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         sanitizeText(row.label),
         sanitizeText(
             row.id === 'worker-profile' && row.workerProfile
-                ? formatPdfWorkerProfileLine(row.workerProfile)
+                ? renderWorkerProfileText(row.workerProfile)
                 : (row.displayValue ?? row.value ?? '')
         ),
     ])
@@ -482,7 +419,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     }
 
     y += LINE_GAP
-    y = writeHeading(doc, 'Year Summary', y)
+    y = writeHeading(doc, YEAR_SUMMARY_TITLE, y)
 
     /** @type {Array<Array<string>>} */
     const yearRows = []
@@ -494,7 +431,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         yearRows.push([
             String(row.yearKey || 'Unknown'),
             row.hours.toFixed(2),
-            formatPdfYearSummaryHolidayText(row.holidaySummary),
+            renderDisplayText(buildHolidaySummaryDisplay(row.holidaySummary)),
             formatBreakdown(
                 row.payrollContribution.total,
                 row.payrollContribution.ee,
@@ -559,7 +496,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         }
     )
 
-    y = writeHeading(doc, 'Accumulated Totals', y)
+    y = writeHeading(doc, ACCUMULATED_TOTALS_TITLE, y)
 
     const totals = summaryViewModel.accumulatedTotals
     const recencyDisplay = buildContributionRecencyDisplay(
@@ -623,11 +560,11 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     )
 
     if (summaryViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, 'Misc entries to review', y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
         y = writeText(
             doc,
             summaryViewModel.miscReviewItems.map((/** @type {any} */ item) =>
-                formatPdfMiscReviewLine(item)
+                buildMiscReviewLine(item)
             ),
             y,
             { fontSize: FONT_SMALL }
@@ -698,7 +635,7 @@ function renderYearPage(
         bodyRows.push([
             row.monthLabel,
             row.hours.toFixed(2),
-            formatPdfYearRowHolidayText(row.holidaySummary),
+            renderYearRowHolidayText(row.holidaySummary),
             formatBreakdown(
                 row.payrollContribution.total,
                 row.payrollContribution.ee,
@@ -727,10 +664,9 @@ function renderYearPage(
                 ? [
                       row.label,
                       row.hours.toFixed(2),
-                      row.holidayHours.toFixed(2) +
-                          formatPdfTotalHolidayBreakdown(
-                              row.yearHolidaySummary
-                          ),
+                      renderDisplayText(
+                          buildHolidaySummaryDisplay(row.yearHolidaySummary)
+                      ),
                       formatBreakdown(
                           row.payrollContribution.total,
                           row.payrollContribution.ee,
@@ -807,11 +743,11 @@ function renderYearPage(
     )
 
     if (yearViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, 'Misc entries to review', y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
         y = writeText(
             doc,
             yearViewModel.miscReviewItems.map((/** @type {any} */ item) =>
-                formatPdfMiscReviewLine(item)
+                buildMiscReviewLine(item)
             ),
             y,
             { fontSize: FONT_SMALL }
@@ -819,7 +755,7 @@ function renderYearPage(
     }
 
     if (yearViewModel.flagNotes.length) {
-        y = writeHeading(doc, 'Flag notes', y)
+        y = writeHeading(doc, FLAG_NOTES_TITLE, y)
         y = writeText(
             doc,
             yearViewModel.flagNotes.map(

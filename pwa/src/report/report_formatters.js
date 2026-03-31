@@ -33,6 +33,10 @@ export const ACCRUAL_METHOD_AVG_WEEK_LABEL = '5.6 week avg. method'
 export const OVERRUN_SUFFIX = ' (entitlement exceeded)'
 export const VARIABLE_PATTERN_DAYS_NOTE =
     'Days estimate not shown — variable work pattern'
+export const YEAR_SUMMARY_TITLE = 'Year Summary'
+export const ACCUMULATED_TOTALS_TITLE = 'Accumulated Totals'
+export const MISC_REVIEW_TITLE = 'Misc entries to review'
+export const FLAG_NOTES_TITLE = 'Flag notes'
 
 /**
  * @param {number} value
@@ -101,21 +105,6 @@ export function buildContributionBreakdownParts(
         erLabel,
         breakdownLabel: `${eeLabel} EE / ${erLabel} ER`,
     }
-}
-
-/**
- * @param {number | null} total
- * @param {number | null} ee
- * @param {number | null} er
- * @param {boolean} [allowNA=false]
- * @returns {string}
- */
-export function formatBreakdownCell(total, ee, er, allowNA = false) {
-    if (allowNA && total === null) {
-        return 'N/A'
-    }
-    const parts = buildContributionBreakdownParts(total, ee, er, allowNA)
-    return `${parts.totalLabel}<br><span class="summary-breakdown">${parts.breakdownLabel}</span>`
 }
 
 /**
@@ -219,6 +208,135 @@ export function buildWorkerProfileDisplay(workerProfile) {
 }
 
 /**
+ * @param {{ workerTypeLabel?: string, typicalDays?: number, statutoryHolidayDays?: number | null, leaveYearStartMonthName?: string, hasVariablePattern?: boolean } | null | undefined} workerProfile
+ * @returns {Array<{ label: string, value: string }>}
+ */
+export function buildWorkerProfileSummaryFields(workerProfile) {
+    const display = buildWorkerProfileDisplay(workerProfile)
+    return [
+        { label: 'Type', value: display.typeValue },
+        { label: 'Typical days', value: display.typicalDaysValue },
+        { label: 'Holiday entitlement', value: display.entitlementValue },
+        { label: 'Leave year starts', value: display.leaveYearValue },
+    ]
+}
+
+/**
+ * Shared holiday display copy must stay ASCII-friendly because jsPDF's built-in
+ * Helvetica font cannot reliably render symbols like U+2248.
+ * @param {any} holidaySummary
+ * @returns {{ primaryLabel: string, detailLines: string[] }}
+ */
+export function buildHolidaySummaryDisplay(holidaySummary) {
+    /** @type {string[]} */
+    const detailLines = []
+    const holidayHours =
+        typeof holidaySummary?.holidayHours === 'number'
+            ? holidaySummary.holidayHours
+            : 0
+    let primaryLabel = `${holidayHours.toFixed(2)} hrs`
+
+    if (holidaySummary.kind === 'salary_days') {
+        primaryLabel = formatCurrency(holidaySummary.holidayAmount)
+        detailLines.push(
+            `~${holidaySummary.daysTaken.toFixed(1)} days taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`
+        )
+    } else if (holidaySummary.kind === 'salary_amount') {
+        primaryLabel = formatCurrency(holidaySummary.holidayAmount)
+    } else if (holidaySummary.kind === 'hourly_days') {
+        primaryLabel = `${holidaySummary.holidayHours.toFixed(2)} hrs taken`
+        detailLines.push(
+            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`,
+            `~${holidaySummary.daysTaken.toFixed(1)} days taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
+        )
+    } else if (holidaySummary.kind === 'hourly_hours') {
+        primaryLabel = `${holidaySummary.holidayHours.toFixed(2)} hrs taken`
+        detailLines.push(
+            `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`,
+            holidaySummary.useAccrualMethod
+                ? ACCRUAL_METHOD_HOURLY_LABEL
+                : ACCRUAL_METHOD_AVG_WEEK_LABEL
+        )
+    } else if (holidaySummary.hasVariablePattern) {
+        detailLines.push(VARIABLE_PATTERN_DAYS_NOTE)
+    }
+
+    if (holidaySummary.leaveYearLabel) {
+        detailLines.push(holidaySummary.leaveYearLabel)
+    }
+
+    return { primaryLabel, detailLines }
+}
+
+/**
+ * @param {any} summary
+ * @returns {string[]}
+ */
+export function buildTotalHolidayBreakdownLines(summary) {
+    if (!summary) {
+        return []
+    }
+    if (summary.kind === 'salary_days') {
+        return [
+            `~${summary.daysTaken.toFixed(1)} days taken / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`,
+        ]
+    }
+    if (summary.kind === 'hourly_days') {
+        return [
+            `~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
+            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`,
+            `~${summary.daysTaken.toFixed(1)} days taken / ${summary.daysRemaining.toFixed(1)} remaining`,
+        ]
+    }
+    if (summary.kind === 'hourly_hours') {
+        return [
+            `~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
+            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`,
+            summary.useAccrualMethod
+                ? ACCRUAL_METHOD_HOURLY_LABEL
+                : ACCRUAL_METHOD_AVG_WEEK_LABEL,
+        ]
+    }
+    return []
+}
+
+/**
+ * @param {any} holidaySummary
+ * @returns {{ primaryLabel: string, detailLines: string[], detailMode: 'inline' | 'block' }}
+ */
+export function buildYearRowHolidayDisplay(holidaySummary) {
+    if (holidaySummary.kind === 'hours_days') {
+        return {
+            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+            detailLines: [
+                `(~ ${holidaySummary.estimatedDays.toFixed(1)} days)`,
+            ],
+            detailMode: 'inline',
+        }
+    }
+    if (
+        holidaySummary.kind === 'hours_only' &&
+        holidaySummary.accruedHours !== null &&
+        holidaySummary.accruedHours > 0
+    ) {
+        return {
+            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+            detailLines: [
+                `+${holidaySummary.accruedHours.toFixed(1)} hrs accrued`,
+            ],
+            detailMode: 'block',
+        }
+    }
+    return {
+        primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+        detailLines: [],
+        detailMode: 'inline',
+    }
+}
+
+/**
  * @param {{ dateLabel: string, type: string, label: string, amount: number, units?: number | null, rate?: number | null }} item
  * @returns {{ typeLabel: string, amountLabel: string, detailLabel: string }}
  */
@@ -237,13 +355,10 @@ export function buildMiscReviewDisplay(item) {
 }
 
 /**
- * @param {number | null} value
+ * @param {{ dateLabel: string, type: string, label: string, amount: number, units?: number | null, rate?: number | null }} item
  * @returns {string}
  */
-export function formatContributionDifference(value) {
-    const diff = buildDiffDisplay(value)
-    if (diff.className === null) {
-        return 'N/A'
-    }
-    return `<span class="${diff.className}">${diff.text}</span>`
+export function buildMiscReviewLine(item) {
+    const display = buildMiscReviewDisplay(item)
+    return `${item.dateLabel}: ${display.typeLabel}: ${item.label} (${display.detailLabel}): ${display.amountLabel}`
 }

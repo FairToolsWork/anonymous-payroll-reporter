@@ -1,18 +1,19 @@
 import {
-    ACCRUAL_METHOD_AVG_WEEK_LABEL,
-    ACCRUAL_METHOD_HOURLY_LABEL,
+    ACCUMULATED_TOTALS_TITLE,
     APRIL_BOUNDARY_NOTE,
+    buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
     buildDiffDisplay,
-    buildMiscReviewDisplay,
-    buildWorkerProfileDisplay,
-    formatBreakdownCell,
+    buildHolidaySummaryDisplay,
+    buildMiscReviewLine,
+    buildWorkerProfileSummaryFields,
+    buildYearRowHolidayDisplay,
     formatContribution,
-    formatContributionDifference,
     formatCurrency,
     formatDeduction,
-    OVERRUN_SUFFIX,
-    VARIABLE_PATTERN_DAYS_NOTE,
+    FLAG_NOTES_TITLE,
+    MISC_REVIEW_TITLE,
+    YEAR_SUMMARY_TITLE,
     ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
 import {
@@ -28,121 +29,81 @@ const ZERO_TAX_ALLOWANCE_NOTE_HTML = `<b>Note:</b> <i>${ZERO_TAX_ALLOWANCE_NOTE}
  * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string }} workerProfile
  * @returns {string}
  */
-function formatWorkerProfileHtml(workerProfile) {
-    const display = buildWorkerProfileDisplay(workerProfile)
-    return `<b>Type:</b> ${display.typeValue} &nbsp;·&nbsp; <b>Typical days:</b> ${display.typicalDaysValue} &nbsp;·&nbsp; <b>Holiday entitlement:</b> ${display.entitlementValue} &nbsp;·&nbsp; <b>Leave year starts:</b> ${display.leaveYearValue}`
+function renderWorkerProfileHtml(workerProfile) {
+    return buildWorkerProfileSummaryFields(workerProfile)
+        .map(({ label, value }) => `<b>${label}:</b> ${value}`)
+        .join(' &nbsp;·&nbsp; ')
 }
 
 /**
- * @param {any} summary
+ * @param {string[]} lines
  * @returns {string}
  */
-function formatTotalHolidayBreakdown(summary) {
-    if (!summary) return ''
-    if (summary.kind === 'salary_days') {
-        return (
-            `<br><span class="summary-breakdown">` +
-            `≈${summary.daysTaken.toFixed(1)} days taken` +
-            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? OVERRUN_SUFFIX : ''}` +
-            `</span>`
-        )
+function renderSummaryBreakdownLinesHtml(lines) {
+    if (!lines.length) {
+        return ''
     }
-    if (summary.kind === 'hourly_days') {
-        return (
-            `<br><span class="summary-breakdown">` +
-            `≈${summary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
-            `<br>${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}` +
-            `<br>≈ ${summary.daysTaken.toFixed(1)} days taken` +
-            ` / ${summary.daysRemaining.toFixed(1)} remaining` +
-            `</span>`
-        )
-    }
-    if (summary.kind === 'hourly_hours') {
-        return (
-            `<br><span class="summary-breakdown">` +
-            `≈${summary.entitlementHours.toFixed(1)} hrs/yr entitlement` +
-            `<br>${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}` +
-            `<br><em>${summary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}</em>` +
-            `</span>`
-        )
-    }
-
-    return ''
+    return `<br>${lines.map((line) => `<span class="summary-breakdown">${line}</span>`).join('<br>')}`
 }
 
 /**
- * @param {any} holidaySummary
+ * @param {number | null} total
+ * @param {number | null} ee
+ * @param {number | null} er
+ * @param {boolean} [allowNA=false]
  * @returns {string}
  */
-function formatYearSummaryHolidayHtml(holidaySummary) {
-    const leaveYearNote = holidaySummary.leaveYearLabel
-        ? `<br><span class="summary-breakdown">${holidaySummary.leaveYearLabel}</span>`
-        : ''
-    if (holidaySummary.kind === 'salary_days') {
-        return (
-            `${formatCurrency(holidaySummary.holidayAmount)}<br>` +
-            `<span class="summary-breakdown">≈${holidaySummary.daysTaken.toFixed(1)} days taken` +
-            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}</span>` +
-            leaveYearNote
-        )
+function renderBreakdownCellHtml(total, ee, er, allowNA = false) {
+    if (allowNA && total === null) {
+        return 'N/A'
     }
-    if (holidaySummary.kind === 'salary_amount') {
-        return formatCurrency(holidaySummary.holidayAmount) + leaveYearNote
-    }
-    if (holidaySummary.kind === 'hourly_days') {
-        return (
-            `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
-            `<span class="summary-breakdown">` +
-            `≈ ${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}<br>` +
-            `≈ ${holidaySummary.daysTaken.toFixed(1)} days taken` +
-            ` / ${holidaySummary.daysRemaining.toFixed(1)} remaining` +
-            `</span>` +
-            leaveYearNote
-        )
-    }
-    if (holidaySummary.kind === 'hourly_hours') {
-        return (
-            `${holidaySummary.holidayHours.toFixed(2)} hrs taken<br>` +
-            `<span class="summary-breakdown">` +
-            `≈ ${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement<br>` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}<br>` +
-            `<em>${holidaySummary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}</em>` +
-            `</span>` +
-            leaveYearNote
-        )
-    }
-    const variablePatternNote = holidaySummary.hasVariablePattern
-        ? `<br><span class="summary-breakdown">${VARIABLE_PATTERN_DAYS_NOTE}</span>`
-        : ''
-    return `${holidaySummary.holidayHours.toFixed(2)} hrs${leaveYearNote}${variablePatternNote}`
+    const parts = buildContributionBreakdownParts(total, ee, er, allowNA)
+    return `${parts.totalLabel}<br><span class="summary-breakdown">${parts.breakdownLabel}</span>`
 }
 
 /**
- * @param {any} holidaySummary
+ * @param {number | null} value
+ * @param {boolean} [isZeroReview=false]
  * @returns {string}
  */
-function formatYearRowHolidayHtml(holidaySummary) {
-    if (holidaySummary.kind === 'hours_days') {
-        return `${holidaySummary.holidayHours.toFixed(2)} hrs <span class="summary-breakdown">(≈ ${holidaySummary.estimatedDays.toFixed(1)} days)</span>`
+function renderDiffHtml(value, isZeroReview = false) {
+    const diff = buildDiffDisplay(value, isZeroReview)
+    if (diff.className === null) {
+        return 'N/A'
     }
-    if (
-        holidaySummary.kind === 'hours_only' &&
-        holidaySummary.accruedHours !== null &&
-        holidaySummary.accruedHours > 0
-    ) {
-        return `${holidaySummary.holidayHours.toFixed(2)} hrs<br><span class="summary-breakdown">+${holidaySummary.accruedHours.toFixed(1)} hrs accrued</span>`
-    }
-    return `${holidaySummary.holidayHours.toFixed(2)} hrs`
+    return `<span class="${diff.className}">${diff.text}</span>`
 }
 
 /**
  * @param {{ dateLabel: string, type: string, label: string, amount: number, units: number | null, rate: number | null }} item
  * @returns {string}
  */
-function formatMiscReviewHtml(item) {
-    const display = buildMiscReviewDisplay(item)
-    return `<li>${item.dateLabel}: ${display.typeLabel}: ${item.label} (${display.detailLabel}): ${display.amountLabel}</li>`
+function renderMiscReviewItemHtml(item) {
+    return `<li>${buildMiscReviewLine(item)}</li>`
+}
+
+/**
+ * @param {any} holidaySummary
+ * @returns {string}
+ */
+function renderHolidaySummaryHtml(holidaySummary) {
+    const display = buildHolidaySummaryDisplay(holidaySummary)
+    return `${display.primaryLabel}${renderSummaryBreakdownLinesHtml(display.detailLines)}`
+}
+
+/**
+ * @param {any} holidaySummary
+ * @returns {string}
+ */
+function renderYearRowHolidayHtml(holidaySummary) {
+    const display = buildYearRowHolidayDisplay(holidaySummary)
+    if (!display.detailLines.length) {
+        return display.primaryLabel
+    }
+    if (display.detailMode === 'inline') {
+        return `${display.primaryLabel} <span class="summary-breakdown">${display.detailLines.join(' ')}</span>`
+    }
+    return `${display.primaryLabel}${renderSummaryBreakdownLinesHtml(display.detailLines)}`
 }
 
 /**
@@ -190,7 +151,7 @@ export function renderHtmlReport(context, meta) {
     const workerTypeLabel = workerType
         ? workerType.charAt(0).toUpperCase() + workerType.slice(1)
         : 'Not specified'
-    const workerProfileHtml = formatWorkerProfileHtml({
+    const workerProfileHtml = renderWorkerProfileHtml({
         workerTypeLabel,
         typicalDays,
         statutoryHolidayDays,
@@ -280,19 +241,19 @@ export function renderHtmlReport(context, meta) {
                 '<tr>' +
                 `<th><a href="#${row.anchorId}">${row.yearKey}</a></th>` +
                 `<td>${row.hours.toFixed(2)}</td>` +
-                `<td>${formatYearSummaryHolidayHtml(row.holidaySummary)}</td>` +
-                `<td>${formatBreakdownCell(
+                `<td>${renderHolidaySummaryHtml(row.holidaySummary)}</td>` +
+                `<td>${renderBreakdownCellHtml(
                     row.payrollContribution.total,
                     row.payrollContribution.ee,
                     row.payrollContribution.er
                 )}</td>` +
-                `<td>${formatBreakdownCell(
+                `<td>${renderBreakdownCellHtml(
                     row.reportedContribution.total,
                     row.reportedContribution.ee,
                     row.reportedContribution.er,
                     true
                 )}</td>` +
-                `<td class="col-center">${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                `<td class="col-center">${renderDiffHtml(row.overUnder, row.zeroReview)}</td>` +
                 `<td class="col-center">${flagIcon}</td>` +
                 '</tr>'
             )
@@ -308,7 +269,7 @@ export function renderHtmlReport(context, meta) {
         ? `<span class="${summaryRecencyDisplay.className}">${summaryRecencyDisplay.daysLabel}</span>`
         : summaryRecencyDisplay.daysLabel
     const summaryMiscReviewHtml = summaryViewModel.miscReviewItems.length
-        ? `<div class="report-footnote"><p>† Misc entries to review</p><ul>${summaryViewModel.miscReviewItems.map((item) => formatMiscReviewHtml(item)).join('')}</ul></div>`
+        ? `<div class="report-footnote"><p>† ${MISC_REVIEW_TITLE}</p><ul>${summaryViewModel.miscReviewItems.map((item) => renderMiscReviewItemHtml(item)).join('')}</ul></div>`
         : ''
     const summaryNotesHtml = summaryViewModel.notes
         .map(
@@ -339,7 +300,7 @@ export function renderHtmlReport(context, meta) {
         )
     }
     reportSections.push(
-        `<h2>Annual Totals:    (${summaryViewModel.heading.dateRangeLabel})</h2>`
+        `<h2>${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
     )
 
     if (summaryYearRowsHtml) {
@@ -354,7 +315,7 @@ export function renderHtmlReport(context, meta) {
         )
     }
 
-    reportSections.push('<h3>Accumulated Pension:</h3>')
+    reportSections.push(`<h3>${ACCUMULATED_TOTALS_TITLE}</h3>`)
     reportSections.push(
         '<table class="summary-table"><thead><tr>' +
             '<th colspan="2">Date Range</th><th>Payroll Cont. (EE+ER)</th>' +
@@ -362,14 +323,14 @@ export function renderHtmlReport(context, meta) {
             '<th>Last Contribution Date</th></tr></thead>' +
             '<tbody><tr>' +
             `<td colspan="2">${summaryAccumulatedTotals.dateRangeLabel}</td>` +
-            `<td>${formatBreakdownCell(summaryAccumulatedTotals.payrollContribution.total, summaryAccumulatedTotals.payrollContribution.ee, summaryAccumulatedTotals.payrollContribution.er)}</td>` +
-            `<td>${formatBreakdownCell(
+            `<td>${renderBreakdownCellHtml(summaryAccumulatedTotals.payrollContribution.total, summaryAccumulatedTotals.payrollContribution.ee, summaryAccumulatedTotals.payrollContribution.er)}</td>` +
+            `<td>${renderBreakdownCellHtml(
                 summaryAccumulatedTotals.reportedContribution.total,
                 summaryAccumulatedTotals.reportedContribution.ee,
                 summaryAccumulatedTotals.reportedContribution.er,
                 true
             )}</td>` +
-            `<td>${formatContributionDifference(summaryAccumulatedTotals.contributionDifference)}</td>` +
+            `<td>${renderDiffHtml(summaryAccumulatedTotals.contributionDifference)}</td>` +
             `<td>${summaryRecencyDisplay.lastContributionLabel}<br>${summaryDaysHtml}</td>` +
             '</tr></tbody>' +
             '</table>'
@@ -426,7 +387,7 @@ export function renderHtmlReport(context, meta) {
                 .join('')
             reportSections.push(
                 `<div class="report-footnote">` +
-                    '<p>† Flag notes</p>' +
+                    `<p>† ${FLAG_NOTES_TITLE}</p>` +
                     `<ul>${noteItems}</ul>` +
                     '</div>'
             )
@@ -482,19 +443,6 @@ export function renderHtmlReport(context, meta) {
 }
 
 /**
- * @param {number | null} value
- * @param {boolean} [isZeroReview=false]
- * @returns {string}
- */
-function formatYearDiff(value, isZeroReview = false) {
-    const diff = buildDiffDisplay(value, isZeroReview)
-    if (diff.className === null) {
-        return 'N/A'
-    }
-    return `<span class="${diff.className}">${diff.text}</span>`
-}
-
-/**
  * @param {any} yearViewModel
  * @returns {string}
  */
@@ -514,19 +462,19 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 '<tr>' +
                 `<th>${monthCell}</th>` +
                 `<td>${row.hours.toFixed(2)}</td>` +
-                `<td>${formatYearRowHolidayHtml(row.holidaySummary)}</td>` +
-                `<td>${formatBreakdownCell(
+                `<td>${renderYearRowHolidayHtml(row.holidaySummary)}</td>` +
+                `<td>${renderBreakdownCellHtml(
                     row.payrollContribution.total,
                     row.payrollContribution.ee,
                     row.payrollContribution.er
                 )}</td>` +
-                `<td>${formatBreakdownCell(
+                `<td>${renderBreakdownCellHtml(
                     row.reportedContribution.total,
                     row.reportedContribution.ee,
                     row.reportedContribution.er,
                     true
                 )}</td>` +
-                `<td class="col-center">${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                `<td class="col-center">${renderDiffHtml(row.overUnder, row.zeroReview)}</td>` +
                 `<td class="col-center ${flagClass}">${flagSummary}</td>` +
                 '</tr>'
             )
@@ -540,19 +488,19 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                     '<tr>' +
                     `<th>${row.label}</th>` +
                     `<td>${row.hours.toFixed(2)}</td>` +
-                    `<td>${row.holidayHours.toFixed(2)}${formatTotalHolidayBreakdown(row.yearHolidaySummary)}</td>` +
-                    `<td>${formatBreakdownCell(
+                    `<td>${renderHolidaySummaryHtml(row.yearHolidaySummary)}</td>` +
+                    `<td>${renderBreakdownCellHtml(
                         row.payrollContribution.total,
                         row.payrollContribution.ee,
                         row.payrollContribution.er
                     )}</td>` +
-                    `<td>${formatBreakdownCell(
+                    `<td>${renderBreakdownCellHtml(
                         row.reportedContribution.total,
                         row.reportedContribution.ee,
                         row.reportedContribution.er,
                         true
                     )}</td>` +
-                    `<td class="col-center">${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                    `<td class="col-center">${renderDiffHtml(row.overUnder, row.zeroReview)}</td>` +
                     '<td class="col-center">—</td>' +
                     '</tr>'
                 )
@@ -561,7 +509,7 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 '<tr>' +
                 `<th>${row.label}</th>` +
                 '<td colspan="4"></td>' +
-                `<td class="col-center" colspan="1">${formatYearDiff(row.overUnder, row.zeroReview)}</td>` +
+                `<td class="col-center" colspan="1">${renderDiffHtml(row.overUnder, row.zeroReview)}</td>` +
                 '<td class="col-center">—</td>' +
                 '</tr>'
             )
@@ -585,12 +533,12 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         const footnoteItems = yearViewModel.miscReviewItems
             .map(
                 /** @param {any} item */
-                (item) => formatMiscReviewHtml(item)
+                (item) => renderMiscReviewItemHtml(item)
             )
             .join('')
         sections.push(
             `<div class="report-footnote">` +
-                '<p>† Misc entries to review</p>' +
+                `<p>† ${MISC_REVIEW_TITLE}</p>` +
                 `<ul>${footnoteItems}</ul>` +
                 '</div>'
         )
@@ -711,15 +659,12 @@ function renderReportCell(entry) {
     let holidayAnalysisFootnote = ''
     if (payslipViewModel.holidayAnalysis) {
         const holidayAnalysis = payslipViewModel.holidayAnalysis
-        const avgHrsPerDay = holidayAnalysis.avgHoursPerDay.toFixed(2)
-        const avgHrsPerWeek = holidayAnalysis.avgHoursPerWeek.toFixed(2)
-        const days = holidayAnalysis.typicalDays
         holidayAnalysisFootnote =
             `<div class="notice">` +
-            `<p><b>Holiday analysis</b> (accumulative year average, <i>estimate only</i>):</p>` +
-            `<ul><li>Avg ${avgHrsPerWeek}\u00a0hrs/week over ${days}\u00a0days \u2192 1\u00a0day\u00a0\u2248\u00a0${avgHrsPerDay}\u00a0hrs.</li>` +
-            `<li>This payslip: ${holidayAnalysis.holidayHours.toFixed(2)}\u00a0hrs\u00a0\u2248\u00a0${holidayAnalysis.estimatedDays}\u00a0days.</li></ul>` +
-            `<p>If <b>${holidayAnalysis.estimatedDays}</b>\u00a0days doesn\u2019t match the days you agreed, ask your employer how they calculated the number of hours for holiday.</p>` +
+            `<p><b>${holidayAnalysis.title}</b></p>` +
+            `<p><i>${holidayAnalysis.intro}</i></p>` +
+            `<ul>${holidayAnalysis.items.map((item) => `<li>${item}</li>`).join('')}</ul>` +
+            `<p>${holidayAnalysis.footer}</p>` +
             `</div>`
     }
 

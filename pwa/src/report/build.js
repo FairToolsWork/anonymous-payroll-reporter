@@ -28,8 +28,6 @@ import { buildReportEntries } from './report_calculations.js'
 import {
     CONTRACT_TYPE_MISMATCH_HOURLY_WARNING,
     CONTRACT_TYPE_MISMATCH_SALARIED_WARNING,
-    formatBreakdownCell,
-    formatContributionDifference,
 } from './report_formatters.js'
 import {
     formatDateKey,
@@ -656,10 +654,4 @@ function buildContributionRecency(
     return { daysSinceContribution, lastContributionLabel }
 }
 
-export {
-    buildContributionTotals,
-    buildMissingMonths,
-    buildValidationSummary,
-    formatBreakdownCell,
-    formatContributionDifference,
-}
+export { buildContributionTotals, buildMissingMonths, buildValidationSummary }

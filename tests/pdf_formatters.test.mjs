@@ -52,13 +52,29 @@ vi.mock('jspdf-autotable', () => ({
 
 import { formatDiff } from '../pwa/src/report/pdf_export.js'
 import {
-    formatBreakdownCell,
+    buildContributionBreakdownParts,
+    buildDiffDisplay,
     formatContribution,
-    formatContributionDifference,
     formatCurrency,
     formatDeduction,
     formatMiscLabel,
 } from '../pwa/src/report/report_formatters.js'
+
+const formatBreakdownCellHtml = (total, ee, er, allowNA = false) => {
+    if (allowNA && total === null) {
+        return 'N/A'
+    }
+    const parts = buildContributionBreakdownParts(total, ee, er, allowNA)
+    return `${parts.totalLabel}<br><span class="summary-breakdown">${parts.breakdownLabel}</span>`
+}
+
+const formatContributionDifferenceHtml = (value) => {
+    const diff = buildDiffDisplay(value)
+    if (diff.className === null) {
+        return 'N/A'
+    }
+    return `<span class="${diff.className}">${diff.text}</span>`
+}
 
 // ─── formatCurrency ───────────────────────────────────────────────────────────
 
@@ -160,23 +176,23 @@ describe('formatMiscLabel', () => {
 
 describe('formatBreakdownCell', () => {
     it('formats known values without allowNA', () => {
-        const result = formatBreakdownCell(153.57, 95.98, 57.59)
+        const result = formatBreakdownCellHtml(153.57, 95.98, 57.59)
         expect(result).toContain('£153.57')
         expect(result).toContain('£95.98 EE')
         expect(result).toContain('£57.59 ER')
     })
 
     it('treats null values as zero when allowNA is false', () => {
-        const result = formatBreakdownCell(null, null, null, false)
+        const result = formatBreakdownCellHtml(null, null, null, false)
         expect(result).toContain('£0.00')
     })
 
     it('returns N/A for null total when allowNA is true', () => {
-        expect(formatBreakdownCell(null, null, null, true)).toBe('N/A')
+        expect(formatBreakdownCellHtml(null, null, null, true)).toBe('N/A')
     })
 
     it('shows N/A for null EE/ER when allowNA is true and total is provided', () => {
-        const result = formatBreakdownCell(100, null, null, true)
+        const result = formatBreakdownCellHtml(100, null, null, true)
         expect(result).toContain('£100.00')
         expect(result).toContain('N/A EE')
         expect(result).toContain('N/A ER')
@@ -187,38 +203,42 @@ describe('formatBreakdownCell', () => {
 
 describe('formatContributionDifference', () => {
     it('returns N/A for null', () => {
-        expect(formatContributionDifference(null)).toBe('N/A')
+        expect(formatContributionDifferenceHtml(null)).toBe('N/A')
     })
 
     it('applies diff--neutral class for zero', () => {
-        const result = formatContributionDifference(0)
+        const result = formatContributionDifferenceHtml(0)
         expect(result).toContain('diff--neutral')
         expect(result).toContain('£0.00')
     })
 
     it('applies diff--neutral class for value that rounds to zero', () => {
-        const result = formatContributionDifference(0.004)
+        const result = formatContributionDifferenceHtml(0.004)
         expect(result).toContain('diff--neutral')
     })
 
     it('applies diff--positive class for positive value', () => {
-        const result = formatContributionDifference(552.06)
+        const result = formatContributionDifferenceHtml(552.06)
         expect(result).toContain('diff--positive')
         expect(result).toContain('£552.06')
     })
 
     it('applies diff--negative class for negative value', () => {
-        const result = formatContributionDifference(-153.57)
+        const result = formatContributionDifferenceHtml(-153.57)
         expect(result).toContain('diff--negative')
         expect(result).toContain('£-153.57')
     })
 
     it('does not apply diff--positive to negative value', () => {
-        expect(formatContributionDifference(-1)).not.toContain('diff--positive')
+        expect(formatContributionDifferenceHtml(-1)).not.toContain(
+            'diff--positive'
+        )
     })
 
     it('does not apply diff--negative to positive value', () => {
-        expect(formatContributionDifference(1)).not.toContain('diff--negative')
+        expect(formatContributionDifferenceHtml(1)).not.toContain(
+            'diff--negative'
+        )
     })
 })
 
@@ -273,7 +293,7 @@ describe('formatDiff', () => {
         ]
         for (const [value, expected] of pairs) {
             const diff = formatDiff(value)
-            const html = formatContributionDifference(value)
+            const html = formatContributionDifferenceHtml(value)
             expect(html).toContain(`diff--${expected}`)
             if (expected === 'positive') expect(diff.color).toBe('#8a6014')
             if (expected === 'negative') expect(diff.color).toBe('#c0391a')
