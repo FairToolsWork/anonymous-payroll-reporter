@@ -66,3 +66,55 @@ export const FLAG_CATALOG = {
         severity: 'warning',
     },
 }
+
+/**
+ * @param {string} id
+ * @param {string} [fallback='']
+ * @returns {string}
+ */
+export function resolveFlagLabel(id, fallback = '') {
+    return FLAG_CATALOG[id]?.label || fallback || id
+}
+
+/**
+ * @param {string} id
+ * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean }} [params]
+ * @returns {string}
+ */
+export function formatFlagLabel(id, params = {}) {
+    if (id === 'holiday_rate_below_basic') {
+        const impliedHolidayRate = Number(params.impliedHolidayRate)
+        const basicRate = Number(params.basicRate)
+        if (Number.isFinite(impliedHolidayRate) && Number.isFinite(basicRate)) {
+            return `Holiday rate (\u00a3${impliedHolidayRate.toFixed(2)}/hr implied) is below basic rate (\u00a3${basicRate.toFixed(2)}/hr) on this payslip`
+        }
+        return resolveFlagLabel(
+            id,
+            'Holiday rate implied by amount is below basic rate on this payslip'
+        )
+    }
+
+    if (id === 'holiday_rate_below_rolling_avg') {
+        const impliedHolidayRate = Number(params.impliedHolidayRate)
+        const rollingAvgRate = Number(params.rollingAvgRate)
+        const totalWeeks = Number(params.totalWeeks)
+        const periodsCounted = Number(params.periodsCounted)
+        const limitedData = Boolean(params.limitedData)
+
+        if (
+            Number.isFinite(impliedHolidayRate) &&
+            Number.isFinite(rollingAvgRate)
+        ) {
+            const weeksNote = limitedData
+                ? ` (based on ${Math.round(totalWeeks)} weeks available from ${periodsCounted} months)`
+                : ` (${Math.round(totalWeeks)}-week rolling average)`
+            return `Holiday rate (\u00a3${impliedHolidayRate.toFixed(2)}/hr implied) is below average basic rate (\u00a3${rollingAvgRate.toFixed(2)}/hr)${weeksNote} \u2014 request employer's weekly records to confirm`
+        }
+        return resolveFlagLabel(
+            id,
+            'Holiday rate implied by amount is below rolling average basic rate'
+        )
+    }
+
+    return resolveFlagLabel(id)
+}

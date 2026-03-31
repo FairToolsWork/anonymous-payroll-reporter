@@ -503,6 +503,7 @@ export function buildSummaryViewModel(context, meta) {
     )
     const groupedFlaggedPeriods = groupPeriodsByYear(flaggedPeriods)
     const groupedLowConfidencePeriods = groupPeriodsByYear(lowConfidencePeriods)
+    const auditMetadata = context.auditMetadata || null
     const pdfCount = entries.length
     const metaRows = [
         {
@@ -521,6 +522,16 @@ export function buildSummaryViewModel(context, meta) {
                 ? `${contributionMeta.dateRangeLabel || 'Unknown'} · ${contributionMeta.fileCount} file${contributionMeta.fileCount !== 1 ? 's' : ''} (${contributionMeta.recordCount ?? 0} records)`
                 : 'None',
         },
+        ...(auditMetadata?.rulesVersion && auditMetadata?.thresholdsVersion
+            ? [
+                  {
+                      id: 'rule-snapshot',
+                      label: 'Rule snapshot',
+                      value: `Rules ${auditMetadata.rulesVersion} · Thresholds ${auditMetadata.thresholdsVersion}`,
+                      displayValue: `Rules ${auditMetadata.rulesVersion} · Thresholds ${auditMetadata.thresholdsVersion}`,
+                  },
+              ]
+            : []),
         {
             id: 'worker-profile',
             label: 'Worker profile',

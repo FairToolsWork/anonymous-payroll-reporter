@@ -4,6 +4,12 @@
  * Keep these values synchronized with each UK tax year update.
  */
 
+/** Immutable rules snapshot identifier for audit traces. */
+export const RULES_VERSION = '2026-03-30'
+
+/** Version marker for the current threshold set. */
+export const THRESHOLDS_VERSION = RULES_VERSION
+
 /** Annual Personal Allowance (£) for PAYE context text and low-pay notices.
  * https://www.gov.uk/income-tax-rates
  */
@@ -18,6 +24,9 @@ export const PERSONAL_ALLOWANCE_MONTHLY = Math.round(
  * https://www.moneyhelper.org.uk/en/pensions-and-retirement/pension-problems/complaining-about-delays-to-your-pension#When-must-my-employer-make-my-pension-contributions-by--
  */
 export const CONTRIBUTION_RECENCY_DAYS_THRESHOLD = 22
+
+/** Tolerance (£) used for line/gross/net reconciliation checks. */
+export const VALIDATION_TOLERANCE = 0.05
 
 /** Pension qualifying earnings bands for UK auto-enrolment context.
  * https://www.moneyhelper.org.uk/en/pensions-and-retirement/pensions-basics/automatic-enrolment-an-introduction

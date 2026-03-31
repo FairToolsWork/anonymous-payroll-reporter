@@ -22,6 +22,12 @@ export const ACCUMULATED_TOTALS_NOTE =
     'Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). <br/>' +
     'Positive values indicate an overpayment; negative values indicate an underpayment to your pension.'
 
+export const CONTRACT_TYPE_MISMATCH_HOURLY_WARNING =
+    'Some payslips contain salaried pay (Basic Salary) but your worker profile is set to <b>Hourly</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+
+export const CONTRACT_TYPE_MISMATCH_SALARIED_WARNING =
+    'Some payslips contain hourly pay (Basic Hours) but your worker profile is set to <b>Salaried</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+
 /**
  * @param {number} value
  * @returns {string}

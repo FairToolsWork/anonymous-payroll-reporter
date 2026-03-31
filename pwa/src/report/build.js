@@ -19,6 +19,8 @@ import { buildValidation } from './hourly_pay_calculations.js'
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
     PERSONAL_ALLOWANCE_MONTHLY,
+    RULES_VERSION,
+    THRESHOLDS_VERSION,
 } from './uk_thresholds.js'
 import { buildContributionSummary } from './pension_calculations.js'
 import { buildReportEntries } from './report_calculations.js'
@@ -28,6 +30,8 @@ import {
     buildDiffDisplay,
     buildMiscReviewDisplay,
     buildWorkerProfileDisplay,
+    CONTRACT_TYPE_MISMATCH_HOURLY_WARNING,
+    CONTRACT_TYPE_MISMATCH_SALARIED_WARNING,
     formatBreakdownCell,
     formatContribution,
     formatContributionDifference,
@@ -71,7 +75,7 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, auditMetadata: { rulesVersion: string, thresholdsVersion: string }, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
  */
 
 const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
@@ -301,7 +305,7 @@ export function buildReport(
             )
             if (hasSalaryPayslip) {
                 contractTypeMismatchWarning =
-                    'Some payslips contain salaried pay (Basic Salary) but your worker profile is set to <b>Hourly</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+                    CONTRACT_TYPE_MISMATCH_HOURLY_WARNING
             }
         } else if (workerType === 'salary') {
             const hasHourlyPayslip = entries.some(
@@ -313,7 +317,7 @@ export function buildReport(
             )
             if (hasHourlyPayslip) {
                 contractTypeMismatchWarning =
-                    'Some payslips contain hourly pay (Basic Hours) but your worker profile is set to <b>Salaried</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
+                    CONTRACT_TYPE_MISMATCH_SALARIED_WARNING
             }
         }
 
@@ -947,6 +951,10 @@ export function buildReport(
                     yearKeys,
                     contributionSummary,
                     reportGeneratedLabel,
+                    auditMetadata: {
+                        rulesVersion: RULES_VERSION,
+                        thresholdsVersion: THRESHOLDS_VERSION,
+                    },
                     contributionMeta,
                     missingMonths: missingMonthsResult,
                     validationSummary: validationSummaryResult,

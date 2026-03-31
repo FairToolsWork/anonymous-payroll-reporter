@@ -15,6 +15,7 @@ import {
     buildSummaryViewModel,
     buildYearViewModel,
 } from './report_view_model.js'
+import { CONTRIBUTION_RECENCY_DAYS_THRESHOLD } from './uk_thresholds.js'
 
 /**
  * Testing constraints: jsPDF requires a DOM constructor and autoTable relies on
@@ -559,7 +560,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     const totals = summaryViewModel.accumulatedTotals
     const recencyDisplay = buildContributionRecencyDisplay(
         totals.contributionRecency,
-        30
+        CONTRIBUTION_RECENCY_DAYS_THRESHOLD
     )
     const lastContributionCell = totals.contributionRecency
         ? `${recencyDisplay.lastContributionLabel}\n${recencyDisplay.daysLabel}`

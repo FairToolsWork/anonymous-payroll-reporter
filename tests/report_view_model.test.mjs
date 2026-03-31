@@ -295,6 +295,25 @@ describe('buildSummaryViewModel', () => {
                 ?.text
         ).toContain('current configured UK rate')
     })
+
+    it('shows rule snapshot metadata when audit metadata is available', () => {
+        const { context, meta } = buildStageTwoContext()
+        context.auditMetadata = {
+            rulesVersion: '2026-03-30',
+            thresholdsVersion: '2026-03-30',
+        }
+
+        const viewModel = buildSummaryViewModel(context, meta)
+        const ruleSnapshotRow = viewModel.metaRows.find(
+            (row) => row.id === 'rule-snapshot'
+        )
+
+        expect(ruleSnapshotRow).toBeTruthy()
+        expect(ruleSnapshotRow?.label).toBe('Rule snapshot')
+        expect(ruleSnapshotRow?.displayValue).toBe(
+            'Rules 2026-03-30 · Thresholds 2026-03-30'
+        )
+    })
 })
 
 describe('buildYearViewModel', () => {

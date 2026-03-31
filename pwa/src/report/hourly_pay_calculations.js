@@ -7,10 +7,8 @@
  * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult }} HourlyPayEntry
  */
 
-import { FLAG_CATALOG } from './flag_catalog.js'
-
-/** @type {number} */
-const VALIDATION_TOLERANCE = 0.05
+import { resolveFlagLabel } from './flag_catalog.js'
+import { VALIDATION_TOLERANCE } from './uk_thresholds.js'
 
 /**
  * @param {number | null | undefined} actual
@@ -90,12 +88,6 @@ export function sumDeductionsForNetPay(record) {
 export function buildValidation(entry) {
     const record = entry.record
     const flags = []
-    /**
-     * @param {string} id
-     * @param {string} fallback
-     * @returns {string}
-     */
-    const getFlagLabel = (id, fallback) => FLAG_CATALOG[id]?.label || fallback
     const natInsNumber = record.employee?.natInsNumber || ''
     const taxCode = record.payrollDoc?.taxCode?.code || ''
     const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
@@ -109,25 +101,25 @@ export function buildValidation(entry) {
     if (!natInsNumber) {
         flags.push({
             id: 'missing_nat_ins',
-            label: getFlagLabel('missing_nat_ins', 'Missing NAT INS No'),
+            label: resolveFlagLabel('missing_nat_ins', 'Missing NAT INS No'),
         })
     }
     if (!taxCode) {
         flags.push({
             id: 'missing_tax_code',
-            label: getFlagLabel('missing_tax_code', 'Missing tax code'),
+            label: resolveFlagLabel('missing_tax_code', 'Missing tax code'),
         })
     }
     if (payeTax <= 0) {
         flags.push({
             id: 'paye_zero',
-            label: getFlagLabel('paye_zero', 'PAYE Tax missing or £0'),
+            label: resolveFlagLabel('paye_zero', 'PAYE Tax missing or £0'),
         })
     }
     if (nationalInsurance <= 0) {
         flags.push({
             id: 'nat_ins_zero',
-            label: getFlagLabel(
+            label: resolveFlagLabel(
                 'nat_ins_zero',
                 'National Insurance missing or £0'
             ),
@@ -151,7 +143,7 @@ export function buildValidation(entry) {
             if (!isWithinTolerance(expected, item.amount)) {
                 flags.push({
                     id: 'payment_line_mismatch',
-                    label: getFlagLabel(
+                    label: resolveFlagLabel(
                         'payment_line_mismatch',
                         'A payment line units × rate does not match its amount'
                     ),
@@ -171,7 +163,7 @@ export function buildValidation(entry) {
         if (grossMismatch) {
             flags.push({
                 id: 'gross_mismatch',
-                label: getFlagLabel(
+                label: resolveFlagLabel(
                     'gross_mismatch',
                     'Payments total does not match Total Gross Pay'
                 ),
@@ -186,7 +178,7 @@ export function buildValidation(entry) {
         if (netMismatch) {
             flags.push({
                 id: 'net_mismatch',
-                label: getFlagLabel(
+                label: resolveFlagLabel(
                     'net_mismatch',
                     'Net Pay does not match payments less deductions'
                 ),

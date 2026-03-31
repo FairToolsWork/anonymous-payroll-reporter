@@ -1,4 +1,5 @@
 import { getWeeksInPeriod } from './tax_year_utils.js'
+import { formatFlagLabel } from './flag_catalog.js'
 import {
     HOLIDAY_ACCRUAL_CUTOFF,
     HOLIDAY_RATE_TOLERANCE,
@@ -296,7 +297,10 @@ export function buildHolidayPayFlags(entries) {
         ) {
             entry.validation.flags.push({
                 id: 'holiday_rate_below_basic',
-                label: `Holiday rate (£${impliedHolidayRate.toFixed(2)}/hr implied) is below basic rate (£${basicRate.toFixed(2)}/hr) on this payslip`,
+                label: formatFlagLabel('holiday_rate_below_basic', {
+                    impliedHolidayRate,
+                    basicRate,
+                }),
             })
             if (timing?.enabled) {
                 timing.increment('holidayFlags.flag.holiday_rate_below_basic')
@@ -304,12 +308,15 @@ export function buildHolidayPayFlags(entries) {
         }
 
         if (rollingAvgFlagWillFire) {
-            const weeksNote = ref.limitedData
-                ? ` (based on ${Math.round(ref.totalWeeks)} weeks available from ${ref.periodsCounted} months)`
-                : ` (${Math.round(ref.totalWeeks)}-week rolling average)`
             entry.validation.flags.push({
                 id: 'holiday_rate_below_rolling_avg',
-                label: `Holiday rate (£${impliedHolidayRate.toFixed(2)}/hr implied) is below average basic rate (£${rollingAvgRate.toFixed(2)}/hr)${weeksNote} — request employer's weekly records to confirm`,
+                label: formatFlagLabel('holiday_rate_below_rolling_avg', {
+                    impliedHolidayRate,
+                    rollingAvgRate,
+                    totalWeeks: ref.totalWeeks,
+                    periodsCounted: ref.periodsCounted,
+                    limitedData: ref.limitedData,
+                }),
             })
             if (timing?.enabled) {
                 timing.increment(
