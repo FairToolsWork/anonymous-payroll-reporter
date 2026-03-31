@@ -28,6 +28,12 @@ export const CONTRACT_TYPE_MISMATCH_HOURLY_WARNING =
 export const CONTRACT_TYPE_MISMATCH_SALARIED_WARNING =
     'Some payslips contain hourly pay (Basic Hours) but your worker profile is set to <b>Salaried</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
 
+export const ACCRUAL_METHOD_HOURLY_LABEL = '12.07% accrual method'
+export const ACCRUAL_METHOD_AVG_WEEK_LABEL = '5.6 week avg. method'
+export const OVERRUN_SUFFIX = ' (entitlement exceeded)'
+export const VARIABLE_PATTERN_DAYS_NOTE =
+    'Days estimate not shown — variable work pattern'
+
 /**
  * @param {number} value
  * @returns {string}

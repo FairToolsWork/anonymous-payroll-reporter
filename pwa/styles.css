@@ -1806,8 +1806,8 @@ label.field span {
     margin-block-start: var(--space-8);
 }
 
-.report-meta-table-container {
-    margin-block: var(--space-12) 0;
+.report-meta .report-meta-table-container {
+    margin-block: var(--space-12);
     margin-inline: auto;
 }
 

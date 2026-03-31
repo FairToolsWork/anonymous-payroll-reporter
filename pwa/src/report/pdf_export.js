@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
+    ACCRUAL_METHOD_AVG_WEEK_LABEL,
+    ACCRUAL_METHOD_HOURLY_LABEL,
     buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
     buildDiffDisplay,
@@ -9,6 +11,8 @@ import {
     formatContribution,
     formatCurrency,
     formatDeduction,
+    OVERRUN_SUFFIX,
+    VARIABLE_PATTERN_DAYS_NOTE,
 } from './report_formatters.js'
 import {
     buildPayslipViewModel,
@@ -291,24 +295,24 @@ function formatPdfYearSummaryHolidayText(holidaySummary) {
     if (holidaySummary.kind === 'salary_days') {
         holidayCell =
             `${formatCurrency(holidaySummary.holidayAmount)}\n` +
-            `(${holidaySummary.daysTaken.toFixed(1)}d taken, ${holidaySummary.daysRemaining.toFixed(1)} rem${holidaySummary.overrun ? ' EXCEEDED' : ''})`
+            `${holidaySummary.daysTaken.toFixed(1)}d taken, ${holidaySummary.daysRemaining.toFixed(1)} rem${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`
     } else if (holidaySummary.kind === 'salary_amount') {
         holidayCell = formatCurrency(holidaySummary.holidayAmount)
     } else if (holidaySummary.kind === 'hourly_days') {
         holidayCell =
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
             `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}\n` +
             `~${holidaySummary.daysTaken.toFixed(1)}d taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
     } else if (holidaySummary.kind === 'hourly_hours') {
         holidayCell =
             `${holidaySummary.holidayHours.toFixed(2)} hrs taken\n` +
             `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? ' EXCEEDED' : ''}\n` +
-            `${holidaySummary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}`
+            `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}\n` +
+            `${holidaySummary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}`
     } else {
         const variableNote = holidaySummary.hasVariablePattern
-            ? '\n(Variable pattern)'
+            ? `\n${VARIABLE_PATTERN_DAYS_NOTE}`
             : ''
         holidayCell = `${holidaySummary.holidayHours.toFixed(2)} hrs${variableNote}`
     }
@@ -324,12 +328,12 @@ function formatPdfTotalHolidayBreakdown(summary) {
     if (summary.kind === 'salary_days') {
         return (
             `\n~${summary.daysTaken.toFixed(1)} days taken` +
-            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? ' EXCEEDED' : ''}`
+            ` / ${summary.daysRemaining.toFixed(1)} remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`
         )
     }
     if (summary.kind === 'hourly_days') {
         return (
-            `\n${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}` +
+            `\n${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}` +
             `\n~${summary.daysTaken.toFixed(1)} days taken` +
             ` / ${summary.daysRemaining.toFixed(1)} days remaining`
         )
@@ -337,8 +341,8 @@ function formatPdfTotalHolidayBreakdown(summary) {
     if (summary.kind === 'hourly_hours') {
         return (
             `\n~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement\n` +
-            `${summary.useAccrualMethod ? '12.07% accrual method' : '5.6 week avg. method'}\n` +
-            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? ' EXCEEDED' : ''}`
+            `${summary.useAccrualMethod ? ACCRUAL_METHOD_HOURLY_LABEL : ACCRUAL_METHOD_AVG_WEEK_LABEL}\n` +
+            `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`
         )
     }
     return ''
