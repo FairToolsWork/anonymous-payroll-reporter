@@ -1499,6 +1499,274 @@ describe('buildRollingReference', () => {
         )
         expect(flag).toBeUndefined()
     })
+
+    it('includes a prior mixed month when it passes the expected-hours gate', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 10,
+                holidayUnits: 8,
+                holidayAmount: 80,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 64,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.periodsCounted).toBe(4)
+        expect(ref.mixedMonthsIncluded).toBe(1)
+        expect(ref.totalBasicHours).toBeCloseTo(608, 4)
+        expect(ref.confidence.level).toBe('low')
+        expect(ref.confidence.reasons).toContain(
+            'Includes 1 mixed work+holiday month'
+        )
+    })
+
+    it('excludes a prior mixed month when it fails the expected-hours gate', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 48,
+                basicRate: 10,
+                holidayUnits: 8,
+                holidayAmount: 80,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 64,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.periodsCounted).toBe(3)
+        expect(ref.mixedMonthsIncluded).toBe(0)
+        expect(ref.totalBasicHours).toBeCloseTo(480, 4)
+    })
+
+    it('reports medium confidence for pure limited-data references', () => {
+        const entries = []
+        for (let i = 0; i < 4; i++) {
+            entries.push(
+                makeEntry({
+                    basicUnits: 160,
+                    basicRate: 14.5,
+                    monthIndex: i + 1,
+                    parsedDate: new Date(2024, i, 15),
+                })
+            )
+        }
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.confidence.level).toBe('medium')
+        expect(ref.confidence.reasons[0]).toMatch(/Limited reference:/)
+    })
+
+    it('reports high confidence for pure 52-week references', () => {
+        const entries = []
+        for (let i = 0; i < 13; i++) {
+            entries.push(
+                makeEntry({
+                    basicUnits: 160,
+                    basicRate: 14.5,
+                    monthIndex: (i % 12) + 1,
+                    parsedDate: new Date(2023, i, 15),
+                })
+            )
+        }
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            parsedDate: new Date(2024, 3, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.confidence.level).toBe('high')
+        expect(ref.confidence.reasons).toEqual([])
+    })
+})
+
+describe('mixed-month reference propagation', () => {
+    it('marks Signal B entries low-confidence when the rolling reference includes mixed months', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 72,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        buildHolidayPayFlags([...entries, target])
+
+        const flag = target.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_rolling_avg'
+        )
+        expect(flag).toBeDefined()
+        expect(flag.label).toMatch(
+            /low confidence: includes 1 mixed work\+holiday month/
+        )
+        expect(flag.inputs.mixedMonthsIncluded).toBe(1)
+        expect(target.validation.lowConfidence).toBe(true)
+    })
+
+    it('propagates confidence into holidayContext when mixed months are included', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        buildYearHolidayContext([...entries, target], { typicalDays: 5 })
+
+        expect(target.holidayContext.hasBaseline).toBe(true)
+        expect(target.holidayContext.mixedMonthsIncluded).toBe(1)
+        expect(target.holidayContext.confidence.level).toBe('low')
+        expect(target.holidayContext.confidence.reasons).toContain(
+            'Includes 1 mixed work+holiday month'
+        )
+        expect(target.validation.lowConfidence).toBe(true)
+    })
 })
 
 describe('isReferenceEligible — statutory pay titles', () => {

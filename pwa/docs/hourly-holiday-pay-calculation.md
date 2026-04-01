@@ -246,13 +246,32 @@ misc[*].title does not contain any of:
 
 Matching is case-insensitive substring. A month flagged as containing any statutory pay is excluded in line with the intent of ACAS guidance (which specifies week-level substitution; this tool approximates at month level), even if the worker also received some basic pay that month.
 
-#### Rule 3 — No holiday pay on the entry itself
+#### Rule 3 — Mixed holiday months are gated, not blanket-excluded
 
 ```text
 (hourly.holiday.units ?? 0) <= 0  AND  (hourly.holiday.amount ?? 0) <= 0
 ```
 
-The reference window must be built from _prior paid_ ordinary working weeks, not from weeks that themselves included holiday. A month where the worker took holiday is excluded. A `null` or absent holiday field is treated as zero and does not disqualify the month. Note: ACAS guidance does not explicitly state that holiday weeks must be excluded from the reference pool, but including holiday-pay months would inflate the average in a circular way, so exclusion is the conservative and defensible approach.
+Pure-work months still form the base reference pool. A month that contains both basic work and holiday pay is treated as a **mixed-month candidate** instead of being excluded automatically.
+
+It is included only when all of the following are true:
+
+```text
+hourly.basic.units > 0
+no statutory-pay misc titles are present
+holiday units or amount are present
+prior pure-work reference exists
+prior pure-work reference has at least 12 weeks of data
+actual basic hours / expected basic hours >= 0.75
+```
+
+Where:
+
+```text
+expected basic hours = (priorPureRef.totalBasicHours / priorPureRef.totalWeeks) × getWeeksInPeriod(mixedMonthDate)
+```
+
+This allows mostly-working months to remain in the rolling average while still excluding months that are dominated by holiday. Only `hourly.basic.amount` and `hourly.basic.units` are added to the reference totals — holiday pay itself is never added into the rolling average.
 
 ---
 
@@ -278,7 +297,7 @@ for i = length−1 down to 0:
     skip: parsedDate is null
     skip: parsedDate >= targetDate  (same date or future)
     break: parsedDate < cutoffMs    (beyond 104-week window)
-    skip: not isReferenceEligible
+    skip: not isReferenceEligible and not gate-passing mixed month
     skip: calendarYear:fiscalMonthIndex already seen (duplicate payslip deduplication)
 
     accumulate:
@@ -322,10 +341,21 @@ Examples:
   totalWeeks:       number,   // sum of weeksInPeriod for each eligible month
   periodsCounted:   number,   // number of distinct eligible months counted
   limitedData:      boolean,  // true when totalWeeks < 52 (worker tenure short)
+  mixedMonthsIncluded: number,
+  confidence: {
+    level: 'high' | 'medium' | 'low',
+    reasons: string[]
+  }
 }
 ```
 
 Returns `null` if `periodsCounted < 3` (insufficient data — no flag raised).
+
+`confidence.level` is interpreted as follows:
+
+- `high`: 52+ weeks of pure-work reference
+- `medium`: either limited history or one or more mixed work+holiday months included
+- `low`: both limited history and one or more mixed work+holiday months included
 
 ---
 
@@ -393,12 +423,14 @@ holidayContext = {
   avgHoursPerDay,
   avgRatePerHour,
   typicalDays,
+  mixedMonthsIncluded,
+  confidence,
   entitlementHours: (if typicalDays = 0),
   useAccrualMethod: (if typicalDays = 0)
 }
 ```
 
-`typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
+`typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`. When `mixedMonthsIncluded > 0`, the same context also carries a structured confidence object and the entry is marked low-confidence in the validation layer so the UI can signal that the estimate rests partly on mixed work+holiday months.
 
 **Zero-hours handling:** When `typicalDays = 0` (irregular-hours workers), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours` and sets the `useAccrualMethod` flag:
 

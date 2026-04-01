@@ -56,6 +56,48 @@ function buildRecord({
     }
 }
 
+function buildHourlyWorkerRecord({
+    start,
+    end,
+    basicUnits,
+    basicRate,
+    holidayUnits = 0,
+    holidayRate = 0,
+    payeTax = 0,
+    natIns = 0,
+    pensionEE = 0,
+    pensionER = 0,
+}) {
+    const basicAmount = Math.round(basicUnits * basicRate * 100) / 100
+    const holidayAmount = Math.round(holidayUnits * holidayRate * 100) / 100
+    const grossPay = basicAmount + holidayAmount
+    const totalDeductions = payeTax + natIns + pensionEE
+    return {
+        employee: { natInsNumber: 'AB123456C' },
+        payrollDoc: {
+            payPeriod: { start, end },
+            taxCode: '1257L',
+            basicHours: { amount: basicUnits, rate: basicRate },
+            holidayHours: {
+                amount: holidayUnits,
+                rate: holidayUnits > 0 ? holidayRate : null,
+            },
+            payments: {
+                totalGrossPay: { amount: grossPay },
+            },
+            deductions: {
+                payeTax: { amount: payeTax },
+                natIns: { amount: natIns },
+                pensionEE: { amount: pensionEE },
+                pensionER: { amount: pensionER },
+                totalDeductions: { amount: totalDeductions },
+            },
+            netPay: { amount: grossPay - totalDeductions },
+        },
+        sourceFiles: ['fixture.pdf'],
+    }
+}
+
 describe('report calculations', () => {
     it('builds contribution summary totals', () => {
         const entries = [
@@ -220,6 +262,78 @@ describe('report calculations', () => {
         expect(formatMonthYearLabel(null)).toBe('Unknown')
         expect(formatDateKey(sampleDate)).toBe('20250105')
         expect(formatDateKey(null)).toBe('unknown')
+    })
+
+    it('buildReport propagates mixed-month reference confidence into validation and holiday context', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/01/24',
+                end: '31/01/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/02/24',
+                end: '29/02/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/03/24',
+                end: '31/03/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/04/24',
+                end: '30/04/24',
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 9,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/05/24',
+                end: '31/05/24',
+                basicUnits: 0,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 9,
+                payeTax: 0,
+                natIns: 0,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/06/24',
+                end: '30/06/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+
+        const juneEntry = context.entries.find(
+            (entry) => entry.record?.payrollDoc?.payPeriod?.start === '01/06/24'
+        )
+        expect(juneEntry).toBeDefined()
+        expect(juneEntry.validation.lowConfidence).toBe(true)
+        expect(
+            context.validationSummary.lowConfidenceEntries.includes(juneEntry)
+        ).toBe(true)
     })
 
     it('sums misc amounts', () => {

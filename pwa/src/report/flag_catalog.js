@@ -78,7 +78,7 @@ export function resolveFlagLabel(id, fallback = '') {
 
 /**
  * @param {string} id
- * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean }} [params]
+ * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number }} [params]
  * @returns {string}
  */
 export function formatFlagLabel(id, params = {}) {
@@ -100,6 +100,7 @@ export function formatFlagLabel(id, params = {}) {
         const totalWeeks = Number(params.totalWeeks)
         const periodsCounted = Number(params.periodsCounted)
         const limitedData = Boolean(params.limitedData)
+        const mixedMonthsIncluded = Number(params.mixedMonthsIncluded ?? 0)
 
         if (
             Number.isFinite(impliedHolidayRate) &&
@@ -108,7 +109,11 @@ export function formatFlagLabel(id, params = {}) {
             const weeksNote = limitedData
                 ? ` (based on ${Math.round(totalWeeks)} weeks available from ${periodsCounted} months)`
                 : ` (${Math.round(totalWeeks)}-week rolling average)`
-            return `Holiday rate (\u00a3${impliedHolidayRate.toFixed(2)}/hr implied) is below average basic rate (\u00a3${rollingAvgRate.toFixed(2)}/hr)${weeksNote} \u2014 request employer's weekly records to confirm`
+            const mixedMonthNote =
+                mixedMonthsIncluded > 0
+                    ? ` — low confidence: includes ${mixedMonthsIncluded} mixed work+holiday ${mixedMonthsIncluded === 1 ? 'month' : 'months'}`
+                    : ''
+            return `Holiday rate (\u00a3${impliedHolidayRate.toFixed(2)}/hr implied) is below average basic rate (\u00a3${rollingAvgRate.toFixed(2)}/hr)${weeksNote}${mixedMonthNote} \u2014 request employer's weekly records to confirm`
         }
         return resolveFlagLabel(
             id,
