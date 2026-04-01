@@ -1434,7 +1434,7 @@ label.field span:first-of-type {
 }
 
 .drag-drop-faux::after {
-    content: 'drag & drop files PDF/Excel files...';
+    content: 'drag & drop PDF/Excel files...';
     color: var(--ink-55);
     font-size: var(--text-sm);
 }

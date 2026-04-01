@@ -29,7 +29,7 @@ The fixture generators require Python and a local virtual environment. See the d
 
 ### Quality & checks
 
-Runs formatting, linting, typechecking, then tests (in order):
+Runs the full local gate in the same order as the Husky pre-commit hook:
 
 ```bash
 pnpm precommit
@@ -42,6 +42,8 @@ pnpm test:all # fixtures must be generated first
 pnpm jslint
 pnpm csslint
 pnpm check:js
+pnpm fixtures:check
+pnpm pwa:build
 ```
 
 ### Fixture generation
@@ -88,11 +90,11 @@ pnpm pwa:generate
 >    node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/helpers/puppets.js
 > ```
 
-## Precommit & CI workflows
+## Pre-commit & CI workflows
 
-### Precommit (local)
+### Pre-commit (local)
 
-Husky runs the precommit workflow automatically before every commit.
+Husky runs the pre-commit workflow automatically before every commit.
 You can also run it manually:
 
 ```bash
@@ -105,7 +107,11 @@ This runs, in order:
 2. `pnpm jslint` (ESLint)
 3. `pnpm csslint` (Stylelint)
 4. `pnpm check:js` (TypeScript)
-5. `pnpm test:all` (Vitest)
+5. `pnpm fixtures:check` (fixture drift check)
+6. `pnpm fixtures:expected-pdf` (refresh PDF parse snapshots)
+7. `pnpm fixtures:expected-excel` (refresh Excel parse snapshots)
+8. `pnpm pwa:build` (Vite production build)
+9. `pnpm test:all` (Vitest)
 
 ### CI (GitHub Actions)
 
@@ -157,10 +163,22 @@ pnpm cf:deploy
 
 Wrangler bundles `src/worker.js`, uploads the `pwa/` directory as static assets, and prints the live URL on success.
 
+To force a fresh production build before deploy, use:
+
+```bash
+pnpm cf:deploy:build
+```
+
 ### Upload a preview version (no live traffic)
 
 ```bash
 pnpm cf:preview
+```
+
+To build first, use:
+
+```bash
+pnpm cf:preview:build
 ```
 
 ### Custom domain
@@ -190,5 +208,7 @@ See `pwa/README.md` for the full deployment checklist.
 ## Local documentation
 
 - **PWA**: `pwa/README.md`
+- **Auditor verification guide**: `pwa/docs/auditor-verification-guide.md`
 - **PDF fixtures**: `generate_fixtures/README_PDF.md`
 - **Excel fixtures**: `generate_fixtures/README_EXCEL.md`
+- **Copilot prompts**: `.github/prompts/README.md`

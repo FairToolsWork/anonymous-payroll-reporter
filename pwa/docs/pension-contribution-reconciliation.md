@@ -7,7 +7,21 @@ This document describes how the Anonymous Payroll Reporter reconciles pension co
 The implementation lives in:
 
 - `pwa/src/report/pension_calculations.js` — core reconciliation logic (`buildContributionSummary`)
-- `pwa/src/report/build.js` — totals aggregation (`buildContributionTotals`, `buildContributionRecency`), opening/closing balance computation, and report rendering
+- `pwa/src/report/build.js` — context assembly, totals aggregation (`buildContributionTotals`), and recency snapshot (`buildContributionRecency`)
+- `pwa/src/report/report_view_model.js` — year-level opening/closing balance rows and per-year totals
+- `pwa/src/report/html_export.js` / `pwa/src/report/pdf_export.js` — year traversal and rendering of summary/year tables
+- `pwa/src/report/uk_thresholds.js` — recency threshold constant (`CONTRIBUTION_RECENCY_DAYS_THRESHOLD`)
+
+## Auditor Traceability Map
+
+| Operation                                            | Primary symbol(s)                     | File                                                            |
+| ---------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------- |
+| Build expected/actual month maps and per-year deltas | `buildContributionSummary`            | `pwa/src/report/pension_calculations.js`                        |
+| Build global contribution totals                     | `buildContributionTotals`             | `pwa/src/report/build.js`                                       |
+| Build last-contribution recency snapshot             | `buildContributionRecency`            | `pwa/src/report/build.js`                                       |
+| Apply stale/fresh recency classification             | `buildContributionRecencyDisplay`     | `pwa/src/report/report_formatters.js`                           |
+| Build opening/total/closing footer rows per year     | `buildYearViewModel`                  | `pwa/src/report/report_view_model.js`                           |
+| Iterate years and calculate opening carry-forward    | `renderHtmlReport`, `exportReportPdf` | `pwa/src/report/html_export.js`, `pwa/src/report/pdf_export.js` |
 
 ---
 
@@ -131,7 +145,7 @@ Each year's detail page _may_ show an opening balance and a closing balance in t
 - The **opening balance row** is only rendered when `openingBalance !== 0` (i.e. it is hidden for the first year and for any year where all prior years net to zero).
 - The **closing balance row** is only rendered when reconciliation data is present and `closingBalance` is non-null.
 
-Both values are computed in `build.js` and `pdf_export.js` using a forward accumulation across years:
+Opening carry-forward is calculated during year iteration in `html_export.js` and `pdf_export.js`, while opening/closing footer rows are built in `buildYearViewModel` in `report_view_model.js`:
 
 ```text
 openingBalance[year N] = sum of totals.delta for years 0 … N−1
@@ -156,10 +170,10 @@ daysSinceContribution = max(0, floor((reportRunDate − lastContributionDate) / 
 
 The result is clamped to ≥ 0. A post-dated contribution statement (last date in the future) yields 0 rather than a negative number.
 
-The result is displayed in the **Last Contribution Date** column of the global summary. A threshold of **30 days** is applied:
+The result is displayed in the **Last Contribution Date** column of the global summary. The threshold is configuration-driven via `CONTRIBUTION_RECENCY_DAYS_THRESHOLD` in `uk_thresholds.js` (currently **22 days**):
 
-- ≤ 30 days: displayed in green (`days--fresh`)
-- \> 30 days: displayed in amber/red (`days--stale`)
+- ≤ threshold: displayed in green (`days--fresh`)
+- > threshold: displayed in amber/red (`days--stale`)
 
 This draws attention to workers whose pension provider has not received a contribution recently — which may indicate the employer has stopped making payments.
 

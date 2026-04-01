@@ -6,6 +6,21 @@ This document describes how the Anonymous Payroll Reporter calculates and flags 
 
 The implementation lives in `pwa/src/report/holiday_calculations.js` and `pwa/src/report/tax_year_utils.js`.
 
+## Auditor Traceability Map
+
+This section maps each operational step to its implementation symbol so an auditor can verify behavior directly in code.
+
+| Operation                                | Primary symbol(s)                                     | File                                                                        |
+| ---------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| Build report entries and parse dates     | `buildReportEntries`, `parsePayPeriodStart`           | `pwa/src/report/report_calculations.js`, `pwa/src/report/tax_year_utils.js` |
+| Execute holiday validation pass          | `buildHolidayPayFlags`                                | `pwa/src/report/holiday_calculations.js`                                    |
+| Determine reference eligibility          | `isReferenceEligible`, `SKIP_PAY_TITLES`              | `pwa/src/report/holiday_calculations.js`                                    |
+| Build 52-week reference pool             | `buildRollingReference`, `getWeeksInPeriod`           | `pwa/src/report/holiday_calculations.js`                                    |
+| Add Signal A / Signal B flags            | `buildHolidayPayFlags`, `formatFlagLabel`             | `pwa/src/report/holiday_calculations.js`, `pwa/src/report/flag_catalog.js`  |
+| Build per-entry holiday context          | `buildYearHolidayContext`                             | `pwa/src/report/holiday_calculations.js`                                    |
+| Build summary-row holiday display model  | `buildEntryHolidaySummary`, `buildYearHolidaySummary` | `pwa/src/report/year_holiday_summary.js`                                    |
+| Render HTML/PDF year and payslip outputs | `renderHtmlReport`, `exportReportPdf`                 | `pwa/src/report/html_export.js`, `pwa/src/report/pdf_export.js`             |
+
 ---
 
 ## Statutory Background
@@ -32,7 +47,7 @@ Used with that framing, the tool is genuinely useful. For the majority of straig
 
 **Where it falls short of the full legal picture:**
 
-- **It works from monthly payslips, not weekly pay records.** The statutory calculation operates week by week. Monthly payslips give us a total hours and total pay figure for each month; we convert to a per-week equivalent using an approximation (calendar days ÷ 7). This is accurate to within 2–3% but cannot capture intra-month variation — a month where the worker was sick for two weeks and worked for two is treated as a single excluded unit rather than being split.
+- **It works from monthly payslips, not weekly pay records.** The statutory calculation operates week by week. Monthly payslips give us a total hours and total pay figure for each month; we convert to a per-week equivalent using an approximation (calendar days ÷ 7). This is accurate to within 2–3% but cannot capture intra-month variation — a month where the worker was sick for two weeks and worked for two is treated as a single excluded unit rather than being split. The current implementation also treats months that include both ordinary work and holiday pay conservatively when building the rolling reference average. That is a policy choice to avoid circular benchmarking from monthly-only data, not proof that mixed months contain no useful signal.
 
 - **It does not include overtime, commission, or other regular payments.** ACAS is clear that holiday pay must reflect _all_ pay the worker regularly receives, including regular overtime and commission. This tool uses only basic hourly pay from `hourly.basic`. A worker whose monthly pay regularly includes significant overtime will have their reference average understated, and the tool may fail to flag genuine underpayment. This is the most legally significant gap.
 
@@ -48,9 +63,9 @@ Workers who believe they have a genuine claim should obtain their employer's wee
 
 ### 1. Monthly granularity — no week-by-week data
 
-**What it means:** The statutory calculation operates on individual weeks, substituting excluded weeks with earlier ones. ([ACAS: Weeks when someone is off or did not get paid](https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay)) This implementation operates on complete calendar months because payslips are issued monthly. A month where the worker was sick for two weeks but worked the other two is excluded _in its entirety_ (Rules 1 and/or 2 of `isReferenceEligible`), even though two of those weeks were ordinary working weeks. The tool cannot split a monthly payslip into individual weeks.
+**What it means:** The statutory calculation operates on individual weeks, substituting excluded weeks with earlier ones. ([ACAS: Weeks when someone is off or did not get paid](https://www.acas.org.uk/irregular-hours-and-part-year-workers/calculating-holiday-pay)) This implementation operates on complete calendar months because payslips are issued monthly. A month where the worker was sick for two weeks but worked the other two is excluded _in its entirety_ (Rules 1 and/or 2 of `isReferenceEligible`), even though two of those weeks were ordinary working weeks. The tool cannot split a monthly payslip into individual weeks. Likewise, where a monthly payslip contains both ordinary work and holiday pay, the current implementation treats that month conservatively when constructing the rolling reference pool because it cannot identify which exact weeks were worked and which were taken as leave.
 
-**Effect:** The reference pool may be slightly smaller than the statutory ideal, and the tool uses exclusion rather than substitution. The tool is conservative — it excludes more months than strictly necessary, which means the rolling average may be based on fewer periods, but each period included represents unambiguously ordinary pay.
+**Effect:** The reference pool may be slightly smaller than the statutory ideal, and the tool uses exclusion rather than substitution. The tool is conservative — it excludes more months than strictly necessary, which means the rolling average may be based on fewer periods, but each period included represents pay that the implementation treats as unambiguously ordinary. This can suppress otherwise-useful reference data where a payslip contains both basic hours and holiday hours.
 
 **Mitigation:** The minimum threshold of 3 eligible periods prevents a flag from firing when the reference pool is too thin to be meaningful. The `limitedData` flag in the label makes clear when fewer than 52 weeks of data were found.
 
@@ -166,12 +181,12 @@ This reflects the statutory framework for irregular-hours workers. The 5.6 weeks
 
 ### 11. Holiday-only payslip with insufficient prior history — no basis for comparison
 
-**What it means:** Signal A requires a basic hourly rate derivable from the **same payslip** (`hourly.basic.units > 0` and `hourly.basic.amount > 0`). Signal B requires at least 3 prior eligible months. A payslip that records only holiday pay and zero basic hours satisfies neither condition: `basicRate` cannot be inferred from the payslip itself, and if fewer than 3 prior payslips with basic hours exist, Signal B is also unavailable.
+**What it means:** Signal A requires a same-payslip basic rate (`basicRate`) that can be obtained either from an explicit `hourly.basic.rate` value, or derived from `hourly.basic.amount / hourly.basic.units` when both are positive. Signal B requires at least 3 prior eligible months. A payslip that records only holiday pay and zero basic hours usually satisfies neither condition; if fewer than 3 prior payslips with basic hours exist, Signal B is also unavailable.
 
 **Effect:** The tool produces no flag and no warning for that month. This affects two real-world situations:
 
 - **Workers in their first 1–2 months of employment** who take holiday before a reference pool of 3 months has accumulated. Signal B is always unavailable; Signal A is only available if the holiday month also contains basic hours.
-- **Any month where the worker took all hours as holiday** (zero basic hours on the payslip). Neither signal has a reference rate.
+- **Any month where the worker took all hours as holiday** (zero basic hours on the payslip). In most cases neither signal has a usable same-payslip basic rate; Signal B is also unavailable until 3 prior eligible months exist.
 
 The system has no data against which to assess the implied holiday rate. This is an unavoidable consequence of the tool operating solely from payslip data — without a same-payslip basic rate or a rolling reference, there is nothing to compare the holiday rate against.
 
@@ -246,13 +261,15 @@ misc[*].title does not contain any of:
 
 Matching is case-insensitive substring. A month flagged as containing any statutory pay is excluded in line with the intent of ACAS guidance (which specifies week-level substitution; this tool approximates at month level), even if the worker also received some basic pay that month.
 
-#### Rule 3 — No holiday pay on the entry itself
+#### Rule 3 — Current implementation excludes entries with holiday pay
 
 ```text
 (hourly.holiday.units ?? 0) <= 0  AND  (hourly.holiday.amount ?? 0) <= 0
 ```
 
-The reference window must be built from _prior paid_ ordinary working weeks, not from weeks that themselves included holiday. A month where the worker took holiday is excluded. A `null` or absent holiday field is treated as zero and does not disqualify the month. Note: ACAS guidance does not explicitly state that holiday weeks must be excluded from the reference pool, but including holiday-pay months would inflate the average in a circular way, so exclusion is the conservative and defensible approach.
+The current implementation excludes a month where the worker took holiday. A `null` or absent holiday field is treated as zero and does not disqualify the month.
+
+This is a conservative modeling choice rather than a strict legal requirement. ACAS guidance does not explicitly require mixed work-and-holiday months to be discarded in full. Where a payslip still shows positive basic hours and basic pay, that month may contain useful evidence about the worker's ordinary rate. The reason the implementation excludes it today is narrower: monthly payslips do not reveal the week-level split between ordinary work and leave, so using the month in the rolling benchmark risks introducing circularity and overstating confidence. In other words, the system treats mixed months as low-confidence reference data, not as data from which nothing at all can be inferred.
 
 ---
 
@@ -425,7 +442,7 @@ daysRemaining       = statutoryHolidayDays - daysTaken
 
 Using `typicalDays × 52 / 12` converts a weekly days figure into the correct monthly working-day equivalent (e.g. 5 days/week → 21.67 working days/month). Dividing by `typicalDays` directly would produce a figure ~4.33× too high.
 
-This requires `salary.basic.amount > 0` and `workingDaysPerMonth > 0`. If either is unavailable the day estimate is omitted and only the £ holiday amount is shown.
+This requires `salary.basic.amount > 0`, `workingDaysPerMonth > 0`, and at least one month in scope. If any of those are unavailable, `dailyRate` is zero and the day estimate is omitted (only the £ holiday amount is shown). The year-summary days remaining output also requires `statutoryHolidayDays !== null`; otherwise the summary remains amount-only.
 
 Note: Sage UK payslips print `Holiday Salary` as a flat amount only — `salary.holiday.units` is typically `null`. Days cannot be derived from hours for salaried workers; the amount-divided-by-daily-rate approximation is used instead.
 

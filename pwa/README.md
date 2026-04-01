@@ -169,9 +169,9 @@ export { PATTERNS } from './formats/<name>/patterns.js'
 
 4. In `parser_config.js`, change the `PATTERNS` re-export to point at your new patterns file.
 
-5. Run `pnpm test:all` — if the PDF fixtures being tested were generated for the previous format, regenerate them first with `pnpm fixtures:generate` and `pnpm fixtures:expected`.
+5. Run `pnpm test:all` — if the PDF fixtures being tested were generated for the previous format, regenerate them first with `pnpm fixtures:generate`, `pnpm fixtures:expected-pdf`, and `pnpm fixtures:expected-excel`.
 
-See `generate_fixtures/README.md` for the parallel steps on the fixture generation side.
+See `generate_fixtures/README_PDF.md` and `generate_fixtures/README_EXCEL.md` for the parallel steps on the fixture generation side.
 
 ## `PayrollRecord` shape
 

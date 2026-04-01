@@ -4,7 +4,18 @@
 
 This document describes how the Anonymous Payroll Reporter estimates holiday days taken and remaining for salaried workers. It covers the statutory background, the calculation pipeline, known limitations, and the precise arithmetic used.
 
-The implementation lives in `pwa/src/report/build.js` (HTML report) and `pwa/src/report/pdf_export.js` (PDF export). There is no separate calculation module for salaried workers — the logic is embedded directly in the year-summary rendering path of each file.
+The implementation lives primarily in `pwa/src/report/year_holiday_summary.js` (`buildYearHolidaySummary`, salary branch). Display formatting is handled in `pwa/src/report/report_formatters.js`, then rendered through `pwa/src/report/html_export.js` and `pwa/src/report/pdf_export.js`. The report assembly entry point that feeds this flow is `pwa/src/report/build.js`.
+
+## Auditor Traceability Map
+
+| Operation                                                   | Primary symbol(s)                                               | File                                                            |
+| ----------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| Assemble report context and worker profile                  | `buildReport`                                                   | `pwa/src/report/build.js`                                       |
+| Group entries by leave year                                 | `buildLeaveYearGroups`                                          | `pwa/src/report/year_holiday_summary.js`                        |
+| Compute salaried holiday amount/days summary                | `buildYearHolidaySummary` (salary branch)                       | `pwa/src/report/year_holiday_summary.js`                        |
+| Build summary/year view models that consume holiday summary | `buildSummaryYearRow`, `buildYearViewModel`                     | `pwa/src/report/report_view_model.js`                           |
+| Format holiday summary labels                               | `buildHolidaySummaryDisplay`, `buildTotalHolidayBreakdownLines` | `pwa/src/report/report_formatters.js`                           |
+| Render final HTML/PDF output                                | `renderHtmlReport`, `exportReportPdf`                           | `pwa/src/report/html_export.js`, `pwa/src/report/pdf_export.js` |
 
 ---
 
@@ -161,7 +172,7 @@ daysRemaining = max(0, statutoryHolidayDays − daysTaken)
 overrun       = statutoryHolidayDays − daysTaken < 0
 ```
 
-Days remaining is floored at zero for display. If the raw difference is negative, the report appends `(entitlement exceeded)` / `EXCEEDED` to the cell. `build.js` uses a named intermediate `salaryDaysRemainingRaw` for clarity; `pdf_export.js` inlines the subtraction.
+Days remaining is floored at zero for display. If the raw difference is negative, the report appends `(entitlement exceeded)` to the summary text. The raw subtraction is computed in `buildYearHolidaySummary` as `daysRemainingRaw` before display formatting.
 
 **Null guard:** If `statutoryHolidayDays` is null (zero-hours baseline, or the worker has not yet set their entitlement), the days-remaining calculation is skipped entirely and only the `salary_amount` kind is returned (showing the raw £ holiday amount). This prevents the report from computing `null − daysTaken` and producing invalid output.
 
@@ -173,10 +184,10 @@ The year-summary holiday cell shows:
 
 ```text
 HTML:  £{yearHolidaySalaryAmount}
-       ≈{daysTaken}d taken / {daysRemaining} remaining [(entitlement exceeded)]
+       ~{daysTaken} days taken / {daysRemaining} remaining [(entitlement exceeded)]
 
 PDF:   £{yearHolidaySalaryAmount}
-       ({daysTaken}d taken, {daysRemaining} rem [EXCEEDED])
+       ~{daysTaken} days taken / {daysRemaining} remaining [(entitlement exceeded)]
 ```
 
 If `daysTaken` is `null` (daily rate unavailable), only `£{yearHolidaySalaryAmount}` is shown.
@@ -228,7 +239,7 @@ daysRemaining = 28 − 15.0 = 13.0 days
 
 ## Contract-Type Mismatch Warning
 
-When `workerType === 'salary'`, `build.js` also scans all entries for the presence of hourly pay (`hourly.basic.units > 0` or `hourly.holiday.units > 0`). If any is found, a warning banner is rendered:
+When `workerType === 'salary'`, `buildReport` in `build.js` also scans all entries for the presence of hourly pay (`hourly.basic.units > 0` or `hourly.holiday.units > 0`). If any is found, a warning banner is rendered:
 
 > "Some payslips contain hourly pay (Basic Hours) but your worker profile is set to **Salaried**. If your contract changed part-way through, consider running separate reports for each contract period for accurate results."
 
