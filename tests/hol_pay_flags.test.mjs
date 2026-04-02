@@ -4,6 +4,7 @@ import {
     buildRollingReference,
     buildYearHolidayContext,
     isReferenceEligible,
+    buildAnnualHolidayCheckResult,
 } from '../pwa/src/report/holiday_calculations.js'
 
 /**
@@ -1499,6 +1500,274 @@ describe('buildRollingReference', () => {
         )
         expect(flag).toBeUndefined()
     })
+
+    it('includes a prior mixed month when it passes the expected-hours gate', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 10,
+                holidayUnits: 8,
+                holidayAmount: 80,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 64,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.periodsCounted).toBe(4)
+        expect(ref.mixedMonthsIncluded).toBe(1)
+        expect(ref.totalBasicHours).toBeCloseTo(608, 4)
+        expect(ref.confidence.level).toBe('low')
+        expect(ref.confidence.reasons).toContain(
+            'Includes 1 mixed work+holiday month'
+        )
+    })
+
+    it('excludes a prior mixed month when it fails the expected-hours gate', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 10,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 48,
+                basicRate: 10,
+                holidayUnits: 8,
+                holidayAmount: 80,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 64,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.periodsCounted).toBe(3)
+        expect(ref.mixedMonthsIncluded).toBe(0)
+        expect(ref.totalBasicHours).toBeCloseTo(480, 4)
+    })
+
+    it('reports medium confidence for pure limited-data references', () => {
+        const entries = []
+        for (let i = 0; i < 4; i++) {
+            entries.push(
+                makeEntry({
+                    basicUnits: 160,
+                    basicRate: 14.5,
+                    monthIndex: i + 1,
+                    parsedDate: new Date(2024, i, 15),
+                })
+            )
+        }
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.confidence.level).toBe('medium')
+        expect(ref.confidence.reasons[0]).toMatch(/Limited reference:/)
+    })
+
+    it('reports high confidence for pure 52-week references', () => {
+        const entries = []
+        for (let i = 0; i < 13; i++) {
+            entries.push(
+                makeEntry({
+                    basicUnits: 160,
+                    basicRate: 14.5,
+                    monthIndex: (i % 12) + 1,
+                    parsedDate: new Date(2023, i, 15),
+                })
+            )
+        }
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            parsedDate: new Date(2024, 3, 15),
+        })
+        const sorted = [...entries, target].sort(
+            (a, b) =>
+                (a.parsedDate?.getTime() ?? 0) - (b.parsedDate?.getTime() ?? 0)
+        )
+
+        const ref = buildRollingReference(sorted, target)
+
+        expect(ref).not.toBeNull()
+        expect(ref.confidence.level).toBe('high')
+        expect(ref.confidence.reasons).toEqual([])
+    })
+})
+
+describe('mixed-month reference propagation', () => {
+    it('marks Signal B entries low-confidence when the rolling reference includes mixed months', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 72,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        buildHolidayPayFlags([...entries, target])
+
+        const flag = target.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_rolling_avg'
+        )
+        expect(flag).toBeDefined()
+        expect(flag.label).toMatch(
+            /low confidence: includes 1 mixed work\+holiday month/
+        )
+        expect(flag.inputs.mixedMonthsIncluded).toBe(1)
+        expect(target.validation.lowConfidence).toBe(true)
+    })
+
+    it('propagates confidence into holidayContext when mixed months are included', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        buildYearHolidayContext([...entries, target], { typicalDays: 5 })
+
+        expect(target.holidayContext.hasBaseline).toBe(true)
+        expect(target.holidayContext.mixedMonthsIncluded).toBe(1)
+        expect(target.holidayContext.confidence.level).toBe('low')
+        expect(target.holidayContext.confidence.reasons).toContain(
+            'Includes 1 mixed work+holiday month'
+        )
+        expect(target.validation.lowConfidence).toBe(false)
+    })
 })
 
 describe('isReferenceEligible — statutory pay titles', () => {
@@ -1633,5 +1902,220 @@ describe('flag evidence payload — ruleId and inputs fields', () => {
         expect(flag.inputs.rollingAvgRate).toBeCloseTo(18.0)
         expect(flag.inputs.periodsCounted).toBeGreaterThanOrEqual(3)
         expect(flag.inputs.totalWeeks).toBeGreaterThan(0)
+    })
+})
+
+describe('buildAnnualHolidayCheckResult', () => {
+    it('returns null when ref is null', () => {
+        const result = buildAnnualHolidayCheckResult(100, 1000, 50, null)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when ref.totalBasicHours is zero', () => {
+        const ref = {
+            totalBasicPay: 1000,
+            totalBasicHours: 0,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 1000, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when totalHolidayHours is zero', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(0, 1000, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when totalHolidayPay is zero', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 0, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('computes aligned case when variance within threshold', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 5200 / 2080 = 2.5
+        // expectedHolidayPay = 100 * 2.5 = 250
+        // actualHolidayPay = 250 (aligned)
+        // expectedEntitlementHours = (2080 / 52) * 5.6 = 40 * 5.6 = 224
+        // expectedRemaining = 224 - 100 = 124
+        // recordedRemaining = 124 (aligned)
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('aligned')
+        expect(result.payVariancePercent).toBeCloseTo(0)
+        expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(0)
+        expect(result.confidence.level).toBe('high')
+        expect(result.reasons[0]).toContain('reconcile')
+    })
+
+    it('computes underpaid case when actual < expected', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 2.5
+        // expectedHolidayPay = 100 * 2.5 = 250
+        // actualHolidayPay = 225 (underpaid by 25, or -10%, within 5-15% review range)
+        const result = buildAnnualHolidayCheckResult(100, 225, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('review')
+        expect(result.payVariancePercent).toBeCloseTo(-10)
+        expect(result.payVarianceAmount).toBeCloseTo(-25)
+        expect(result.reasons[0]).toContain('below')
+    })
+
+    it('computes overpaid case when actual > expected', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // expectedHolidayPay = 250
+        // actualHolidayPay = 275 (overpaid by 25, or +10%, within 5-15% review range)
+        const result = buildAnnualHolidayCheckResult(100, 275, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('review')
+        expect(result.payVariancePercent).toBeCloseTo(10)
+        expect(result.payVarianceAmount).toBeCloseTo(25)
+        expect(result.reasons[0]).toContain('above')
+    })
+
+    it('classifies mismatch when variance > 15% or hours discrepancy > 8', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // expectedHolidayPay = 250
+        // actualHolidayPay = 100 (underpaid by 150, or -60%)
+        const result = buildAnnualHolidayCheckResult(100, 100, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('mismatch')
+    })
+
+    it('composes confidence: reference medium caps annual confidence at medium', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: true,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'medium', reasons: ['limited data'] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.confidence.level).toBe('medium')
+        expect(result.confidence.reasons).toContain('limited data')
+    })
+
+    it('composes confidence: reference low results in annual low', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: true,
+            mixedMonthsIncluded: 1,
+            confidence: {
+                level: 'low',
+                reasons: ['limited data', 'mixed months'],
+            },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.confidence.level).toBe('low')
+    })
+
+    it('calculates impliedHolidayHours correctly', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 2.5
+        // actualHolidayPay = 250
+        // impliedHolidayHours = 250 / 2.5 = 100
+        const result = buildAnnualHolidayCheckResult(95, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.impliedHolidayHours).toBeCloseTo(100)
+    })
+
+    it('calculates correct remaining hours comparison', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgWeeklyHours = 2080 / 52 = 40
+        // expectedEntitlementHours = 40 * 5.6 = 224
+        // totalHolidayHours = 100
+        // expectedRemaining = 224 - 100 = 124
+        // recordedRemaining = 120
+        // discrepancyHours = 120 - 124 = -4
+        const result = buildAnnualHolidayCheckResult(100, 250, 120, ref)
+        expect(result).not.toBeNull()
+        expect(result.expectedEntitlementHours).toBeCloseTo(224)
+        expect(result.remainingHoursComparison.expectedRemaining).toBeCloseTo(
+            124
+        )
+        expect(result.remainingHoursComparison.recordedRemaining).toBeCloseTo(
+            120
+        )
+        expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(-4)
+        expect(result.reasons).toContain(
+            'recorded remaining fewer than expected by 4.0 hours'
+        )
     })
 })

@@ -9,6 +9,7 @@ import {
 } from '../pwa/src/report/hourly_pay_calculations.js'
 import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
 import { buildReportEntries } from '../pwa/src/report/report_calculations.js'
+import { buildSummaryViewModel } from '../pwa/src/report/report_view_model.js'
 import {
     buildMissingMonthsWithRange,
     formatDateKey,
@@ -53,6 +54,64 @@ function buildRecord({
             thisPeriod: { totalGrossPay: { amount: grossPay } },
             netPay: { amount: netPay },
         },
+    }
+}
+
+function buildHourlyWorkerRecord({
+    start,
+    end,
+    basicUnits,
+    basicRate,
+    holidayUnits = 0,
+    holidayRate = 0,
+    payeTax = 0,
+    natIns = 0,
+    pensionEE = 0,
+    pensionER = 0,
+}) {
+    const basicAmount = Math.round(basicUnits * basicRate * 100) / 100
+    const holidayAmount = Math.round(holidayUnits * holidayRate * 100) / 100
+    const grossPay = basicAmount + holidayAmount
+    const totalDeductions = payeTax + natIns + pensionEE
+    return {
+        employee: { natInsNumber: 'AB123456C' },
+        payrollDoc: {
+            payPeriod: { start, end },
+            processDate: { date: `${start} - ${end}` },
+            taxCode: { code: '1257L' },
+            payments: {
+                hourly: {
+                    basic: {
+                        units: basicUnits,
+                        rate: basicRate,
+                        amount: basicAmount,
+                    },
+                    holiday: {
+                        units: holidayUnits,
+                        rate: holidayUnits > 0 ? holidayRate : null,
+                        amount: holidayAmount,
+                    },
+                },
+                salary: {
+                    basic: { amount: 0 },
+                    holiday: { units: 0, rate: null, amount: 0 },
+                },
+                misc: [],
+            },
+            thisPeriod: {
+                totalGrossPay: { amount: grossPay },
+            },
+            deductions: {
+                payeTax: { amount: payeTax },
+                natIns: { amount: natIns },
+                pensionEE: { amount: pensionEE },
+                pensionER: { amount: pensionER },
+                misc: [],
+                totalDeductions: { amount: totalDeductions },
+            },
+            netPay: { amount: grossPay - totalDeductions },
+        },
+        sourceFiles: ['fixture.pdf'],
     }
 }
 
@@ -220,6 +279,293 @@ describe('report calculations', () => {
         expect(formatMonthYearLabel(null)).toBe('Unknown')
         expect(formatDateKey(sampleDate)).toBe('20250105')
         expect(formatDateKey(null)).toBe('unknown')
+    })
+
+    it('buildReport propagates mixed-month reference confidence into validation and holiday context', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/01/24',
+                end: '31/01/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/02/24',
+                end: '29/02/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/03/24',
+                end: '31/03/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/04/24',
+                end: '30/04/24',
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 9,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/05/24',
+                end: '31/05/24',
+                basicUnits: 0,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 9,
+                payeTax: 0,
+                natIns: 0,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/06/24',
+                end: '30/06/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+
+        const mayEntry = context.entries.find(
+            (entry) => entry.record?.payrollDoc?.payPeriod?.start === '01/05/24'
+        )
+        const juneEntry = context.entries.find(
+            (entry) => entry.record?.payrollDoc?.payPeriod?.start === '01/06/24'
+        )
+        expect(mayEntry).toBeDefined()
+        expect(juneEntry).toBeDefined()
+        expect(mayEntry.validation.lowConfidence).toBe(true)
+        expect(juneEntry.validation.lowConfidence).toBe(false)
+        expect(
+            context.validationSummary.lowConfidenceEntries.includes(mayEntry)
+        ).toBe(true)
+    })
+
+    it('buildReport exposes annual cross-check data for zero-hours yearly summaries when baseline and holiday data exist', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/01/24',
+                end: '31/01/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/02/24',
+                end: '29/02/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/03/24',
+                end: '31/03/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/04/24',
+                end: '30/04/24',
+                basicUnits: 152,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/05/24',
+                end: '31/05/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/06/24',
+                end: '30/06/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 0,
+            statutoryHolidayDays: null,
+            leaveYearStartMonth: 4,
+        })
+
+        const summaryViewModel = buildSummaryViewModel(context, {
+            employeeName: 'Test Worker',
+            dateRangeLabel: 'Jan 2024 - Jun 2024',
+        })
+        const yearRow = summaryViewModel.yearSummaryRows.find(
+            (row) => row.yearKey === '2024/25'
+        )
+
+        expect(yearRow).toBeDefined()
+        expect(yearRow.holidaySummary.kind).toBe('hourly_hours')
+        expect(yearRow.holidaySummary.entitlementHours).toBeGreaterThan(0)
+        expect(yearRow.annualCrossCheck).toBeTruthy()
+        expect(yearRow.annualCrossCheck.status).toBe('mismatch')
+        expect(yearRow.monthBreakdown).toHaveLength(2)
+        expect(yearRow.monthBreakdown.map((row) => row.monthLabel)).toEqual([
+            'May',
+            'June',
+        ])
+    })
+
+    it('buildReport omits annual cross-check when zero-hours yearly summary has no holiday pay', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/01/24',
+                end: '31/01/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/02/24',
+                end: '29/02/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/03/24',
+                end: '31/03/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/04/24',
+                end: '30/04/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 0,
+            statutoryHolidayDays: null,
+            leaveYearStartMonth: 4,
+        })
+
+        const summaryViewModel = buildSummaryViewModel(context, {
+            employeeName: 'Test Worker',
+            dateRangeLabel: 'Jan 2024 - Apr 2024',
+        })
+        const yearRow = summaryViewModel.yearSummaryRows.find(
+            (row) => row.yearKey === '2023/24'
+        )
+
+        expect(yearRow).toBeDefined()
+        expect(yearRow.annualCrossCheck).toBeNull()
+        expect(yearRow.monthBreakdown).toEqual([])
+    })
+
+    it('buildReport HTML renders one annual cross-check section with month breakdown and preserves payslip holiday analysis', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/01/24',
+                end: '31/01/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/02/24',
+                end: '29/02/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/03/24',
+                end: '31/03/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/04/24',
+                end: '30/04/24',
+                basicUnits: 152,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/05/24',
+                end: '31/05/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/06/24',
+                end: '30/06/24',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { html } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 0,
+            statutoryHolidayDays: null,
+            leaveYearStartMonth: 4,
+        })
+
+        expect(html).toContain('Annual holiday pay cross-check')
+        expect(html).toContain('Reference state')
+        expect(html).toContain('Mixed month')
+        expect(html).toContain('May')
+        expect(html).toContain('June')
+        expect(html).toContain('notice no-left-border')
     })
 
     it('sums misc amounts', () => {

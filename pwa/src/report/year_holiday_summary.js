@@ -1,11 +1,18 @@
+import { formatMonthLabel } from '../parse/parser_config.js'
+import { buildAnnualHolidayCheckResult } from './holiday_calculations.js'
+import { getCalendarMonthFromFiscalIndex } from './tax_year_utils.js'
+
 /**
  * @typedef {{
  *   hasBaseline?: boolean,
  *   avgHoursPerDay?: number,
  *   avgWeeklyHours?: number,
+ *   avgRatePerHour?: number,
  *   typicalDays?: number,
  *   entitlementHours?: number,
  *   useAccrualMethod?: boolean,
+ *   mixedMonthsIncluded?: number,
+ *   confidence?: { level: 'high' | 'medium' | 'low', reasons: string[] },
  * }} HolidayContextLike
  */
 
@@ -15,7 +22,7 @@
  *   monthIndex?: number,
  *   leaveYearKey?: string | null,
  *   holidayContext?: HolidayContextLike | null,
- *   validation?: { flags?: Array<{ noteIndex?: number, label?: string }> } | null,
+ *   validation?: { flags?: Array<{ id?: string, noteIndex?: number, label?: string }> } | null,
  *   parsedDate?: Date | null,
  * }} ReportEntryLike
  */
@@ -50,6 +57,52 @@
 
 /**
  * @typedef {EntryHolidaySummaryHoursDays | EntryHolidaySummaryHoursOnly} EntryHolidaySummary
+ */
+
+/**
+ * @typedef {{
+ *   hasBaseline: boolean,
+ *   avgWeeklyHours: number | null,
+ *   avgRatePerHour: number | null,
+ *   mixedMonthsIncluded: number,
+ *   confidenceLevel: 'high' | 'medium' | 'low' | null,
+ * }} AnnualReferenceState
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   label: string,
+ * }} AnnualSignal
+ */
+
+/**
+ * @typedef {{
+ *   monthIndex: number,
+ *   monthLabel: string,
+ *   basicHours: number,
+ *   holidayHours: number,
+ *   estimatedDays: number | null,
+ *   referenceState: AnnualReferenceState,
+ *   mixedMonthIncluded: boolean,
+ *   signalsFired: AnnualSignal[],
+ * }} AnnualMonthBreakdownEntry
+ */
+
+/**
+ * @typedef {{
+ *   expectedHolidayPay: number,
+ *   actualHolidayPay: number,
+ *   payVarianceAmount: number,
+ *   payVariancePercent: number,
+ *   impliedHolidayHours: number,
+ *   expectedEntitlementHours: number,
+ *   remainingHoursComparison: { recordedRemaining: number, expectedRemaining: number, discrepancyHours: number },
+ *   confidence: { level: 'high' | 'medium' | 'low', reasons: string[] },
+ *   status: 'aligned' | 'review' | 'mismatch',
+ *   reasons: string[],
+ *   monthBreakdown: AnnualMonthBreakdownEntry[],
+ * }} AnnualHolidayCheckSummaryResult
  */
 
 /**
@@ -94,6 +147,8 @@
  *   hoursRemaining: number,
  *   overrun: boolean,
  *   useAccrualMethod: boolean,
+ *   annualCrossCheck?: AnnualHolidayCheckSummaryResult,
+ *   monthBreakdown?: AnnualMonthBreakdownEntry[],
  * }} YearHolidaySummaryHourlyHours
  */
 
@@ -123,6 +178,22 @@ function sumHolidayUnits(entries) {
             acc +
             (entry.record?.payrollDoc?.payments?.hourly?.holiday?.units || 0) +
             (entry.record?.payrollDoc?.payments?.salary?.holiday?.units || 0),
+        0
+    )
+}
+
+/**
+ * @param {ReportEntryLike[]} entries
+ * @returns {number}
+ */
+function sumBasicHours(entries) {
+    return entries.reduce(
+        /** @param {number} acc @param {ReportEntryLike} entry */ (
+            acc,
+            entry
+        ) =>
+            acc +
+            (entry.record?.payrollDoc?.payments?.hourly?.basic?.units || 0),
         0
     )
 }
@@ -168,6 +239,191 @@ function sumSalaryHolidayAmount(entries) {
             (entry.record?.payrollDoc?.payments?.salary?.holiday?.amount || 0),
         0
     )
+}
+
+/**
+ * @param {ReportEntryLike[]} entries
+ * @returns {number}
+ */
+function sumHourlyHolidayAmount(entries) {
+    return entries.reduce(
+        /** @param {number} acc @param {ReportEntryLike} entry */ (
+            acc,
+            entry
+        ) =>
+            acc +
+            (entry.record?.payrollDoc?.payments?.hourly?.holiday?.amount || 0),
+        0
+    )
+}
+
+/**
+ * @param {HolidayContextLike | null | undefined} holidayContext
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: { level: 'high' | 'medium' | 'low', reasons: string[] } } | null}
+ */
+function buildAnnualSyntheticReference(holidayContext) {
+    const avgWeeklyHours = holidayContext?.avgWeeklyHours ?? 0
+    const avgRatePerHour = holidayContext?.avgRatePerHour ?? 0
+    if (
+        !holidayContext?.hasBaseline ||
+        avgWeeklyHours <= 0 ||
+        avgRatePerHour <= 0
+    ) {
+        return null
+    }
+    return {
+        totalBasicPay: avgWeeklyHours * avgRatePerHour,
+        totalBasicHours: avgWeeklyHours,
+        totalWeeks: 1,
+        periodsCounted: 1,
+        limitedData: false,
+        mixedMonthsIncluded: holidayContext.mixedMonthsIncluded ?? 0,
+        confidence: holidayContext.confidence ?? {
+            level: 'medium',
+            reasons: ['missing reference confidence'],
+        },
+    }
+}
+
+/**
+ * @param {'high' | 'medium' | 'low'} left
+ * @param {'high' | 'medium' | 'low'} right
+ * @returns {'high' | 'medium' | 'low'}
+ */
+function minConfidenceLevel(left, right) {
+    const rank = { high: 3, medium: 2, low: 1 }
+    return rank[left] <= rank[right] ? left : right
+}
+
+/**
+ * @param {ReportEntryLike[]} entriesForYear
+ * @returns {AnnualMonthBreakdownEntry[]}
+ */
+function buildAnnualMonthBreakdown(entriesForYear) {
+    /** @type {Map<number, ReportEntryLike[]>} */
+    const entriesByMonth = new Map()
+    entriesForYear.forEach((entry) => {
+        const monthIndex = entry.monthIndex ?? -1
+        if (monthIndex < 1 || monthIndex > 12) {
+            return
+        }
+        if (!entriesByMonth.has(monthIndex)) {
+            entriesByMonth.set(monthIndex, [])
+        }
+        const existing = entriesByMonth.get(monthIndex)
+        if (existing) {
+            existing.push(entry)
+        }
+    })
+
+    return Array.from(entriesByMonth.entries())
+        .sort(([left], [right]) => left - right)
+        .map(([monthIndex, monthEntries]) => {
+            const sortedMonthEntries = [...monthEntries].sort((left, right) => {
+                const leftTime = left.parsedDate?.getTime() ?? 0
+                const rightTime = right.parsedDate?.getTime() ?? 0
+                return leftTime - rightTime
+            })
+            const lastEntry =
+                sortedMonthEntries[sortedMonthEntries.length - 1] || null
+            const lastContext = lastEntry?.holidayContext ?? null
+            const basicHours = sortedMonthEntries.reduce(
+                (sum, entry) =>
+                    sum +
+                    (entry.record?.payrollDoc?.payments?.hourly?.basic?.units ||
+                        0),
+                0
+            )
+            const holidayHours = sumHolidayUnits(sortedMonthEntries)
+            const estimatedDays =
+                (lastContext?.avgHoursPerDay ?? 0) > 0
+                    ? holidayHours / (lastContext?.avgHoursPerDay ?? 1)
+                    : null
+            const signalsById = new Map()
+            sortedMonthEntries.forEach((entry) => {
+                ;(entry.validation?.flags || []).forEach((flag) => {
+                    const id = flag.id || `note-${flag.noteIndex || 'unknown'}`
+                    if (!signalsById.has(id)) {
+                        signalsById.set(id, {
+                            id,
+                            label: flag.label || id,
+                        })
+                    }
+                })
+            })
+            const calendarMonthIndex =
+                getCalendarMonthFromFiscalIndex(monthIndex)
+            return {
+                monthIndex,
+                monthLabel: calendarMonthIndex
+                    ? formatMonthLabel(calendarMonthIndex)
+                    : 'Unknown',
+                basicHours,
+                holidayHours,
+                estimatedDays,
+                referenceState: {
+                    hasBaseline: Boolean(lastContext?.hasBaseline),
+                    avgWeeklyHours: lastContext?.avgWeeklyHours ?? null,
+                    avgRatePerHour: lastContext?.avgRatePerHour ?? null,
+                    mixedMonthsIncluded: lastContext?.mixedMonthsIncluded ?? 0,
+                    confidenceLevel: lastContext?.confidence?.level ?? null,
+                },
+                mixedMonthIncluded: (lastContext?.mixedMonthsIncluded ?? 0) > 0,
+                signalsFired: Array.from(signalsById.values()),
+            }
+        })
+}
+
+/**
+ * @param {ReportEntryLike[]} holidayEntries
+ * @param {HolidayContextLike | null | undefined} holidayContext
+ * @param {number} holidayHours
+ * @param {number} recordedRemaining
+ * @returns {AnnualHolidayCheckSummaryResult | null}
+ */
+function buildAnnualHolidayCheckSummary(
+    holidayEntries,
+    holidayContext,
+    holidayHours,
+    recordedRemaining
+) {
+    const syntheticReference = buildAnnualSyntheticReference(holidayContext)
+    const totalHolidayPay = sumHourlyHolidayAmount(holidayEntries)
+    const annualCrossCheck = buildAnnualHolidayCheckResult(
+        holidayHours,
+        totalHolidayPay,
+        recordedRemaining,
+        syntheticReference
+    )
+    if (!annualCrossCheck) {
+        return null
+    }
+
+    const monthBreakdown = buildAnnualMonthBreakdown(holidayEntries)
+    const confidenceReasons = [...annualCrossCheck.confidence.reasons]
+    if (!confidenceReasons.includes('basic pay reference only')) {
+        confidenceReasons.push('basic pay reference only')
+    }
+    /** @type {'high' | 'medium' | 'low'} */
+    let annualDataConfidence = 'medium'
+    if (monthBreakdown.length < 12) {
+        annualDataConfidence = 'low'
+        if (!confidenceReasons.includes('partial leave year')) {
+            confidenceReasons.push('partial leave year')
+        }
+    }
+
+    return {
+        ...annualCrossCheck,
+        confidence: {
+            level: minConfidenceLevel(
+                annualCrossCheck.confidence.level,
+                annualDataConfidence
+            ),
+            reasons: confidenceReasons,
+        },
+        monthBreakdown,
+    }
 }
 
 /**
@@ -347,16 +603,32 @@ export function buildYearHolidaySummary(
         lastTypicalDays === 0 &&
         lastEntitlementHours > 0
     ) {
-        const hoursRemainingRaw = lastEntitlementHours - holidayHours
+        const leaveYearBasicHours = lastUseAccrual
+            ? sumBasicHours(holidayEntries)
+            : 0
+        const effectiveEntitlementHours =
+            lastUseAccrual && leaveYearBasicHours > 0
+                ? leaveYearBasicHours * 0.1207
+                : lastEntitlementHours
+        const hoursRemainingRaw = effectiveEntitlementHours - holidayHours
+        const crossCheckRemaining = Math.max(0, hoursRemainingRaw)
+        const annualCrossCheck = buildAnnualHolidayCheckSummary(
+            holidayEntries,
+            lastEntryCtx,
+            holidayHours,
+            crossCheckRemaining
+        )
         return {
             kind: 'hourly_hours',
             leaveYearLabel,
             holidayHours,
-            entitlementHours: lastEntitlementHours,
+            entitlementHours: effectiveEntitlementHours,
             avgWeeklyHours: lastAvgWeeklyHours,
             hoursRemaining: Math.max(0, hoursRemainingRaw),
             overrun: hoursRemainingRaw < 0,
             useAccrualMethod: lastUseAccrual,
+            annualCrossCheck: annualCrossCheck || undefined,
+            monthBreakdown: annualCrossCheck?.monthBreakdown || undefined,
         }
     }
 

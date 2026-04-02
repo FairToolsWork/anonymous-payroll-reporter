@@ -261,15 +261,32 @@ misc[*].title does not contain any of:
 
 Matching is case-insensitive substring. A month flagged as containing any statutory pay is excluded in line with the intent of ACAS guidance (which specifies week-level substitution; this tool approximates at month level), even if the worker also received some basic pay that month.
 
-#### Rule 3 — Current implementation excludes entries with holiday pay
+#### Rule 3 — Mixed holiday months are gated, not blanket-excluded
 
 ```text
 (hourly.holiday.units ?? 0) <= 0  AND  (hourly.holiday.amount ?? 0) <= 0
 ```
 
-The current implementation excludes a month where the worker took holiday. A `null` or absent holiday field is treated as zero and does not disqualify the month.
+Pure-work months still form the base reference pool. A month that contains both basic work and holiday pay is treated as a **mixed-month candidate** instead of being excluded automatically.
 
-This is a conservative modeling choice rather than a strict legal requirement. ACAS guidance does not explicitly require mixed work-and-holiday months to be discarded in full. Where a payslip still shows positive basic hours and basic pay, that month may contain useful evidence about the worker's ordinary rate. The reason the implementation excludes it today is narrower: monthly payslips do not reveal the week-level split between ordinary work and leave, so using the month in the rolling benchmark risks introducing circularity and overstating confidence. In other words, the system treats mixed months as low-confidence reference data, not as data from which nothing at all can be inferred.
+It is included only when all of the following are true:
+
+```text
+hourly.basic.units > 0
+no statutory-pay misc titles are present
+holiday units or amount are present
+prior pure-work reference exists
+prior pure-work reference has at least 12 weeks of data
+actual basic hours / expected basic hours >= 0.75
+```
+
+Where:
+
+```text
+expected basic hours = (priorPureRef.totalBasicHours / priorPureRef.totalWeeks) × getWeeksInPeriod(mixedMonthDate)
+```
+
+This allows mostly-working months to remain in the rolling average while still excluding months that are dominated by holiday. Only `hourly.basic.amount` and `hourly.basic.units` are added to the reference totals — holiday pay itself is never added into the rolling average.
 
 ---
 
@@ -295,7 +312,7 @@ for i = length−1 down to 0:
     skip: parsedDate is null
     skip: parsedDate >= targetDate  (same date or future)
     break: parsedDate < cutoffMs    (beyond 104-week window)
-    skip: not isReferenceEligible
+    skip: not isReferenceEligible and not gate-passing mixed month
     skip: calendarYear:fiscalMonthIndex already seen (duplicate payslip deduplication)
 
     accumulate:
@@ -339,10 +356,21 @@ Examples:
   totalWeeks:       number,   // sum of weeksInPeriod for each eligible month
   periodsCounted:   number,   // number of distinct eligible months counted
   limitedData:      boolean,  // true when totalWeeks < 52 (worker tenure short)
+  mixedMonthsIncluded: number,
+  confidence: {
+    level: 'high' | 'medium' | 'low',
+    reasons: string[]
+  }
 }
 ```
 
 Returns `null` if `periodsCounted < 3` (insufficient data — no flag raised).
+
+`confidence.level` is interpreted as follows:
+
+- `high`: 52+ weeks of pure-work reference
+- `medium`: either limited history or one or more mixed work+holiday months included
+- `low`: both limited history and one or more mixed work+holiday months included
 
 ---
 
@@ -410,12 +438,14 @@ holidayContext = {
   avgHoursPerDay,
   avgRatePerHour,
   typicalDays,
+  mixedMonthsIncluded,
+  confidence,
   entitlementHours: (if typicalDays = 0),
   useAccrualMethod: (if typicalDays = 0)
 }
 ```
 
-`typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`.
+`typicalDays` defaults to 0 when not supplied by the caller via `workerProfile`, reflecting the zero-hours baseline. Entries without at least 3 eligible prior months receive `{ hasBaseline: false }`. When `mixedMonthsIncluded > 0`, the same context also carries a structured confidence object and the entry is marked low-confidence in the validation layer so the UI can signal that the estimate rests partly on mixed work+holiday months.
 
 **Zero-hours handling:** When `typicalDays = 0` (irregular-hours workers), `avgHoursPerDay` is set to `0` (days conversion is not possible without a shift-length assumption). The context additionally computes `entitlementHours` and sets the `useAccrualMethod` flag:
 
@@ -424,6 +454,149 @@ holidayContext = {
 - **Leave years starting on or after 1 April 2024:** `useAccrualMethod = true` (displays "12.07% accrual method")
 
 The leave year start date is determined by the `leaveYearStartMonth` field in the worker profile (default: April). The tool computes which leave year the entry falls into, then compares that leave year's start date to the April 2024 cutoff. The `useAccrualMethod` flag controls only the label shown to the worker — the annual projection formula is identical for both methods because 12.07% per-period accrual over a full year mathematically yields `avgWeeklyHours × 5.6`. Both `avgWeeklyHours` and `avgRatePerHour` are preserved for rate validation and entitlement display.
+
+---
+
+### Step 6 — Annual holiday pay cross-check (`buildAnnualHolidayCheckResult` + `buildYearHolidaySummary`)
+
+For hourly irregular-hours / zero-hours workers (`typicalDays = 0`), the year summary adds a second-tier annual reasonableness check. This does **not** replace Signals A or B. It answers a different question: _do the leave-year holiday hours, holiday pay, and remaining-hours position still reconcile at the year level when using the same baseline rate the monthly checks rely on?_
+
+#### Inputs
+
+The annual check uses the leave-year grouping already assembled for the year summary:
+
+```text
+holidayHours        = sum(hourly.holiday.units)   across the leave year
+totalHolidayPay     = sum(hourly.holiday.amount)  across the leave year
+recordedRemaining   = year-summary hoursRemaining for the same leave year
+```
+
+The rate baseline is taken from the **last entry in the year with a valid holiday context**, not from a separate annual averaging path. The summary builds a synthetic one-period reference from that context so the annual check stays numerically aligned with the monthly 52-week logic:
+
+```text
+syntheticReference = {
+  totalBasicPay:   avgWeeklyHours × avgRatePerHour,
+  totalBasicHours: avgWeeklyHours,
+  totalWeeks:      1,
+  confidence:      holidayContext.confidence,
+  mixedMonthsIncluded: holidayContext.mixedMonthsIncluded
+}
+```
+
+This means the annual check inherits the same basic-pay-only assumptions and mixed-month confidence caveats as the monthly rolling reference.
+
+#### Core formulas
+
+Given the synthetic reference:
+
+```text
+avgRatePerHour          = totalBasicPay / totalBasicHours
+avgWeeklyHours          = totalBasicHours / totalWeeks
+expectedHolidayPay      = holidayHours × avgRatePerHour
+impliedHolidayHours     = totalHolidayPay / avgRatePerHour
+payVarianceAmount       = totalHolidayPay - expectedHolidayPay
+payVariancePercent      = (payVarianceAmount / expectedHolidayPay) × 100
+expectedEntitlementHours = avgWeeklyHours × 5.6
+expectedRemaining       = expectedEntitlementHours - holidayHours
+discrepancyHours        = recordedRemaining - expectedRemaining
+```
+
+The annual result is emitted only when all of the following are true:
+
+```text
+synthetic reference exists
+holidayHours > 0
+totalHolidayPay > 0
+```
+
+If any of these are missing, `annualCrossCheck` is omitted and the yearly summary remains the existing hours-only output.
+
+#### Status thresholds
+
+The annual result status is a conservative classification over both pay variance and hours reconciliation:
+
+```text
+aligned  = abs(payVariancePercent) <= 5   AND abs(discrepancyHours) <= 2
+review   = (5 < abs(payVariancePercent) <= 15)
+           OR (2 < abs(discrepancyHours) <= 8)
+mismatch = anything outside the review band
+```
+
+This gives the report a simple yearly signal:
+
+- `Aligned`: annual pay and remaining-hours position are consistent with the baseline.
+- `Review`: the year is directionally plausible but outside the comfort band.
+- `Material mismatch`: the yearly numbers do not reconcile and need follow-up.
+
+#### Confidence model
+
+The annual cross-check can never be more confident than the baseline it is built on.
+
+1. Start from the rolling-reference confidence propagated into `holidayContext.confidence`.
+2. Add annual-specific reasons.
+3. Apply a yearly-data cap.
+
+In code terms:
+
+```text
+effectiveAnnualConfidence = min(referenceConfidence.level, annualDataConfidence)
+```
+
+Where:
+
+- `referenceConfidence` comes from the mixed-month / limited-data logic in `buildRollingReference`
+- `annualDataConfidence` is currently:
+    - `medium` by default, because the annual check still uses a basic-pay-only baseline
+    - `low` when the leave-year month breakdown contains fewer than 12 months (`partial leave year`)
+
+The reasons list is composed by inheritance and extension:
+
+```text
+annualConfidence.reasons = [
+  ...referenceConfidence.reasons,
+  'basic pay reference only',
+  ...(partial leave year ? ['partial leave year'] : [])
+]
+```
+
+This is the key annual caveat: even a mathematically aligned yearly result is still only a **reasonableness check**, because the reference excludes regular overtime, commission, and other ordinary-pay elements that the legal holiday-pay calculation may require.
+
+#### Month breakdown (`monthBreakdown`)
+
+The annual section renders a month-by-month audit table so the worker can trace the year-level result back to the payslips that generated it.
+
+Each row contains:
+
+```text
+{
+  monthIndex,
+  monthLabel,
+  basicHours,
+  holidayHours,
+  estimatedDays,
+  referenceState: {
+    hasBaseline,
+    avgWeeklyHours,
+    avgRatePerHour,
+    mixedMonthsIncluded,
+    confidenceLevel
+  },
+  mixedMonthIncluded,
+  signalsFired: [{ id, label }, ...]
+}
+```
+
+This breakdown is additive evidence only. It does not alter per-payslip flags, suppress Signals A/B, or change the underlying year-summary entitlement numbers.
+
+#### Display intent and limitation
+
+The annual section is intentionally phrased as an audit aid, not a legal conclusion. It helps the worker answer questions such as:
+
+- were the holiday hours paid at roughly the same baseline rate the monthly checks rely on?
+- does the recorded remaining-hours position still make sense once the year's holiday use is totalled up?
+- which months depended on mixed-month inclusion or low-confidence reference data?
+
+The most important limitation remains unchanged: **the annual cross-check uses a basic-pay-only reference**. For workers with regular overtime or commission, both the monthly and annual checks may understate the correct holiday-pay entitlement and therefore miss genuine underpayment.
 
 ---
 
@@ -533,9 +706,9 @@ This typically indicates a contract change mid-dataset. The warning is advisory 
 
 ### Snapshot tests
 
-| Test file                                      | Profile                      | Key assertions                                                                                                                       |
-| ---------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `tests/run_snapshot_good_predictable.test.mjs` | Good-place, consistent hours | No flags on any entry across all slice sizes; per-entry `flagIds` sweep on 14-month run                                              |
-| `tests/run_snapshot_bad_predictable.test.mjs`  | Bad-place, consistent hours  | Signal A asserted specifically on 3-month slice (first holiday month, < 3 prior months); Signal A or B on later slices               |
-| `tests/run_snapshot_good_zero_hours.test.mjs`  | Good-place, variable hours   | No holiday rate flags despite variable `basicHours`; positive `nat_ins_zero`/`paye_zero` assertions on five below-threshold months   |
-| `tests/run_snapshot_bad_zero_hours.test.mjs`   | Bad-place, variable hours    | Signal A specifically on 3-month slice; Signal A or B on later slices; positive `nat_ins_zero`/`paye_zero` on below-threshold months |
+| Test file                                      | Profile                      | Key assertions                                                                                                                                                                |
+| ---------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/run_snapshot_good_predictable.test.mjs` | Good-place, consistent hours | No flags on any entry across all slice sizes; per-entry `flagIds` sweep on 14-month run                                                                                       |
+| `tests/run_snapshot_bad_predictable.test.mjs`  | Bad-place, consistent hours  | Signal A asserted specifically on 3-month slice (first holiday month, < 3 prior months); Signal A or B on later slices; annual HTML section present on full run               |
+| `tests/run_snapshot_good_zero_hours.test.mjs`  | Good-place, variable hours   | No holiday rate flags despite variable `basicHours`; positive `nat_ins_zero`/`paye_zero` assertions on five below-threshold months                                            |
+| `tests/run_snapshot_bad_zero_hours.test.mjs`   | Bad-place, variable hours    | Signal A specifically on 3-month slice; Signal A or B on later slices; positive `nat_ins_zero`/`paye_zero` on below-threshold months; annual HTML section present on full run |

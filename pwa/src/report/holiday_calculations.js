@@ -12,8 +12,37 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 /**
  * @typedef {{ id: string, label: string, noteIndex?: number, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
- * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean }} HolidayContext
+ * @typedef {{ level: 'high' | 'medium' | 'low', reasons: string[] }} ReferenceConfidence
+ * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
+ * @typedef {{
+ *   expectedHolidayPay: number,
+ *   actualHolidayPay: number,
+ *   payVarianceAmount: number,
+ *   payVariancePercent: number,
+ *   impliedHolidayHours: number,
+ *   expectedEntitlementHours: number,
+ *   remainingHoursComparison: { recordedRemaining: number, expectedRemaining: number, discrepancyHours: number },
+ *   confidence: ReferenceConfidence,
+ *   status: 'aligned' | 'review' | 'mismatch',
+ *   reasons: string[]
+ * }} AnnualHolidayCheckResult
+ *
+ * AnnualHolidayCheckResult: Annual second-tier reasonableness cross-check for irregular/zero-hours hourly workers.
+ * - expectedHolidayPay: recordedHolidayHours × (totalBasicPay ÷ totalBasicHours); computed from leave-year rolling reference.
+ * - actualHolidayPay: sum of all holiday pay amounts recorded in the leave year.
+ * - payVarianceAmount: actualHolidayPay - expectedHolidayPay (negative = underpaid, positive = overpaid).
+ * - payVariancePercent: (payVarianceAmount ÷ expectedHolidayPay) × 100 (null if expectedHolidayPay ≤ 0).
+ * - impliedHolidayHours: actualHolidayPay ÷ (totalBasicPay ÷ totalBasicHours); reverse-calculated from actual pay.
+ * - expectedEntitlementHours: avgWeeklyHours × 5.6 (statutory entitlement); must match entitlementHours from rolling reference.
+ * - remainingHoursComparison: {
+ *     recordedRemaining: sum of recorded remaining hours across all leave-year entries,
+ *     expectedRemaining: expectedEntitlementHours - recordedHolidayHours,
+ *     discrepancyHours: recordedRemaining - expectedRemaining (negative = reported remaining < expected, positive = reported remaining > expected)
+ *   }
+ * - confidence: composed from reference confidence; cannot exceed reference confidence level. Inherit reasons; append annual-specific reasons (e.g., 'partial leave year', 'holiday pay not separable').
+ * - status: 'aligned' if payVariancePercent ≤ ±5% AND discrepancyHours ≤ ±2, 'review' if ±5–15% or ±2–8 hours, 'mismatch' if beyond review thresholds.
+ * - reasons: list of human-readable status explanations (e.g., 'actual holiday pay £14.32 below expected', 'recorded remaining hours differ by 4.5 from expected').
  */
 
 const ACCRUAL_CUTOFF = HOLIDAY_ACCRUAL_CUTOFF
@@ -51,6 +80,148 @@ const SKIP_PAY_TITLES = [
 ]
 
 /**
+ * @param {HolidayEntry} entry
+ * @returns {any}
+ */
+function getBasicPay(entry) {
+    return entry.record?.payrollDoc?.payments?.hourly?.basic ?? null
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @returns {any}
+ */
+function getHolidayPay(entry) {
+    return entry.record?.payrollDoc?.payments?.hourly?.holiday ?? null
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @returns {boolean}
+ */
+function hasSkippedMiscPayments(entry) {
+    const misc = entry.record?.payrollDoc?.payments?.misc ?? []
+    for (const item of misc) {
+        const title = (item.title ?? '').toLowerCase()
+        if (SKIP_PAY_TITLES.some((s) => title.includes(s))) {
+            return true
+        }
+    }
+    return false
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @returns {boolean}
+ */
+function hasPositiveBasicHours(entry) {
+    const basic = getBasicPay(entry)
+    return Boolean(basic && (basic.units ?? 0) > 0)
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @returns {boolean}
+ */
+function hasHolidayPayment(entry) {
+    const holiday = getHolidayPay(entry)
+    return (holiday?.units ?? 0) > 0 || (holiday?.amount ?? 0) > 0
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @returns {boolean}
+ */
+function isMixedMonthCandidate(entry) {
+    return (
+        hasPositiveBasicHours(entry) &&
+        hasHolidayPayment(entry) &&
+        !hasSkippedMiscPayments(entry)
+    )
+}
+
+/**
+ * @param {{ limitedData: boolean, totalWeeks: number, mixedMonthsIncluded: number }} params
+ * @returns {ReferenceConfidence}
+ */
+function buildReferenceConfidence({
+    limitedData,
+    totalWeeks,
+    mixedMonthsIncluded,
+}) {
+    /** @type {string[]} */
+    const reasons = []
+    if (limitedData) {
+        reasons.push(
+            `Limited reference: ${Math.round(totalWeeks)} weeks available`
+        )
+    }
+    if (mixedMonthsIncluded > 0) {
+        const monthLabel = mixedMonthsIncluded === 1 ? 'month' : 'months'
+        reasons.push(
+            `Includes ${mixedMonthsIncluded} mixed work+holiday ${monthLabel}`
+        )
+    }
+    /** @type {'high' | 'medium' | 'low'} */
+    let level = 'high'
+    if (limitedData && mixedMonthsIncluded > 0) {
+        level = 'low'
+    } else if (limitedData || mixedMonthsIncluded > 0) {
+        level = 'medium'
+    }
+    return { level, reasons }
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @param {{ mixedMonthsIncluded?: number } | null} ref
+ * @returns {void}
+ */
+function applyMixedMonthLowConfidence(entry, ref) {
+    if (!entry.validation || !ref || (ref.mixedMonthsIncluded ?? 0) <= 0) {
+        return
+    }
+    // Mixed-month confidence only affects holiday-rate interpretation.
+    // Avoid marking non-holiday periods as low confidence for long runs.
+    if (!hasHolidayPayment(entry)) {
+        return
+    }
+    entry.validation.lowConfidence = true
+}
+
+/**
+ * @param {HolidayEntry[]} sortedEntries
+ * @param {HolidayEntry} targetEntry
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null}
+ */
+function buildPureRollingReference(sortedEntries, targetEntry) {
+    return buildRollingReference(sortedEntries, targetEntry, { pureOnly: true })
+}
+
+/**
+ * @param {HolidayEntry[]} sortedEntries
+ * @param {HolidayEntry} mixedEntry
+ * @returns {boolean}
+ */
+function isGatePassingMixedMonth(sortedEntries, mixedEntry) {
+    if (!isMixedMonthCandidate(mixedEntry) || !mixedEntry.parsedDate) {
+        return false
+    }
+    const pureRef = buildPureRollingReference(sortedEntries, mixedEntry)
+    if (!pureRef || pureRef.totalWeeks < 12 || pureRef.totalBasicHours <= 0) {
+        return false
+    }
+    const expectedHours =
+        (pureRef.totalBasicHours / pureRef.totalWeeks) *
+        getWeeksInPeriod(mixedEntry.parsedDate)
+    if (expectedHours <= 0) {
+        return false
+    }
+    const actualHours = getBasicPay(mixedEntry)?.units ?? 0
+    return actualHours / expectedHours >= 0.75
+}
+
+/**
  * Returns true if this entry should be included in the rolling reference average.
  *
  * An entry is ineligible when:
@@ -62,20 +233,14 @@ const SKIP_PAY_TITLES = [
  * @returns {boolean}
  */
 export function isReferenceEligible(entry) {
-    const basic = entry.record?.payrollDoc?.payments?.hourly?.basic
-    if (!basic || (basic.units ?? 0) <= 0) {
+    if (!hasPositiveBasicHours(entry)) {
         return false
     }
-    const holiday = entry.record?.payrollDoc?.payments?.hourly?.holiday
-    if ((holiday?.units ?? 0) > 0 || (holiday?.amount ?? 0) > 0) {
+    if (hasHolidayPayment(entry)) {
         return false
     }
-    const misc = entry.record?.payrollDoc?.payments?.misc ?? []
-    for (const item of misc) {
-        const title = (item.title ?? '').toLowerCase()
-        if (SKIP_PAY_TITLES.some((s) => title.includes(s))) {
-            return false
-        }
+    if (hasSkippedMiscPayments(entry)) {
+        return false
     }
     return true
 }
@@ -94,11 +259,17 @@ export function isReferenceEligible(entry) {
  *
  * @param {HolidayEntry[]} sortedEntries - All entries sorted ascending by parsedDate
  * @param {HolidayEntry} targetEntry - The payslip containing holiday pay
- * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean } | null}
+ * @param {{ pureOnly?: boolean }} [options]
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null}
  */
-export function buildRollingReference(sortedEntries, targetEntry) {
+export function buildRollingReference(
+    sortedEntries,
+    targetEntry,
+    options = {}
+) {
     const timingEnabled = Boolean(timing?.enabled)
     const startedAt = timingEnabled ? globalThis.performance.now() : 0
+    const pureOnly = Boolean(options.pureOnly)
     const targetDate = targetEntry.parsedDate
     if (!targetDate) {
         if (timingEnabled) {
@@ -119,6 +290,7 @@ export function buildRollingReference(sortedEntries, targetEntry) {
     let totalBasicHours = 0
     let totalWeeks = 0
     let periodsCounted = 0
+    let mixedMonthsIncluded = 0
     let scannedEntries = 0
     /** @type {Set<string>} — `yearKey:monthIndex` to deduplicate same-month payslips */
     const monthsSeen = new Set()
@@ -151,12 +323,6 @@ export function buildRollingReference(sortedEntries, targetEntry) {
             }
             break
         }
-        if (!isReferenceEligible(entry)) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.ineligible')
-            }
-            continue
-        }
         const calYear = entryDate.getFullYear()
         const monthKey = `${calYear}:${entry.monthIndex}`
         if (monthsSeen.has(monthKey)) {
@@ -165,14 +331,34 @@ export function buildRollingReference(sortedEntries, targetEntry) {
             }
             continue
         }
+        let shouldInclude = false
+        let countedAsMixedMonth = false
+        if (isReferenceEligible(entry)) {
+            shouldInclude = true
+        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
+            shouldInclude = true
+            countedAsMixedMonth = true
+        }
+        if (!shouldInclude) {
+            if (timingEnabled) {
+                timing.increment('rollingReference.skip.ineligible')
+            }
+            continue
+        }
         monthsSeen.add(monthKey)
 
-        const basic = entry.record.payrollDoc.payments.hourly.basic
+        const basic = getBasicPay(entry)
         const weeks = getWeeksInPeriod(entryDate)
         totalBasicPay += basic.amount ?? 0
         totalBasicHours += basic.units ?? 0
         totalWeeks += weeks
         periodsCounted += 1
+        if (countedAsMixedMonth) {
+            mixedMonthsIncluded += 1
+            if (timingEnabled) {
+                timing.increment('rollingReference.include.mixedMonth')
+            }
+        }
 
         if (totalWeeks >= 52) {
             break
@@ -203,6 +389,12 @@ export function buildRollingReference(sortedEntries, targetEntry) {
         totalWeeks,
         periodsCounted,
         limitedData: totalWeeks < 52,
+        mixedMonthsIncluded,
+        confidence: buildReferenceConfidence({
+            limitedData: totalWeeks < 52,
+            totalWeeks,
+            mixedMonthsIncluded,
+        }),
     }
     if (timingEnabled) {
         if (result.limitedData) {
@@ -276,6 +468,7 @@ export function buildHolidayPayFlags(entries) {
                   : null
 
         const ref = buildRollingReference(sortedEntries, entry)
+        applyMixedMonthLowConfidence(entry, ref)
         const holidayMatchesBasic =
             basicRate !== null &&
             Math.abs(basicRate - impliedHolidayRate) <= HOLIDAY_RATE_TOLERANCE
@@ -318,6 +511,7 @@ export function buildHolidayPayFlags(entries) {
                     totalWeeks: ref.totalWeeks,
                     periodsCounted: ref.periodsCounted,
                     limitedData: ref.limitedData,
+                    mixedMonthsIncluded: ref.mixedMonthsIncluded,
                 }),
                 ruleId: 'holiday_rate_below_rolling_avg',
                 inputs: {
@@ -325,6 +519,7 @@ export function buildHolidayPayFlags(entries) {
                     rollingAvgRate,
                     totalWeeks: ref.totalWeeks,
                     periodsCounted: ref.periodsCounted,
+                    mixedMonthsIncluded: ref.mixedMonthsIncluded,
                 },
             })
             if (timing?.enabled) {
@@ -372,6 +567,7 @@ export function buildYearHolidayContext(entries, workerProfile) {
             timing.increment('holidayContext.rollingReferenceCalls')
         }
         const ref = buildRollingReference(sortedEntries, entry)
+        applyMixedMonthLowConfidence(entry, ref)
 
         /** @type {any} */
         const anyEntry = entry
@@ -399,6 +595,8 @@ export function buildYearHolidayContext(entries, workerProfile) {
             avgHoursPerDay,
             avgRatePerHour,
             typicalDays,
+            mixedMonthsIncluded: ref.mixedMonthsIncluded,
+            confidence: ref.confidence,
             entitlementHours:
                 typicalDays === 0 && avgWeeklyHours > 0
                     ? avgWeeklyHours * 5.6
@@ -418,4 +616,141 @@ export function buildYearHolidayContext(entries, workerProfile) {
     if (timing?.enabled) {
         timing.end('holidayContext.total')
     }
+}
+
+/**
+ * Calculates an annual second-tier reasonableness cross-check for irregular/zero-hours hourly workers.
+ * Composes confidence from the rolling reference confidence, constraining annual confidence to match.
+ *
+ * Returns null if baseline is missing, holiday hours are zero, or holiday pay is zero.
+ * Otherwise returns an AnnualHolidayCheckResult with full traceability.
+ *
+ * @param {number} totalHolidayHours - accumulated holiday hours for the leave year
+ * @param {number} totalHolidayPay - accumulated holiday pay amount for the leave year
+ * @param {number} recordedRemaining - recorded remaining hours as of end of leave year
+ * @param {any} ref - rolling reference result from buildRollingReference (assumed to have totalBasicPay, totalBasicHours, confidence, mixedMonthsIncluded)
+ * @returns {AnnualHolidayCheckResult | null}
+ */
+export function buildAnnualHolidayCheckResult(
+    totalHolidayHours,
+    totalHolidayPay,
+    recordedRemaining,
+    ref
+) {
+    if (timing?.enabled) {
+        timing.start('annualCheck.total')
+        timing.increment('annualCheck.calls')
+    }
+
+    // Null/no-output cases: no baseline, zero holiday hours, zero holiday pay.
+    if (
+        !ref ||
+        ref.totalBasicHours <= 0 ||
+        totalHolidayHours <= 0 ||
+        totalHolidayPay <= 0
+    ) {
+        if (timing?.enabled) {
+            timing.end('annualCheck.total')
+        }
+        return null
+    }
+
+    if (timing?.enabled) {
+        timing.increment('annualCheck.emittedResults')
+    }
+
+    const avgHourlyRate = ref.totalBasicPay / ref.totalBasicHours
+    const expectedHolidayPay = totalHolidayHours * avgHourlyRate
+    const payVarianceAmount = totalHolidayPay - expectedHolidayPay
+    const payVariancePercent =
+        expectedHolidayPay > 0
+            ? (payVarianceAmount / expectedHolidayPay) * 100
+            : 0
+    const impliedHolidayHours =
+        avgHourlyRate > 0 ? totalHolidayPay / avgHourlyRate : 0
+    const avgWeeklyHours = ref.totalBasicHours / ref.totalWeeks
+    const expectedEntitlementHours = avgWeeklyHours * 5.6
+    const expectedRemaining = expectedEntitlementHours - totalHolidayHours
+    const discrepancyHours = recordedRemaining - expectedRemaining
+
+    // Compose confidence: annual confidence cannot exceed reference confidence.
+    /** @type {ReferenceConfidence} */
+    const confidenceLevel = ref.confidence ?? {
+        level: 'high',
+        reasons: [],
+    }
+    /** @type {'high' | 'medium' | 'low'} */
+    let annualDataQuality = 'high'
+    const annualReasons = [...(confidenceLevel.reasons ?? [])]
+
+    // Downgrade if we have limited data or mixed months in the reference.
+    if (confidenceLevel.level === 'medium') {
+        annualDataQuality = 'medium'
+    } else if (confidenceLevel.level === 'low') {
+        annualDataQuality = 'low'
+    }
+    if (!annualReasons.includes('partial leave year')) {
+        annualReasons.push('leave year reference-informed')
+    }
+
+    // Determine status based on thresholds.
+    // Aligned: payVariancePercent ≤ ±5% AND discrepancyHours ≤ ±2.
+    // Review: ±5–15% or ±2–8 hours.
+    // Mismatch: beyond review thresholds.
+    const isAligned =
+        Math.abs(payVariancePercent) <= 5 && Math.abs(discrepancyHours) <= 2
+    const isReview =
+        (Math.abs(payVariancePercent) > 5 &&
+            Math.abs(payVariancePercent) <= 15) ||
+        (Math.abs(discrepancyHours) > 2 && Math.abs(discrepancyHours) <= 8)
+    const status = isAligned ? 'aligned' : isReview ? 'review' : 'mismatch'
+
+    // Build reasons list based on status.
+    const statusReasons = []
+    if (!isAligned) {
+        if (Math.abs(payVariancePercent) > 5) {
+            const direction = payVarianceAmount < 0 ? 'below' : 'above'
+            statusReasons.push(
+                `actual holiday pay £${Math.abs(payVarianceAmount).toFixed(2)} ${direction} expected ` +
+                    `(${Math.abs(payVariancePercent).toFixed(1)}%)`
+            )
+        }
+        if (Math.abs(discrepancyHours) > 2) {
+            const direction = discrepancyHours < 0 ? 'fewer' : 'more'
+            statusReasons.push(
+                `recorded remaining ${direction} than expected by ${Math.abs(discrepancyHours).toFixed(1)} hours`
+            )
+        }
+    } else {
+        statusReasons.push(
+            'annual holiday pay and hours reconcile within expected variance'
+        )
+    }
+
+    /** @type {AnnualHolidayCheckResult} */
+    const result = {
+        expectedHolidayPay,
+        actualHolidayPay: totalHolidayPay,
+        payVarianceAmount,
+        payVariancePercent,
+        impliedHolidayHours,
+        expectedEntitlementHours,
+        remainingHoursComparison: {
+            recordedRemaining,
+            expectedRemaining,
+            discrepancyHours,
+        },
+        confidence: {
+            level: annualDataQuality,
+            reasons: annualReasons,
+        },
+        status,
+        reasons: statusReasons,
+    }
+
+    if (timing?.enabled) {
+        timing.end('annualCheck.total')
+    }
+
+    return result
 }

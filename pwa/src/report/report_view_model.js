@@ -12,6 +12,7 @@ import { formatMonthLabel } from '../parse/parser_config.js'
 import { PERSONAL_ALLOWANCE_MONTHLY } from './uk_thresholds.js'
 import {
     ACCUMULATED_TOTALS_NOTE,
+    buildAnnualCrossCheckDisplay,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
     ZERO_TAX_ALLOWANCE_NOTE,
@@ -415,6 +416,19 @@ function buildSummaryYearRow(
     leaveYearGroups,
     workerProfile
 ) {
+    const holidaySummary = buildYearHolidaySummary(
+        entriesForYear,
+        leaveYearGroups,
+        workerProfile
+    )
+    const annualCrossCheck =
+        holidaySummary.kind === 'hourly_hours'
+            ? holidaySummary.annualCrossCheck || null
+            : null
+    const monthBreakdown =
+        holidaySummary.kind === 'hourly_hours'
+            ? holidaySummary.monthBreakdown || []
+            : []
     const hours = entriesForYear.reduce(
         (/** @type {number} */ acc, /** @type {ReportEntry} */ entry) =>
             acc +
@@ -451,11 +465,17 @@ function buildSummaryYearRow(
         yearKey,
         anchorId: `year-summary-${formatYearAnchor(yearKey)}`,
         hours,
-        holidaySummary: buildYearHolidaySummary(
-            entriesForYear,
-            leaveYearGroups,
-            workerProfile
-        ),
+        holidaySummary,
+        annualCrossCheck,
+        monthBreakdown,
+        annualCrossCheckDisplay: annualCrossCheck
+            ? buildAnnualCrossCheckDisplay(
+                  annualCrossCheck,
+                  holidaySummary.kind === 'hourly_hours'
+                      ? holidaySummary.holidayHours
+                      : 0
+              )
+            : null,
         payrollContribution: {
             total: payrollContribution,
             ee: payrollEE,
@@ -822,6 +842,10 @@ export function buildYearViewModel(
         leaveYearGroups,
         workerProfile
     )
+    const annualCrossCheck =
+        yearHolidaySummary.kind === 'hourly_hours'
+            ? yearHolidaySummary.annualCrossCheck || null
+            : null
     footerRows.push({
         id: 'total',
         label: 'Total',
@@ -883,6 +907,20 @@ export function buildYearViewModel(
             yearKey,
             anchorId: `year-summary-${formatYearAnchor(yearKey)}`,
         },
+        yearHolidaySummary,
+        annualCrossCheck,
+        monthBreakdown:
+            yearHolidaySummary.kind === 'hourly_hours'
+                ? yearHolidaySummary.monthBreakdown || []
+                : [],
+        annualCrossCheckDisplay: annualCrossCheck
+            ? buildAnnualCrossCheckDisplay(
+                  annualCrossCheck,
+                  yearHolidaySummary.kind === 'hourly_hours'
+                      ? yearHolidaySummary.holidayHours
+                      : 0
+              )
+            : null,
         missingMonths:
             context.missingMonths?.missingMonthsByYear?.[yearKey] || [],
         rows,

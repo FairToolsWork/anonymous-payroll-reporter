@@ -28,11 +28,13 @@ export const CONTRACT_TYPE_MISMATCH_HOURLY_WARNING =
 export const CONTRACT_TYPE_MISMATCH_SALARIED_WARNING =
     'Some payslips contain hourly pay (Basic Hours) but your worker profile is set to <b>Salaried</b>. If your contract changed part-way through, consider running separate reports for each contract period for accurate results.'
 
-export const ACCRUAL_METHOD_HOURLY_LABEL = '12.07% accrual method'
+export const ACCRUAL_METHOD_HOURLY_LABEL = '12.07% accrual (leave-year basis)'
 export const ACCRUAL_METHOD_AVG_WEEK_LABEL = '5.6 week avg. method'
+export const FIXED_DAYS_PROFILE_LABEL = 'Fixed-days profile method'
 export const OVERRUN_SUFFIX = ' (entitlement exceeded)'
 export const VARIABLE_PATTERN_DAYS_NOTE =
     'Days estimate not shown — variable work pattern'
+export const ANNUAL_CROSS_CHECK_TITLE = 'Annual holiday pay cross-check'
 export const YEAR_SUMMARY_TITLE = 'Year Summary'
 export const ACCUMULATED_TOTALS_TITLE = 'Accumulated Totals'
 export const MISC_REVIEW_TITLE = 'Misc entries to review'
@@ -248,7 +250,8 @@ export function buildHolidaySummaryDisplay(holidaySummary) {
         detailLines.push(
             `~${holidaySummary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
             `${holidaySummary.hoursRemaining.toFixed(1)} hrs remaining${holidaySummary.overrun ? OVERRUN_SUFFIX : ''}`,
-            `~${holidaySummary.daysTaken.toFixed(1)} days taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`
+            `~${holidaySummary.daysTaken.toFixed(1)} days taken / ${holidaySummary.daysRemaining.toFixed(1)} remaining`,
+            FIXED_DAYS_PROFILE_LABEL
         )
     } else if (holidaySummary.kind === 'hourly_hours') {
         primaryLabel = `${holidaySummary.holidayHours.toFixed(2)} hrs taken`
@@ -288,6 +291,7 @@ export function buildTotalHolidayBreakdownLines(summary) {
             `~${summary.entitlementHours.toFixed(1)} hrs/yr entitlement`,
             `${summary.hoursRemaining.toFixed(1)} hrs remaining${summary.overrun ? OVERRUN_SUFFIX : ''}`,
             `~${summary.daysTaken.toFixed(1)} days taken / ${summary.daysRemaining.toFixed(1)} remaining`,
+            FIXED_DAYS_PROFILE_LABEL,
         ]
     }
     if (summary.kind === 'hourly_hours') {
@@ -333,6 +337,97 @@ export function buildYearRowHolidayDisplay(holidaySummary) {
         primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
         detailLines: [],
         detailMode: 'inline',
+    }
+}
+
+/**
+ * @param {'high' | 'medium' | 'low'} level
+ * @returns {string}
+ */
+function formatConfidenceLevel(level) {
+    if (level === 'high') {
+        return 'High'
+    }
+    if (level === 'low') {
+        return 'Low'
+    }
+    return 'Medium'
+}
+
+/**
+ * @param {'aligned' | 'review' | 'mismatch'} status
+ * @returns {string}
+ */
+function formatAnnualStatus(status) {
+    if (status === 'mismatch') {
+        return 'Material mismatch'
+    }
+    if (status === 'review') {
+        return 'Review'
+    }
+    return 'Aligned'
+}
+
+/**
+ * @param {any} annualCrossCheck
+ * @param {number} holidayHours
+ * @returns {{ title: string, statusLabel: string, summaryLines: string[] }}
+ */
+export function buildAnnualCrossCheckDisplay(annualCrossCheck, holidayHours) {
+    if (!annualCrossCheck) {
+        return {
+            title: ANNUAL_CROSS_CHECK_TITLE,
+            statusLabel: 'Not available',
+            summaryLines: [],
+        }
+    }
+
+    const payDirection =
+        annualCrossCheck.payVarianceAmount < 0
+            ? 'below'
+            : annualCrossCheck.payVarianceAmount > 0
+              ? 'above'
+              : 'in line with'
+    const payVarianceLabel =
+        annualCrossCheck.payVarianceAmount === 0
+            ? 'Expected and actual holiday pay are aligned.'
+            : `Actual holiday pay is ${formatCurrency(Math.abs(annualCrossCheck.payVarianceAmount))} ${payDirection} expected (${Math.abs(annualCrossCheck.payVariancePercent).toFixed(1)}%).`
+    const remaining = annualCrossCheck.remainingHoursComparison
+    const confidenceReasons = annualCrossCheck.confidence.reasons.length
+        ? `: ${annualCrossCheck.confidence.reasons.join('; ')}`
+        : ''
+
+    return {
+        title: ANNUAL_CROSS_CHECK_TITLE,
+        statusLabel: formatAnnualStatus(annualCrossCheck.status),
+        summaryLines: [
+            `Recorded ${holidayHours.toFixed(2)} holiday hrs; pay received implies ${annualCrossCheck.impliedHolidayHours.toFixed(2)} hrs at the baseline rate.`,
+            `${payVarianceLabel} Remaining hours: reported ${remaining.recordedRemaining.toFixed(1)} hrs vs expected ${remaining.expectedRemaining.toFixed(1)} hrs.`,
+            `Confidence: ${formatConfidenceLevel(annualCrossCheck.confidence.level)}${confidenceReasons}`,
+        ],
+    }
+}
+
+/**
+ * @param {any} monthBreakdownEntry
+ * @returns {{ referenceLabel: string, mixedMonthLabel: string, signalsLabel: string }}
+ */
+export function buildAnnualMonthBreakdownDisplay(monthBreakdownEntry) {
+    const reference = monthBreakdownEntry?.referenceState
+    const referenceLabel = !reference?.hasBaseline
+        ? 'No baseline'
+        : `${(reference.avgWeeklyHours ?? 0).toFixed(2)} hrs/wk @ ${formatCurrency(reference.avgRatePerHour ?? 0)} (${reference.confidenceLevel || 'unknown'})`
+    const signalsLabel = (monthBreakdownEntry?.signalsFired || []).length
+        ? monthBreakdownEntry.signalsFired
+              .map((/** @type {{ label: string }} */ signal) => signal.label)
+              .join('; ')
+        : 'None'
+    return {
+        referenceLabel,
+        mixedMonthLabel: monthBreakdownEntry?.mixedMonthIncluded
+            ? 'Included'
+            : 'No',
+        signalsLabel,
     }
 }
 

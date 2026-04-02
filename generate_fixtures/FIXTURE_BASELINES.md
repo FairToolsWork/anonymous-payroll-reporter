@@ -234,6 +234,8 @@ Holiday **underpayment** versus correct rate: 4 × 8h × £3.50 = **£112.00**
 | Dec 2025 (index 8)  | Apr, May, Jul, Aug, Oct, Nov = 6 months | Yes            | `holiday_rate_below_rolling_avg`                         |
 | Mar 2026 (index 11) | 8 prior months                          | Yes            | `holiday_rate_below_rolling_avg`                         |
 
+The mixed-month gate now treats the holiday months in this dataset as eligible mostly-working months for later references, because each holiday month still carries 157 basic hours in a pattern where ordinary months carry 165 basic hours. That changes confidence metadata and later entitlement context, but it does not change the stored snapshot flag IDs — the underpayment remains obvious either way.
+
 Rolling average rate (once reference exists): consistently **£12.50/hr**. Holiday rate **£9.00/hr** is £3.50 below — well outside the £0.05/hr tolerance.
 
 ---
@@ -342,6 +344,8 @@ Total holiday **underpayment**: £400 − £272 = **£128.00** (£32 per period 
 | Sep 2025      | Apr, May, Jul, Aug = 4           | Yes            | `holiday_rate_below_rolling_avg` |
 | Dec 2025      | Apr, May, Jul, Aug, Oct, Nov = 6 | Yes            | `holiday_rate_below_rolling_avg` |
 | Mar 2026      | 8 prior months                   | Yes            | `holiday_rate_below_rolling_avg` |
+
+The mixed-month gate also admits the holiday months in this dataset into later rolling references, because their remaining basic hours are still close to the worker's expected hours for the month. As with Dataset 3, this leaves the stored snapshot flag IDs unchanged and mainly affects confidence signalling and rolling-context calculations elsewhere in the report.
 
 Rolling average rate (once reference exists): **£12.50/hr**.
 Holiday rate **£8.50/hr** is £4.00 below — well outside the £0.05/hr tolerance.

@@ -2263,6 +2263,13 @@
                     <p v-else="">No Excel parsed entries captured yet.</p>
                 </details>
                 <details>
+                    <summary>Debug: Worker Profile</summary>
+                    <pre v-if="debugInfo.workerProfile">
+{{ debugInfo.workerProfile }}</pre
+                    >
+                    <p v-else="">No worker profile captured yet.</p>
+                </details>
+                <details>
                     <summary>Debug: Run Snapshot</summary>
                     <pre v-if="debugInfo.runSnapshot">
 {{ debugInfo.runSnapshot }}</pre
