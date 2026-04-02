@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.6.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.5.1...anonymous-payroll-reporter-v3.6.0) (2026-04-02)
+
+
+### Features
+
+* **holiday:** gate mixed work-plus-holiday months into rolling reference with confidence metadata propagation ([3cca542](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/3cca5426531a7eadf1b52188dd634d6fb5fb40e7))
+* **report:** add annual holiday cross-check with confidence-aware month breakdown across HTML and PDF outputs ([59c7e11](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/59c7e11fe34c6c4158831ddb805d2bb5ec7a9034))
+* **report:** add audit metadata, dynamic flag labels, and extract remaining hardcoded thresholds ([0cee484](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/0cee484ba3efb8f2501628c0515ce618b95f08f0))
+* **report:** attach ruleId and numeric inputs evidence payload to all validation flags ([ba88a1e](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/ba88a1e6a18bfb70741aa2876bfa2a28a2436723))
+* **reporting/ui:** improve holiday entitlement guidance, pension table clarity, and calculator statutory-day outputs across report views ([765adbe](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/765adbe20daa9e0e5ad96e76c4cc5029e306d2b0))
+* **ui/report:** surface rules and thresholds version metadata in report and about panel ([d41a9d6](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/d41a9d69517942dfdda2bb9c4a983790a6020956))
+* **ui/upload:** add drag-drop visual affordance and wire rules-threshold badges in about modal ([8ba86a6](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8ba86a6fc8808b173a3cc0ba107962b0062fce44))
+
+
+### Bug Fixes
+
+* **pwa:** update holiday summary baseline and refresh holiday and pension guidance content ([24304f2](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/24304f29589432c6e3c658b11d966a439a5abbb7))
+
 ## [3.5.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.5.0...anonymous-payroll-reporter-v3.5.1) (2026-03-24)
 
 
