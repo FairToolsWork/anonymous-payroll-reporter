@@ -111,6 +111,13 @@
     display: none;
 }
 
+*:focus {
+    outline: 3px solid var(--accent-45);
+    outline-offset: 3px;
+    border-radius: var(--radius-12);
+    transition: all 0.07s ease-in-out;
+}
+
 .clipboard-copy-buffer {
     position: absolute;
     inset-inline-start: -9999px;
@@ -991,7 +998,7 @@ summary * {
 }
 
 details {
-    border: 1px solid var(--ink-50);
+    border: 1px solid var(--ink-55);
     border-radius: var(--radius-12);
     padding: var(--space-8) var(--space-12);
     background: var(--paper);
@@ -1019,6 +1026,20 @@ details[open] > summary {
 
 details + details {
     margin-block-start: var(--space-8);
+}
+
+details details {
+    outline: 1px solid var(--accent-15) !important;
+    max-inline-size: calc(100% - 1px);
+}
+
+details details summary:focus {
+    border-radius: var(--radius-4);
+    outline-offset: 5px;
+}
+
+details details:has(summary:focus) {
+    outline: none !important;
 }
 
 details[open] .details-content > * {
@@ -1434,7 +1455,7 @@ label.field span:first-of-type {
 }
 
 .drag-drop-faux::after {
-    content: 'drag & drop files PDF/Excel files...';
+    content: 'drag & drop PDF/Excel files...';
     color: var(--ink-55);
     font-size: var(--text-sm);
 }
@@ -2179,7 +2200,7 @@ p.report-footnote-row {
     margin-block: var(--space-6);
     margin-inline: 0;
     padding: var(--space-16);
-    background-color: var(--ink-50);
+    background-color: var(--ink-55);
     color: var(--card);
     overflow-x: auto;
 }

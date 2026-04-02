@@ -1998,10 +1998,7 @@
                                 :disabled="status === 'processing'"
                                 @change="handleFiles"
                             />
-                            <span
-                                ><span class="mobile-ctx">Or </span>choose
-                                PDF/Excel files</span
-                            >
+                            <span>choose PDF/Excel files</span>
                         </label>
 
                         <div class="upload-results">
@@ -2264,6 +2261,13 @@
 {{ debugInfo.excelParsed }}</pre
                     >
                     <p v-else="">No Excel parsed entries captured yet.</p>
+                </details>
+                <details>
+                    <summary>Debug: Worker Profile</summary>
+                    <pre v-if="debugInfo.workerProfile">
+{{ debugInfo.workerProfile }}</pre
+                    >
+                    <p v-else="">No worker profile captured yet.</p>
                 </details>
                 <details>
                     <summary>Debug: Run Snapshot</summary>

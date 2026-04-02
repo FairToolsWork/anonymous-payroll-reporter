@@ -110,7 +110,7 @@ import { copyDebugOutput, DEBUG_ENABLED, DEBUG_LEVEL } from './debug_tools.js'
  * @property {string} notice
  * @property {string[]} failedFiles
  * @property {string[]} failedPayPeriods
- * @property {{ pdfSource: string, parsed: string, matches: string, excelSource: string, excelRows: string, excelParsed: string, runSnapshot: string }} debugInfo
+ * @property {{ pdfSource: string, parsed: string, matches: string, excelSource: string, excelRows: string, excelParsed: string, runSnapshot: string, workerProfile: string }} debugInfo
  * @property {boolean} debugCopySuccess
  * @property {number | null} debugCopyResetTimer
  * @property {boolean} acceptedDisclaimer
@@ -266,6 +266,7 @@ export function initPayrollApp() {
                         excelRows: '',
                         excelParsed: '',
                         runSnapshot: '',
+                        workerProfile: '',
                     },
                     debugCopySuccess: false,
                     debugCopyResetTimer: null,

@@ -45,17 +45,21 @@ describe.skipIf(!fixturesExist)(
         }, 10000)
 
         async function runSlice(count) {
-            const pdfPaths = allPdfPaths.slice(0, count)
-            const result = await runReportFromFixtures({
-                pdfPaths,
-                requireEmployeeDetails: false,
-                includeReportContext: true,
-            })
+            const result = await runReportSlice(count)
             return buildRunSnapshot(
                 result.records,
                 result.reportContext,
                 result.contributionData
             )
+        }
+
+        async function runReportSlice(count) {
+            const pdfPaths = allPdfPaths.slice(0, count)
+            return runReportFromFixtures({
+                pdfPaths,
+                requireEmployeeDetails: false,
+                includeReportContext: true,
+            })
         }
 
         describe('3-month slice (Apr–Jun 2025)', () => {
@@ -79,6 +83,14 @@ describe.skipIf(!fixturesExist)(
         })
 
         describe('14-month full run (Apr 2025–May 2026)', () => {
+            it('renders annual cross-check section and month breakdown in HTML output', async () => {
+                const result = await runReportSlice(14)
+                const html = result.report?.html || ''
+                expect(html).toContain('Annual holiday pay cross-check')
+                expect(html).toContain('Reference state')
+                expect(html).toContain('Mixed month')
+            }, 90000)
+
             it('matches the expected snapshot', async () => {
                 if (!fs.existsSync(EXPECTED_PATH)) {
                     throw new Error(

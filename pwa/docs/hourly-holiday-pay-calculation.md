@@ -442,6 +442,149 @@ The leave year start date is determined by the `leaveYearStartMonth` field in th
 
 ---
 
+### Step 6 — Annual holiday pay cross-check (`buildAnnualHolidayCheckResult` + `buildYearHolidaySummary`)
+
+For hourly irregular-hours / zero-hours workers (`typicalDays = 0`), the year summary adds a second-tier annual reasonableness check. This does **not** replace Signals A or B. It answers a different question: _do the leave-year holiday hours, holiday pay, and remaining-hours position still reconcile at the year level when using the same baseline rate the monthly checks rely on?_
+
+#### Inputs
+
+The annual check uses the leave-year grouping already assembled for the year summary:
+
+```text
+holidayHours        = sum(hourly.holiday.units)   across the leave year
+totalHolidayPay     = sum(hourly.holiday.amount)  across the leave year
+recordedRemaining   = year-summary hoursRemaining for the same leave year
+```
+
+The rate baseline is taken from the **last entry in the year with a valid holiday context**, not from a separate annual averaging path. The summary builds a synthetic one-period reference from that context so the annual check stays numerically aligned with the monthly 52-week logic:
+
+```text
+syntheticReference = {
+  totalBasicPay:   avgWeeklyHours × avgRatePerHour,
+  totalBasicHours: avgWeeklyHours,
+  totalWeeks:      1,
+  confidence:      holidayContext.confidence,
+  mixedMonthsIncluded: holidayContext.mixedMonthsIncluded
+}
+```
+
+This means the annual check inherits the same basic-pay-only assumptions and mixed-month confidence caveats as the monthly rolling reference.
+
+#### Core formulas
+
+Given the synthetic reference:
+
+```text
+avgRatePerHour          = totalBasicPay / totalBasicHours
+avgWeeklyHours          = totalBasicHours / totalWeeks
+expectedHolidayPay      = holidayHours × avgRatePerHour
+impliedHolidayHours     = totalHolidayPay / avgRatePerHour
+payVarianceAmount       = totalHolidayPay - expectedHolidayPay
+payVariancePercent      = (payVarianceAmount / expectedHolidayPay) × 100
+expectedEntitlementHours = avgWeeklyHours × 5.6
+expectedRemaining       = expectedEntitlementHours - holidayHours
+discrepancyHours        = recordedRemaining - expectedRemaining
+```
+
+The annual result is emitted only when all of the following are true:
+
+```text
+synthetic reference exists
+holidayHours > 0
+totalHolidayPay > 0
+```
+
+If any of these are missing, `annualCrossCheck` is omitted and the yearly summary remains the existing hours-only output.
+
+#### Status thresholds
+
+The annual result status is a conservative classification over both pay variance and hours reconciliation:
+
+```text
+aligned  = abs(payVariancePercent) <= 5   AND abs(discrepancyHours) <= 2
+review   = (5 < abs(payVariancePercent) <= 15)
+           OR (2 < abs(discrepancyHours) <= 8)
+mismatch = anything outside the review band
+```
+
+This gives the report a simple yearly signal:
+
+- `Aligned`: annual pay and remaining-hours position are consistent with the baseline.
+- `Review`: the year is directionally plausible but outside the comfort band.
+- `Material mismatch`: the yearly numbers do not reconcile and need follow-up.
+
+#### Confidence model
+
+The annual cross-check can never be more confident than the baseline it is built on.
+
+1. Start from the rolling-reference confidence propagated into `holidayContext.confidence`.
+2. Add annual-specific reasons.
+3. Apply a yearly-data cap.
+
+In code terms:
+
+```text
+effectiveAnnualConfidence = min(referenceConfidence.level, annualDataConfidence)
+```
+
+Where:
+
+- `referenceConfidence` comes from the mixed-month / limited-data logic in `buildRollingReference`
+- `annualDataConfidence` is currently:
+    - `medium` by default, because the annual check still uses a basic-pay-only baseline
+    - `low` when the leave-year month breakdown contains fewer than 12 months (`partial leave year`)
+
+The reasons list is composed by inheritance and extension:
+
+```text
+annualConfidence.reasons = [
+  ...referenceConfidence.reasons,
+  'basic pay reference only',
+  ...(partial leave year ? ['partial leave year'] : [])
+]
+```
+
+This is the key annual caveat: even a mathematically aligned yearly result is still only a **reasonableness check**, because the reference excludes regular overtime, commission, and other ordinary-pay elements that the legal holiday-pay calculation may require.
+
+#### Month breakdown (`monthBreakdown`)
+
+The annual section renders a month-by-month audit table so the worker can trace the year-level result back to the payslips that generated it.
+
+Each row contains:
+
+```text
+{
+  monthIndex,
+  monthLabel,
+  basicHours,
+  holidayHours,
+  estimatedDays,
+  referenceState: {
+    hasBaseline,
+    avgWeeklyHours,
+    avgRatePerHour,
+    mixedMonthsIncluded,
+    confidenceLevel
+  },
+  mixedMonthIncluded,
+  signalsFired: [{ id, label }, ...]
+}
+```
+
+This breakdown is additive evidence only. It does not alter per-payslip flags, suppress Signals A/B, or change the underlying year-summary entitlement numbers.
+
+#### Display intent and limitation
+
+The annual section is intentionally phrased as an audit aid, not a legal conclusion. It helps the worker answer questions such as:
+
+- were the holiday hours paid at roughly the same baseline rate the monthly checks rely on?
+- does the recorded remaining-hours position still make sense once the year's holiday use is totalled up?
+- which months depended on mixed-month inclusion or low-confidence reference data?
+
+The most important limitation remains unchanged: **the annual cross-check uses a basic-pay-only reference**. For workers with regular overtime or commission, both the monthly and annual checks may understate the correct holiday-pay entitlement and therefore miss genuine underpayment.
+
+---
+
 ## Salaried Workers
 
 The holiday pay rate checks (Signals A and B) operate entirely on hourly payment data (`hourly.basic`, `hourly.holiday`). Salaried payslips parse to `salary.basic` and `salary.holiday` — which carry no hourly rate — so **no underpayment rate check is performed for salaried workers**.
@@ -548,9 +691,9 @@ This typically indicates a contract change mid-dataset. The warning is advisory 
 
 ### Snapshot tests
 
-| Test file                                      | Profile                      | Key assertions                                                                                                                       |
-| ---------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `tests/run_snapshot_good_predictable.test.mjs` | Good-place, consistent hours | No flags on any entry across all slice sizes; per-entry `flagIds` sweep on 14-month run                                              |
-| `tests/run_snapshot_bad_predictable.test.mjs`  | Bad-place, consistent hours  | Signal A asserted specifically on 3-month slice (first holiday month, < 3 prior months); Signal A or B on later slices               |
-| `tests/run_snapshot_good_zero_hours.test.mjs`  | Good-place, variable hours   | No holiday rate flags despite variable `basicHours`; positive `nat_ins_zero`/`paye_zero` assertions on five below-threshold months   |
-| `tests/run_snapshot_bad_zero_hours.test.mjs`   | Bad-place, variable hours    | Signal A specifically on 3-month slice; Signal A or B on later slices; positive `nat_ins_zero`/`paye_zero` on below-threshold months |
+| Test file                                      | Profile                      | Key assertions                                                                                                                                                                |
+| ---------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/run_snapshot_good_predictable.test.mjs` | Good-place, consistent hours | No flags on any entry across all slice sizes; per-entry `flagIds` sweep on 14-month run                                                                                       |
+| `tests/run_snapshot_bad_predictable.test.mjs`  | Bad-place, consistent hours  | Signal A asserted specifically on 3-month slice (first holiday month, < 3 prior months); Signal A or B on later slices; annual HTML section present on full run               |
+| `tests/run_snapshot_good_zero_hours.test.mjs`  | Good-place, variable hours   | No holiday rate flags despite variable `basicHours`; positive `nat_ins_zero`/`paye_zero` assertions on five below-threshold months                                            |
+| `tests/run_snapshot_bad_zero_hours.test.mjs`   | Bad-place, variable hours    | Signal A specifically on 3-month slice; Signal A or B on later slices; positive `nat_ins_zero`/`paye_zero` on below-threshold months; annual HTML section present on full run |

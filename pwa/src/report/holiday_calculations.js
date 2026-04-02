@@ -15,6 +15,34 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {{ level: 'high' | 'medium' | 'low', reasons: string[] }} ReferenceConfidence
  * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence }} HolidayContext
  * @typedef {{ record: any, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, holidayContext?: HolidayContext }} HolidayEntry
+ * @typedef {{
+ *   expectedHolidayPay: number,
+ *   actualHolidayPay: number,
+ *   payVarianceAmount: number,
+ *   payVariancePercent: number,
+ *   impliedHolidayHours: number,
+ *   expectedEntitlementHours: number,
+ *   remainingHoursComparison: { recordedRemaining: number, expectedRemaining: number, discrepancyHours: number },
+ *   confidence: ReferenceConfidence,
+ *   status: 'aligned' | 'review' | 'mismatch',
+ *   reasons: string[]
+ * }} AnnualHolidayCheckResult
+ *
+ * AnnualHolidayCheckResult: Annual second-tier reasonableness cross-check for irregular/zero-hours hourly workers.
+ * - expectedHolidayPay: recordedHolidayHours × (totalBasicPay ÷ totalBasicHours); computed from leave-year rolling reference.
+ * - actualHolidayPay: sum of all holiday pay amounts recorded in the leave year.
+ * - payVarianceAmount: actualHolidayPay - expectedHolidayPay (negative = underpaid, positive = overpaid).
+ * - payVariancePercent: (payVarianceAmount ÷ expectedHolidayPay) × 100 (null if expectedHolidayPay ≤ 0).
+ * - impliedHolidayHours: actualHolidayPay ÷ (totalBasicPay ÷ totalBasicHours); reverse-calculated from actual pay.
+ * - expectedEntitlementHours: avgWeeklyHours × 5.6 (statutory entitlement); must match entitlementHours from rolling reference.
+ * - remainingHoursComparison: {
+ *     recordedRemaining: sum of recorded remaining hours across all leave-year entries,
+ *     expectedRemaining: expectedEntitlementHours - recordedHolidayHours,
+ *     discrepancyHours: recordedRemaining - expectedRemaining (negative = reported remaining < expected, positive = reported remaining > expected)
+ *   }
+ * - confidence: composed from reference confidence; cannot exceed reference confidence level. Inherit reasons; append annual-specific reasons (e.g., 'partial leave year', 'holiday pay not separable').
+ * - status: 'aligned' if payVariancePercent ≤ ±5% AND discrepancyHours ≤ ±2, 'review' if ±5–15% or ±2–8 hours, 'mismatch' if beyond review thresholds.
+ * - reasons: list of human-readable status explanations (e.g., 'actual holiday pay £14.32 below expected', 'recorded remaining hours differ by 4.5 from expected').
  */
 
 const ACCRUAL_CUTOFF = HOLIDAY_ACCRUAL_CUTOFF
@@ -151,6 +179,11 @@ function buildReferenceConfidence({
  */
 function applyMixedMonthLowConfidence(entry, ref) {
     if (!entry.validation || !ref || (ref.mixedMonthsIncluded ?? 0) <= 0) {
+        return
+    }
+    // Mixed-month confidence only affects holiday-rate interpretation.
+    // Avoid marking non-holiday periods as low confidence for long runs.
+    if (!hasHolidayPayment(entry)) {
         return
     }
     entry.validation.lowConfidence = true
@@ -583,4 +616,141 @@ export function buildYearHolidayContext(entries, workerProfile) {
     if (timing?.enabled) {
         timing.end('holidayContext.total')
     }
+}
+
+/**
+ * Calculates an annual second-tier reasonableness cross-check for irregular/zero-hours hourly workers.
+ * Composes confidence from the rolling reference confidence, constraining annual confidence to match.
+ *
+ * Returns null if baseline is missing, holiday hours are zero, or holiday pay is zero.
+ * Otherwise returns an AnnualHolidayCheckResult with full traceability.
+ *
+ * @param {number} totalHolidayHours - accumulated holiday hours for the leave year
+ * @param {number} totalHolidayPay - accumulated holiday pay amount for the leave year
+ * @param {number} recordedRemaining - recorded remaining hours as of end of leave year
+ * @param {any} ref - rolling reference result from buildRollingReference (assumed to have totalBasicPay, totalBasicHours, confidence, mixedMonthsIncluded)
+ * @returns {AnnualHolidayCheckResult | null}
+ */
+export function buildAnnualHolidayCheckResult(
+    totalHolidayHours,
+    totalHolidayPay,
+    recordedRemaining,
+    ref
+) {
+    if (timing?.enabled) {
+        timing.start('annualCheck.total')
+        timing.increment('annualCheck.calls')
+    }
+
+    // Null/no-output cases: no baseline, zero holiday hours, zero holiday pay.
+    if (
+        !ref ||
+        ref.totalBasicHours <= 0 ||
+        totalHolidayHours <= 0 ||
+        totalHolidayPay <= 0
+    ) {
+        if (timing?.enabled) {
+            timing.end('annualCheck.total')
+        }
+        return null
+    }
+
+    if (timing?.enabled) {
+        timing.increment('annualCheck.emittedResults')
+    }
+
+    const avgHourlyRate = ref.totalBasicPay / ref.totalBasicHours
+    const expectedHolidayPay = totalHolidayHours * avgHourlyRate
+    const payVarianceAmount = totalHolidayPay - expectedHolidayPay
+    const payVariancePercent =
+        expectedHolidayPay > 0
+            ? (payVarianceAmount / expectedHolidayPay) * 100
+            : 0
+    const impliedHolidayHours =
+        avgHourlyRate > 0 ? totalHolidayPay / avgHourlyRate : 0
+    const avgWeeklyHours = ref.totalBasicHours / ref.totalWeeks
+    const expectedEntitlementHours = avgWeeklyHours * 5.6
+    const expectedRemaining = expectedEntitlementHours - totalHolidayHours
+    const discrepancyHours = recordedRemaining - expectedRemaining
+
+    // Compose confidence: annual confidence cannot exceed reference confidence.
+    /** @type {ReferenceConfidence} */
+    const confidenceLevel = ref.confidence ?? {
+        level: 'high',
+        reasons: [],
+    }
+    /** @type {'high' | 'medium' | 'low'} */
+    let annualDataQuality = 'high'
+    const annualReasons = [...(confidenceLevel.reasons ?? [])]
+
+    // Downgrade if we have limited data or mixed months in the reference.
+    if (confidenceLevel.level === 'medium') {
+        annualDataQuality = 'medium'
+    } else if (confidenceLevel.level === 'low') {
+        annualDataQuality = 'low'
+    }
+    if (!annualReasons.includes('partial leave year')) {
+        annualReasons.push('leave year reference-informed')
+    }
+
+    // Determine status based on thresholds.
+    // Aligned: payVariancePercent ≤ ±5% AND discrepancyHours ≤ ±2.
+    // Review: ±5–15% or ±2–8 hours.
+    // Mismatch: beyond review thresholds.
+    const isAligned =
+        Math.abs(payVariancePercent) <= 5 && Math.abs(discrepancyHours) <= 2
+    const isReview =
+        (Math.abs(payVariancePercent) > 5 &&
+            Math.abs(payVariancePercent) <= 15) ||
+        (Math.abs(discrepancyHours) > 2 && Math.abs(discrepancyHours) <= 8)
+    const status = isAligned ? 'aligned' : isReview ? 'review' : 'mismatch'
+
+    // Build reasons list based on status.
+    const statusReasons = []
+    if (!isAligned) {
+        if (Math.abs(payVariancePercent) > 5) {
+            const direction = payVarianceAmount < 0 ? 'below' : 'above'
+            statusReasons.push(
+                `actual holiday pay £${Math.abs(payVarianceAmount).toFixed(2)} ${direction} expected ` +
+                    `(${Math.abs(payVariancePercent).toFixed(1)}%)`
+            )
+        }
+        if (Math.abs(discrepancyHours) > 2) {
+            const direction = discrepancyHours < 0 ? 'fewer' : 'more'
+            statusReasons.push(
+                `recorded remaining ${direction} than expected by ${Math.abs(discrepancyHours).toFixed(1)} hours`
+            )
+        }
+    } else {
+        statusReasons.push(
+            'annual holiday pay and hours reconcile within expected variance'
+        )
+    }
+
+    /** @type {AnnualHolidayCheckResult} */
+    const result = {
+        expectedHolidayPay,
+        actualHolidayPay: totalHolidayPay,
+        payVarianceAmount,
+        payVariancePercent,
+        impliedHolidayHours,
+        expectedEntitlementHours,
+        remainingHoursComparison: {
+            recordedRemaining,
+            expectedRemaining,
+            discrepancyHours,
+        },
+        confidence: {
+            level: annualDataQuality,
+            reasons: annualReasons,
+        },
+        status,
+        reasons: statusReasons,
+    }
+
+    if (timing?.enabled) {
+        timing.end('annualCheck.total')
+    }
+
+    return result
 }

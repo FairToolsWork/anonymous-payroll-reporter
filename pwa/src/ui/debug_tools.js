@@ -67,6 +67,8 @@ export function copyDebugOutput() {
         this.debugInfo.excelRows || '<empty>',
         '=== Debug: Excel Parsed Entries (first 20) ===',
         this.debugInfo.excelParsed || '<empty>',
+        '=== Debug: Worker Profile ===',
+        this.debugInfo.workerProfile || '<empty>',
         '=== Debug: Run Snapshot ===',
         this.debugInfo.runSnapshot || '<empty>',
     ].join('\n\n')

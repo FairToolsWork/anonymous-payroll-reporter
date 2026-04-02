@@ -124,6 +124,110 @@ function buildStageTwoContext() {
     }
 }
 
+function buildZeroHoursStageTwoContext() {
+    const entry = buildStageTwoEntry({
+        holidayContext: {
+            hasBaseline: true,
+            avgHoursPerDay: 0,
+            avgWeeklyHours: 40,
+            avgRatePerHour: 12.5,
+            typicalDays: 0,
+            entitlementHours: 224,
+            useAccrualMethod: true,
+            mixedMonthsIncluded: 1,
+            confidence: {
+                level: 'medium',
+                reasons: ['mixed month reference'],
+            },
+        },
+        record: {
+            imageData: null,
+            payrollDoc: {
+                processDate: { date: '30 Apr 2024' },
+                payments: {
+                    hourly: {
+                        basic: { units: 100, rate: 12.5, amount: 1250 },
+                        holiday: { units: 8, rate: 12.5, amount: 100 },
+                    },
+                    salary: {},
+                    misc: [],
+                },
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 80 },
+                    pensionEE: { amount: 50 },
+                    pensionER: { amount: 30 },
+                    misc: [],
+                },
+                netPay: { amount: 1170 },
+                thisPeriod: { totalGrossPay: { amount: 1350 } },
+            },
+        },
+        validation: {
+            flags: [
+                { id: 'holiday_rate_below_rolling_avg', label: 'Needs review' },
+            ],
+            lowConfidence: true,
+        },
+    })
+    const entriesForYear = [entry]
+    entriesForYear.reconciliation = {
+        months: new Map([[1, { actualEE: 60, actualER: 40 }]]),
+        totals: { actualEE: 60, actualER: 40 },
+    }
+    return {
+        entry,
+        entriesForYear,
+        context: {
+            entries: [entry],
+            yearGroups: new Map([['2024/25', entriesForYear]]),
+            contributionSummary: {
+                years: new Map([['2024/25', { totals: { delta: 20 } }]]),
+            },
+            reportGeneratedLabel: '01 Jun 2024',
+            contributionMeta: {
+                fileCount: 1,
+                recordCount: 1,
+                dateRangeLabel: 'Apr 2024',
+            },
+            missingMonths: {
+                missingMonthsByYear: {
+                    '2024/25': ['May'],
+                },
+            },
+            validationSummary: {
+                flaggedPeriods: ['30 Apr 2024'],
+                lowConfidenceEntries: [entry],
+            },
+            contributionTotals: {
+                payrollContribution: 80,
+                payrollEE: 50,
+                payrollER: 30,
+                reportedContribution: 100,
+                pensionEE: 60,
+                pensionER: 40,
+                contributionDifference: 20,
+            },
+            contributionRecency: {
+                lastContributionLabel: '25 Apr 2024',
+                daysSinceContribution: 5,
+                daysThreshold: 30,
+            },
+            workerProfile: {
+                workerType: 'hourly',
+                typicalDays: 0,
+                statutoryHolidayDays: null,
+                leaveYearStartMonth: 4,
+            },
+            contractTypeMismatchWarning: null,
+        },
+        meta: {
+            employeeName: 'Pat Example',
+            dateRangeLabel: 'Apr 2024',
+        },
+    }
+}
+
 describe('buildPayslipViewModel', () => {
     it('builds shared hourly payslip rows, warnings, holiday analysis, and footer notes', () => {
         const viewModel = buildPayslipViewModel(buildEntry())
@@ -373,5 +477,41 @@ describe('buildYearViewModel', () => {
             'april-boundary',
             'zero-tax-allowance',
         ])
+    })
+
+    it('propagates annual cross-check data and display text for zero-hours yearly summaries', () => {
+        const { context, meta, entriesForYear } =
+            buildZeroHoursStageTwoContext()
+
+        const summaryViewModel = buildSummaryViewModel(context, meta)
+        const summaryYearRow = summaryViewModel.yearSummaryRows[0]
+        expect(summaryYearRow.annualCrossCheck).toBeTruthy()
+        expect(summaryYearRow.monthBreakdown).toHaveLength(1)
+        expect(summaryYearRow.annualCrossCheckDisplay).toMatchObject({
+            title: 'Annual holiday pay cross-check',
+        })
+
+        const yearViewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            0
+        )
+
+        expect(yearViewModel.annualCrossCheck).toBeTruthy()
+        expect(yearViewModel.monthBreakdown).toHaveLength(1)
+        expect(yearViewModel.monthBreakdown[0]).toMatchObject({
+            monthLabel: 'April',
+            basicHours: 100,
+            holidayHours: 8,
+            mixedMonthIncluded: true,
+        })
+        expect(yearViewModel.annualCrossCheckDisplay).toMatchObject({
+            title: 'Annual holiday pay cross-check',
+            statusLabel: 'Material mismatch',
+        })
+        expect(yearViewModel.annualCrossCheckDisplay.summaryLines[0]).toContain(
+            'Recorded 8.00 holiday hrs'
+        )
     })
 })

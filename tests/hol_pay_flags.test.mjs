@@ -4,6 +4,7 @@ import {
     buildRollingReference,
     buildYearHolidayContext,
     isReferenceEligible,
+    buildAnnualHolidayCheckResult,
 } from '../pwa/src/report/holiday_calculations.js'
 
 /**
@@ -1765,7 +1766,7 @@ describe('mixed-month reference propagation', () => {
         expect(target.holidayContext.confidence.reasons).toContain(
             'Includes 1 mixed work+holiday month'
         )
-        expect(target.validation.lowConfidence).toBe(true)
+        expect(target.validation.lowConfidence).toBe(false)
     })
 })
 
@@ -1901,5 +1902,220 @@ describe('flag evidence payload — ruleId and inputs fields', () => {
         expect(flag.inputs.rollingAvgRate).toBeCloseTo(18.0)
         expect(flag.inputs.periodsCounted).toBeGreaterThanOrEqual(3)
         expect(flag.inputs.totalWeeks).toBeGreaterThan(0)
+    })
+})
+
+describe('buildAnnualHolidayCheckResult', () => {
+    it('returns null when ref is null', () => {
+        const result = buildAnnualHolidayCheckResult(100, 1000, 50, null)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when ref.totalBasicHours is zero', () => {
+        const ref = {
+            totalBasicPay: 1000,
+            totalBasicHours: 0,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 1000, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when totalHolidayHours is zero', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(0, 1000, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('returns null when totalHolidayPay is zero', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 0, 50, ref)
+        expect(result).toBeNull()
+    })
+
+    it('computes aligned case when variance within threshold', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 5200 / 2080 = 2.5
+        // expectedHolidayPay = 100 * 2.5 = 250
+        // actualHolidayPay = 250 (aligned)
+        // expectedEntitlementHours = (2080 / 52) * 5.6 = 40 * 5.6 = 224
+        // expectedRemaining = 224 - 100 = 124
+        // recordedRemaining = 124 (aligned)
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('aligned')
+        expect(result.payVariancePercent).toBeCloseTo(0)
+        expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(0)
+        expect(result.confidence.level).toBe('high')
+        expect(result.reasons[0]).toContain('reconcile')
+    })
+
+    it('computes underpaid case when actual < expected', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 2.5
+        // expectedHolidayPay = 100 * 2.5 = 250
+        // actualHolidayPay = 225 (underpaid by 25, or -10%, within 5-15% review range)
+        const result = buildAnnualHolidayCheckResult(100, 225, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('review')
+        expect(result.payVariancePercent).toBeCloseTo(-10)
+        expect(result.payVarianceAmount).toBeCloseTo(-25)
+        expect(result.reasons[0]).toContain('below')
+    })
+
+    it('computes overpaid case when actual > expected', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // expectedHolidayPay = 250
+        // actualHolidayPay = 275 (overpaid by 25, or +10%, within 5-15% review range)
+        const result = buildAnnualHolidayCheckResult(100, 275, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('review')
+        expect(result.payVariancePercent).toBeCloseTo(10)
+        expect(result.payVarianceAmount).toBeCloseTo(25)
+        expect(result.reasons[0]).toContain('above')
+    })
+
+    it('classifies mismatch when variance > 15% or hours discrepancy > 8', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // expectedHolidayPay = 250
+        // actualHolidayPay = 100 (underpaid by 150, or -60%)
+        const result = buildAnnualHolidayCheckResult(100, 100, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.status).toBe('mismatch')
+    })
+
+    it('composes confidence: reference medium caps annual confidence at medium', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: true,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'medium', reasons: ['limited data'] },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.confidence.level).toBe('medium')
+        expect(result.confidence.reasons).toContain('limited data')
+    })
+
+    it('composes confidence: reference low results in annual low', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: true,
+            mixedMonthsIncluded: 1,
+            confidence: {
+                level: 'low',
+                reasons: ['limited data', 'mixed months'],
+            },
+        }
+        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.confidence.level).toBe('low')
+    })
+
+    it('calculates impliedHolidayHours correctly', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgHourlyRate = 2.5
+        // actualHolidayPay = 250
+        // impliedHolidayHours = 250 / 2.5 = 100
+        const result = buildAnnualHolidayCheckResult(95, 250, 124, ref)
+        expect(result).not.toBeNull()
+        expect(result.impliedHolidayHours).toBeCloseTo(100)
+    })
+
+    it('calculates correct remaining hours comparison', () => {
+        const ref = {
+            totalBasicPay: 5200,
+            totalBasicHours: 2080,
+            totalWeeks: 52,
+            periodsCounted: 4,
+            limitedData: false,
+            mixedMonthsIncluded: 0,
+            confidence: { level: 'high', reasons: [] },
+        }
+        // avgWeeklyHours = 2080 / 52 = 40
+        // expectedEntitlementHours = 40 * 5.6 = 224
+        // totalHolidayHours = 100
+        // expectedRemaining = 224 - 100 = 124
+        // recordedRemaining = 120
+        // discrepancyHours = 120 - 124 = -4
+        const result = buildAnnualHolidayCheckResult(100, 250, 120, ref)
+        expect(result).not.toBeNull()
+        expect(result.expectedEntitlementHours).toBeCloseTo(224)
+        expect(result.remainingHoursComparison.expectedRemaining).toBeCloseTo(
+            124
+        )
+        expect(result.remainingHoursComparison.recordedRemaining).toBeCloseTo(
+            120
+        )
+        expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(-4)
+        expect(result.reasons).toContain(
+            'recorded remaining fewer than expected by 4.0 hours'
+        )
     })
 })

@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
     ACCUMULATED_TOTALS_TITLE,
+    buildAnnualMonthBreakdownDisplay,
     buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
     buildDiffDisplay,
@@ -741,6 +742,58 @@ function renderYearPage(
             },
         }
     )
+
+    if (
+        yearViewModel.annualCrossCheck &&
+        yearViewModel.annualCrossCheckDisplay
+    ) {
+        y = writeHeading(doc, yearViewModel.annualCrossCheckDisplay.title, y)
+        y = writeText(
+            doc,
+            [
+                yearViewModel.annualCrossCheckDisplay.statusLabel,
+                ...yearViewModel.annualCrossCheckDisplay.summaryLines,
+            ],
+            y,
+            { fontSize: FONT_SMALL }
+        )
+
+        const annualRows = yearViewModel.monthBreakdown.map(
+            (/** @type {any} */ row) => {
+                const display = buildAnnualMonthBreakdownDisplay(row)
+                return [
+                    row.monthLabel,
+                    row.basicHours.toFixed(2),
+                    row.holidayHours.toFixed(2),
+                    row.estimatedDays === null
+                        ? 'N/A'
+                        : row.estimatedDays.toFixed(1),
+                    display.referenceLabel,
+                    display.mixedMonthLabel,
+                    display.signalsLabel,
+                ]
+            }
+        )
+
+        y = writeTable(
+            doc,
+            {
+                head: [
+                    [
+                        'Month',
+                        'Basic hrs',
+                        'Holiday hrs',
+                        'Est. days',
+                        'Reference state',
+                        'Mixed month',
+                        'Signals',
+                    ],
+                ],
+                body: annualRows,
+            },
+            y
+        )
+    }
 
     if (yearViewModel.miscReviewItems.length) {
         y = writeHeading(doc, MISC_REVIEW_TITLE, y)

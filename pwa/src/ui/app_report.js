@@ -133,6 +133,7 @@ export function resetReportState() {
         excelRows: '',
         excelParsed: '',
         runSnapshot: '',
+        workerProfile: '',
     }
     this.failedFiles = []
     this.failedPayPeriods = []
@@ -408,6 +409,13 @@ export async function processFiles(files) {
         }
         if (!this.debugText) {
             this.debugText = workflowResult.debug.text
+        }
+        if (!this.debugInfo.workerProfile) {
+            this.debugInfo.workerProfile = JSON.stringify(
+                this.workerProfile,
+                null,
+                2
+            )
         }
         if (workflowResult?.excelDebug) {
             if (!this.debugInfo.excelSource) {

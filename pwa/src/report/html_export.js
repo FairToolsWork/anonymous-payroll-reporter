@@ -1,6 +1,7 @@
 import {
     ACCUMULATED_TOTALS_TITLE,
     APRIL_BOUNDARY_NOTE,
+    buildAnnualMonthBreakdownDisplay,
     buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
     buildDiffDisplay,
@@ -541,6 +542,45 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 `<p>† ${MISC_REVIEW_TITLE}</p>` +
                 `<ul>${footnoteItems}</ul>` +
                 '</div>'
+        )
+    }
+
+    if (
+        yearViewModel.annualCrossCheck &&
+        yearViewModel.annualCrossCheckDisplay
+    ) {
+        const breakdownRows = yearViewModel.monthBreakdown
+            .map((/** @type {any} */ row) => {
+                const display = buildAnnualMonthBreakdownDisplay(row)
+                const estimatedDays =
+                    row.estimatedDays === null
+                        ? 'N/A'
+                        : row.estimatedDays.toFixed(1)
+                return (
+                    '<tr>' +
+                    `<th>${row.monthLabel}</th>` +
+                    `<td>${row.basicHours.toFixed(2)}</td>` +
+                    `<td>${row.holidayHours.toFixed(2)}</td>` +
+                    `<td>${estimatedDays}</td>` +
+                    `<td>${display.referenceLabel}</td>` +
+                    `<td>${display.mixedMonthLabel}</td>` +
+                    `<td>${display.signalsLabel}</td>` +
+                    '</tr>'
+                )
+            })
+            .join('')
+        sections.push(
+            `<div class="notice no-left-border">` +
+                `<p><b>${yearViewModel.annualCrossCheckDisplay.title}:</b> ${yearViewModel.annualCrossCheckDisplay.statusLabel}</p>` +
+                yearViewModel.annualCrossCheckDisplay.summaryLines
+                    .map((/** @type {string} */ line) => `<p>${line}</p>`)
+                    .join('') +
+                `</div>`
+        )
+        sections.push(
+            '<table class="summary-table"><thead><tr>' +
+                '<th>Month</th><th>Basic hrs</th><th>Holiday hrs</th><th>Est. days</th><th>Reference state</th><th>Mixed month</th><th>Signals</th>' +
+                `</tr></thead><tbody>${breakdownRows}</tbody></table>`
         )
     }
 
