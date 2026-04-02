@@ -508,7 +508,7 @@ describe('buildYearViewModel', () => {
         })
         expect(yearViewModel.annualCrossCheckDisplay).toMatchObject({
             title: 'Annual holiday pay cross-check',
-            statusLabel: 'Material mismatch',
+            statusLabel: 'Aligned',
         })
         expect(yearViewModel.annualCrossCheckDisplay.summaryLines[0]).toContain(
             'Recorded 8.00 holiday hrs'

@@ -379,13 +379,17 @@ function buildAnnualMonthBreakdown(entriesForYear) {
  * @param {HolidayContextLike | null | undefined} holidayContext
  * @param {number} holidayHours
  * @param {number} recordedRemaining
+ * @param {number | null | undefined} expectedEntitlementHours
+ * @param {boolean} hasIndependentRemainingSource
  * @returns {AnnualHolidayCheckSummaryResult | null}
  */
 function buildAnnualHolidayCheckSummary(
     holidayEntries,
     holidayContext,
     holidayHours,
-    recordedRemaining
+    recordedRemaining,
+    expectedEntitlementHours,
+    hasIndependentRemainingSource
 ) {
     const syntheticReference = buildAnnualSyntheticReference(holidayContext)
     const totalHolidayPay = sumHourlyHolidayAmount(holidayEntries)
@@ -393,7 +397,14 @@ function buildAnnualHolidayCheckSummary(
         holidayHours,
         totalHolidayPay,
         recordedRemaining,
-        syntheticReference
+        syntheticReference,
+        {
+            expectedEntitlementHours:
+                expectedEntitlementHours != null
+                    ? expectedEntitlementHours
+                    : undefined,
+            hasIndependentRemainingSource,
+        }
     )
     if (!annualCrossCheck) {
         return null
@@ -611,12 +622,13 @@ export function buildYearHolidaySummary(
                 ? leaveYearBasicHours * 0.1207
                 : lastEntitlementHours
         const hoursRemainingRaw = effectiveEntitlementHours - holidayHours
-        const crossCheckRemaining = Math.max(0, hoursRemainingRaw)
         const annualCrossCheck = buildAnnualHolidayCheckSummary(
             holidayEntries,
             lastEntryCtx,
             holidayHours,
-            crossCheckRemaining
+            hoursRemainingRaw,
+            effectiveEntitlementHours,
+            false
         )
         return {
             kind: 'hourly_hours',

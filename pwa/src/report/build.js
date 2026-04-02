@@ -171,7 +171,7 @@ export function buildReport(
             }
         }
 
-        const yearGroups = timeBuildPhase('buildReport.grouping', () => {
+        let yearGroups = timeBuildPhase('buildReport.grouping', () => {
             entries.sort((a, b) => {
                 const yearA = getTaxYearSortKey(a.yearKey ?? 'Unknown')
                 const yearB = getTaxYearSortKey(b.yearKey ?? 'Unknown')
@@ -202,14 +202,14 @@ export function buildReport(
             return groups
         })
         const leaveYearGroups = buildLeaveYearGroups(entries)
-        const yearKeys = Array.from(yearGroups.keys())
+        const payrollYearKeys = Array.from(yearGroups.keys())
         const contributionSummary = timeBuildPhase(
             'buildReport.contributions',
             () => {
                 const summary = buildContributionSummary(
                     entries,
                     contributionData,
-                    yearKeys
+                    payrollYearKeys
                 )
                 yearGroups.forEach(
                     (
@@ -225,6 +225,33 @@ export function buildReport(
                 return summary
             }
         )
+
+        if (contributionSummary?.years?.size) {
+            const allYearKeys = Array.from(
+                new Set([
+                    ...Array.from(yearGroups.keys()).map(String),
+                    ...Array.from(contributionSummary.years.keys()),
+                ])
+            )
+                .filter((key) => key && key !== 'Unknown')
+                .sort((a, b) => getTaxYearSortKey(a) - getTaxYearSortKey(b))
+
+            /** @type {Map<string, YearEntries>} */
+            const mergedYearGroups = new Map()
+            allYearKeys.forEach((yearKey) => {
+                const existingEntries =
+                    /** @type {YearEntries | undefined} */ (
+                        yearGroups.get(yearKey)
+                    ) || /** @type {YearEntries} */ ([])
+                existingEntries.reconciliation =
+                    contributionSummary.years.get(yearKey) || null
+                existingEntries.yearKey = yearKey
+                mergedYearGroups.set(yearKey, existingEntries)
+            })
+            yearGroups = mergedYearGroups
+        }
+
+        const yearKeys = Array.from(yearGroups.keys())
 
         const derivedSummaryData = timeBuildPhase(
             'buildReport.derivedSummaries',

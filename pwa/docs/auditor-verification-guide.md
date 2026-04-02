@@ -29,8 +29,31 @@ From this entry point, the workflow calls:
 1. `buildReportEntries` for dated report entries
 2. `buildHolidayPayFlags` and `buildYearHolidayContext` for hourly holiday analysis
 3. `buildContributionSummary` for pension reconciliation
-4. `buildSummaryViewModel` and `buildYearViewModel` for display model construction
+4. `buildContributionTotals` and `buildContributionRecency` for global roll-up and recency snapshot
 5. `renderHtmlReport` and `exportReportPdf` for output rendering
+6. Within each rendering path, `buildSummaryViewModel` and `buildYearViewModel` for presentation model construction
+
+## Strict Audit Walk-Through Order
+
+Use this order to verify behavior without skipping intermediate assumptions:
+
+1. Verify `buildReport` phase sequencing in `pwa/src/report/build.js`:
+    - entries (`buildReportEntries`)
+    - validation and hourly holiday passes (`buildHolidayPayFlags`, `buildYearHolidayContext`)
+    - pension reconciliation (`buildContributionSummary`)
+    - derived pension aggregates (`buildContributionTotals`, `buildContributionRecency`)
+2. Verify canonical threshold constants in `pwa/src/report/uk_thresholds.js`:
+    - `HOLIDAY_RATE_TOLERANCE`
+    - `CONTRIBUTION_RECENCY_DAYS_THRESHOLD`
+3. Verify display-only semantics in formatter functions:
+    - `buildHolidaySummaryDisplay`
+    - `buildContributionRecencyDisplay`
+4. Verify renderer-layer model assembly (not build-layer assembly):
+    - HTML path (`pwa/src/report/html_export.js`) calls `buildSummaryViewModel` and `buildYearViewModel`
+    - PDF path (`pwa/src/report/pdf_export.js`) calls `buildSummaryViewModel` and `buildYearViewModel`
+5. Verify year-balance carry-forward and row composition consistency:
+    - `pwa/src/report/report_view_model.js`
+    - both renderers consume equivalent year and summary semantics
 
 ## Traceability Matrix
 
@@ -53,13 +76,13 @@ From this entry point, the workflow calls:
 
 1. Verify that each operation described in the three technical docs has at least one named symbol in the traceability map.
 2. Verify threshold values from code constants, not prose assumptions:
-    - Contribution recency threshold is configured in `pwa/src/report/uk_thresholds.js`.
+    - Holiday tolerance and contribution recency thresholds are configured in `pwa/src/report/uk_thresholds.js`.
 3. Verify display semantics from formatter functions, not raw calculations:
     - Holiday and pension labels are finalized in `pwa/src/report/report_formatters.js`.
-4. Verify balance carry-forward behavior in both rendering flows:
+4. Verify that view-model construction occurs inside both rendering paths:
     - HTML: `pwa/src/report/html_export.js`
     - PDF: `pwa/src/report/pdf_export.js`
-5. Verify summary/year row composition in view models:
+5. Verify balance carry-forward behavior and summary/year row composition:
     - `pwa/src/report/report_view_model.js`
 
 ## Primary Test Evidence

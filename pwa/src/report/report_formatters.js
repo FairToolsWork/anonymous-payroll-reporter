@@ -393,6 +393,10 @@ export function buildAnnualCrossCheckDisplay(annualCrossCheck, holidayHours) {
             ? 'Expected and actual holiday pay are aligned.'
             : `Actual holiday pay is ${formatCurrency(Math.abs(annualCrossCheck.payVarianceAmount))} ${payDirection} expected (${Math.abs(annualCrossCheck.payVariancePercent).toFixed(1)}%).`
     const remaining = annualCrossCheck.remainingHoursComparison
+    const remainingSummary =
+        annualCrossCheck.remainingComparisonHasIndependentSource
+            ? `Remaining hours: reported ${remaining.recordedRemaining.toFixed(1)} hrs vs expected ${remaining.expectedRemaining.toFixed(1)} hrs.`
+            : `Remaining hours are model-derived (${remaining.recordedRemaining.toFixed(1)} hrs), with expected ${remaining.expectedRemaining.toFixed(1)} hrs (informational only).`
     const confidenceReasons = annualCrossCheck.confidence.reasons.length
         ? `: ${annualCrossCheck.confidence.reasons.join('; ')}`
         : ''
@@ -402,7 +406,7 @@ export function buildAnnualCrossCheckDisplay(annualCrossCheck, holidayHours) {
         statusLabel: formatAnnualStatus(annualCrossCheck.status),
         summaryLines: [
             `Recorded ${holidayHours.toFixed(2)} holiday hrs; pay received implies ${annualCrossCheck.impliedHolidayHours.toFixed(2)} hrs at the baseline rate.`,
-            `${payVarianceLabel} Remaining hours: reported ${remaining.recordedRemaining.toFixed(1)} hrs vs expected ${remaining.expectedRemaining.toFixed(1)} hrs.`,
+            `${payVarianceLabel} ${remainingSummary}`,
             `Confidence: ${formatConfidenceLevel(annualCrossCheck.confidence.level)}${confidenceReasons}`,
         ],
     }

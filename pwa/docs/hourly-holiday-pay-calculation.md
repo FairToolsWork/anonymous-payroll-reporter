@@ -459,7 +459,7 @@ The leave year start date is determined by the `leaveYearStartMonth` field in th
 
 ### Step 6 — Annual holiday pay cross-check (`buildAnnualHolidayCheckResult` + `buildYearHolidaySummary`)
 
-For hourly irregular-hours / zero-hours workers (`typicalDays = 0`), the year summary adds a second-tier annual reasonableness check. This does **not** replace Signals A or B. It answers a different question: _do the leave-year holiday hours, holiday pay, and remaining-hours position still reconcile at the year level when using the same baseline rate the monthly checks rely on?_
+For hourly irregular-hours / zero-hours workers (`typicalDays = 0`), the year summary adds a second-tier annual reasonableness check. This does **not** replace Signals A or B. It answers a different question: _does leave-year holiday pay reconcile against the same baseline rate the monthly checks rely on, and is the remaining-hours comparison plausible where an independent remaining-hours source exists?_
 
 #### Inputs
 
@@ -470,6 +470,8 @@ holidayHours        = sum(hourly.holiday.units)   across the leave year
 totalHolidayPay     = sum(hourly.holiday.amount)  across the leave year
 recordedRemaining   = year-summary hoursRemaining for the same leave year
 ```
+
+In the current implementation, `recordedRemaining` is model-derived from the same entitlement/usage inputs used by the year summary (not an external leave ledger). That means the remaining-hours comparison is shown for traceability but does not currently drive annual status classification.
 
 The rate baseline is taken from the **last entry in the year with a valid holiday context**, not from a separate annual averaging path. The summary builds a synthetic one-period reference from that context so the annual check stays numerically aligned with the monthly 52-week logic:
 
@@ -496,7 +498,8 @@ expectedHolidayPay      = holidayHours × avgRatePerHour
 impliedHolidayHours     = totalHolidayPay / avgRatePerHour
 payVarianceAmount       = totalHolidayPay - expectedHolidayPay
 payVariancePercent      = (payVarianceAmount / expectedHolidayPay) × 100
-expectedEntitlementHours = avgWeeklyHours × 5.6
+expectedEntitlementHours = year-summary entitlement for the same mode
+                         (5.6-week projection, or 12.07% accrual total where applicable)
 expectedRemaining       = expectedEntitlementHours - holidayHours
 discrepancyHours        = recordedRemaining - expectedRemaining
 ```
@@ -506,25 +509,25 @@ The annual result is emitted only when all of the following are true:
 ```text
 synthetic reference exists
 holidayHours > 0
-totalHolidayPay > 0
 ```
 
-If any of these are missing, `annualCrossCheck` is omitted and the yearly summary remains the existing hours-only output.
+If the baseline or holiday hours are missing, `annualCrossCheck` is omitted and the yearly summary remains the existing hours-only output.
 
 #### Status thresholds
 
-The annual result status is a conservative classification over both pay variance and hours reconciliation:
+The annual result status is primarily driven by pay variance. Remaining-hours discrepancy is included in status only when an independent remaining-hours source is available:
 
 ```text
-aligned  = abs(payVariancePercent) <= 5   AND abs(discrepancyHours) <= 2
+aligned  = abs(payVariancePercent) <= 5
+           AND (if independent remaining source exists, abs(discrepancyHours) <= 2)
 review   = (5 < abs(payVariancePercent) <= 15)
-           OR (2 < abs(discrepancyHours) <= 8)
+           OR (if independent remaining source exists, 2 < abs(discrepancyHours) <= 8)
 mismatch = anything outside the review band
 ```
 
 This gives the report a simple yearly signal:
 
-- `Aligned`: annual pay and remaining-hours position are consistent with the baseline.
+- `Aligned`: annual pay is consistent with the baseline (and remaining-hours comparison is also consistent when independently sourced).
 - `Review`: the year is directionally plausible but outside the comfort band.
 - `Material mismatch`: the yearly numbers do not reconcile and need follow-up.
 
@@ -549,15 +552,18 @@ Where:
     - `medium` by default, because the annual check still uses a basic-pay-only baseline
     - `low` when the leave-year month breakdown contains fewer than 12 months (`partial leave year`)
 
-The reasons list is composed by inheritance and extension:
+The reasons list is composed by inheritance and extension across two layers (`buildAnnualHolidayCheckResult` and year-summary assembly):
 
 ```text
 annualConfidence.reasons = [
   ...referenceConfidence.reasons,
+  'leave year reference-informed',
   'basic pay reference only',
   ...(partial leave year ? ['partial leave year'] : [])
 ]
 ```
+
+`'leave year reference-informed'` is an implementation-level metadata reason. It indicates that annual reconciliation is derived from leave-year context rather than a separate legal entitlement model. Auditors should treat reason strings as additive metadata: inherited reference reasons (for example, limited history or mixed-month inclusion) may appear alongside the annual-specific reasons shown above.
 
 This is the key annual caveat: even a mathematically aligned yearly result is still only a **reasonableness check**, because the reference excludes regular overtime, commission, and other ordinary-pay elements that the legal holiday-pay calculation may require.
 

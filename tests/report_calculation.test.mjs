@@ -433,7 +433,7 @@ describe('report calculations', () => {
         expect(yearRow.holidaySummary.kind).toBe('hourly_hours')
         expect(yearRow.holidaySummary.entitlementHours).toBeGreaterThan(0)
         expect(yearRow.annualCrossCheck).toBeTruthy()
-        expect(yearRow.annualCrossCheck.status).toBe('mismatch')
+        expect(yearRow.annualCrossCheck.status).toBe('aligned')
         expect(yearRow.monthBreakdown).toHaveLength(2)
         expect(yearRow.monthBreakdown.map((row) => row.monthLabel)).toEqual([
             'May',
@@ -869,6 +869,44 @@ describe('report calculations', () => {
         expect(year2024Section).toContain('Closing Pensions Balance')
         expect(year2025Section).toContain('Opening Balance')
         expect(year2025Section).toContain('Closing Pensions Balance')
+    })
+
+    it('includes contribution-only years in report context and rendered year sections', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '06/04/25',
+                end: '05/05/25',
+                basicUnits: 160,
+                basicRate: 10,
+                payeTax: 100,
+                natIns: 80,
+                pensionEE: 50,
+                pensionER: 30,
+            }),
+        ]
+        const contributionData = {
+            entries: [
+                { date: new Date(2026, 3, 20), type: 'ee', amount: 12 },
+                { date: new Date(2026, 3, 20), type: 'er', amount: 8 },
+            ],
+            sourceFiles: ['fixture.xlsx'],
+        }
+
+        const { context, html } = buildReport(records, [], contributionData, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+
+        expect(context.yearKeys).toContain('2025/26')
+        expect(context.yearKeys).toContain('2026/27')
+        expect(context.yearGroups.has('2026/27')).toBe(true)
+        const contributionOnlyYear = context.yearGroups.get('2026/27')
+        expect(contributionOnlyYear?.length).toBe(0)
+        expect(contributionOnlyYear?.reconciliation?.totals?.actualEE).toBe(12)
+        expect(contributionOnlyYear?.reconciliation?.totals?.actualER).toBe(8)
+        expect(html).toContain('>2026/27</a>')
+        expect(html).toContain('2026/27 Summary')
     })
 
     it('flags gross_mismatch and sets lowConfidence when payments total differs from totalGrossPay', () => {
