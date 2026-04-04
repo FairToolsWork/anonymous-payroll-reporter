@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.6.0...anonymous-payroll-reporter-v3.7.0) (2026-04-04)
+
+
+### Features
+
+* **validation:** split NI zero-deduction notices from warnings and exclude notice-only periods from flagged summaries ([#27](https://github.com/FairToolsWork/anonymous-payroll-reporter/issues/27)) ([05f9c10](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/05f9c102d162aaa982325d41ff63f9084967bd70))
+
 ## [3.6.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.5.1...anonymous-payroll-reporter-v3.6.0) (2026-04-02)
 
 
