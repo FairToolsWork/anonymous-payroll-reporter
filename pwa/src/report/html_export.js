@@ -626,7 +626,7 @@ function renderReportCell(entry) {
         ? `<div class="notice error"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
         : ''
     const noticesHtml = noticeItems.length
-        ? `<div class="notice error"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
+        ? `<div class="notice callout"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
         : ''
 
     const rows = [
