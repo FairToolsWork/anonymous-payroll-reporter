@@ -514,7 +514,7 @@ export function getPayPeriodIndexForDate(date, periodsPerYear) {
         )
         const diffMs = date.getTime() - taxYearStart.getTime()
         const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
-        return Math.min(52, Math.max(1, Math.floor(diffDays / 7) + 1))
+        return Math.max(1, Math.floor(diffDays / 7) + 1)
     }
     return null
 }

@@ -108,6 +108,9 @@ describe('uk rules catalog', () => {
         expect(
             getPayPeriodIndexForDate(new Date('2025-04-20T00:00:00.000Z'), 52)
         ).toBe(3)
+        expect(
+            getPayPeriodIndexForDate(new Date('2026-04-05T00:00:00.000Z'), 52)
+        ).toBe(53)
     })
 
     it('keeps historical date lookups pinned to their own tax-year entry', () => {

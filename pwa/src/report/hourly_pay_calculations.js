@@ -245,7 +245,19 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
-        return { flag: null, lowConfidence: false }
+        return {
+            flag: {
+                id: 'paye_pay_cycle_unsupported',
+                label: `${resolveFlagLabel('paye_pay_cycle_unsupported')} Reported pay cycle: ${String(payCycle || 'Unknown')}.`,
+                ruleId: 'paye_pay_cycle_unsupported',
+                severity: 'warning',
+                inputs: {
+                    payCycle: String(payCycle || 'unknown'),
+                    payeTax,
+                },
+            },
+            lowConfidence: true,
+        }
     }
 
     const parsedTaxCode = parsePayeTaxCode(payrollDoc?.taxCode?.code || '')

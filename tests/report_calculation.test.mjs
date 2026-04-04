@@ -2374,6 +2374,40 @@ describe('buildValidation — flag evidence payload', () => {
         expect(mismatchFlag).toBeUndefined()
     })
 
+    it('flags unsupported PAYE pay cycles as low-confidence validation', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 90.4 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: {
+                    grossForTax: { amount: 1500 },
+                    totalGrossPay: { amount: 1500 },
+                    payCycle: { cycle: 'Fortnightly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1500,
+                    taxPaidTD: 90.4,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const payCycleFlag = result.flags.find(
+            (f) => f.id === 'paye_pay_cycle_unsupported'
+        )
+
+        expect(payCycleFlag).toBeDefined()
+        expect(payCycleFlag.ruleId).toBe('paye_pay_cycle_unsupported')
+        expect(payCycleFlag.label).toContain('Fortnightly')
+        expect(result.lowConfidence).toBe(true)
+    })
+
     it('supports PAYE cumulative mode flag and exposes exact vs sage approximation', () => {
         const previousMode = globalThis.__payeCumulativeMode
         globalThis.__payeCumulativeMode = 'sage_approx'
