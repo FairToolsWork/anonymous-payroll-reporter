@@ -1959,7 +1959,7 @@ describe('buildValidation — flag evidence payload', () => {
 
         expect(flag).toBeDefined()
         expect(flag.severity).toBe('notice')
-        expect(flag.label).toContain('is below the primary threshold')
+        expect(flag.label).toContain('is at or below the primary threshold')
     })
 
     it('nat_ins_zero is a warning when gross pay exceeds NI primary threshold', () => {

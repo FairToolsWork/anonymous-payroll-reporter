@@ -143,7 +143,7 @@ export function buildValidation(entry) {
         )
         const niLabel = isNiWarning
             ? `National Insurance missing or £0 while gross pay ${grossPayLabel} is above the primary threshold of ${thresholdLabel}`
-            : `NI deductions not taken as gross pay ${grossPayLabel} is below the primary threshold of ${thresholdLabel}`
+            : `NI deductions not taken as gross pay ${grossPayLabel} is at or below the primary threshold of ${thresholdLabel}`
         flags.push({
             id: 'nat_ins_zero',
             label: niLabel,

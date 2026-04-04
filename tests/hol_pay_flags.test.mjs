@@ -1939,7 +1939,7 @@ describe('buildAnnualHolidayCheckResult', () => {
         expect(result).toBeNull()
     })
 
-    it('classifies mismatch when totalHolidayPay is zero but holiday hours are positive', () => {
+    it('returns null when totalHolidayPay is zero', () => {
         const ref = {
             totalBasicPay: 5200,
             totalBasicHours: 2080,
@@ -1950,10 +1950,7 @@ describe('buildAnnualHolidayCheckResult', () => {
             confidence: { level: 'high', reasons: [] },
         }
         const result = buildAnnualHolidayCheckResult(100, 0, 50, ref)
-        expect(result).not.toBeNull()
-        expect(result.status).toBe('mismatch')
-        expect(result.payVariancePercent).toBeCloseTo(-100)
-        expect(result.payVarianceAmount).toBeCloseTo(-250)
+        expect(result).toBeNull()
     })
 
     it('computes aligned case when variance within threshold', () => {
@@ -2091,7 +2088,7 @@ describe('buildAnnualHolidayCheckResult', () => {
         expect(result.impliedHolidayHours).toBeCloseTo(100)
     })
 
-    it('calculates correct remaining hours comparison when an independent source is provided', () => {
+    it('calculates correct remaining hours comparison', () => {
         const ref = {
             totalBasicPay: 5200,
             totalBasicHours: 2080,
@@ -2107,9 +2104,7 @@ describe('buildAnnualHolidayCheckResult', () => {
         // expectedRemaining = 224 - 100 = 124
         // recordedRemaining = 120
         // discrepancyHours = 120 - 124 = -4
-        const result = buildAnnualHolidayCheckResult(100, 250, 120, ref, {
-            hasIndependentRemainingSource: true,
-        })
+        const result = buildAnnualHolidayCheckResult(100, 250, 120, ref)
         expect(result).not.toBeNull()
         expect(result.expectedEntitlementHours).toBeCloseTo(224)
         expect(result.remainingHoursComparison.expectedRemaining).toBeCloseTo(
@@ -2119,74 +2114,5 @@ describe('buildAnnualHolidayCheckResult', () => {
             120
         )
         expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(-4)
-        expect(result.reasons).toContain(
-            'recorded remaining fewer than expected by 4.0 hours'
-        )
-    })
-
-    it('does not use model-derived remaining discrepancy to drive status', () => {
-        const ref = {
-            totalBasicPay: 5200,
-            totalBasicHours: 2080,
-            totalWeeks: 52,
-            periodsCounted: 4,
-            limitedData: false,
-            mixedMonthsIncluded: 0,
-            confidence: { level: 'high', reasons: [] },
-        }
-
-        const result = buildAnnualHolidayCheckResult(100, 250, 80, ref)
-        expect(result).not.toBeNull()
-        expect(result.status).toBe('aligned')
-        expect(result.remainingComparisonHasIndependentSource).toBe(false)
-        expect(result.reasons).not.toContain(
-            'recorded remaining fewer than expected by 44.0 hours'
-        )
-    })
-
-    it('uses expected entitlement override for remaining-hours reconciliation', () => {
-        const ref = {
-            totalBasicPay: 5200,
-            totalBasicHours: 2080,
-            totalWeeks: 52,
-            periodsCounted: 4,
-            limitedData: false,
-            mixedMonthsIncluded: 0,
-            confidence: { level: 'high', reasons: [] },
-        }
-
-        const result = buildAnnualHolidayCheckResult(100, 250, 20, ref, {
-            expectedEntitlementHours: 120,
-        })
-        expect(result).not.toBeNull()
-        expect(result.expectedEntitlementHours).toBeCloseTo(120)
-        expect(result.remainingHoursComparison.expectedRemaining).toBeCloseTo(
-            20
-        )
-        expect(result.remainingHoursComparison.discrepancyHours).toBeCloseTo(0)
-        expect(result.status).toBe('aligned')
-    })
-
-    it('does not duplicate leave year reference-informed confidence reason', () => {
-        const ref = {
-            totalBasicPay: 5200,
-            totalBasicHours: 2080,
-            totalWeeks: 52,
-            periodsCounted: 4,
-            limitedData: false,
-            mixedMonthsIncluded: 0,
-            confidence: {
-                level: 'medium',
-                reasons: ['leave year reference-informed'],
-            },
-        }
-
-        const result = buildAnnualHolidayCheckResult(100, 250, 124, ref)
-        expect(result).not.toBeNull()
-        expect(
-            result.confidence.reasons.filter(
-                (reason) => reason === 'leave year reference-informed'
-            )
-        ).toHaveLength(1)
     })
 })

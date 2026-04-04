@@ -957,7 +957,7 @@ function renderPayslipPage(doc, entry) {
         y = writeText(
             doc,
             payslipViewModel.warningItems.map(
-                (/** @type {string} */ warning) => `• ${warning}`
+                (/** @type {string} */ warning) => `- ${warning}`
             ),
             y,
             { fontSize: FONT_SMALL }
@@ -968,7 +968,7 @@ function renderPayslipPage(doc, entry) {
         y = writeText(
             doc,
             payslipViewModel.noticeItems.map(
-                (/** @type {string} */ notice) => `• ${notice}`
+                (/** @type {string} */ notice) => `- ${notice}`
             ),
             y,
             { fontSize: FONT_SMALL }

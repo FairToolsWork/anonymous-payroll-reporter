@@ -23,7 +23,6 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  *   impliedHolidayHours: number,
  *   expectedEntitlementHours: number,
  *   remainingHoursComparison: { recordedRemaining: number, expectedRemaining: number, discrepancyHours: number },
- *   remainingComparisonHasIndependentSource: boolean,
  *   confidence: ReferenceConfidence,
  *   status: 'aligned' | 'review' | 'mismatch',
  *   reasons: string[]
@@ -35,15 +34,14 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * - payVarianceAmount: actualHolidayPay - expectedHolidayPay (negative = underpaid, positive = overpaid).
  * - payVariancePercent: (payVarianceAmount ÷ expectedHolidayPay) × 100 (null if expectedHolidayPay ≤ 0).
  * - impliedHolidayHours: actualHolidayPay ÷ (totalBasicPay ÷ totalBasicHours); reverse-calculated from actual pay.
- * - expectedEntitlementHours: avgWeeklyHours × 5.6 (statutory entitlement), or an explicit override for mode-aligned annual checks.
+ * - expectedEntitlementHours: avgWeeklyHours × 5.6 (statutory entitlement); must match entitlementHours from rolling reference.
  * - remainingHoursComparison: {
- *     recordedRemaining: reported remaining hours as of end-of-year (or model-derived remaining where no independent leave ledger exists),
+ *     recordedRemaining: sum of recorded remaining hours across all leave-year entries,
  *     expectedRemaining: expectedEntitlementHours - recordedHolidayHours,
- *     discrepancyHours: recordedRemaining - expectedRemaining (negative = reported remaining < expected, positive = reported remaining > expected)
+ *     discrepancyHours: recordedRemaining - expectedRemaining (negative = reported remaining > expected, positive = reported remaining < expected)
  *   }
- * - remainingComparisonHasIndependentSource: true when recordedRemaining comes from an independent source (e.g. employer leave ledger); false when model-derived.
  * - confidence: composed from reference confidence; cannot exceed reference confidence level. Inherit reasons; append annual-specific reasons (e.g., 'partial leave year', 'holiday pay not separable').
- * - status: 'aligned' if payVariancePercent ≤ ±5% and (when independent remaining exists) discrepancyHours ≤ ±2. 'review' if ±5–15% or (when independent remaining exists) ±2–8 hours. 'mismatch' if beyond review thresholds.
+ * - status: 'aligned' if payVariancePercent ≤ ±5% AND discrepancyHours ≤ ±2, 'review' if ±5–15% or ±2–8 hours, 'mismatch' if beyond review thresholds.
  * - reasons: list of human-readable status explanations (e.g., 'actual holiday pay £14.32 below expected', 'recorded remaining hours differ by 4.5 from expected').
  */
 
@@ -203,37 +201,24 @@ function buildPureRollingReference(sortedEntries, targetEntry) {
 /**
  * @param {HolidayEntry[]} sortedEntries
  * @param {HolidayEntry} mixedEntry
- * @param {WeakMap<HolidayEntry, boolean> | null} [mixedGateCache]
  * @returns {boolean}
  */
-function isGatePassingMixedMonth(
-    sortedEntries,
-    mixedEntry,
-    mixedGateCache = null
-) {
-    if (mixedGateCache?.has(mixedEntry)) {
-        return mixedGateCache.get(mixedEntry) ?? false
-    }
+function isGatePassingMixedMonth(sortedEntries, mixedEntry) {
     if (!isMixedMonthCandidate(mixedEntry) || !mixedEntry.parsedDate) {
-        mixedGateCache?.set(mixedEntry, false)
         return false
     }
     const pureRef = buildPureRollingReference(sortedEntries, mixedEntry)
     if (!pureRef || pureRef.totalWeeks < 12 || pureRef.totalBasicHours <= 0) {
-        mixedGateCache?.set(mixedEntry, false)
         return false
     }
     const expectedHours =
         (pureRef.totalBasicHours / pureRef.totalWeeks) *
         getWeeksInPeriod(mixedEntry.parsedDate)
     if (expectedHours <= 0) {
-        mixedGateCache?.set(mixedEntry, false)
         return false
     }
     const actualHours = getBasicPay(mixedEntry)?.units ?? 0
-    const passes = actualHours / expectedHours >= 0.75
-    mixedGateCache?.set(mixedEntry, passes)
-    return passes
+    return actualHours / expectedHours >= 0.75
 }
 
 /**
@@ -274,7 +259,7 @@ export function isReferenceEligible(entry) {
  *
  * @param {HolidayEntry[]} sortedEntries - All entries sorted ascending by parsedDate
  * @param {HolidayEntry} targetEntry - The payslip containing holiday pay
- * @param {{ pureOnly?: boolean, mixedGateCache?: WeakMap<HolidayEntry, boolean> }} [options]
+ * @param {{ pureOnly?: boolean }} [options]
  * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null}
  */
 export function buildRollingReference(
@@ -285,7 +270,6 @@ export function buildRollingReference(
     const timingEnabled = Boolean(timing?.enabled)
     const startedAt = timingEnabled ? globalThis.performance.now() : 0
     const pureOnly = Boolean(options.pureOnly)
-    const mixedGateCache = options.mixedGateCache ?? null
     const targetDate = targetEntry.parsedDate
     if (!targetDate) {
         if (timingEnabled) {
@@ -351,10 +335,7 @@ export function buildRollingReference(
         let countedAsMixedMonth = false
         if (isReferenceEligible(entry)) {
             shouldInclude = true
-        } else if (
-            !pureOnly &&
-            isGatePassingMixedMonth(sortedEntries, entry, mixedGateCache)
-        ) {
+        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
             shouldInclude = true
             countedAsMixedMonth = true
         }
@@ -454,7 +435,6 @@ export function buildHolidayPayFlags(entries) {
         const bTime = b.parsedDate?.getTime() ?? 0
         return aTime - bTime
     })
-    const mixedGateCache = new WeakMap()
 
     for (const entry of entries) {
         const hourly = entry.record?.payrollDoc?.payments?.hourly
@@ -487,9 +467,7 @@ export function buildHolidayPayFlags(entries) {
                   ? basicAmount / basicUnits
                   : null
 
-        const ref = buildRollingReference(sortedEntries, entry, {
-            mixedGateCache,
-        })
+        const ref = buildRollingReference(sortedEntries, entry)
         applyMixedMonthLowConfidence(entry, ref)
         const holidayMatchesBasic =
             basicRate !== null &&
@@ -499,36 +477,6 @@ export function buildHolidayPayFlags(entries) {
             ref && ref.totalBasicHours > 0
                 ? ref.totalBasicPay / ref.totalBasicHours
                 : null
-
-        /**
-         * MAINTAINER NOTE: !holidayMatchesBasic Guard
-         *
-         * Purpose: Prevents Signal B false positives in pay-rise scenarios.
-         *
-         * Scenario:
-         * - Worker receives a pay rise in month N (basic rate increases from £12 to £15)
-         * - Worker takes holiday in month N, paid at new rate (£15/hr)
-         * - Rolling reference still includes months at old rate (£12/hr)
-         * - Rolling average: £12.50/hr (lower than both current basic and holiday)
-         * - Without this guard: Signal B would fire (£12.50 vs £15 implied)
-         *
-         * Why this is wrong:
-         * The worker was correctly paid at the current payslip rate (£15), not the
-         * historical average (£12.50). Flagging this would be a false positive.
-         *
-         * The guard:
-         * If holiday rate matches same-payslip basic rate (within tolerance), don't fire
-         * Signal B. This allows the worker's current rate to be trusted as "correct"
-         * without triggering an outdated rolling average.
-         *
-         * Trade-off:
-         * This means Signal B won't catch underpayment if a worker is paid below their
-         * new rate and also below their rolling average in the same month. This is
-         * acceptable because:
-         * 1. Same-payslip rate check (Signal A) would catch this
-         * 2. If same-payslip rate is correct, rolling average is secondary
-         * 3. Conservative approach favors fewer false positives
-         */
         const rollingAvgFlagWillFire =
             ref !== null &&
             !holidayMatchesBasic &&
@@ -613,15 +561,12 @@ export function buildYearHolidayContext(entries, workerProfile) {
         const bTime = b.parsedDate?.getTime() ?? 0
         return aTime - bTime
     })
-    const mixedGateCache = new WeakMap()
 
     for (const entry of entries) {
         if (timing?.enabled) {
             timing.increment('holidayContext.rollingReferenceCalls')
         }
-        const ref = buildRollingReference(sortedEntries, entry, {
-            mixedGateCache,
-        })
+        const ref = buildRollingReference(sortedEntries, entry)
         applyMixedMonthLowConfidence(entry, ref)
 
         /** @type {any} */
@@ -677,14 +622,14 @@ export function buildYearHolidayContext(entries, workerProfile) {
  * Calculates an annual second-tier reasonableness cross-check for irregular/zero-hours hourly workers.
  * Composes confidence from the rolling reference confidence, constraining annual confidence to match.
  *
- * Returns null if baseline is missing or holiday hours are zero.
+ * Returns null if baseline is missing, holiday hours are zero, or holiday pay is zero.
  * Otherwise returns an AnnualHolidayCheckResult with full traceability.
  *
  * @param {number} totalHolidayHours - accumulated holiday hours for the leave year
  * @param {number} totalHolidayPay - accumulated holiday pay amount for the leave year
  * @param {number} recordedRemaining - recorded remaining hours as of end of leave year
  * @param {any} ref - rolling reference result from buildRollingReference (assumed to have totalBasicPay, totalBasicHours, confidence, mixedMonthsIncluded)
- * @param {{ expectedEntitlementHours?: number, hasIndependentRemainingSource?: boolean } | undefined} [options]
+ * @param {{ expectedEntitlementHours?: number, hasIndependentRemainingSource?: boolean }} [options] - optional overrides
  * @returns {AnnualHolidayCheckResult | null}
  */
 export function buildAnnualHolidayCheckResult(
@@ -700,7 +645,12 @@ export function buildAnnualHolidayCheckResult(
     }
 
     // Null/no-output cases: no baseline, zero holiday hours, zero holiday pay.
-    if (!ref || ref.totalBasicHours <= 0 || totalHolidayHours <= 0) {
+    if (
+        !ref ||
+        ref.totalBasicHours <= 0 ||
+        totalHolidayHours <= 0 ||
+        totalHolidayPay <= 0
+    ) {
         if (timing?.enabled) {
             timing.end('annualCheck.total')
         }
@@ -768,8 +718,9 @@ export function buildAnnualHolidayCheckResult(
     const isReview =
         (Math.abs(payVariancePercent) > 5 &&
             Math.abs(payVariancePercent) <= 15) ||
-        (remainingDiscrepancyForStatus > 2 &&
-            remainingDiscrepancyForStatus <= 8)
+        (hasIndependentRemainingSource &&
+            Math.abs(discrepancyHours) > 2 &&
+            Math.abs(discrepancyHours) <= 8)
     const status = isAligned ? 'aligned' : isReview ? 'review' : 'mismatch'
 
     // Build reasons list based on status.
@@ -782,8 +733,8 @@ export function buildAnnualHolidayCheckResult(
                     `(${Math.abs(payVariancePercent).toFixed(1)}%)`
             )
         }
-        if (hasIndependentRemainingSource && Math.abs(discrepancyHours) > 2) {
-            const direction = discrepancyHours < 0 ? 'fewer' : 'more'
+        if (Math.abs(discrepancyHours) > 2) {
+            const direction = discrepancyHours < 0 ? 'more' : 'fewer'
             statusReasons.push(
                 `recorded remaining ${direction} than expected by ${Math.abs(discrepancyHours).toFixed(1)} hours`
             )
@@ -807,7 +758,6 @@ export function buildAnnualHolidayCheckResult(
             expectedRemaining,
             discrepancyHours,
         },
-        remainingComparisonHasIndependentSource: hasIndependentRemainingSource,
         confidence: {
             level: annualDataQuality,
             reasons: annualReasons,
