@@ -6,7 +6,7 @@
  */
 
 /**
- * @typedef {{ id: string, label: string, section: 'identity' | 'tax' | 'validation' | 'holiday', severity: 'warning' }} FlagCatalogEntry
+ * @typedef {{ id: string, label: string, section: 'identity' | 'tax' | 'validation' | 'holiday', severity: 'notice' | 'warning' }} FlagCatalogEntry
  */
 
 /** @type {Record<string, FlagCatalogEntry>} */
@@ -29,9 +29,39 @@ export const FLAG_CATALOG = {
         section: 'tax',
         severity: 'warning',
     },
+    paye_mismatch: {
+        id: 'paye_mismatch',
+        label: 'PAYE Tax does not match the expected amount for this payslip',
+        section: 'tax',
+        severity: 'warning',
+    },
+    paye_tax_code_unsupported: {
+        id: 'paye_tax_code_unsupported',
+        label: 'This tax code is outside the standard PAYE check path and should be verified manually',
+        section: 'tax',
+        severity: 'warning',
+    },
+    paye_pay_cycle_unsupported: {
+        id: 'paye_pay_cycle_unsupported',
+        label: 'PAYE checks currently support weekly and monthly payslips only',
+        section: 'tax',
+        severity: 'warning',
+    },
     nat_ins_zero: {
         id: 'nat_ins_zero',
         label: 'National Insurance missing or £0',
+        section: 'tax',
+        severity: 'warning',
+    },
+    tax_year_thresholds_unavailable: {
+        id: 'tax_year_thresholds_unavailable',
+        label: 'Tax-year thresholds unavailable for this payslip',
+        section: 'tax',
+        severity: 'warning',
+    },
+    tax_year_thresholds_partial_support: {
+        id: 'tax_year_thresholds_partial_support',
+        label: 'Threshold-based checks are only partially supported for this payslip',
         section: 'tax',
         severity: 'warning',
     },

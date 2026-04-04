@@ -528,7 +528,8 @@ export async function processFiles(files) {
             buildRunSnapshot(
                 records,
                 this.reportContext,
-                workflowResult?.contributionData || null
+                workflowResult?.contributionData || null,
+                { includeFlagDetails: true, includePayeDiagnostics: true }
             ),
             null,
             2

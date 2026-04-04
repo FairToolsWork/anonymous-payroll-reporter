@@ -458,7 +458,11 @@ export function initPayrollApp() {
 
                 this.appVersion = getAppVersionFromDemoLink()
 
-                if (DEBUG_LEVEL === '2') {
+                if (
+                    DEBUG_LEVEL === '2' ||
+                    DEBUG_LEVEL === '3' ||
+                    DEBUG_LEVEL === '4'
+                ) {
                     this.updateAvailable = true
                 }
                 if (!Array.isArray(this.stagedFiles)) {

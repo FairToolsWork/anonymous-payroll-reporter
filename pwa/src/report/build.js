@@ -19,7 +19,7 @@ import {
 import { buildValidation } from './hourly_pay_calculations.js'
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
-    PERSONAL_ALLOWANCE_MONTHLY,
+    getTaxYearThresholdsForContext,
     RULES_VERSION,
     THRESHOLDS_VERSION,
 } from './uk_thresholds.js'
@@ -344,9 +344,16 @@ export function buildReport(
                     const totalGrossPay =
                         entry.record.payrollDoc?.thisPeriod?.totalGrossPay
                             ?.amount
+                    const thresholds = getTaxYearThresholdsForContext(
+                        entry.parsedDate,
+                        entry.yearKey
+                    )
+                    if (!thresholds) {
+                        return false
+                    }
                     return (
                         typeof totalGrossPay === 'number' &&
-                        totalGrossPay < PERSONAL_ALLOWANCE_MONTHLY
+                        totalGrossPay < thresholds.personalAllowanceMonthly
                     )
                 })
                 const contributionTotalsResult = buildContributionTotals(

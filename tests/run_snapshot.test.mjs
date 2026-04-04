@@ -50,4 +50,57 @@ describe('run snapshot regression', () => {
 
         expect(snapshot).toEqual(expected)
     })
+
+    it('includes flag detail evidence when requested for debug snapshots', async () => {
+        buildBrowserShims()
+
+        const pdfPaths = fs
+            .readdirSync(FIXTURES_DIR)
+            .filter((file) => file.endsWith('.pdf'))
+            .map((file) => path.resolve(FIXTURES_DIR, file))
+
+        const result = await runReportFromFixtures({
+            pdfPaths,
+            excelPaths: [EXCEL_FIXTURE],
+            requireEmployeeDetails: false,
+            includeReportContext: true,
+        })
+
+        const snapshot = buildRunSnapshot(
+            result.records,
+            result.reportContext,
+            result.contributionData,
+            { includeFlagDetails: true, includePayeDiagnostics: true }
+        )
+
+        const firstFlagged = snapshot.entries.find(
+            (entry) => entry.flagIds.length > 0
+        )
+        expect(firstFlagged).toBeTruthy()
+        expect(Array.isArray(firstFlagged.flagDetails)).toBe(true)
+        expect(firstFlagged.flagDetails.length).toBeGreaterThan(0)
+        expect(typeof firstFlagged.flagDetails[0].id).toBe('string')
+        expect(typeof firstFlagged.flagDetails[0].label).toBe('string')
+        expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
+        expect(snapshot.payeMismatchDiagnostics.length).toBeGreaterThan(0)
+        expect(typeof snapshot.payeMismatchDiagnostics[0].period).toBe('string')
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot.payeMismatchDiagnostics[0],
+                'expectedPayeExact'
+            )
+        ).toBe(true)
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot.payeMismatchDiagnostics[0],
+                'expectedPayeSageApprox'
+            )
+        ).toBe(true)
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot.payeMismatchDiagnostics[0],
+                'expectedPayeTableMode'
+            )
+        ).toBe(true)
+    })
 })

@@ -1919,7 +1919,15 @@ describe('buildValidation — flag evidence payload', () => {
                     misc: [],
                 },
                 taxCode: { code: '1257L' },
-                thisPeriod: { totalGrossPay: { amount: 1000 } },
+                thisPeriod: {
+                    grossForTax: { amount: 1000 },
+                    totalGrossPay: { amount: 1000 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1000,
+                    taxPaidTD: 0,
+                },
                 netPay: { amount: 1000 },
                 processDate: { date: '01/04/25 - 30/04/25' },
                 ...overrides.payrollDoc,
@@ -1927,19 +1935,167 @@ describe('buildValidation — flag evidence payload', () => {
         }
     }
 
-    it('paye_zero flag carries ruleId and numeric inputs.payeTax', () => {
+    function buildValidationEntry(record, overrides = {}) {
+        return {
+            record,
+            parsedDate: new Date('2025-04-30T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 1,
+            ...overrides,
+        }
+    }
+
+    it('paye_zero becomes a notice when standard cumulative PAYE also works out to zero', () => {
         const record = buildValidationRecord()
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'paye_zero')
         expect(flag).toBeDefined()
         expect(flag.ruleId).toBe('paye_zero')
+        expect(flag.severity).toBe('notice')
         expect(typeof flag.inputs.payeTax).toBe('number')
+        expect(typeof flag.inputs.expectedPaye).toBe('number')
+        expect(flag.inputs.expectedPaye).toBeCloseTo(0)
+    })
+
+    it('paye_zero becomes a warning when standard cumulative PAYE should have been deducted', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                thisPeriod: {
+                    grossForTax: { amount: 1500 },
+                    totalGrossPay: { amount: 1500 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1500,
+                    taxPaidTD: 0,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.severity).toBe('warning')
+        expect(flag.inputs.expectedPaye).toBeCloseTo(90.4)
+        expect(flag.label).toContain('about £90.40')
+    })
+
+    it('uses cumulative YTD values for standard 1257L checks', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 2500 },
+                    totalGrossPay: { amount: 2500 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 3000,
+                    taxPaidTD: 0,
+                },
+                processDate: { date: '01/05/25 - 31/05/25' },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-05-31T00:00:00.000Z'),
+            monthIndex: 2,
+        })
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.inputs.expectedPaye).toBeCloseTo(181)
+        expect(flag.label).toContain('Gross for Tax TD £3,000.00')
+    })
+
+    it('uses emergency non-cumulative treatment for 1257L M1/W1/X codes', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                taxCode: { code: '1257L M1' },
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 2500 },
+                    totalGrossPay: { amount: 2500 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 3000,
+                    taxPaidTD: 0,
+                },
+                processDate: { date: '01/05/25 - 31/05/25' },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-05-31T00:00:00.000Z'),
+            monthIndex: 2,
+        })
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.inputs.expectedPaye).toBeCloseTo(290.4)
+        expect(flag.label).toContain('Emergency code 1257L M1')
+    })
+
+    it('routes standard PAYE through Scotland bands for S-prefixed tax codes', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                taxCode: { code: 'S1257L' },
+                thisPeriod: {
+                    grossForTax: { amount: 2000 },
+                    totalGrossPay: { amount: 2000 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 2000,
+                    taxPaidTD: 0,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.inputs.region).toBe('scotland')
+        expect(flag.inputs.expectedPaye).toBeCloseTo(188.04)
+    })
+
+    it('emits an explicit warning for non-standard tax codes', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                taxCode: { code: 'BR' },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find(
+            (f) => f.id === 'paye_tax_code_unsupported'
+        )
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('paye_tax_code_unsupported')
+        expect(flag.label).toContain('Reported tax code: BR')
+        expect(result.lowConfidence).toBe(true)
     })
 
     it('nat_ins_zero flag carries ruleId and numeric inputs.nationalInsurance', () => {
         const record = buildValidationRecord()
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
         expect(flag).toBeDefined()
@@ -1953,7 +2109,7 @@ describe('buildValidation — flag evidence payload', () => {
                 thisPeriod: { totalGrossPay: { amount: 1000 } },
             },
         })
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
 
@@ -1968,7 +2124,7 @@ describe('buildValidation — flag evidence payload', () => {
                 thisPeriod: { totalGrossPay: { amount: 1200 } },
             },
         })
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
 
@@ -2029,7 +2185,7 @@ describe('buildValidation — flag evidence payload', () => {
                 processDate: { date: '01/04/25 - 30/04/25' },
             },
         })
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'gross_mismatch')
         expect(flag).toBeDefined()
@@ -2067,7 +2223,7 @@ describe('buildValidation — flag evidence payload', () => {
                 processDate: { date: '01/04/25 - 30/04/25' },
             },
         })
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'net_mismatch')
         expect(flag).toBeDefined()
@@ -2105,12 +2261,306 @@ describe('buildValidation — flag evidence payload', () => {
                 processDate: { date: '01/04/25 - 30/04/25' },
             },
         })
-        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'payment_line_mismatch')
         expect(flag).toBeDefined()
         expect(flag.ruleId).toBe('payment_line_mismatch')
         expect(flag.inputs.computed).toBeCloseTo(1000)
         expect(flag.inputs.reported).toBeCloseTo(500)
+    })
+
+    it('flags missing tax-year context and skips NI threshold checks when tax year is unknown', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: null,
+            yearKey: null,
+        })
+        const result = buildValidation(entry)
+        const thresholdFlag = result.flags.find(
+            (f) => f.id === 'tax_year_thresholds_unavailable'
+        )
+        const niFlag = result.flags.find((f) => f.id === 'nat_ins_zero')
+
+        expect(thresholdFlag).toBeDefined()
+        expect(thresholdFlag.label).toContain(
+            'Tax year could not be determined'
+        )
+        expect(niFlag).toBeUndefined()
+        expect(result.lowConfidence).toBe(true)
+    })
+
+    it('flags unsupported tax year and skips NI threshold checks', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('1999-04-30T00:00:00.000Z'),
+            yearKey: '1999/00',
+        })
+        const result = buildValidation(entry)
+        const thresholdFlag = result.flags.find(
+            (f) => f.id === 'tax_year_thresholds_unavailable'
+        )
+        const niFlag = result.flags.find((f) => f.id === 'nat_ins_zero')
+        const payeFlag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(thresholdFlag).toBeDefined()
+        expect(thresholdFlag.label).toContain(
+            'Tax-year thresholds are not configured'
+        )
+        expect(niFlag).toBeUndefined()
+        expect(payeFlag).toBeUndefined()
+        expect(result.lowConfidence).toBe(true)
+    })
+
+    it('flags Apr-Jun 2022 payslips as partial threshold support and skips NI threshold checks', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2022-04-30T00:00:00.000Z'),
+            yearKey: '2022/23',
+        })
+        const result = buildValidation(entry)
+        const thresholdFlag = result.flags.find(
+            (f) => f.id === 'tax_year_thresholds_partial_support'
+        )
+        const niFlag = result.flags.find((f) => f.id === 'nat_ins_zero')
+        const payeFlag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(thresholdFlag).toBeDefined()
+        expect(thresholdFlag.label).toContain('6 July 2022')
+        expect(niFlag).toBeUndefined()
+        expect(payeFlag).toBeUndefined()
+        expect(result.lowConfidence).toBe(true)
+    })
+
+    it('does not mark Jan 2023 payslips as partial threshold support', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2023-01-28T00:00:00.000Z'),
+            yearKey: '2022/23',
+        })
+        const result = buildValidation(entry)
+        const partialFlag = result.flags.find(
+            (f) => f.id === 'tax_year_thresholds_partial_support'
+        )
+
+        expect(partialFlag).toBeUndefined()
+    })
+
+    it('does not emit paye_mismatch when PAYE difference is within PAYE tolerance', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 90.9 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 1500 },
+                    totalGrossPay: { amount: 1500 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1500,
+                    taxPaidTD: 90.9,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const mismatchFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+        expect(mismatchFlag).toBeUndefined()
+    })
+
+    it('supports PAYE cumulative mode flag and exposes exact vs sage approximation', () => {
+        const previousMode = globalThis.__payeCumulativeMode
+        globalThis.__payeCumulativeMode = 'sage_approx'
+
+        try {
+            const record = buildValidationRecord({
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 0 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    taxCode: { code: 'S1257L' },
+                    thisPeriod: {
+                        grossForTax: { amount: 2525.45 },
+                        totalGrossPay: { amount: 2525.45 },
+                        payCycle: { cycle: 'Monthly' },
+                    },
+                    yearToDate: {
+                        grossForTaxTD: 13549.19,
+                        taxPaidTD: 1447.99,
+                    },
+                },
+            })
+            const entry = buildValidationEntry(record, {
+                parsedDate: new Date('2022-09-28T00:00:00.000Z'),
+                yearKey: '2022/23',
+                monthIndex: 6,
+            })
+            const result = buildValidation(entry)
+            const payeFlag = result.flags.find(
+                (f) => f.id === 'paye_mismatch' || f.id === 'paye_zero'
+            )
+
+            expect(payeFlag).toBeDefined()
+            expect(payeFlag.inputs.payeCalculationMode).toBe('cumulative')
+            expect(payeFlag.inputs.payeCumulativeMode).toBe('sage_approx')
+            expect(typeof payeFlag.inputs.expectedPayeExact).toBe('number')
+            expect(typeof payeFlag.inputs.expectedPayeSageApprox).toBe('number')
+            expect(payeFlag.inputs.expectedPaye).toBe(
+                payeFlag.inputs.expectedPayeSageApprox
+            )
+        } finally {
+            if (previousMode === undefined) {
+                delete globalThis.__payeCumulativeMode
+            } else {
+                globalThis.__payeCumulativeMode = previousMode
+            }
+        }
+    })
+
+    it('defaults PAYE cumulative mode to table_mode for Sage payroll format', () => {
+        const previousMode = globalThis.__payeCumulativeMode
+        delete globalThis.__payeCumulativeMode
+
+        try {
+            const record = buildValidationRecord({
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 168.06 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    taxCode: { code: 'S1257L' },
+                    thisPeriod: {
+                        grossForTax: { amount: 1897.5 },
+                        totalGrossPay: { amount: 1897.5 },
+                        payCycle: { cycle: 'Monthly' },
+                    },
+                    yearToDate: {
+                        grossForTaxTD: 14906,
+                        taxPaidTD: 1289.82,
+                    },
+                },
+            })
+            const entry = buildValidationEntry(record, {
+                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
+                yearKey: '2021/22',
+                monthIndex: 8,
+            })
+            const result = buildValidation(entry)
+            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+            expect(payeFlag).toBeUndefined()
+        } finally {
+            if (previousMode === undefined) {
+                delete globalThis.__payeCumulativeMode
+            } else {
+                globalThis.__payeCumulativeMode = previousMode
+            }
+        }
+    })
+
+    it('supports PAYE table_mode and still flags larger PAYE deltas', () => {
+        const previousMode = globalThis.__payeCumulativeMode
+        globalThis.__payeCumulativeMode = 'table_mode'
+
+        try {
+            const record = buildValidationRecord({
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 168.06 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    taxCode: { code: 'S1257L' },
+                    thisPeriod: {
+                        grossForTax: { amount: 1897.5 },
+                        totalGrossPay: { amount: 1897.5 },
+                        payCycle: { cycle: 'Monthly' },
+                    },
+                    yearToDate: {
+                        grossForTaxTD: 14906,
+                        taxPaidTD: 1287.22,
+                    },
+                },
+            })
+            const entry = buildValidationEntry(record, {
+                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
+                yearKey: '2021/22',
+                monthIndex: 8,
+            })
+            const result = buildValidation(entry)
+            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+            expect(payeFlag).toBeDefined()
+            expect(payeFlag.inputs.payeCumulativeMode).toBe('table_mode')
+            expect(typeof payeFlag.inputs.expectedPayeTableMode).toBe('number')
+            expect(payeFlag.inputs.expectedPaye).toBe(
+                payeFlag.inputs.expectedPayeTableMode
+            )
+        } finally {
+            if (previousMode === undefined) {
+                delete globalThis.__payeCumulativeMode
+            } else {
+                globalThis.__payeCumulativeMode = previousMode
+            }
+        }
+    })
+
+    it('suppresses PAYE mismatch for small table_mode cumulative drift', () => {
+        const previousMode = globalThis.__payeCumulativeMode
+        globalThis.__payeCumulativeMode = 'table_mode'
+
+        try {
+            const record = buildValidationRecord({
+                payrollDoc: {
+                    deductions: {
+                        payeTax: { amount: 168.06 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                    taxCode: { code: 'S1257L' },
+                    thisPeriod: {
+                        grossForTax: { amount: 1897.5 },
+                        totalGrossPay: { amount: 1897.5 },
+                        payCycle: { cycle: 'Monthly' },
+                    },
+                    yearToDate: {
+                        grossForTaxTD: 14906,
+                        taxPaidTD: 1289.82,
+                    },
+                },
+            })
+            const entry = buildValidationEntry(record, {
+                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
+                yearKey: '2021/22',
+                monthIndex: 8,
+            })
+            const result = buildValidation(entry)
+            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+            expect(payeFlag).toBeUndefined()
+        } finally {
+            if (previousMode === undefined) {
+                delete globalThis.__payeCumulativeMode
+            } else {
+                globalThis.__payeCumulativeMode = previousMode
+            }
+        }
     })
 })

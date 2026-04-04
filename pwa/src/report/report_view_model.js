@@ -9,13 +9,13 @@
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
  */
 import { formatMonthLabel } from '../parse/parser_config.js'
-import { PERSONAL_ALLOWANCE_MONTHLY } from './uk_thresholds.js'
+import { getTaxYearThresholdsForContext } from './uk_thresholds.js'
 import {
     ACCUMULATED_TOTALS_NOTE,
     buildAnnualCrossCheckDisplay,
+    buildZeroTaxAllowanceNote,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
-    ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
 import {
     formatDateLabel,
@@ -642,9 +642,26 @@ export function buildSummaryViewModel(context, meta) {
             entry.parsedDate instanceof Date &&
             entry.parsedDate.getMonth() === 3
     )
+    let lowPayThresholds =
+        /** @type {{ personalAllowanceAnnual: number, personalAllowanceMonthly: number } | null} */ (
+            null
+        )
     const hasLowPretaxPay = entries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
+        const thresholds = getTaxYearThresholdsForContext(
+            entry.parsedDate,
+            entry.yearKey
+        )
+        if (!thresholds) {
+            return false
+        }
+        const isLowPay =
+            typeof gross === 'number' &&
+            gross < thresholds.personalAllowanceMonthly
+        if (isLowPay && !lowPayThresholds) {
+            lowPayThresholds = thresholds
+        }
+        return isLowPay
     })
     if (hasAprilEntry) {
         notes.push({
@@ -655,7 +672,7 @@ export function buildSummaryViewModel(context, meta) {
     if (hasLowPretaxPay) {
         notes.push({
             id: 'zero-tax-allowance',
-            text: ZERO_TAX_ALLOWANCE_NOTE,
+            text: buildZeroTaxAllowanceNote(lowPayThresholds),
         })
     }
     return {
@@ -919,9 +936,26 @@ export function buildYearViewModel(
             entry.parsedDate instanceof Date &&
             entry.parsedDate.getMonth() === 3
     )
+    let lowPayThresholds =
+        /** @type {{ personalAllowanceAnnual: number, personalAllowanceMonthly: number } | null} */ (
+            null
+        )
     const hasLowPretaxPay = yearEntries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
+        const thresholds = getTaxYearThresholdsForContext(
+            entry.parsedDate,
+            entry.yearKey
+        )
+        if (!thresholds) {
+            return false
+        }
+        const isLowPay =
+            typeof gross === 'number' &&
+            gross < thresholds.personalAllowanceMonthly
+        if (isLowPay && !lowPayThresholds) {
+            lowPayThresholds = thresholds
+        }
+        return isLowPay
     })
     if (hasAprilEntry) {
         notes.push({
@@ -932,7 +966,7 @@ export function buildYearViewModel(
     if (hasLowPretaxPay) {
         notes.push({
             id: 'zero-tax-allowance',
-            text: ZERO_TAX_ALLOWANCE_NOTE,
+            text: buildZeroTaxAllowanceNote(lowPayThresholds),
         })
     }
     return {
