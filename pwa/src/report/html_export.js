@@ -616,11 +616,17 @@ function renderReportCell(entry) {
     const summaryDeductionRows = payslipViewModel.deductionRows.filter(
         (row) => row.group === 'summary'
     )
-    const warningItems = payslipViewModel.warnings.map(
+    const warningItems = (payslipViewModel.warningItems || []).map(
         (warning) => `<li>${warning}</li>`
     )
+    const noticeItems = (
+        payslipViewModel.noticeItems || payslipViewModel.warnings
+    ).map((notice) => `<li>${notice}</li>`)
     const warningsHtml = warningItems.length
-        ? `<div class="notice callout"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
+        ? `<div class="notice error"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
+        : ''
+    const noticesHtml = noticeItems.length
+        ? `<div class="notice callout"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
         : ''
 
     const rows = [
@@ -701,10 +707,10 @@ function renderReportCell(entry) {
         const holidayAnalysis = payslipViewModel.holidayAnalysis
         holidayAnalysisFootnote =
             `<div class="notice">` +
-            `<p><b>${holidayAnalysis.title}</b></p>` +
-            `<p><i>${holidayAnalysis.intro}</i></p>` +
-            `<ul>${holidayAnalysis.items.map((item) => `<li>${item}</li>`).join('')}</ul>` +
-            `<p>${holidayAnalysis.footer}</p>` +
+            `   <p><b>${holidayAnalysis.title}</b><br/>` +
+            `   <i>${holidayAnalysis.intro}</i></p>` +
+            `   <ul>${holidayAnalysis.items.map((item) => `<li>${item}</li>`).join('')}</ul>` +
+            `   <p>${holidayAnalysis.footer}</p>` +
             `</div>`
     }
 
@@ -736,6 +742,7 @@ function renderReportCell(entry) {
       <div class="report-cell-main">
         ${rows.join('\n')}
         ${warningsHtml}
+                ${noticesHtml}
         ${holidayAnalysisFootnote}
       </div>
       <div class="report-cell-footer">

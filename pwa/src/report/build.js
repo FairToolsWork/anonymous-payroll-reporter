@@ -45,7 +45,7 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
 /**
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
- * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
+ * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ date: Date | null, type: string, amount: number }} ContributionEntry
  * @typedef {{ entries: ContributionEntry[], sourceFiles: string[] }} ContributionData
@@ -565,8 +565,10 @@ function buildMissingMonths(yearGroups, failedDates) {
  * @returns {{ flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }}
  */
 function buildValidationSummary(entries) {
-    const flaggedEntries = entries.filter(
-        (entry) => entry.validation?.flags && entry.validation.flags.length
+    const flaggedEntries = entries.filter((entry) =>
+        (entry.validation?.flags || []).some(
+            (flag) => flag.severity !== 'notice'
+        )
     )
     const lowConfidenceEntries = entries.filter(
         (entry) => entry.validation?.lowConfidence

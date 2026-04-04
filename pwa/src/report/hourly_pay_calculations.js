@@ -2,13 +2,16 @@
  * @typedef {import("../parse/payroll.types.js").PayrollRecord} PayrollRecord
  * @typedef {import("../parse/payroll.types.js").PayrollDeductions} PayrollDeductions
  * @typedef {import("../parse/payroll.types.js").PayrollPayments} PayrollPayments
- * @typedef {{ id: string, label: string, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
+ * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult }} HourlyPayEntry
  */
 
 import { resolveFlagLabel } from './flag_catalog.js'
-import { VALIDATION_TOLERANCE } from './uk_thresholds.js'
+import {
+    NI_PRIMARY_THRESHOLD_MONTHLY,
+    VALIDATION_TOLERANCE,
+} from './uk_thresholds.js'
 
 /**
  * @param {number | null | undefined} actual
@@ -87,7 +90,7 @@ export function sumDeductionsForNetPay(record) {
  */
 export function buildValidation(entry) {
     const record = entry.record
-    const flags = []
+    const flags = /** @type {ValidationFlag[]} */ ([])
     const natInsNumber = record.employee?.natInsNumber || ''
     const taxCode = record.payrollDoc?.taxCode?.code || ''
     const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
@@ -97,6 +100,8 @@ export function buildValidation(entry) {
     const netPay = record.payrollDoc?.netPay?.amount ?? null
     const paymentsTotal = sumPayments(record)
     const deductionsTotal = sumDeductionsForNetPay(record)
+    const grossForNiContext =
+        typeof totalGrossPay === 'number' ? totalGrossPay : paymentsTotal
 
     if (!natInsNumber) {
         flags.push({
@@ -119,14 +124,36 @@ export function buildValidation(entry) {
         })
     }
     if (nationalInsurance <= 0) {
+        const isNiWarning =
+            typeof grossForNiContext === 'number' &&
+            grossForNiContext > NI_PRIMARY_THRESHOLD_MONTHLY
+        const grossPayLabel =
+            typeof grossForNiContext === 'number'
+                ? grossForNiContext.toLocaleString('en-GB', {
+                      style: 'currency',
+                      currency: 'GBP',
+                  })
+                : 'Unknown'
+        const thresholdLabel = NI_PRIMARY_THRESHOLD_MONTHLY.toLocaleString(
+            'en-GB',
+            {
+                style: 'currency',
+                currency: 'GBP',
+            }
+        )
+        const niLabel = isNiWarning
+            ? `National Insurance missing or £0 while gross pay ${grossPayLabel} is above the primary threshold of ${thresholdLabel}`
+            : `NI deductions not taken as gross pay ${grossPayLabel} is below the primary threshold of ${thresholdLabel}`
         flags.push({
             id: 'nat_ins_zero',
-            label: resolveFlagLabel(
-                'nat_ins_zero',
-                'National Insurance missing or £0'
-            ),
+            label: niLabel,
             ruleId: 'nat_ins_zero',
-            inputs: { nationalInsurance },
+            severity: isNiWarning ? 'warning' : 'notice',
+            inputs: {
+                nationalInsurance,
+                grossPay: grossForNiContext,
+                niPrimaryThresholdMonthly: NI_PRIMARY_THRESHOLD_MONTHLY,
+            },
         })
     }
 
