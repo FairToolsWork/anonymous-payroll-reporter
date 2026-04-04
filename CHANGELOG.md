@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.7.0...anonymous-payroll-reporter-v3.7.1) (2026-04-04)
+
+
+### Bug Fixes
+
+* **ci:** trigger release-please after merge-only head ([f04ba44](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/f04ba44353e62d900ff7b3d1182ccc0e181e7505))
+
 ## [3.7.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.6.0...anonymous-payroll-reporter-v3.7.0) (2026-04-04)
 
 
