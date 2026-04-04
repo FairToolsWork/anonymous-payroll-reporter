@@ -3,7 +3,7 @@
  * @typedef {import('../parse/payroll.types.js').PayrollPayItem} PayrollPayItem
  * @typedef {import('../parse/payroll.types.js').PayrollMiscDeduction} PayrollMiscDeduction
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
- * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number }} ValidationFlag
+ * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number, inputs?: { grossPay?: number, niPrimaryThresholdMonthly?: number } }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, validation?: ValidationResult, monthIndex: number, yearKey?: string | null, leaveYearKey?: string | null }} ReportEntry
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
@@ -204,8 +204,27 @@ export function buildPayslipViewModel(entry) {
 
     const noticeItems = /** @type {string[]} */ ([])
     const warningItems = /** @type {string[]} */ ([])
+    const isLegacyNiNotice = (/** @type {ValidationFlag} */ flag) => {
+        if (flag.id !== 'nat_ins_zero') {
+            return false
+        }
+        const grossPay = flag.inputs?.grossPay
+        const niPrimaryThresholdMonthly = flag.inputs?.niPrimaryThresholdMonthly
+        if (
+            typeof grossPay === 'number' &&
+            typeof niPrimaryThresholdMonthly === 'number'
+        ) {
+            return grossPay <= niPrimaryThresholdMonthly
+        }
+        const label = String(flag.label || '').toLowerCase()
+        return (
+            (label.includes('at or below the primary threshold') ||
+                label.includes('below the primary threshold')) &&
+            !label.includes('above the primary threshold')
+        )
+    }
     validation.flags.forEach((/** @type {ValidationFlag} */ flag) => {
-        if (flag.severity === 'notice') {
+        if (flag.severity === 'notice' || isLegacyNiNotice(flag)) {
             noticeItems.push(flag.label)
             return
         }

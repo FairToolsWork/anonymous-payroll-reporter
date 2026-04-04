@@ -340,6 +340,32 @@ describe('buildPayslipViewModel', () => {
             warningCount: 0,
         })
     })
+
+    it('classifies legacy NI threshold notice flags without severity as notices', () => {
+        const viewModel = buildPayslipViewModel(
+            buildEntry({
+                validation: {
+                    flags: [
+                        {
+                            id: 'nat_ins_zero',
+                            label: 'NI deductions not taken as gross pay £415.14 is at or below the primary threshold of £1,048.00',
+                            inputs: {
+                                grossPay: 415.14,
+                                niPrimaryThresholdMonthly: 1048,
+                            },
+                        },
+                    ],
+                    lowConfidence: false,
+                },
+            })
+        )
+
+        expect(viewModel.noticeItems).toEqual([
+            'NI deductions not taken as gross pay £415.14 is at or below the primary threshold of £1,048.00',
+        ])
+        expect(viewModel.warningItems).toEqual([])
+        expect(viewModel.flags.warningCount).toBe(0)
+    })
 })
 
 describe('buildSummaryViewModel', () => {

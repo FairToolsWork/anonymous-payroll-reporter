@@ -616,17 +616,32 @@ function renderReportCell(entry) {
     const summaryDeductionRows = payslipViewModel.deductionRows.filter(
         (row) => row.group === 'summary'
     )
-    const warningItems = (payslipViewModel.warningItems || []).map(
-        (warning) => `<li>${warning}</li>`
-    )
-    const noticeItems = (
+    /** @param {string} item */
+    const isNiThresholdNoticeLabel = (item) => {
+        const label = String(item || '').toLowerCase()
+        return (
+            label.includes('ni deductions not taken as gross pay') &&
+            (label.includes('at or below the primary threshold') ||
+                label.includes('below the primary threshold'))
+        )
+    }
+    const rawWarningItems = payslipViewModel.warningItems || []
+    const rawNoticeItems =
         payslipViewModel.noticeItems || payslipViewModel.warnings
-    ).map((notice) => `<li>${notice}</li>`)
+    const warningItems = rawWarningItems
+        .filter((warning) => !isNiThresholdNoticeLabel(warning))
+        .map((warning) => `<li>${warning}</li>`)
+    const noticeItems = [
+        ...rawNoticeItems,
+        ...rawWarningItems.filter((warning) =>
+            isNiThresholdNoticeLabel(warning)
+        ),
+    ].map((notice) => `<li>${notice}</li>`)
     const warningsHtml = warningItems.length
         ? `<div class="notice error"><ul class="report-warning-list">${warningItems.join('')}</ul></div>`
         : ''
     const noticesHtml = noticeItems.length
-        ? `<div class="notice error"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
+        ? `<div class="notice"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
         : ''
 
     const rows = [
