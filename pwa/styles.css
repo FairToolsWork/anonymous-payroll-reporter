@@ -89,11 +89,8 @@
     --notice-bg: hsl(42deg 68% 48% / 14%);
     --notice-text: hsl(35deg 52% 32%);
     --warning-bg: hsl(12deg 100% 95%);
-    --warning-text: hsl(16deg 62% 47%);
+    --warning-text: hsl(14deg 52% 32%);
     --warning-border: hsl(16deg 62% 47%);
-    --warning-callout-bg: hsl(0deg 68% 48% / 14%);
-    --warning-callout-text: hsl(14deg 52% 32%);
-    --warning-callout-border: hsl(42deg 68% 48% / 45%);
     --info-border: hsl(217deg 89% 61% / 60%);
     --info-bg: hsl(217deg 89% 61% / 8%);
     --info-text: hsl(217deg 58% 32%);
@@ -1126,15 +1123,9 @@ details .notice {
 }
 
 .notice.error {
-    color: var(--warning-callout-text);
+    color: var(--warning-text);
     background: var(--warning-bg);
     border-color: var(--warning-border);
-}
-
-.notice.callout {
-    border-color: var(--warning-callout-border);
-    background: var(--warning-callout-bg);
-    color: var(--warning-callout-text);
 }
 
 .notice.no-left-border {
@@ -2164,7 +2155,7 @@ p.report-footnote-row {
     padding: var(--space-12) var(--space-16);
     margin-block-end: var(--space-16);
     font-size: var(--text-sm);
-    color: var(--warning-callout-text);
+    color: var(--warning-text);
     line-height: var(--leading-normal);
 }
 

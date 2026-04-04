@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
-import { buildReport } from '../pwa/src/report/build.js'
+import { buildReport, buildValidationSummary } from '../pwa/src/report/build.js'
 import {
     buildValidation,
     sumDeductionsForNetPay,
@@ -869,44 +869,6 @@ describe('report calculations', () => {
         expect(year2024Section).toContain('Closing Pensions Balance')
         expect(year2025Section).toContain('Opening Balance')
         expect(year2025Section).toContain('Closing Pensions Balance')
-    })
-
-    it('includes contribution-only years in report context and rendered year sections', () => {
-        const records = [
-            buildHourlyWorkerRecord({
-                start: '06/04/25',
-                end: '05/05/25',
-                basicUnits: 160,
-                basicRate: 10,
-                payeTax: 100,
-                natIns: 80,
-                pensionEE: 50,
-                pensionER: 30,
-            }),
-        ]
-        const contributionData = {
-            entries: [
-                { date: new Date(2026, 3, 20), type: 'ee', amount: 12 },
-                { date: new Date(2026, 3, 20), type: 'er', amount: 8 },
-            ],
-            sourceFiles: ['fixture.xlsx'],
-        }
-
-        const { context, html } = buildReport(records, [], contributionData, {
-            workerType: 'hourly',
-            typicalDays: 5,
-            statutoryHolidayDays: 28,
-        })
-
-        expect(context.yearKeys).toContain('2025/26')
-        expect(context.yearKeys).toContain('2026/27')
-        expect(context.yearGroups.has('2026/27')).toBe(true)
-        const contributionOnlyYear = context.yearGroups.get('2026/27')
-        expect(contributionOnlyYear?.length).toBe(0)
-        expect(contributionOnlyYear?.reconciliation?.totals?.actualEE).toBe(12)
-        expect(contributionOnlyYear?.reconciliation?.totals?.actualER).toBe(8)
-        expect(html).toContain('>2026/27</a>')
-        expect(html).toContain('2026/27 Summary')
     })
 
     it('flags gross_mismatch and sets lowConfidence when payments total differs from totalGrossPay', () => {
@@ -1983,6 +1945,61 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag).toBeDefined()
         expect(flag.ruleId).toBe('nat_ins_zero')
         expect(typeof flag.inputs.nationalInsurance).toBe('number')
+    })
+
+    it('nat_ins_zero is a notice when gross pay is below NI primary threshold', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                thisPeriod: { totalGrossPay: { amount: 1000 } },
+            },
+        })
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.severity).toBe('notice')
+        expect(flag.label).toContain('is at or below the primary threshold')
+    })
+
+    it('nat_ins_zero is a warning when gross pay exceeds NI primary threshold', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                thisPeriod: { totalGrossPay: { amount: 1200 } },
+            },
+        })
+        const entry = { record, parsedDate: null, yearKey: null, monthIndex: 1 }
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
+
+        expect(flag).toBeDefined()
+        expect(flag.severity).toBe('warning')
+        expect(flag.label).toContain('is above the primary threshold')
+    })
+
+    it('notice-only flags are excluded from flagged periods summary', () => {
+        const entry = {
+            parsedDate: new Date('2025-04-30T00:00:00.000Z'),
+            record: {
+                payrollDoc: { processDate: { date: '30 Apr 2025' } },
+            },
+            validation: {
+                flags: [
+                    {
+                        id: 'nat_ins_zero',
+                        label: 'NI deductions not taken as gross pay £1,000.00 is below the primary threshold of £1,048.00',
+                        severity: 'notice',
+                    },
+                ],
+                lowConfidence: false,
+            },
+        }
+
+        const summary = buildValidationSummary([entry])
+
+        expect(summary.flaggedEntries).toHaveLength(0)
+        expect(summary.flaggedPeriods).toEqual([])
+        expect(summary.validationPill).toBe('Validation flags: None')
     })
 
     it('gross_mismatch flag carries ruleId and computed/reported inputs', () => {

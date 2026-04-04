@@ -5,7 +5,7 @@
  */
 
 /** Immutable rules snapshot identifier for audit traces. */
-export const RULES_VERSION = '2026-03-30'
+export const RULES_VERSION = '2026-04-04'
 
 /** Version marker for the current threshold set. */
 export const THRESHOLDS_VERSION = RULES_VERSION
@@ -19,6 +19,9 @@ export const PERSONAL_ALLOWANCE_ANNUAL = 12570
 export const PERSONAL_ALLOWANCE_MONTHLY = Math.round(
     PERSONAL_ALLOWANCE_ANNUAL / 12
 )
+
+/** National Insurance Primary Threshold (£) used for monthly NI context checks. */
+export const NI_PRIMARY_THRESHOLD_MONTHLY = 1048
 
 /** Default staleness threshold for contribution recency displays.
  * https://www.moneyhelper.org.uk/en/pensions-and-retirement/pension-problems/complaining-about-delays-to-your-pension#When-must-my-employer-make-my-pension-contributions-by--

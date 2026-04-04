@@ -3,7 +3,7 @@
  * @typedef {import('../parse/payroll.types.js').PayrollPayItem} PayrollPayItem
  * @typedef {import('../parse/payroll.types.js').PayrollMiscDeduction} PayrollMiscDeduction
  * @typedef {PayrollRecord & { imageData?: string | null }} PayrollRecordWithImage
- * @typedef {{ id: string, label: string, noteIndex?: number }} ValidationFlag
+ * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, validation?: ValidationResult, monthIndex: number, yearKey?: string | null, leaveYearKey?: string | null }} ReportEntry
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
@@ -202,6 +202,15 @@ export function buildPayslipViewModel(entry) {
         }
     )
 
+    const noticeItems = /** @type {string[]} */ ([])
+    const warningItems = /** @type {string[]} */ ([])
+    validation.flags.forEach((/** @type {ValidationFlag} */ flag) => {
+        if (flag.severity === 'notice') {
+            noticeItems.push(flag.label)
+            return
+        }
+        warningItems.push(flag.label)
+    })
     const warnings = validation.flags.map(
         (/** @type {ValidationFlag} */ flag) => flag.label
     )
@@ -248,10 +257,12 @@ export function buildPayslipViewModel(entry) {
         deductionRows,
         warnings,
         holidayAnalysis,
+        noticeItems,
+        warningItems,
         footerNotes,
         flags: {
             lowConfidence: Boolean(validation.lowConfidence),
-            warningCount: warnings.length,
+            warningCount: warningItems.length,
         },
     }
 }
@@ -390,7 +401,9 @@ function buildYearFlagModel(entriesForYear) {
         /** @type {Array<{ id: string, index: number, label: string }>} */ ([])
     const refsByEntry = new Map()
     entriesForYear.forEach((entry) => {
-        const entryFlags = entry.validation?.flags || []
+        const entryFlags = (entry.validation?.flags || []).filter(
+            (flag) => flag.severity !== 'notice'
+        )
         const refs = entryFlags.map((flag) => {
             let noteIndex = noteIndexById.get(flag.id)
             if (noteIndex === undefined) {
@@ -488,9 +501,10 @@ function buildSummaryYearRow(
         },
         overUnder,
         zeroReview,
-        hasFlags: entriesForYear.some(
-            (/** @type {ReportEntry} */ entry) =>
-                entry.validation?.flags?.length
+        hasFlags: entriesForYear.some((/** @type {ReportEntry} */ entry) =>
+            (entry.validation?.flags || []).some(
+                (flag) => flag.severity !== 'notice'
+            )
         ),
     }
 }

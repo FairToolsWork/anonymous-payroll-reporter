@@ -952,12 +952,23 @@ function renderPayslipPage(doc, entry) {
         )
     }
 
-    if (payslipViewModel.warnings.length) {
+    if (payslipViewModel.warningItems?.length) {
         y = writeHeading(doc, 'Warnings', y, { fontSize: FONT_BODY })
         y = writeText(
             doc,
-            payslipViewModel.warnings.map(
-                (/** @type {string} */ warning) => `• ${warning}`
+            payslipViewModel.warningItems.map(
+                (/** @type {string} */ warning) => `- ${warning}`
+            ),
+            y,
+            { fontSize: FONT_SMALL }
+        )
+    }
+    if (payslipViewModel.noticeItems?.length) {
+        y = writeHeading(doc, 'Notices', y, { fontSize: FONT_BODY })
+        y = writeText(
+            doc,
+            payslipViewModel.noticeItems.map(
+                (/** @type {string} */ notice) => `- ${notice}`
             ),
             y,
             { fontSize: FONT_SMALL }
