@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.0...anonymous-payroll-reporter-v3.8.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* **report-tests:** align flag label assertions and tax-period boundary expectations in reporting test suite ([b97a478](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b97a47856e405b9bd6d53a010d18a953ead0b28f))
+
 ## [3.8.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.7.1...anonymous-payroll-reporter-v3.8.0) (2026-04-06)
 
 
