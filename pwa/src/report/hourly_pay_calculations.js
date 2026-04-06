@@ -44,7 +44,6 @@ function buildCatalogFlag(catalogEntry, overrides = {}) {
     return {
         id: catalogEntry.id,
         label: catalogEntry.label,
-        severity: overrides.severity ?? catalogEntry.severity,
         ...overrides,
     }
 }
@@ -286,7 +285,9 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     const thresholdsForValidation = thresholds
 
     const payrollDoc = entry.record?.payrollDoc || {}
-    const payCycle = payrollDoc?.thisPeriod?.payCycle?.cycle ?? null
+    const payCycle =
+        payrollDoc?.thisPeriod?.payCycle?.cycle ||
+        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
         return {
@@ -800,10 +801,12 @@ function buildPensionValidationFlags(
         return { flags: [], lowConfidence: false }
     }
 
-    const payCycle = payrollDoc?.thisPeriod?.payCycle?.cycle ?? null
+    const payCycle =
+        payrollDoc?.thisPeriod?.payCycle?.cycle ||
+        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
-        return { flags: [], lowConfidence: true }
+        return { flags: [], lowConfidence: false }
     }
     const periodLabel = periodsPerYear === 52 ? 'weekly' : 'monthly'
 
@@ -874,7 +877,6 @@ function buildPensionValidationFlags(
                                     periodTrigger: autoEnrolmentTrigger,
                                     elapsedRunDays:
                                         timingContext.elapsedRunDays,
-                                    periodLabel,
                                 }
                             ),
                             severity: 'warning',
@@ -900,7 +902,6 @@ function buildPensionValidationFlags(
                                     periodTrigger: autoEnrolmentTrigger,
                                     elapsedRunDays:
                                         timingContext.elapsedRunDays,
-                                    periodLabel,
                                 }
                             ),
                             severity: 'notice',
@@ -924,7 +925,6 @@ function buildPensionValidationFlags(
                                     context: 'pre_enrolment_notice',
                                     earnings,
                                     periodTrigger: autoEnrolmentTrigger,
-                                    periodLabel,
                                 }
                             ),
                             severity: 'notice',
@@ -947,7 +947,6 @@ function buildPensionValidationFlags(
                                 context: 'default_warning',
                                 earnings,
                                 periodTrigger: autoEnrolmentTrigger,
-                                periodLabel,
                             }
                         ),
                         severity: 'warning',
@@ -967,7 +966,6 @@ function buildPensionValidationFlags(
                         earnings,
                         qualifyingLower,
                         autoEnrolmentTrigger,
-                        periodLabel,
                     }),
                     severity: 'notice',
                     inputs: sharedInputs,
@@ -985,7 +983,6 @@ function buildPensionValidationFlags(
                     {
                         earnings,
                         qualifyingLower,
-                        periodLabel,
                     }
                 ),
                 severity: 'notice',
@@ -1141,7 +1138,7 @@ export function buildValidation(entry) {
         flags.push({
             ...buildCatalogRuleFlag(thresholdCatalogEntry, {
                 label: warningLabel,
-                severity: thresholdCatalogEntry.severity,
+                severity: 'warning',
                 inputs: {
                     taxYearStart:
                         thresholdResolution.taxYearStart === null

@@ -642,7 +642,7 @@ describe('exportReportPdf', () => {
                 flags: [
                     {
                         id: 'pension_auto_enrolment_missing_deductions',
-                        label: 'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.',
+                        label: 'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the period auto-enrolment trigger of £833.00.',
                         severity: 'notice',
                     },
                     {
@@ -667,7 +667,7 @@ describe('exportReportPdf', () => {
             'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
         )
         expect(pdfText).toContain(
-            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'
+            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the period auto-enrolment trigger of £833.00.'
         )
     })
 })

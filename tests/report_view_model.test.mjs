@@ -395,9 +395,9 @@ describe('buildPayslipViewModel', () => {
 
     it('routes the newer pension and threshold labels into the correct callout buckets', () => {
         const pensionWarning =
-            'Pension deductions have still not appeared after 146 days, so the worker should have been auto-enrolled by now unless valid postponement was notified. Pre-tax earnings are £1,685.00, which are above the monthly auto-enrolment trigger of £833.00.'
+            'Pension deductions have still not appeared after 146 days, so the worker should have been auto-enrolled by now unless valid postponement was notified. Pre-tax earnings are £1,685.00, which are above the period auto-enrolment trigger of £833.00.'
         const pensionNotice =
-            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'
+            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the period auto-enrolment trigger of £833.00.'
         const thresholdWarning =
             'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
 

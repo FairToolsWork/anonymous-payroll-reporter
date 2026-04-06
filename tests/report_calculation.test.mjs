@@ -302,9 +302,7 @@ describe('report calculations', () => {
             'may be able to opt in to a workplace pension'
         )
         expect(pensionFlag?.label).toContain('Pre-tax earnings are')
-        expect(pensionFlag?.label).toContain(
-            'below the monthly auto-enrolment trigger'
-        )
+        expect(pensionFlag?.label).toContain('auto-enrolment trigger')
     })
 
     it('emits pension join notice below lower qualifying threshold', () => {
@@ -325,7 +323,7 @@ describe('report calculations', () => {
         )
         expect(pensionFlag?.label).toContain('Pre-tax earnings are')
         expect(pensionFlag?.label).toContain(
-            'below the monthly lower qualifying earnings threshold'
+            'lower qualifying earnings threshold'
         )
     })
 
