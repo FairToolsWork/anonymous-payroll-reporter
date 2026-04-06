@@ -57,7 +57,8 @@
             "pensionEE": 0,
             "flagIds": [
                 "nat_ins_zero",
-                "paye_zero"
+                "paye_zero",
+                "pension_join_no_mandatory_employer_contrib"
             ]
         },
         {
@@ -143,7 +144,8 @@
             "pensionEE": 0,
             "flagIds": [
                 "nat_ins_zero",
-                "paye_zero"
+                "paye_zero",
+                "pension_join_no_mandatory_employer_contrib"
             ]
         },
         {

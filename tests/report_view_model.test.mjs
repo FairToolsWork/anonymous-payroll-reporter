@@ -366,6 +366,74 @@ describe('buildPayslipViewModel', () => {
         expect(viewModel.warningItems).toEqual([])
         expect(viewModel.flags.warningCount).toBe(0)
     })
+
+    it('routes pension warning and notice flags to separate callout buckets', () => {
+        const viewModel = buildPayslipViewModel(
+            buildEntry({
+                validation: {
+                    flags: [
+                        {
+                            id: 'pension_auto_enrolment_missing_deductions',
+                            label: 'Missing deductions warning',
+                            severity: 'warning',
+                        },
+                        {
+                            id: 'pension_opt_in_possible',
+                            label: 'Opt-in notice',
+                            severity: 'notice',
+                        },
+                    ],
+                    lowConfidence: false,
+                },
+            })
+        )
+
+        expect(viewModel.warningItems).toEqual(['Missing deductions warning'])
+        expect(viewModel.noticeItems).toEqual(['Opt-in notice'])
+        expect(viewModel.flags.warningCount).toBe(1)
+    })
+
+    it('routes the newer pension and threshold labels into the correct callout buckets', () => {
+        const pensionWarning =
+            'Pension deductions have still not appeared after 146 days, so the worker should have been auto-enrolled by now unless valid postponement was notified. Pre-tax earnings are £1,685.00, which are above the monthly auto-enrolment trigger of £833.00.'
+        const pensionNotice =
+            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'
+        const thresholdWarning =
+            'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
+
+        const viewModel = buildPayslipViewModel(
+            buildEntry({
+                validation: {
+                    flags: [
+                        {
+                            id: 'pension_auto_enrolment_missing_deductions',
+                            label: pensionWarning,
+                            severity: 'warning',
+                        },
+                        {
+                            id: 'pension_auto_enrolment_missing_deductions',
+                            label: pensionNotice,
+                            severity: 'notice',
+                        },
+                        {
+                            id: 'tax_year_thresholds_partial_support',
+                            label: thresholdWarning,
+                            severity: 'warning',
+                        },
+                    ],
+                    lowConfidence: true,
+                },
+            })
+        )
+
+        expect(viewModel.warningItems).toEqual([
+            pensionWarning,
+            thresholdWarning,
+        ])
+        expect(viewModel.noticeItems).toEqual([pensionNotice])
+        expect(viewModel.flags.warningCount).toBe(2)
+        expect(viewModel.flags.lowConfidence).toBe(true)
+    })
 })
 
 describe('buildSummaryViewModel', () => {
@@ -502,6 +570,71 @@ describe('buildYearViewModel', () => {
         expect(viewModel.notes.map((note) => note.id)).toEqual([
             'april-boundary',
             'zero-tax-allowance',
+        ])
+    })
+
+    it('keeps distinct year note entries when the same flag id has different labels', () => {
+        const firstEntry = buildStageTwoEntry({
+            validation: {
+                flags: [
+                    {
+                        id: 'tax_year_thresholds_unavailable',
+                        label: 'Tax-year thresholds are not configured for 2027/28. Using 2026/27 thresholds as a temporary baseline for threshold-based checks on this payslip.',
+                        severity: 'warning',
+                    },
+                ],
+                lowConfidence: true,
+            },
+        })
+        const secondEntry = buildStageTwoEntry({
+            parsedDate: new Date('2024-05-31T00:00:00.000Z'),
+            monthIndex: 2,
+            validation: {
+                flags: [
+                    {
+                        id: 'tax_year_thresholds_unavailable',
+                        label: 'Tax-year thresholds are not configured for 2019/20. Threshold-based checks were skipped for this payslip.',
+                        severity: 'warning',
+                    },
+                ],
+                lowConfidence: true,
+            },
+        })
+        const entriesForYear = [firstEntry, secondEntry]
+        entriesForYear.reconciliation = {
+            months: new Map([
+                [1, { actualEE: 60, actualER: 40 }],
+                [2, { actualEE: 0, actualER: 0 }],
+            ]),
+            totals: { actualEE: 60, actualER: 40 },
+        }
+        const baseContext = buildStageTwoContext().context
+        const context = {
+            ...baseContext,
+            entries: [firstEntry, secondEntry],
+            yearGroups: new Map([['2024/25', entriesForYear]]),
+        }
+
+        const viewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            0
+        )
+
+        expect(viewModel.rows[0]?.flagRefs).toEqual(['1'])
+        expect(viewModel.rows[1]?.flagRefs).toEqual(['2'])
+        expect(viewModel.flagNotes).toEqual([
+            {
+                id: 'tax_year_thresholds_unavailable',
+                index: 1,
+                label: 'Tax-year thresholds are not configured for 2027/28. Using 2026/27 thresholds as a temporary baseline for threshold-based checks on this payslip.',
+            },
+            {
+                id: 'tax_year_thresholds_unavailable',
+                index: 2,
+                label: 'Tax-year thresholds are not configured for 2019/20. Threshold-based checks were skipped for this payslip.',
+            },
         ])
     })
 

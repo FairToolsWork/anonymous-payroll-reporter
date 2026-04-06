@@ -115,6 +115,51 @@ function buildHourlyWorkerRecord({
     }
 }
 
+function buildPensionValidationEntry({
+    grossPay,
+    pensionEE = 0,
+    pensionER = 0,
+    processDate = new Date('2025-05-01T00:00:00.000Z'),
+    workerProfile = null,
+}) {
+    return {
+        record: {
+            employee: { natInsNumber: 'AB123456C' },
+            payrollDoc: {
+                processDate: { date: '01/05/25 - 31/05/25' },
+                taxCode: { code: '1257L' },
+                payments: {
+                    hourly: {
+                        basic: { amount: grossPay, units: null, rate: null },
+                        holiday: { amount: 0, units: null, rate: null },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { amount: 0, units: null, rate: null },
+                    },
+                    misc: [],
+                },
+                thisPeriod: {
+                    totalGrossPay: { amount: grossPay },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: pensionEE },
+                    pensionER: { amount: pensionER },
+                    misc: [],
+                },
+                netPay: { amount: grossPay },
+            },
+        },
+        parsedDate: processDate,
+        yearKey: '2025/26',
+        monthIndex: 2,
+        workerProfile,
+    }
+}
+
 describe('report calculations', () => {
     it('builds contribution summary totals', () => {
         const entries = [
@@ -212,6 +257,286 @@ describe('report calculations', () => {
         const outsideIds = outsideValidation.flags.map((flag) => flag.id)
         expect(withinIds).not.toContain('net_mismatch')
         expect(outsideIds).toContain('net_mismatch')
+    })
+
+    it('emits pension missing-deductions warning above trigger with full audited inputs', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({ grossPay: 1200 })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        expect(pensionFlag?.ruleId).toBe(
+            'pension_auto_enrolment_missing_deductions'
+        )
+        expect(pensionFlag?.inputs).toMatchObject({
+            earnings: 1200,
+            periodAutoEnrolmentTrigger: 833,
+            periodQualifyingEarningsLower: 520,
+            periodQualifyingEarningsUpper: 4189,
+            pensionEE: 0,
+            pensionER: 0,
+            taxYearStart: 2025,
+        })
+    })
+
+    it('emits pension opt-in notice between lower threshold and trigger', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({ grossPay: 700 })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_opt_in_possible'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('notice')
+        expect(pensionFlag?.ruleId).toBe('pension_opt_in_possible')
+        expect(pensionFlag?.label).toContain(
+            'may be able to opt in to a workplace pension'
+        )
+        expect(pensionFlag?.label).toContain('Pre-tax earnings are')
+        expect(pensionFlag?.label).toContain(
+            'below the monthly auto-enrolment trigger'
+        )
+    })
+
+    it('emits pension join notice below lower qualifying threshold', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({ grossPay: 400 })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_join_no_mandatory_employer_contrib'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('notice')
+        expect(pensionFlag?.ruleId).toBe(
+            'pension_join_no_mandatory_employer_contrib'
+        )
+        expect(pensionFlag?.label).toContain(
+            'may ask to join a workplace pension'
+        )
+        expect(pensionFlag?.label).toContain('Pre-tax earnings are')
+        expect(pensionFlag?.label).toContain(
+            'below the lower qualifying earnings threshold'
+        )
+    })
+
+    it('does not downgrade above-trigger pension warning when deferment fields are provided', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-05-15T00:00:00.000Z'),
+                workerProfile: {
+                    pensionDefermentCommunicated: true,
+                    pensionDefermentStartDate: '2025-05-01',
+                    pensionDefermentEndDate: '2025-07-31',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        // Complete deferment details → no uncertainty → normal confidence
+        expect(validation.lowConfidence).toBe(false)
+    })
+
+    it('downgrades above-trigger pension warning when deferment fields are incomplete', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                workerProfile: {
+                    pensionDefermentCommunicated: true,
+                    pensionDefermentStartDate: '2025-05-01',
+                    pensionDefermentEndDate: null,
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        // Incomplete deferment dates → uncertainty about deduction expectations → low confidence
+        expect(validation.lowConfidence).toBe(true)
+    })
+
+    it('emits pension enrolment notice after 6 weeks without deductions', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-07-16T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-05-01',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('notice')
+        expect(pensionFlag?.label).toContain(
+            'Pension deductions have still not appeared after more than 6 weeks'
+        )
+        expect(pensionFlag?.inputs?.exceedsSixWeekWindow).toBe('yes')
+        expect(pensionFlag?.inputs?.exceedsThreeMonthWindow).toBe('no')
+    })
+
+    it('escalates pension enrolment notice to warning after 3 months', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-08-10T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-05-01',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        expect(pensionFlag?.label).toContain(
+            'should have been auto-enrolled by now'
+        )
+        expect(pensionFlag?.inputs?.exceedsThreeMonthWindow).toBe('yes')
+    })
+
+    it('treats Jan-31 payroll starts as crossing the 3-month window on Apr-30', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-04-30T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-01-31',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        expect(pensionFlag?.inputs?.exceedsThreeMonthWindow).toBe('yes')
+    })
+
+    it('keeps elapsed day thresholds stable across DST boundaries', () => {
+        const withinSixWeeks = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-04-11T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-03-01',
+                },
+            })
+        )
+        const beyondSixWeeks = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-04-12T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-03-01',
+                },
+            })
+        )
+        const withinFlag = withinSixWeeks.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+        const beyondFlag = beyondSixWeeks.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(withinFlag).toBeTruthy()
+        expect(beyondFlag).toBeTruthy()
+        expect(withinFlag?.severity).toBe('notice')
+        expect(beyondFlag?.severity).toBe('notice')
+        expect(withinFlag?.inputs?.elapsedRunDays).toBe(41)
+        expect(beyondFlag?.inputs?.elapsedRunDays).toBe(42)
+        expect(withinFlag?.inputs?.exceedsSixWeekWindow).toBe('no')
+        expect(beyondFlag?.inputs?.exceedsSixWeekWindow).toBe('no')
+    })
+
+    it('emits pre-enrolment pension notice before 6 weeks from payroll run start', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-05-20T00:00:00.000Z'),
+                workerProfile: {
+                    payrollRunStartDate: '2025-05-01',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('notice')
+        expect(pensionFlag?.label).toContain(
+            'Pension deductions have not yet appeared'
+        )
+        expect(pensionFlag?.label).toContain('Pre-tax earnings are')
+        expect(pensionFlag?.label).toContain(
+            'treated as a pre-enrolment period'
+        )
+        expect(pensionFlag?.label).not.toContain(
+            'Pension auto-enrolment may apply for this pay period'
+        )
+        expect(pensionFlag?.inputs?.exceedsSixWeekWindow).toBe('no')
+        expect(pensionFlag?.inputs?.exceedsThreeMonthWindow).toBe('no')
+    })
+
+    it('does not emit missing-deductions pension warning when employee pension is zero but employer contribution exists', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                pensionEE: 0,
+                pensionER: 35,
+            })
+        )
+        const pensionIds = validation.flags
+            .map((flag) => flag.id)
+            .filter((id) => id.startsWith('pension_'))
+
+        expect(pensionIds).toEqual([])
+    })
+
+    it('resolves pension threshold tax-year inputs across multiple tax years', () => {
+        const validation2024 = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2024-05-15T00:00:00.000Z'),
+            })
+        )
+        const validation2026 = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2026-05-15T00:00:00.000Z'),
+            })
+        )
+        const pension2024 = validation2024.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+        const pension2026 = validation2026.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pension2024?.inputs?.taxYearStart).toBe(2024)
+        expect(pension2026?.inputs?.taxYearStart).toBe(2026)
+        expect(pension2024?.inputs?.periodAutoEnrolmentTrigger).toBe(833)
+        expect(pension2026?.inputs?.periodAutoEnrolmentTrigger).toBe(833)
     })
 
     it('builds missing months', () => {
@@ -1350,6 +1675,36 @@ describe('workerProfile — salaried holiday day estimation', () => {
         expect(context.workerProfile.statutoryHolidayDays).toBeNull()
     })
 
+    it('buildReport preserves caller payrollRunStartDate over inferred earliest entry date', () => {
+        const records = [
+            buildHourlyWorkerRecord({
+                start: '01/05/25',
+                end: '31/05/25',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+            buildHourlyWorkerRecord({
+                start: '01/06/25',
+                end: '30/06/25',
+                basicUnits: 160,
+                basicRate: 12.5,
+                payeTax: 100,
+                natIns: 80,
+            }),
+        ]
+
+        const { context } = buildReport(records, [], null, {
+            payrollRunStartDate: '2025-03-15',
+        })
+
+        expect(context.workerProfile.payrollRunStartDate).toBe('2025-03-15')
+        expect(context.entries[0]?.workerProfile?.payrollRunStartDate).toBe(
+            '2025-03-15'
+        )
+    })
+
     it('contract-type mismatch: hourly profile with salary payslip triggers warning', () => {
         const records = [
             buildSalaryRecord({ basicSalary: 3000, holidaySalary: 0 }),
@@ -2312,6 +2667,31 @@ describe('buildValidation — flag evidence payload', () => {
         expect(result.lowConfidence).toBe(true)
     })
 
+    it('flags future unsupported tax year but uses prior thresholds for checks', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2027-04-30T00:00:00.000Z'),
+            yearKey: '2027/28',
+        })
+        const result = buildValidation(entry)
+        const thresholdFlag = result.flags.find(
+            (f) => f.id === 'tax_year_thresholds_unavailable'
+        )
+        const niFlag = result.flags.find((f) => f.id === 'nat_ins_zero')
+        const payeFlag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(thresholdFlag).toBeDefined()
+        expect(thresholdFlag.label).toContain(
+            'Tax-year thresholds are not configured for 2027/28'
+        )
+        expect(thresholdFlag.label).toContain('Using 2026/27 thresholds')
+        expect(thresholdFlag.inputs.taxYearStart).toBe(2027)
+        expect(thresholdFlag.inputs.fallbackTaxYearStart).toBe(2026)
+        expect(niFlag).toBeDefined()
+        expect(payeFlag).toBeDefined()
+        expect(result.lowConfidence).toBe(true)
+    })
+
     it('flags Apr-Jun 2022 payslips as partial threshold support and skips NI threshold checks', () => {
         const record = buildValidationRecord()
         const entry = buildValidationEntry(record, {
@@ -2330,6 +2710,25 @@ describe('buildValidation — flag evidence payload', () => {
         expect(niFlag).toBeUndefined()
         expect(payeFlag).toBeUndefined()
         expect(result.lowConfidence).toBe(true)
+    })
+
+    it('continues pension missing-deductions warning in Apr 2022 partial-support periods', () => {
+        const record = buildValidationRecord()
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2022-04-30T00:00:00.000Z'),
+            yearKey: '2022/23',
+            workerProfile: {
+                payrollRunStartDate: '2021-09-04',
+            },
+        })
+        const result = buildValidation(entry)
+        const pensionFlag = result.flags.find(
+            (f) => f.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeDefined()
+        expect(pensionFlag?.severity).toBe('warning')
+        expect(pensionFlag?.inputs?.exceedsThreeMonthWindow).toBe('yes')
     })
 
     it('does not mark Jan 2023 payslips as partial threshold support', () => {

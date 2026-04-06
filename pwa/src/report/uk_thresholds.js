@@ -523,9 +523,31 @@ export function getPayPeriodIndexForDate(date, periodsPerYear) {
  * @typedef {{
  *   thresholds: TaxYearThresholds | null,
  *   taxYearStart: number | null,
- *   status: 'ok' | 'unknown-tax-year' | 'unsupported-tax-year' | 'partial-threshold-support'
+ *   status: 'ok' | 'unknown-tax-year' | 'unsupported-tax-year' | 'partial-threshold-support' | 'fallback-to-previous-tax-year',
+ *   fallbackTaxYearStart: number | null,
  * }} TaxYearThresholdResolution
  */
+
+/**
+ * @param {number} requestedTaxYearStart
+ * @returns {number | null}
+ */
+function getPreviousAvailableTaxYearStart(requestedTaxYearStart) {
+    if (!Number.isFinite(requestedTaxYearStart)) {
+        return null
+    }
+    const availableYears = Object.keys(TAX_YEAR_THRESHOLDS)
+        .map((year) => Number.parseInt(year, 10))
+        .filter((year) => Number.isFinite(year))
+        .sort((a, b) => b - a)
+
+    for (const year of availableYears) {
+        if (year < requestedTaxYearStart) {
+            return year
+        }
+    }
+    return null
+}
 
 /**
  * Resolves thresholds for a report context and returns explicit status when unavailable.
@@ -544,14 +566,34 @@ export function resolveTaxYearThresholdsForContext(date, yearKey = null) {
                     thresholds,
                     taxYearStart: dateStart,
                     status: 'partial-threshold-support',
+                    fallbackTaxYearStart: null,
                 }
             }
-            return { thresholds, taxYearStart: dateStart, status: 'ok' }
+            return {
+                thresholds,
+                taxYearStart: dateStart,
+                status: 'ok',
+                fallbackTaxYearStart: null,
+            }
+        }
+        const fallbackStart = getPreviousAvailableTaxYearStart(dateStart)
+        if (fallbackStart !== null) {
+            const fallbackThresholds =
+                getTaxYearThresholdsByStartYear(fallbackStart)
+            if (fallbackThresholds) {
+                return {
+                    thresholds: fallbackThresholds,
+                    taxYearStart: dateStart,
+                    status: 'fallback-to-previous-tax-year',
+                    fallbackTaxYearStart: fallbackStart,
+                }
+            }
         }
         return {
             thresholds: null,
             taxYearStart: dateStart,
             status: 'unsupported-tax-year',
+            fallbackTaxYearStart: null,
         }
     }
 
@@ -559,12 +601,31 @@ export function resolveTaxYearThresholdsForContext(date, yearKey = null) {
     if (keyStart !== null) {
         const thresholds = getTaxYearThresholdsByStartYear(keyStart)
         if (thresholds) {
-            return { thresholds, taxYearStart: keyStart, status: 'ok' }
+            return {
+                thresholds,
+                taxYearStart: keyStart,
+                status: 'ok',
+                fallbackTaxYearStart: null,
+            }
+        }
+        const fallbackStart = getPreviousAvailableTaxYearStart(keyStart)
+        if (fallbackStart !== null) {
+            const fallbackThresholds =
+                getTaxYearThresholdsByStartYear(fallbackStart)
+            if (fallbackThresholds) {
+                return {
+                    thresholds: fallbackThresholds,
+                    taxYearStart: keyStart,
+                    status: 'fallback-to-previous-tax-year',
+                    fallbackTaxYearStart: fallbackStart,
+                }
+            }
         }
         return {
             thresholds: null,
             taxYearStart: keyStart,
             status: 'unsupported-tax-year',
+            fallbackTaxYearStart: null,
         }
     }
 
@@ -572,6 +633,7 @@ export function resolveTaxYearThresholdsForContext(date, yearKey = null) {
         thresholds: null,
         taxYearStart: null,
         status: 'unknown-tax-year',
+        fallbackTaxYearStart: null,
     }
 }
 

@@ -1,10 +1,12 @@
 import autoTable from 'jspdf-autotable'
+import { TextDecoder, TextEncoder } from 'node:util'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('jspdf', () => {
     class MockJsPDF {
         constructor() {
             this._page = 1
+            this._textLog = []
             this.internal = {
                 pageSize: { getWidth: () => 595, getHeight: () => 842 },
             }
@@ -14,7 +16,13 @@ vi.mock('jspdf', () => {
         setTextColor() {}
         setDrawColor() {}
         setLineWidth() {}
-        text() {}
+        text(value) {
+            if (Array.isArray(value)) {
+                this._textLog.push(...value.map((item) => String(item)))
+                return
+            }
+            this._textLog.push(String(value))
+        }
         rect() {}
         addPage() {
             this._page += 1
@@ -39,7 +47,7 @@ vi.mock('jspdf', () => {
         }
         addImage() {}
         output() {
-            return new ArrayBuffer(8)
+            return new TextEncoder().encode(this._textLog.join('\n')).buffer
         }
     }
     return { jsPDF: MockJsPDF }
@@ -363,6 +371,7 @@ const validContext = {
 let pdfExport
 /** @type {(value: any) => string} */
 let sanitize
+const decodePdfText = (bytes) => new TextDecoder().decode(bytes)
 beforeAll(async () => {
     const mod = await import('../pwa/src/report/pdf_export.js')
     pdfExport = mod.exportReportPdf
@@ -600,6 +609,67 @@ describe('exportReportPdf', () => {
         }
         const result = await pdfExport(contextWithFlags, validMeta)
         expect(result).toBeInstanceOf(Uint8Array)
+    })
+
+    it('renders current long pension and threshold flag labels on payslip page', async () => {
+        const entry = {
+            parsedDate: new Date('2022-04-28'),
+            monthIndex: 1,
+            yearKey: '2022/23',
+            record: {
+                employee: { natInsNumber: '' },
+                payrollDoc: {
+                    processDate: { date: '28 Apr 2022' },
+                    payments: {
+                        hourly: {
+                            basic: { units: 0, rate: 0, amount: 0 },
+                            holiday: { units: 0, rate: 0, amount: 0 },
+                        },
+                        salary: { basic: { amount: 0 }, holiday: { units: 0 } },
+                        misc: [],
+                    },
+                    deductions: {
+                        payeTax: { amount: 0 },
+                        natIns: { amount: 0 },
+                        pensionEE: { amount: 0 },
+                        pensionER: { amount: 0 },
+                        misc: [],
+                    },
+                },
+                imageData: null,
+            },
+            validation: {
+                flags: [
+                    {
+                        id: 'pension_auto_enrolment_missing_deductions',
+                        label: 'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.',
+                        severity: 'notice',
+                    },
+                    {
+                        id: 'tax_year_thresholds_partial_support',
+                        label: 'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.',
+                        severity: 'warning',
+                    },
+                ],
+                lowConfidence: true,
+            },
+        }
+        const contextWithFlags = {
+            ...validContext,
+            entries: [entry],
+        }
+        const result = await pdfExport(contextWithFlags, validMeta)
+        expect(result).toBeInstanceOf(Uint8Array)
+        const pdfText = decodePdfText(result)
+        expect(pdfText).toContain('Payslip details - 28 Apr 2022')
+        expect(pdfText).toContain('Warnings')
+        expect(pdfText).toContain('Notices')
+        expect(pdfText).toContain(
+            'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
+        )
+        expect(pdfText).toContain(
+            'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'
+        )
     })
 })
 

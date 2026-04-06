@@ -4,10 +4,10 @@
  * @typedef {import("../parse/payroll.types.js").PayrollPayments} PayrollPayments
  * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', ruleId?: string, inputs?: Record<string, number | string | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
- * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult }} HourlyPayEntry
+ * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, workerProfile?: { payrollRunStartDate?: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null } | null }} HourlyPayEntry
  */
 
-import { resolveFlagLabel } from './flag_catalog.js'
+import { FLAG_CATALOG, formatFlagLabel } from './flag_catalog.js'
 import { ACTIVE_PAYROLL_FORMAT } from '../parse/active_format.js'
 import {
     getIncomeTaxBandsForRegion,
@@ -20,20 +20,6 @@ import {
     resolveTaxYearThresholdsForContext,
     VALIDATION_TOLERANCE,
 } from './uk_thresholds.js'
-
-/**
- * @param {number | null | undefined} amount
- * @returns {string}
- */
-function formatCurrency(amount) {
-    if (!Number.isFinite(amount)) {
-        return 'Unknown'
-    }
-    return Number(amount).toLocaleString('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-    })
-}
 
 /**
  * @param {number} value
@@ -49,9 +35,63 @@ function roundMoney(value) {
  */
 const TABLE_MODE_PAYE_VALIDATION_TOLERANCE = 2
 
+/**
+ * @param {{ id: string, label: string, severity: 'notice' | 'warning' }} catalogEntry
+ * @param {Partial<ValidationFlag>} [overrides]
+ * @returns {ValidationFlag}
+ */
+function buildCatalogFlag(catalogEntry, overrides = {}) {
+    return {
+        id: catalogEntry.id,
+        label: catalogEntry.label,
+        ...overrides,
+    }
+}
+
+/**
+ * @param {{ id: string, label: string, severity: 'notice' | 'warning' }} catalogEntry
+ * @param {Partial<ValidationFlag>} [overrides]
+ * @returns {ValidationFlag}
+ */
+function buildCatalogRuleFlag(catalogEntry, overrides = {}) {
+    return buildCatalogFlag(catalogEntry, {
+        ruleId: catalogEntry.id,
+        severity: catalogEntry.severity,
+        ...overrides,
+    })
+}
+
 /** @type {Record<string, PayeCumulativeMode>} */
 const PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT = {
     'sage-uk': 'table_mode',
+}
+
+/**
+ * @param {ReturnType<typeof resolveTaxYearThresholdsForContext>} thresholdResolution
+ * @returns {boolean}
+ */
+function hasUsableThresholds(thresholdResolution) {
+    return (
+        !!thresholdResolution?.thresholds &&
+        (thresholdResolution.status === 'ok' ||
+            thresholdResolution.status === 'fallback-to-previous-tax-year')
+    )
+}
+
+/**
+ * Pension auto-enrolment checks can continue in Apr-Jun 2022 using available
+ * annual trigger/qualifying thresholds even when NI/PAYE are marked partial.
+ *
+ * @param {ReturnType<typeof resolveTaxYearThresholdsForContext>} thresholdResolution
+ * @returns {boolean}
+ */
+function hasUsablePensionThresholds(thresholdResolution) {
+    return (
+        !!thresholdResolution?.thresholds &&
+        (thresholdResolution.status === 'ok' ||
+            thresholdResolution.status === 'fallback-to-previous-tax-year' ||
+            thresholdResolution.status === 'partial-threshold-support')
+    )
 }
 
 /**
@@ -232,12 +272,17 @@ function calculatePeriodOnlyPaye(
  */
 function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     const thresholds = thresholdResolution.thresholds
-    if (!thresholds || thresholdResolution.status !== 'ok') {
+    if (!hasUsableThresholds(thresholdResolution)) {
         return {
             flag: null,
             lowConfidence: thresholdResolution.status !== 'ok',
         }
     }
+    // hasUsableThresholds guarantees thresholds is present for usable statuses.
+    if (!thresholds) {
+        throw new Error('Invariant violated: usable thresholds missing')
+    }
+    const thresholdsForValidation = thresholds
 
     const payrollDoc = entry.record?.payrollDoc || {}
     const payCycle =
@@ -246,16 +291,23 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
         return {
-            flag: {
-                id: 'paye_pay_cycle_unsupported',
-                label: `${resolveFlagLabel('paye_pay_cycle_unsupported')} Reported pay cycle: ${String(payCycle || 'Unknown')}.`,
-                ruleId: 'paye_pay_cycle_unsupported',
-                severity: 'warning',
-                inputs: {
-                    payCycle: String(payCycle || 'unknown'),
-                    payeTax,
-                },
-            },
+            flag: buildCatalogRuleFlag(
+                FLAG_CATALOG.paye_pay_cycle_unsupported,
+                {
+                    label: formatFlagLabel(
+                        FLAG_CATALOG.paye_pay_cycle_unsupported.id,
+                        {
+                            context: 'reported_pay_cycle',
+                            payCycle: String(payCycle || 'Unknown'),
+                        }
+                    ),
+                    severity: 'warning',
+                    inputs: {
+                        payCycle: String(payCycle || 'unknown'),
+                        payeTax,
+                    },
+                }
+            ),
             lowConfidence: true,
         }
     }
@@ -266,29 +318,33 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
             return { flag: null, lowConfidence: false }
         }
         return {
-            flag: {
-                id: 'paye_zero',
-                label: 'PAYE Tax is £0 and the tax code is missing, so the exact PAYE check could not be completed for this payslip.',
-                ruleId: 'paye_zero',
+            flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_zero, {
+                label: formatFlagLabel(FLAG_CATALOG.paye_zero.id, {
+                    context: 'missing_tax_code',
+                }),
                 severity: 'warning',
                 inputs: {
                     payeTax,
                     expectedPaye: null,
                     taxCode: null,
                 },
-            },
+            }),
             lowConfidence: true,
         }
     }
     if (!parsedTaxCode.isStandardCode) {
         return {
-            flag: {
-                id: 'paye_tax_code_unsupported',
-                label: `${resolveFlagLabel('paye_tax_code_unsupported')} Reported tax code: ${parsedTaxCode.normalizedCode || 'Unknown'}.`,
-                ruleId: 'paye_tax_code_unsupported',
+            flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_tax_code_unsupported, {
+                label: formatFlagLabel(
+                    FLAG_CATALOG.paye_tax_code_unsupported.id,
+                    {
+                        context: 'reported_tax_code',
+                        taxCode: parsedTaxCode.normalizedCode || 'Unknown',
+                    }
+                ),
                 severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
-            },
+            }),
             lowConfidence: true,
         }
     }
@@ -299,13 +355,16 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     )
     if (!bandSelection) {
         return {
-            flag: {
-                id: 'paye_tax_code_unsupported',
-                label: 'PAYE region could not be determined from the tax code, so standard PAYE checks were skipped.',
-                ruleId: 'paye_tax_code_unsupported',
+            flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_tax_code_unsupported, {
+                label: formatFlagLabel(
+                    FLAG_CATALOG.paye_tax_code_unsupported.id,
+                    {
+                        context: 'region_unknown',
+                    }
+                ),
                 severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
-            },
+            }),
             lowConfidence: true,
         }
     }
@@ -315,13 +374,19 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         : getPayPeriodIndexForDate(entry.parsedDate, periodsPerYear)
     if (periodIndex === null) {
         return {
-            flag: {
-                id: 'paye_pay_cycle_unsupported',
-                label: 'PAYE period position could not be determined for this payslip, so standard PAYE checks were skipped.',
-                ruleId: 'paye_pay_cycle_unsupported',
-                severity: 'warning',
-                inputs: { payCycle: String(payCycle || 'unknown') },
-            },
+            flag: buildCatalogRuleFlag(
+                FLAG_CATALOG.paye_pay_cycle_unsupported,
+                {
+                    label: formatFlagLabel(
+                        FLAG_CATALOG.paye_pay_cycle_unsupported.id,
+                        {
+                            context: 'period_position_unknown',
+                        }
+                    ),
+                    severity: 'warning',
+                    inputs: { payCycle: String(payCycle || 'unknown') },
+                }
+            ),
             lowConfidence: true,
         }
     }
@@ -332,7 +397,7 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         sumPayments(entry.record)
     const grossForTaxTD = payrollDoc?.yearToDate?.grossForTaxTD ?? null
     const taxPaidTD = payrollDoc?.yearToDate?.taxPaidTD ?? null
-    const annualAllowance = thresholds.personalAllowanceAnnual
+    const annualAllowance = thresholdsForValidation.personalAllowanceAnnual
     const completedPeriods = parsedTaxCode.isEmergency ? 1 : periodIndex
     const payeCumulativeMode = resolvePayeCumulativeMode()
     const periodOnlyPaye = calculatePeriodOnlyPaye(
@@ -371,7 +436,12 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     if (parsedTaxCode.isEmergency) {
         calculationMode = 'emergency-period-only'
         expectedPaye = periodOnlyPaye.expectedPaye
-        explanation = `Emergency code ${parsedTaxCode.normalizedCode} uses period-only PAYE with ${formatCurrency(periodOnlyPaye.allowanceThisPeriod)} tax-free pay this ${String(payCycle).toLowerCase()} period.`
+        explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
+            context: 'explanation_emergency',
+            taxCode: parsedTaxCode.normalizedCode,
+            periodTrigger: periodOnlyPaye.allowanceThisPeriod,
+            payCycle: String(payCycle),
+        })
     } else {
         if (!Number.isFinite(grossForTaxTD) || !Number.isFinite(taxPaidTD)) {
             if (payeTax > 0) {
@@ -379,7 +449,10 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
             }
             calculationMode = 'period-only-approximation'
             expectedPaye = periodOnlyPaye.expectedPaye
-            explanation = `Gross for Tax TD and Tax Paid TD are missing, so this uses a period-only approximation with ${formatCurrency(periodOnlyPaye.allowanceThisPeriod)} tax-free pay.`
+            explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
+                context: 'explanation_period_only',
+                periodTrigger: periodOnlyPaye.allowanceThisPeriod,
+            })
         } else {
             const cumulativeAllowanceExact = getPeriodizedAnnualAmountByMode(
                 annualAllowance,
@@ -458,7 +531,13 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 expectedTaxYtd = expectedTaxYtdExact
                 expectedPaye = expectedPayeExact
             }
-            explanation = `Cumulative PAYE for ${parsedTaxCode.normalizedCode} uses Gross for Tax TD ${formatCurrency(grossForTaxTD)} less cumulative allowance ${formatCurrency(cumulativeAllowance)} in the ${bandSelection.region} tax bands.`
+            explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
+                context: 'explanation_cumulative',
+                taxCode: parsedTaxCode.normalizedCode,
+                grossForTaxTD,
+                cumulativeAllowance,
+                region: bandSelection.region,
+            })
         }
     }
 
@@ -482,21 +561,21 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     const isZeroFlag = payeTax <= 0
     const isSignificantMismatch = Math.abs(difference) > payeTolerance
     const severity = isSignificantMismatch ? 'warning' : 'notice'
-    const discrepancyDirection =
-        difference < 0
-            ? 'under the expected PAYE amount'
-            : 'above the expected PAYE amount'
-    const label = isZeroFlag
-        ? isSignificantMismatch
-            ? `PAYE Tax is ${formatCurrency(payeTax)} but standard PAYE for this payslip is about ${formatCurrency(expectedPaye)}. ${explanation}`
-            : `PAYE Tax is ${formatCurrency(payeTax)} and standard PAYE also works out to about ${formatCurrency(expectedPaye)} for this payslip. ${explanation}`
-        : `PAYE Tax ${formatCurrency(payeTax)} is ${formatCurrency(Math.abs(difference))} ${discrepancyDirection}; standard PAYE is about ${formatCurrency(expectedPaye)}. ${explanation}`
+    const label = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
+        context: 'zero_or_mismatch',
+        payeTax,
+        expectedPaye,
+        payeDifference: difference,
+        isSignificantMismatch,
+        explanation,
+    })
 
+    const payeCatalogEntry = isZeroFlag
+        ? FLAG_CATALOG.paye_zero
+        : FLAG_CATALOG.paye_mismatch
     return {
-        flag: {
-            id: isZeroFlag ? 'paye_zero' : 'paye_mismatch',
+        flag: buildCatalogRuleFlag(payeCatalogEntry, {
             label,
-            ruleId: isZeroFlag ? 'paye_zero' : 'paye_mismatch',
             severity,
             inputs: {
                 payeTax,
@@ -528,8 +607,387 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 expectedPayeSageApprox,
                 expectedPayeTableMode,
             },
-        },
+        }),
         lowConfidence: false,
+    }
+}
+
+/**
+ * @param {Date | null | undefined} date
+ * @returns {Date | null}
+ */
+function normalizeToDateOnly(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return null
+    }
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/**
+ * @param {string | null | undefined} value
+ * @returns {Date | null}
+ */
+function parseIsoDateInput(value) {
+    const text = String(value || '').trim()
+    if (!text) {
+        return null
+    }
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!match) {
+        return null
+    }
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    const parsed = new Date(year, month - 1, day)
+    if (
+        Number.isNaN(parsed.getTime()) ||
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+    ) {
+        return null
+    }
+    return parsed
+}
+
+/**
+ * @param {Date} date
+ * @param {number} months
+ * @returns {Date}
+ */
+function addMonths(date, months) {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const day = date.getDate()
+    const totalMonthIndex = month + months
+    const targetYear = year + Math.floor(totalMonthIndex / 12)
+    const targetMonth = ((totalMonthIndex % 12) + 12) % 12
+    const lastDayOfTargetMonth = new Date(
+        targetYear,
+        targetMonth + 1,
+        0
+    ).getDate()
+    return new Date(
+        targetYear,
+        targetMonth,
+        Math.min(day, lastDayOfTargetMonth)
+    )
+}
+
+/**
+ * @param {Date} fromDate
+ * @param {Date} toDate
+ * @returns {number}
+ */
+function getElapsedDays(fromDate, toDate) {
+    const fromUtcDay = Date.UTC(
+        fromDate.getFullYear(),
+        fromDate.getMonth(),
+        fromDate.getDate()
+    )
+    const toUtcDay = Date.UTC(
+        toDate.getFullYear(),
+        toDate.getMonth(),
+        toDate.getDate()
+    )
+    return Math.floor((toUtcDay - fromUtcDay) / (24 * 60 * 60 * 1000))
+}
+
+/**
+ * @param {HourlyPayEntry} entry
+ * @returns {{
+ *   payrollRunStartDate: string | null,
+ *   elapsedRunDays: number | null,
+ *   exceedsSixWeekWindow: boolean,
+ *   exceedsThreeMonthWindow: boolean,
+ * }}
+ */
+function resolvePensionTimingContext(entry) {
+    const profile = entry.workerProfile || null
+    const payrollRunStartDate =
+        typeof profile?.payrollRunStartDate === 'string' &&
+        profile.payrollRunStartDate.trim()
+            ? profile.payrollRunStartDate.trim()
+            : null
+    const parsedRunStartDate = parseIsoDateInput(payrollRunStartDate)
+    const parsedEntryDate = normalizeToDateOnly(entry.parsedDate)
+    const hasElapsedRunTiming =
+        !!parsedRunStartDate &&
+        !!parsedEntryDate &&
+        parsedEntryDate.getTime() >= parsedRunStartDate.getTime()
+    const elapsedRunDays = hasElapsedRunTiming
+        ? getElapsedDays(parsedRunStartDate, parsedEntryDate)
+        : null
+    const exceedsSixWeekWindow = elapsedRunDays !== null && elapsedRunDays > 42
+    const exceedsThreeMonthWindow =
+        hasElapsedRunTiming &&
+        parsedEntryDate.getTime() >= addMonths(parsedRunStartDate, 3).getTime()
+    return {
+        payrollRunStartDate,
+        elapsedRunDays,
+        exceedsSixWeekWindow,
+        exceedsThreeMonthWindow,
+    }
+}
+
+/**
+ * Checks if pension deferment fields create uncertainty about deduction expectations.
+ * Returns true if deferment is communicated but dates are incomplete.
+ * Complete dates provide clear expectations about when deductions may not appear.
+ * @param {HourlyPayEntry} entry
+ * @returns {boolean}
+ */
+function isDefermentProblematicForPension(entry) {
+    const profile = entry.workerProfile || null
+    const pensionDefermentCommunicated =
+        profile?.pensionDefermentCommunicated ?? false
+    const startDateStr = profile?.pensionDefermentStartDate
+    const endDateStr = profile?.pensionDefermentEndDate
+
+    if (!pensionDefermentCommunicated) {
+        return false
+    }
+
+    // Incomplete deferment dates → uncertainty about deduction expectations
+    // Complete dates provide clear timeline, even if entry is within the deferment period
+    const parsedStartDate = parseIsoDateInput(startDateStr)
+    const parsedEndDate = parseIsoDateInput(endDateStr)
+
+    if (!parsedStartDate || !parsedEndDate) {
+        return true
+    }
+
+    return false
+}
+
+/**
+ * @param {HourlyPayEntry} entry
+ * @param {ReturnType<typeof resolveTaxYearThresholdsForContext>} thresholdResolution
+ * @param {number} paymentsTotal
+ * @returns {{ flags: ValidationFlag[], lowConfidence: boolean }}
+ */
+function buildPensionValidationFlags(
+    entry,
+    thresholdResolution,
+    paymentsTotal
+) {
+    // Deferment issues reduce confidence in pension deduction expectations
+    const defermentLowConfidence = isDefermentProblematicForPension(entry)
+    const thresholds = thresholdResolution.thresholds
+    if (!hasUsablePensionThresholds(thresholdResolution)) {
+        return { flags: [], lowConfidence: false }
+    }
+    // hasUsablePensionThresholds guarantees thresholds is present for usable statuses.
+    if (!thresholds) {
+        throw new Error('Invariant violated: usable pension thresholds missing')
+    }
+    const thresholdsForValidation = thresholds
+
+    const payrollDoc = entry.record?.payrollDoc || {}
+    const earnings =
+        payrollDoc?.thisPeriod?.totalGrossPay?.amount ??
+        (Number.isFinite(paymentsTotal)
+            ? paymentsTotal
+            : sumPayments(entry.record))
+    if (!Number.isFinite(earnings)) {
+        return { flags: [], lowConfidence: false }
+    }
+
+    const pensionEE = payrollDoc?.deductions?.pensionEE?.amount || 0
+    const pensionER = payrollDoc?.deductions?.pensionER?.amount || 0
+    const hasPensionDeductionEvidence = pensionEE > 0 || pensionER > 0
+    if (hasPensionDeductionEvidence) {
+        return { flags: [], lowConfidence: false }
+    }
+
+    const payCycle =
+        payrollDoc?.thisPeriod?.payCycle?.cycle ||
+        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
+    const periodsPerYear = getPayPeriodsPerYear(payCycle)
+    if (periodsPerYear === null) {
+        return { flags: [], lowConfidence: false }
+    }
+
+    const autoEnrolmentTrigger = getPeriodizedAnnualAmount(
+        thresholdsForValidation.pensionAutoEnrolmentTriggerAnnual,
+        1,
+        periodsPerYear
+    )
+    const qualifyingLower = getPeriodizedAnnualAmount(
+        thresholdsForValidation.pensionQualifyingEarningsLowerAnnual,
+        1,
+        periodsPerYear
+    )
+    const qualifyingUpper = getPeriodizedAnnualAmount(
+        thresholdsForValidation.pensionQualifyingEarningsUpperAnnual,
+        1,
+        periodsPerYear
+    )
+
+    const timingContext = resolvePensionTimingContext(entry)
+    const sharedInputs = {
+        earnings,
+        periodAutoEnrolmentTrigger: autoEnrolmentTrigger,
+        periodQualifyingEarningsLower: qualifyingLower,
+        periodQualifyingEarningsUpper: qualifyingUpper,
+        annualAutoEnrolmentTrigger:
+            thresholdsForValidation.pensionAutoEnrolmentTriggerAnnual,
+        annualQualifyingEarningsLower:
+            thresholdsForValidation.pensionQualifyingEarningsLowerAnnual,
+        annualQualifyingEarningsUpper:
+            thresholdsForValidation.pensionQualifyingEarningsUpperAnnual,
+        pensionEE,
+        pensionER,
+        payrollRunStartDate: timingContext.payrollRunStartDate,
+        elapsedRunDays:
+            timingContext.elapsedRunDays === null
+                ? null
+                : timingContext.elapsedRunDays,
+        exceedsSixWeekWindow: timingContext.exceedsSixWeekWindow ? 'yes' : 'no',
+        exceedsThreeMonthWindow: timingContext.exceedsThreeMonthWindow
+            ? 'yes'
+            : 'no',
+        taxYearStart:
+            thresholdResolution.taxYearStart === null
+                ? null
+                : thresholdResolution.taxYearStart,
+    }
+
+    const pensionAutoEnrolmentMissingDeductionsCatalog =
+        FLAG_CATALOG.pension_auto_enrolment_missing_deductions
+    const pensionOptInPossibleCatalog = FLAG_CATALOG.pension_opt_in_possible
+    const pensionJoinNoMandatoryEmployerContribCatalog =
+        FLAG_CATALOG.pension_join_no_mandatory_employer_contrib
+
+    if (earnings >= autoEnrolmentTrigger) {
+        if (timingContext.exceedsThreeMonthWindow) {
+            return {
+                flags: [
+                    buildCatalogRuleFlag(
+                        pensionAutoEnrolmentMissingDeductionsCatalog,
+                        {
+                            label: formatFlagLabel(
+                                pensionAutoEnrolmentMissingDeductionsCatalog.id,
+                                {
+                                    context: 'three_month_warning',
+                                    earnings,
+                                    periodTrigger: autoEnrolmentTrigger,
+                                    elapsedRunDays:
+                                        timingContext.elapsedRunDays,
+                                }
+                            ),
+                            severity: 'warning',
+                            inputs: sharedInputs,
+                        }
+                    ),
+                ],
+                lowConfidence: defermentLowConfidence,
+            }
+        }
+
+        if (timingContext.exceedsSixWeekWindow) {
+            return {
+                flags: [
+                    buildCatalogRuleFlag(
+                        pensionAutoEnrolmentMissingDeductionsCatalog,
+                        {
+                            label: formatFlagLabel(
+                                pensionAutoEnrolmentMissingDeductionsCatalog.id,
+                                {
+                                    context: 'six_week_notice',
+                                    earnings,
+                                    periodTrigger: autoEnrolmentTrigger,
+                                    elapsedRunDays:
+                                        timingContext.elapsedRunDays,
+                                }
+                            ),
+                            severity: 'notice',
+                            inputs: sharedInputs,
+                        }
+                    ),
+                ],
+                lowConfidence: defermentLowConfidence,
+            }
+        }
+
+        if (timingContext.elapsedRunDays !== null) {
+            return {
+                flags: [
+                    buildCatalogRuleFlag(
+                        pensionAutoEnrolmentMissingDeductionsCatalog,
+                        {
+                            label: formatFlagLabel(
+                                pensionAutoEnrolmentMissingDeductionsCatalog.id,
+                                {
+                                    context: 'pre_enrolment_notice',
+                                    earnings,
+                                    periodTrigger: autoEnrolmentTrigger,
+                                }
+                            ),
+                            severity: 'notice',
+                            inputs: sharedInputs,
+                        }
+                    ),
+                ],
+                lowConfidence: defermentLowConfidence,
+            }
+        }
+
+        return {
+            flags: [
+                buildCatalogRuleFlag(
+                    pensionAutoEnrolmentMissingDeductionsCatalog,
+                    {
+                        label: formatFlagLabel(
+                            pensionAutoEnrolmentMissingDeductionsCatalog.id,
+                            {
+                                context: 'default_warning',
+                                earnings,
+                                periodTrigger: autoEnrolmentTrigger,
+                            }
+                        ),
+                        severity: 'warning',
+                        inputs: sharedInputs,
+                    }
+                ),
+            ],
+            lowConfidence: defermentLowConfidence,
+        }
+    }
+
+    if (earnings >= qualifyingLower) {
+        return {
+            flags: [
+                buildCatalogRuleFlag(pensionOptInPossibleCatalog, {
+                    label: formatFlagLabel(pensionOptInPossibleCatalog.id, {
+                        earnings,
+                        qualifyingLower,
+                        autoEnrolmentTrigger,
+                    }),
+                    severity: 'notice',
+                    inputs: sharedInputs,
+                }),
+            ],
+            lowConfidence: defermentLowConfidence,
+        }
+    }
+
+    return {
+        flags: [
+            buildCatalogRuleFlag(pensionJoinNoMandatoryEmployerContribCatalog, {
+                label: formatFlagLabel(
+                    pensionJoinNoMandatoryEmployerContribCatalog.id,
+                    {
+                        earnings,
+                        qualifyingLower,
+                    }
+                ),
+                severity: 'notice',
+                inputs: sharedInputs,
+            }),
+        ],
+        lowConfidence: defermentLowConfidence,
     }
 }
 
@@ -651,45 +1109,53 @@ export function buildValidation(entry) {
         thresholds?.niPrimaryThresholdMonthly ?? null
     const grossForNiContext =
         typeof totalGrossPay === 'number' ? totalGrossPay : paymentsTotal
+    const canRunThresholdDrivenChecks = hasUsableThresholds(thresholdResolution)
 
     if (thresholdResolution.status !== 'ok') {
-        const warningLabel =
-            thresholdResolution.status === 'unsupported-tax-year'
-                ? `Tax-year thresholds are not configured for ${formatTaxYearLabelFromStartYear(thresholdResolution.taxYearStart)}. Threshold-based checks were skipped for this payslip.`
-                : thresholdResolution.status === 'partial-threshold-support'
-                  ? 'Threshold-based checks are only partially supported before 6 July 2022, so threshold-driven validations were skipped for this payslip.'
-                  : 'Tax year could not be determined for this payslip. Threshold-based checks were skipped.'
+        const thresholdCatalogEntry =
+            thresholdResolution.status === 'partial-threshold-support'
+                ? FLAG_CATALOG.tax_year_thresholds_partial_support
+                : FLAG_CATALOG.tax_year_thresholds_unavailable
+        const warningLabel = formatFlagLabel(thresholdCatalogEntry.id, {
+            context:
+                thresholdResolution.status === 'fallback-to-previous-tax-year'
+                    ? 'fallback-to-previous-tax-year'
+                    : thresholdResolution.status === 'unsupported-tax-year'
+                      ? 'unsupported-tax-year'
+                      : thresholdResolution.status ===
+                          'partial-threshold-support'
+                        ? 'partial-threshold-support'
+                        : 'unknown-tax-year',
+            taxYearStartLabel: formatTaxYearLabelFromStartYear(
+                thresholdResolution.taxYearStart
+            ),
+            fallbackTaxYearStartLabel: formatTaxYearLabelFromStartYear(
+                thresholdResolution.fallbackTaxYearStart
+            ),
+        })
         flags.push({
-            id:
-                thresholdResolution.status === 'partial-threshold-support'
-                    ? 'tax_year_thresholds_partial_support'
-                    : 'tax_year_thresholds_unavailable',
-            label: warningLabel,
-            ruleId:
-                thresholdResolution.status === 'partial-threshold-support'
-                    ? 'tax_year_thresholds_partial_support'
-                    : 'tax_year_thresholds_unavailable',
-            severity: 'warning',
-            inputs: {
-                taxYearStart:
-                    thresholdResolution.taxYearStart === null
-                        ? null
-                        : thresholdResolution.taxYearStart,
-            },
+            ...buildCatalogRuleFlag(thresholdCatalogEntry, {
+                label: warningLabel,
+                severity: 'warning',
+                inputs: {
+                    taxYearStart:
+                        thresholdResolution.taxYearStart === null
+                            ? null
+                            : thresholdResolution.taxYearStart,
+                    fallbackTaxYearStart:
+                        thresholdResolution.fallbackTaxYearStart === null
+                            ? null
+                            : thresholdResolution.fallbackTaxYearStart,
+                },
+            }),
         })
     }
 
     if (!natInsNumber) {
-        flags.push({
-            id: 'missing_nat_ins',
-            label: resolveFlagLabel('missing_nat_ins', 'Missing NAT INS No'),
-        })
+        flags.push(buildCatalogFlag(FLAG_CATALOG.missing_nat_ins))
     }
     if (!taxCode) {
-        flags.push({
-            id: 'missing_tax_code',
-            label: resolveFlagLabel('missing_tax_code', 'Missing tax code'),
-        })
+        flags.push(buildCatalogFlag(FLAG_CATALOG.missing_tax_code))
     }
     const payeValidation = buildPayeValidationFlag(
         entry,
@@ -699,42 +1165,42 @@ export function buildValidation(entry) {
     if (payeValidation.flag) {
         flags.push(payeValidation.flag)
     }
+
+    const pensionValidation = buildPensionValidationFlags(
+        entry,
+        thresholdResolution,
+        paymentsTotal
+    )
+    if (pensionValidation.flags.length) {
+        flags.push(...pensionValidation.flags)
+    }
+
     if (
         nationalInsurance <= 0 &&
         niPrimaryThresholdMonthly !== null &&
-        thresholdResolution.status === 'ok'
+        canRunThresholdDrivenChecks
     ) {
         const isNiWarning =
             typeof grossForNiContext === 'number' &&
             grossForNiContext > niPrimaryThresholdMonthly
-        const grossPayLabel =
-            typeof grossForNiContext === 'number'
-                ? grossForNiContext.toLocaleString('en-GB', {
-                      style: 'currency',
-                      currency: 'GBP',
-                  })
-                : 'Unknown'
-        const thresholdLabel = niPrimaryThresholdMonthly.toLocaleString(
-            'en-GB',
-            {
-                style: 'currency',
-                currency: 'GBP',
-            }
-        )
-        const niLabel = isNiWarning
-            ? `National Insurance missing or £0 while gross pay ${grossPayLabel} is above the primary threshold of ${thresholdLabel}`
-            : `NI deductions not taken as gross pay ${grossPayLabel} is at or below the primary threshold of ${thresholdLabel}`
-        flags.push({
-            id: 'nat_ins_zero',
-            label: niLabel,
-            ruleId: 'nat_ins_zero',
-            severity: isNiWarning ? 'warning' : 'notice',
-            inputs: {
-                nationalInsurance,
-                grossPay: grossForNiContext,
-                niPrimaryThresholdMonthly,
-            },
+        const niLabel = formatFlagLabel(FLAG_CATALOG.nat_ins_zero.id, {
+            context: isNiWarning
+                ? 'above_threshold_warning'
+                : 'at_or_below_threshold_notice',
+            grossPay: grossForNiContext,
+            niPrimaryThresholdMonthly,
         })
+        flags.push(
+            buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_zero, {
+                label: niLabel,
+                severity: isNiWarning ? 'warning' : 'notice',
+                inputs: {
+                    nationalInsurance,
+                    grossPay: grossForNiContext,
+                    niPrimaryThresholdMonthly,
+                },
+            })
+        )
     }
 
     const hourly = record?.payrollDoc?.payments?.hourly
@@ -752,37 +1218,32 @@ export function buildValidation(entry) {
         ) {
             const expected = Math.round(item.units * item.rate * 100) / 100
             if (!isWithinTolerance(expected, item.amount)) {
-                flags.push({
-                    id: 'payment_line_mismatch',
-                    label: resolveFlagLabel(
-                        'payment_line_mismatch',
-                        'A payment line units × rate does not match its amount'
-                    ),
-                    ruleId: 'payment_line_mismatch',
-                    inputs: { computed: expected, reported: item.amount },
-                })
+                flags.push(
+                    buildCatalogRuleFlag(FLAG_CATALOG.payment_line_mismatch, {
+                        inputs: { computed: expected, reported: item.amount },
+                    })
+                )
                 break
             }
         }
     }
 
     const hasPaymentLineMismatch = flags.some(
-        (f) => f.id === 'payment_line_mismatch'
+        (f) => f.id === FLAG_CATALOG.payment_line_mismatch.id
     )
 
     let grossMismatch = false
     if (totalGrossPay !== null && !hasPaymentLineMismatch) {
         grossMismatch = !isWithinTolerance(paymentsTotal, totalGrossPay)
         if (grossMismatch) {
-            flags.push({
-                id: 'gross_mismatch',
-                label: resolveFlagLabel(
-                    'gross_mismatch',
-                    'Payments total does not match Total Gross Pay'
-                ),
-                ruleId: 'gross_mismatch',
-                inputs: { computed: paymentsTotal, reported: totalGrossPay },
-            })
+            flags.push(
+                buildCatalogRuleFlag(FLAG_CATALOG.gross_mismatch, {
+                    inputs: {
+                        computed: paymentsTotal,
+                        reported: totalGrossPay,
+                    },
+                })
+            )
         }
     }
 
@@ -791,15 +1252,11 @@ export function buildValidation(entry) {
         const expectedNet = paymentsTotal - deductionsTotal
         netMismatch = !isWithinTolerance(expectedNet, netPay)
         if (netMismatch) {
-            flags.push({
-                id: 'net_mismatch',
-                label: resolveFlagLabel(
-                    'net_mismatch',
-                    'Net Pay does not match payments less deductions'
-                ),
-                ruleId: 'net_mismatch',
-                inputs: { computed: expectedNet, reported: netPay },
-            })
+            flags.push(
+                buildCatalogRuleFlag(FLAG_CATALOG.net_mismatch, {
+                    inputs: { computed: expectedNet, reported: netPay },
+                })
+            )
         }
     }
 
@@ -809,6 +1266,7 @@ export function buildValidation(entry) {
             grossMismatch ||
             netMismatch ||
             thresholdResolution.status !== 'ok' ||
-            payeValidation.lowConfidence,
+            payeValidation.lowConfidence ||
+            pensionValidation.lowConfidence,
     }
 }

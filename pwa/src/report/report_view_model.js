@@ -415,7 +415,7 @@ function collectMiscReviewItems(entries) {
 
 /** @param {ReportEntry[]} entriesForYear */
 function buildYearFlagModel(entriesForYear) {
-    const noteIndexById = new Map()
+    const noteIndexByLabel = new Map()
     const noteLabels =
         /** @type {Array<{ id: string, index: number, label: string }>} */ ([])
     const refsByEntry = new Map()
@@ -424,10 +424,11 @@ function buildYearFlagModel(entriesForYear) {
             (flag) => flag.severity !== 'notice'
         )
         const refs = entryFlags.map((flag) => {
-            let noteIndex = noteIndexById.get(flag.id)
+            const noteKey = String(flag.label || '')
+            let noteIndex = noteIndexByLabel.get(noteKey)
             if (noteIndex === undefined) {
                 noteIndex = noteLabels.length + 1
-                noteIndexById.set(flag.id, noteIndex)
+                noteIndexByLabel.set(noteKey, noteIndex)
                 noteLabels.push({
                     id: flag.id,
                     index: noteIndex,

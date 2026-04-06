@@ -159,6 +159,17 @@ describe('uk rules catalog', () => {
         expect(jan2023.status).toBe('ok')
     })
 
+    it('uses previous available thresholds for future unsupported tax years', () => {
+        const resolution = resolveTaxYearThresholdsForContext(
+            new Date('2027-04-30T00:00:00.000Z')
+        )
+
+        expect(resolution.status).toBe('fallback-to-previous-tax-year')
+        expect(resolution.taxYearStart).toBe(2027)
+        expect(resolution.fallbackTaxYearStart).toBe(2026)
+        expect(resolution.thresholds).toBe(TAX_YEAR_THRESHOLDS[2026])
+    })
+
     it('keeps rules and thresholds version markers aligned', () => {
         expect(typeof RULES_VERSION).toBe('string')
         expect(typeof THRESHOLDS_VERSION).toBe('string')
@@ -177,6 +188,9 @@ describe('uk rules catalog', () => {
             'nat_ins_zero',
             'tax_year_thresholds_unavailable',
             'tax_year_thresholds_partial_support',
+            'pension_auto_enrolment_missing_deductions',
+            'pension_opt_in_possible',
+            'pension_join_no_mandatory_employer_contrib',
             'payment_line_mismatch',
             'gross_mismatch',
             'net_mismatch',
