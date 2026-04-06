@@ -149,48 +149,56 @@ export function buildRunSnapshot(
         const flagIds = rawFlags
             .map((/** @type {{ id: string }} */ f) => f.id)
             .sort()
-        const flagDetails = /** @type {FlagDetail[]} */ (
-            rawFlags
-                .map(
-                    (
-                        /** @type {{ id?: string, label?: string, severity?: string, ruleId?: string, inputs?: Record<string, unknown> }} */ flag
-                    ) => {
-                        const severity =
-                            flag?.severity === 'notice' ||
-                            flag?.severity === 'warning'
-                                ? flag.severity
-                                : null
-                        const inputs =
-                            /** @type {Record<string, number | string | null>} */ ({})
-                        if (flag?.inputs && typeof flag.inputs === 'object') {
-                            Object.entries(flag.inputs).forEach(
-                                ([key, value]) => {
-                                    if (
-                                        typeof value === 'number' ||
-                                        typeof value === 'string' ||
-                                        value === null
-                                    ) {
-                                        inputs[key] = value
-                                    }
-                                }
-                            )
-                        }
-                        return {
-                            id: String(flag?.id || 'unknown_flag'),
-                            label: String(flag?.label || ''),
-                            severity,
-                            ruleId: flag?.ruleId ? String(flag.ruleId) : null,
-                            inputs,
-                        }
-                    }
-                )
-                .sort(
-                    (
-                        /** @type {FlagDetail} */ a,
-                        /** @type {FlagDetail} */ b
-                    ) => a.id.localeCompare(b.id)
-                )
-        )
+        const flagDetails =
+            includeFlagDetails || includePayeDiagnostics
+                ? /** @type {FlagDetail[]} */ (
+                      rawFlags
+                          .map(
+                              (
+                                  /** @type {{ id?: string, label?: string, severity?: string, ruleId?: string, inputs?: Record<string, unknown> }} */ flag
+                              ) => {
+                                  const severity =
+                                      flag?.severity === 'notice' ||
+                                      flag?.severity === 'warning'
+                                          ? flag.severity
+                                          : null
+                                  const inputs =
+                                      /** @type {Record<string, number | string | null>} */ ({})
+                                  if (
+                                      flag?.inputs &&
+                                      typeof flag.inputs === 'object'
+                                  ) {
+                                      Object.entries(flag.inputs).forEach(
+                                          ([key, value]) => {
+                                              if (
+                                                  typeof value === 'number' ||
+                                                  typeof value === 'string' ||
+                                                  value === null
+                                              ) {
+                                                  inputs[key] = value
+                                              }
+                                          }
+                                      )
+                                  }
+                                  return {
+                                      id: String(flag?.id || 'unknown_flag'),
+                                      label: String(flag?.label || ''),
+                                      severity,
+                                      ruleId: flag?.ruleId
+                                          ? String(flag.ruleId)
+                                          : null,
+                                      inputs,
+                                  }
+                              }
+                          )
+                          .sort(
+                              (
+                                  /** @type {FlagDetail} */ a,
+                                  /** @type {FlagDetail} */ b
+                              ) => a.id.localeCompare(b.id)
+                          )
+                  )
+                : []
 
         const snapshotEntry = /** @type {SnapshotEntry} */ ({
             period,

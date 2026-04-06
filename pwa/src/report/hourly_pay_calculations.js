@@ -62,7 +62,7 @@ function buildCatalogRuleFlag(catalogEntry, overrides = {}) {
 }
 
 /** @type {Record<string, PayeCumulativeMode>} */
-const PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT = {
+export const PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT = {
     'sage-uk': 'table_mode',
 }
 

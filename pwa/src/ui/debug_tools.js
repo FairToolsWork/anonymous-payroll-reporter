@@ -1,9 +1,12 @@
 import { UNKNOWN_APP_VERSION } from './app_version.js'
 import { ACTIVE_PAYROLL_FORMAT } from '../parse/active_format.js'
+import { PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT } from '../report/hourly_pay_calculations.js'
 
 /** @type {'exact' | 'sage_approx' | 'table_mode'} */
 const DEFAULT_PAYE_CUMULATIVE_MODE =
-    ACTIVE_PAYROLL_FORMAT?.id === 'sage-uk' ? 'table_mode' : 'exact'
+    PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT[
+        String(ACTIVE_PAYROLL_FORMAT?.id || '')
+    ] || 'exact'
 
 /** @type {string | null} */
 export const DEBUG_LEVEL = new URLSearchParams(window.location.search).get(
