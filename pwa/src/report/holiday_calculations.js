@@ -311,8 +311,7 @@ export function getRollingReferenceCoverage(
             continue
         }
 
-        const monthKey = `${entryDate.getFullYear()}:${entry.monthIndex}`
-        if (monthsSeen.has(monthKey)) {
+        if (!entryMonthKey || monthsSeen.has(entryMonthKey)) {
             continue
         }
         let shouldInclude = false
@@ -326,7 +325,7 @@ export function getRollingReferenceCoverage(
         if (!shouldInclude) {
             continue
         }
-        monthsSeen.add(monthKey)
+        monthsSeen.add(entryMonthKey)
 
         const basic = getBasicPay(entry)
         const weeks = getWeeksInPeriod(entryDate)
@@ -550,7 +549,7 @@ export function buildHolidayPayFlags(entries) {
 
         const impliedHolidayRate = holidayAmount / holidayUnits
 
-        if (!entry.parsedDate) {
+        if (!entry.parsedDate || Number.isNaN(entry.parsedDate.getTime())) {
             continue
         }
 

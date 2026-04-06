@@ -1048,6 +1048,9 @@ function isHolidayCoverageTarget(entry) {
     if (!(entry.parsedDate instanceof Date)) {
         return false
     }
+    if (Number.isNaN(entry.parsedDate.getTime())) {
+        return false
+    }
     const holiday = entry.record?.payrollDoc?.payments?.hourly?.holiday
     return (holiday?.units ?? 0) > 0 && (holiday?.amount ?? 0) > 0
 }
