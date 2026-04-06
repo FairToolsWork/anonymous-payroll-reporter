@@ -536,6 +536,21 @@ export function initPayrollApp() {
                                     parsed.leaveYearStartMonth <= 12
                                         ? parsed.leaveYearStartMonth
                                         : 4,
+                                ...(typeof parsed.pensionDefermentCommunicated ===
+                                    'boolean' && {
+                                    pensionDefermentCommunicated:
+                                        parsed.pensionDefermentCommunicated,
+                                }),
+                                ...(typeof parsed.pensionDefermentStartDate ===
+                                    'string' && {
+                                    pensionDefermentStartDate:
+                                        parsed.pensionDefermentStartDate,
+                                }),
+                                ...(typeof parsed.pensionDefermentEndDate ===
+                                    'string' && {
+                                    pensionDefermentEndDate:
+                                        parsed.pensionDefermentEndDate,
+                                }),
                             }
                         }
                     }
