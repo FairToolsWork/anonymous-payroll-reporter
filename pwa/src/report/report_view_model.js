@@ -6,7 +6,9 @@
  * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number, inputs?: { grossPay?: number, niPrimaryThresholdMonthly?: number } }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, validation?: ValidationResult, monthIndex: number, yearKey?: string | null, leaveYearKey?: string | null }} ReportEntry
+ * @typedef {ReportEntry & { yearKey: string | null }} HolidayCoverageEntry
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
+ * @typedef {{ kind: 'limited_weeks' | 'insufficient_months', periodsCounted: number, totalWeeks: number, message: string }} CoverageWarning
  */
 import { formatMonthLabel } from '../parse/parser_config.js'
 import { getTaxYearThresholdsForContext } from './uk_thresholds.js'
@@ -22,12 +24,8 @@ import {
 import {
     formatDateLabel,
     getCalendarMonthFromFiscalIndex,
-    getWeeksInPeriod,
 } from './tax_year_utils.js'
-import {
-    isGatePassingMixedMonth,
-    isReferenceEligible,
-} from './holiday_calculations.js'
+import { getRollingReferenceCoverage } from './holiday_calculations.js'
 import {
     buildEntryHolidaySummary,
     buildLeaveYearGroups,
@@ -449,8 +447,9 @@ function buildYearFlagModel(entriesForYear) {
     return { noteLabels, refsByEntry }
 }
 
-/** @param {any} entriesForYear @param {string} yearKey @param {Map<string, any>} leaveYearGroups @param {any} workerProfile */
+/** @param {ReportEntry[]} allEntries @param {any} entriesForYear @param {string} yearKey @param {Map<string, any>} leaveYearGroups @param {any} workerProfile */
 function buildSummaryYearRow(
+    allEntries,
     entriesForYear,
     yearKey,
     leaveYearGroups,
@@ -501,7 +500,7 @@ function buildSummaryYearRow(
         reportedContribution !== null &&
         payrollContribution === 0 &&
         reportedContribution === 0
-    const coverageWarning = buildCoverageWarning(entriesForYear)
+    const coverageWarning = buildCoverageWarning(allEntries, entriesForYear)
     return {
         yearKey,
         anchorId: `year-summary-${formatYearAnchor(yearKey)}`,
@@ -635,6 +634,7 @@ export function buildSummaryViewModel(context, meta) {
         .filter(([yearKey]) => Boolean(yearKey) && yearKey !== 'Unknown')
         .map(([yearKey, entriesForYear]) =>
             buildSummaryYearRow(
+                entries,
                 entriesForYear,
                 String(yearKey),
                 leaveYearGroups,
@@ -914,7 +914,7 @@ export function buildYearViewModel(
         leaveYearGroups,
         workerProfile
     )
-    const coverageWarning = buildCoverageWarning(yearEntries)
+    const coverageWarning = buildCoverageWarning(allEntries, yearEntries)
     const annualCrossCheck =
         yearHolidaySummary.kind === 'hourly_hours'
             ? yearHolidaySummary.annualCrossCheck || null
@@ -1023,61 +1023,120 @@ export function buildYearViewModel(
 }
 
 /**
- * @param {ReportEntry[]} entriesForYear
- * @returns {{ kind: 'limited_weeks' | 'insufficient_months', periodsCounted: number, totalWeeks: number, message: string } | null}
+ * @param {ReportEntry} entry
+ * @returns {boolean}
  */
-function buildCoverageWarning(entriesForYear) {
-    const sortedEntries = entriesForYear.slice().sort((a, b) => {
-        const aTime = a.parsedDate instanceof Date ? a.parsedDate.getTime() : 0
-        const bTime = b.parsedDate instanceof Date ? b.parsedDate.getTime() : 0
-        return aTime - bTime
-    })
-    const normalizedEntries = sortedEntries.map((entry) => ({
+function isHolidayCoverageTarget(entry) {
+    const holiday = entry.record?.payrollDoc?.payments?.hourly?.holiday
+    return (holiday?.units ?? 0) > 0 && (holiday?.amount ?? 0) > 0
+}
+
+/**
+ * @param {ReportEntry[]} entries
+ * @returns {HolidayCoverageEntry[]}
+ */
+function normalizeHolidayCoverageEntries(entries) {
+    return entries.map((entry) => ({
         ...entry,
         yearKey: entry.yearKey ?? null,
     }))
-    /** @type {Map<string, Date>} */
-    const uniqueEligibleMonths = new Map()
-    normalizedEntries.forEach((entryForEligibility) => {
-        const isEligible =
-            isReferenceEligible(entryForEligibility) ||
-            isGatePassingMixedMonth(normalizedEntries, entryForEligibility)
-        if (!isEligible) {
+}
+
+/**
+ * @param {ReportEntry[]} allEntries
+ * @param {ReportEntry[]} entriesForYear
+ * @returns {CoverageWarning | null}
+ */
+function buildCoverageWarning(allEntries, entriesForYear) {
+    const holidayTargets = entriesForYear.filter(isHolidayCoverageTarget)
+    if (!holidayTargets.length) {
+        return null
+    }
+
+    const sortedEntries = normalizeHolidayCoverageEntries(allEntries)
+        .slice()
+        .sort(
+            (
+                /** @type {HolidayCoverageEntry} */ a,
+                /** @type {HolidayCoverageEntry} */ b
+            ) => {
+                const aTime =
+                    a.parsedDate instanceof Date ? a.parsedDate.getTime() : 0
+                const bTime =
+                    b.parsedDate instanceof Date ? b.parsedDate.getTime() : 0
+                return aTime - bTime
+            }
+        )
+
+    const normalizedHolidayTargets =
+        normalizeHolidayCoverageEntries(holidayTargets)
+
+    /** @type {{ periodsCounted: number, totalWeeks: number } | null} */
+    let insufficientCoverage = null
+    /** @type {{ periodsCounted: number, totalWeeks: number } | null} */
+    let limitedCoverage = null
+
+    normalizedHolidayTargets.forEach((entry) => {
+        const coverage = getRollingReferenceCoverage(sortedEntries, entry)
+        if (coverage.periodsCounted < 3) {
+            if (
+                !insufficientCoverage ||
+                coverage.periodsCounted < insufficientCoverage.periodsCounted ||
+                (coverage.periodsCounted ===
+                    insufficientCoverage.periodsCounted &&
+                    coverage.totalWeeks < insufficientCoverage.totalWeeks)
+            ) {
+                insufficientCoverage = {
+                    periodsCounted: coverage.periodsCounted,
+                    totalWeeks: coverage.totalWeeks,
+                }
+            }
             return
         }
-        if (!(entryForEligibility.parsedDate instanceof Date)) {
+
+        if (coverage.totalWeeks >= 52) {
             return
         }
-        const key = `${entryForEligibility.parsedDate.getFullYear()}:${entryForEligibility.parsedDate.getMonth()}`
-        if (!uniqueEligibleMonths.has(key)) {
-            uniqueEligibleMonths.set(key, entryForEligibility.parsedDate)
+
+        if (
+            !limitedCoverage ||
+            coverage.totalWeeks < limitedCoverage.totalWeeks ||
+            (coverage.totalWeeks === limitedCoverage.totalWeeks &&
+                coverage.periodsCounted < limitedCoverage.periodsCounted)
+        ) {
+            limitedCoverage = {
+                periodsCounted: coverage.periodsCounted,
+                totalWeeks: coverage.totalWeeks,
+            }
         }
     })
 
-    const periodsCounted = uniqueEligibleMonths.size
-    const totalWeeks = Array.from(uniqueEligibleMonths.values()).reduce(
-        (acc, parsedDate) => acc + getWeeksInPeriod(parsedDate),
-        0
-    )
-
-    if (periodsCounted < 3) {
+    if (insufficientCoverage) {
+        const warning =
+            /** @type {{ periodsCounted: number, totalWeeks: number }} */ (
+                insufficientCoverage
+            )
         return {
             kind: 'insufficient_months',
-            periodsCounted,
-            totalWeeks,
-            message: buildCoverageWarningMessage({
-                periodsCounted,
-                totalWeeks,
-            }),
+            periodsCounted: warning.periodsCounted,
+            totalWeeks: warning.totalWeeks,
+            message: buildCoverageWarningMessage(warning),
         }
     }
-    if (totalWeeks >= 52) {
+
+    if (!limitedCoverage) {
         return null
     }
+
+    const warning =
+        /** @type {{ periodsCounted: number, totalWeeks: number }} */ (
+            limitedCoverage
+        )
+
     return {
         kind: 'limited_weeks',
-        periodsCounted,
-        totalWeeks,
-        message: buildCoverageWarningMessage({ periodsCounted, totalWeeks }),
+        periodsCounted: warning.periodsCounted,
+        totalWeeks: warning.totalWeeks,
+        message: buildCoverageWarningMessage(warning),
     }
 }

@@ -206,26 +206,45 @@ function pushFlagIfMissing(entry, flag) {
 }
 
 /**
- * Returns true when fewer than 3 eligible periods are available for the target.
- * Mirrors rolling-reference inclusion rules without changing buildRollingReference's return contract.
+ * Computes rolling-reference coverage for a target entry.
  * @param {HolidayEntry[]} sortedEntries
  * @param {HolidayEntry} targetEntry
- * @returns {boolean}
+ * @param {{ pureOnly?: boolean }} [options]
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, mixedMonthsIncluded: number, scannedEntries: number }}
  */
-function hasInsufficientReferencePeriods(sortedEntries, targetEntry) {
+export function getRollingReferenceCoverage(
+    sortedEntries,
+    targetEntry,
+    options = {}
+) {
+    const pureOnly = Boolean(options.pureOnly)
     const targetDate = targetEntry.parsedDate
     if (!targetDate) {
-        return false
+        return {
+            totalBasicPay: 0,
+            totalBasicHours: 0,
+            totalWeeks: 0,
+            periodsCounted: 0,
+            mixedMonthsIncluded: 0,
+            scannedEntries: 0,
+        }
     }
     const cutoff = new Date(targetDate)
     cutoff.setDate(cutoff.getDate() - 104 * 7)
     const cutoffMs = cutoff.getTime()
+
+    let totalBasicPay = 0
+    let totalBasicHours = 0
+    let totalWeeks = 0
     let periodsCounted = 0
+    let mixedMonthsIncluded = 0
+    let scannedEntries = 0
     /** @type {Set<string>} */
     const monthsSeen = new Set()
 
     for (let i = sortedEntries.length - 1; i >= 0; i -= 1) {
         const entry = sortedEntries[i]
+        scannedEntries += 1
         if (entry === targetEntry) {
             continue
         }
@@ -244,22 +263,41 @@ function hasInsufficientReferencePeriods(sortedEntries, targetEntry) {
             continue
         }
         let shouldInclude = false
+        let countedAsMixedMonth = false
         if (isReferenceEligible(entry)) {
             shouldInclude = true
-        } else if (isGatePassingMixedMonth(sortedEntries, entry)) {
+        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
             shouldInclude = true
+            countedAsMixedMonth = true
         }
         if (!shouldInclude) {
             continue
         }
         monthsSeen.add(monthKey)
+
+        const basic = getBasicPay(entry)
+        const weeks = getWeeksInPeriod(entryDate)
+        totalBasicPay += basic.amount ?? 0
+        totalBasicHours += basic.units ?? 0
+        totalWeeks += weeks
         periodsCounted += 1
-        if (periodsCounted >= 3) {
-            return false
+        if (countedAsMixedMonth) {
+            mixedMonthsIncluded += 1
+        }
+
+        if (totalWeeks >= 52) {
+            break
         }
     }
 
-    return true
+    return {
+        totalBasicPay,
+        totalBasicHours,
+        totalWeeks,
+        periodsCounted,
+        mixedMonthsIncluded,
+        scannedEntries,
+    }
 }
 
 /**
@@ -355,88 +393,16 @@ export function buildRollingReference(
         }
         return null
     }
-    const cutoff = new Date(targetDate)
-    cutoff.setDate(cutoff.getDate() - 104 * 7)
-    const cutoffMs = cutoff.getTime()
-
-    let totalBasicPay = 0
-    let totalBasicHours = 0
-    let totalWeeks = 0
-    let periodsCounted = 0
-    let mixedMonthsIncluded = 0
-    let scannedEntries = 0
-    /** @type {Set<string>} — `yearKey:monthIndex` to deduplicate same-month payslips */
-    const monthsSeen = new Set()
-
-    for (let i = sortedEntries.length - 1; i >= 0; i--) {
-        const entry = sortedEntries[i]
-        scannedEntries += 1
-        if (entry === targetEntry) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.targetEntry')
-            }
-            continue
-        }
-        const entryDate = entry.parsedDate
-        if (!entryDate) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.noDate')
-            }
-            continue
-        }
-        if (entryDate >= targetDate) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.notBeforeTarget')
-            }
-            continue
-        }
-        if (entryDate.getTime() < cutoffMs) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.break.cutoff')
-            }
-            break
-        }
-        const calYear = entryDate.getFullYear()
-        const monthKey = `${calYear}:${entry.monthIndex}`
-        if (monthsSeen.has(monthKey)) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.duplicateMonth')
-            }
-            continue
-        }
-        let shouldInclude = false
-        let countedAsMixedMonth = false
-        if (isReferenceEligible(entry)) {
-            shouldInclude = true
-        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
-            shouldInclude = true
-            countedAsMixedMonth = true
-        }
-        if (!shouldInclude) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.ineligible')
-            }
-            continue
-        }
-        monthsSeen.add(monthKey)
-
-        const basic = getBasicPay(entry)
-        const weeks = getWeeksInPeriod(entryDate)
-        totalBasicPay += basic.amount ?? 0
-        totalBasicHours += basic.units ?? 0
-        totalWeeks += weeks
-        periodsCounted += 1
-        if (countedAsMixedMonth) {
-            mixedMonthsIncluded += 1
-            if (timingEnabled) {
-                timing.increment('rollingReference.include.mixedMonth')
-            }
-        }
-
-        if (totalWeeks >= 52) {
-            break
-        }
-    }
+    const {
+        totalBasicPay,
+        totalBasicHours,
+        totalWeeks,
+        periodsCounted,
+        mixedMonthsIncluded,
+        scannedEntries,
+    } = getRollingReferenceCoverage(sortedEntries, targetEntry, {
+        pureOnly,
+    })
 
     if (timingEnabled) {
         timing.increment('rollingReference.calls')
@@ -444,6 +410,10 @@ export function buildRollingReference(
         timing.increment('rollingReference.periodsCounted', periodsCounted)
         timing.recordMax('rollingReference.maxScannedEntries', scannedEntries)
         timing.recordMax('rollingReference.maxPeriodsCounted', periodsCounted)
+        timing.increment(
+            'rollingReference.include.mixedMonth',
+            mixedMonthsIncluded
+        )
     }
 
     if (periodsCounted < 3) {
@@ -544,9 +514,8 @@ export function buildHolidayPayFlags(entries) {
         applyMixedMonthLowConfidence(entry, ref)
 
         if (!ref && hasHolidayPayment(entry)) {
-            const shouldMarkInsufficientHistory =
-                hasInsufficientReferencePeriods(sortedEntries, entry)
-            if (shouldMarkInsufficientHistory) {
+            const coverage = getRollingReferenceCoverage(sortedEntries, entry)
+            if (coverage.periodsCounted < 3) {
                 entry.validation.lowConfidence = true
                 pushFlagIfMissing(entry, {
                     id: 'holiday_reference_insufficient_history',
