@@ -44,7 +44,7 @@ function buildCatalogFlag(catalogEntry, overrides = {}) {
     return {
         id: catalogEntry.id,
         label: catalogEntry.label,
-        severity: catalogEntry.severity,
+        severity: overrides.severity ?? catalogEntry.severity,
         ...overrides,
     }
 }
@@ -850,6 +850,7 @@ function buildPensionValidationFlags(
             thresholdResolution.taxYearStart === null
                 ? null
                 : thresholdResolution.taxYearStart,
+        periodLabel,
     }
 
     const pensionAutoEnrolmentMissingDeductionsCatalog =

@@ -198,26 +198,29 @@ export function formatFlagLabel(id, params = {}) {
     }
 
     if (id === 'pension_auto_enrolment_missing_deductions') {
+        const periodLabel = params.periodLabel || 'period'
         if (params.context === 'pre_enrolment_notice') {
-            return `Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${params.periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
+            return `Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
         }
         if (params.context === 'three_month_warning') {
-            return `Pension deductions have still not appeared after ${params.elapsedRunDays} days, so the worker should have been auto-enrolled by now unless valid postponement was notified. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${params.periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
+            return `Pension deductions have still not appeared after ${params.elapsedRunDays} days, so the worker should have been auto-enrolled by now unless valid postponement was notified. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
         }
         if (params.context === 'six_week_notice') {
-            return `Pension deductions have still not appeared after more than 6 weeks (${params.elapsedRunDays} days), so the worker should now be auto-enrolled or told in writing about postponement (up to 3 months). Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${params.periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
+            return `Pension deductions have still not appeared after more than 6 weeks (${params.elapsedRunDays} days), so the worker should now be auto-enrolled or told in writing about postponement (up to 3 months). Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
         }
         if (params.context === 'default_warning') {
-            return `Pension deductions do not appear to be present. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${params.periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
+            return `Pension deductions do not appear to be present. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${periodLabel} auto-enrolment trigger of ${formatCurrency(params.periodTrigger)}.`
         }
     }
 
     if (id === 'pension_opt_in_possible') {
-        return `The worker may be able to opt in to a workplace pension. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${params.periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} but below the ${params.periodLabel} auto-enrolment trigger of ${formatCurrency(params.autoEnrolmentTrigger)}.`
+        const periodLabel = params.periodLabel || 'period'
+        return `The worker may be able to opt in to a workplace pension. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are above the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} but below the ${periodLabel} auto-enrolment trigger of ${formatCurrency(params.autoEnrolmentTrigger)}.`
     }
 
     if (id === 'pension_join_no_mandatory_employer_contrib') {
-        return `The worker may ask to join a workplace pension, but employer contributions may not be required. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are below the ${params.periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)}.`
+        const periodLabel = params.periodLabel || 'period'
+        return `The worker may ask to join a workplace pension, but employer contributions may not be required. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)}.`
     }
 
     if (id === 'tax_year_thresholds_unavailable') {
