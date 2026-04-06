@@ -148,9 +148,14 @@ export function buildReport(
                 (date) => date instanceof Date && !Number.isNaN(date.getTime())
             )
         if (parsedEntryDates.length) {
-            const earliestDate = new Date(
-                Math.min(...parsedEntryDates.map((date) => date.getTime()))
-            )
+            let earliestTimestamp = parsedEntryDates[0].getTime()
+            for (let index = 1; index < parsedEntryDates.length; index += 1) {
+                const entryTimestamp = parsedEntryDates[index].getTime()
+                if (entryTimestamp < earliestTimestamp) {
+                    earliestTimestamp = entryTimestamp
+                }
+            }
+            const earliestDate = new Date(earliestTimestamp)
             payrollRunStartDate = [
                 String(earliestDate.getFullYear()),
                 String(earliestDate.getMonth() + 1).padStart(2, '0'),
