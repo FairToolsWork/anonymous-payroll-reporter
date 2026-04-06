@@ -325,7 +325,7 @@ describe('report calculations', () => {
         )
         expect(pensionFlag?.label).toContain('Pre-tax earnings are')
         expect(pensionFlag?.label).toContain(
-            'below the lower qualifying earnings threshold'
+            'below the monthly lower qualifying earnings threshold'
         )
     })
 
