@@ -6,6 +6,7 @@
  * @typedef {import("../parse/payroll.types.js").PayrollPayments} PayrollPayments
  */
 
+import { buildValidation } from './pay_calculations_hourly.js'
 import {
     buildMissingMonthsHtml,
     buildMissingMonthsLabel,
@@ -16,7 +17,6 @@ import {
     buildHolidayPayFlags,
     buildYearHolidayContext,
 } from './holiday_calculations.js'
-import { buildValidation } from './hourly_pay_calculations.js'
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
     getTaxYearThresholdsForContext,
