@@ -285,9 +285,7 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     const thresholdsForValidation = thresholds
 
     const payrollDoc = entry.record?.payrollDoc || {}
-    const payCycle =
-        payrollDoc?.thisPeriod?.payCycle?.cycle ||
-        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
+    const payCycle = payrollDoc?.thisPeriod?.payCycle?.cycle ?? null
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
         return {
@@ -801,12 +799,10 @@ function buildPensionValidationFlags(
         return { flags: [], lowConfidence: false }
     }
 
-    const payCycle =
-        payrollDoc?.thisPeriod?.payCycle?.cycle ||
-        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
+    const payCycle = payrollDoc?.thisPeriod?.payCycle?.cycle ?? null
     const periodsPerYear = getPayPeriodsPerYear(payCycle)
     if (periodsPerYear === null) {
-        return { flags: [], lowConfidence: false }
+        return { flags: [], lowConfidence: true }
     }
 
     const autoEnrolmentTrigger = getPeriodizedAnnualAmount(

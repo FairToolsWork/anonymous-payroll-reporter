@@ -51,7 +51,10 @@ function buildRecord({
                 misc: [],
             },
             taxCode: { code: taxCode || '' },
-            thisPeriod: { totalGrossPay: { amount: grossPay } },
+            thisPeriod: {
+                totalGrossPay: { amount: grossPay },
+                payCycle: { cycle: 'Monthly' },
+            },
             netPay: { amount: netPay },
         },
     }
@@ -100,6 +103,7 @@ function buildHourlyWorkerRecord({
             },
             thisPeriod: {
                 totalGrossPay: { amount: grossPay },
+                payCycle: { cycle: 'Monthly' },
             },
             deductions: {
                 payeTax: { amount: payeTax },
