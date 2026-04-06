@@ -36,7 +36,9 @@
             "salariedPay": 0,
             "payeTax": 243.94,
             "pensionEE": 92.61,
-            "flagIds": []
+            "flagIds": [
+                "holiday_reference_insufficient_history"
+            ]
         },
         {
             "period": "20 Jul 2024",
@@ -61,6 +63,7 @@
             "payeTax": 71.23,
             "pensionEE": 47.16,
             "flagIds": [
+                "holiday_mixed_basic_holiday_pay",
                 "paye_mismatch"
             ]
         },
@@ -117,6 +120,7 @@
             "payeTax": 112.99,
             "pensionEE": 58.15,
             "flagIds": [
+                "holiday_mixed_basic_holiday_pay",
                 "paye_mismatch"
             ]
         },
@@ -131,6 +135,7 @@
             "payeTax": 239.17,
             "pensionEE": 91.35,
             "flagIds": [
+                "holiday_mixed_basic_holiday_pay",
                 "paye_mismatch"
             ]
         },

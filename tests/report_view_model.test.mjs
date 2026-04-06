@@ -228,6 +228,103 @@ function buildZeroHoursStageTwoContext() {
     }
 }
 
+function buildSalaryStageTwoContext() {
+    const entry = buildStageTwoEntry({
+        record: {
+            imageData: null,
+            payrollDoc: {
+                processDate: { date: '30 Apr 2024' },
+                payments: {
+                    hourly: {
+                        basic: { units: 0, rate: 0, amount: 0 },
+                        holiday: { units: null, rate: null, amount: null },
+                    },
+                    salary: {
+                        basic: { amount: 3000 },
+                        holiday: { units: null, rate: null, amount: 500 },
+                    },
+                    misc: [],
+                },
+                deductions: {
+                    payeTax: { amount: 100 },
+                    natIns: { amount: 80 },
+                    pensionEE: { amount: 50 },
+                    pensionER: { amount: 30 },
+                    misc: [],
+                },
+                netPay: { amount: 3270 },
+                thisPeriod: {
+                    totalGrossPay: { amount: 3500 },
+                },
+            },
+        },
+        validation: {
+            flags: [],
+            lowConfidence: false,
+        },
+        holidayContext: {
+            hasBaseline: false,
+            typicalDays: 5,
+        },
+    })
+    const entriesForYear = [entry]
+    entriesForYear.reconciliation = {
+        months: new Map([[1, { actualEE: 60, actualER: 40 }]]),
+        totals: { actualEE: 60, actualER: 40 },
+    }
+    return {
+        entry,
+        entriesForYear,
+        context: {
+            entries: [entry],
+            yearGroups: new Map([['2024/25', entriesForYear]]),
+            contributionSummary: {
+                years: new Map([['2024/25', { totals: { delta: 20 } }]]),
+            },
+            reportGeneratedLabel: '01 Jun 2024',
+            contributionMeta: {
+                fileCount: 1,
+                recordCount: 1,
+                dateRangeLabel: 'Apr 2024',
+            },
+            missingMonths: {
+                missingMonthsByYear: {
+                    '2024/25': ['May'],
+                },
+            },
+            validationSummary: {
+                flaggedPeriods: [],
+                lowConfidenceEntries: [],
+            },
+            contributionTotals: {
+                payrollContribution: 80,
+                payrollEE: 50,
+                payrollER: 30,
+                reportedContribution: 100,
+                pensionEE: 60,
+                pensionER: 40,
+                contributionDifference: 20,
+            },
+            contributionRecency: {
+                lastContributionLabel: '25 Apr 2024',
+                daysSinceContribution: 5,
+                daysThreshold: 30,
+            },
+            workerProfile: {
+                workerType: 'salary',
+                typicalDays: 5,
+                statutoryHolidayDays: 28,
+                leaveYearStartMonth: 4,
+            },
+            contractTypeMismatchWarning: null,
+        },
+        meta: {
+            employeeName: 'Pat Example',
+            dateRangeLabel: 'Apr 2024',
+        },
+    }
+}
+
 describe('buildPayslipViewModel', () => {
     it('builds shared hourly payslip rows, warnings, holiday analysis, and footer notes', () => {
         const viewModel = buildPayslipViewModel(buildEntry())
@@ -367,6 +464,28 @@ describe('buildPayslipViewModel', () => {
         expect(viewModel.flags.warningCount).toBe(0)
     })
 
+    it('places explicit notice-severity holiday flags in noticeItems (not warningItems)', () => {
+        const viewModel = buildPayslipViewModel(
+            buildEntry({
+                validation: {
+                    flags: [
+                        {
+                            id: 'holiday_reference_insufficient_history',
+                            label: 'Fewer than 3 pay periods available — not enough to estimate holiday days taken.',
+                            severity: 'notice',
+                        },
+                    ],
+                    lowConfidence: true,
+                },
+            })
+        )
+
+        expect(viewModel.noticeItems).toEqual([
+            'Fewer than 3 pay periods available — not enough to estimate holiday days taken.',
+        ])
+        expect(viewModel.warningItems).toEqual([])
+    })
+
     it('routes pension warning and notice flags to separate callout buckets', () => {
         const viewModel = buildPayslipViewModel(
             buildEntry({
@@ -460,6 +579,10 @@ describe('buildSummaryViewModel', () => {
         expect(viewModel.contractTypeMismatchWarning).toBe(
             'Worker type mismatch'
         )
+        expect(viewModel.globalCoverageNotice).toBeTruthy()
+        expect(viewModel.globalCoverageNotice?.affectedYears).toEqual([
+            '2024/25',
+        ])
         expect(viewModel.yearSummaryRows).toHaveLength(1)
         expect(viewModel.yearSummaryRows[0]).toMatchObject({
             yearKey: '2024/25',
@@ -470,6 +593,10 @@ describe('buildSummaryViewModel', () => {
             overUnder: 20,
             hasFlags: true,
         })
+        expect(viewModel.yearSummaryRows[0].coverageWarning).toBeTruthy()
+        expect(viewModel.yearSummaryRows[0].coverageWarning.kind).toBe(
+            'insufficient_months'
+        )
         expect(viewModel.accumulatedTotals).toMatchObject({
             dateRangeLabel: 'Apr 2024',
             payrollContribution: { total: 80, ee: 50, er: 30 },
@@ -509,6 +636,212 @@ describe('buildSummaryViewModel', () => {
             'Rules 2026-03-30 · Thresholds 2026-03-30'
         )
     })
+
+    it('omits holiday coverage notices for salary-only years', () => {
+        const { context, meta } = buildSalaryStageTwoContext()
+
+        const viewModel = buildSummaryViewModel(context, meta)
+
+        expect(viewModel.globalCoverageNotice).toBeNull()
+        expect(viewModel.yearSummaryRows[0].coverageWarning).toBeNull()
+    })
+
+    it('omits holiday coverage notices when a year has no hourly holiday pay entries', () => {
+        const { context, meta } = buildStageTwoContext()
+        context.entries[0].record.payrollDoc.payments.hourly.holiday = {
+            units: 0,
+            rate: 0,
+            amount: 0,
+        }
+        context.entries[0].validation = {
+            flags: [],
+            lowConfidence: false,
+        }
+
+        const viewModel = buildSummaryViewModel(context, meta)
+
+        expect(viewModel.globalCoverageNotice).toBeNull()
+        expect(viewModel.yearSummaryRows[0].coverageWarning).toBeNull()
+    })
+
+    it('uses prior-year reference periods when building current-year coverage warnings', () => {
+        const priorYearEntries = [9, 10, 11, 0, 1, 2].map((month, index) =>
+            buildStageTwoEntry({
+                parsedDate: new Date(
+                    Date.UTC(month <= 3 ? 2024 : 2023, month, 15)
+                ),
+                yearKey: '2023/24',
+                monthIndex: index + 7,
+                record: {
+                    imageData: null,
+                    payrollDoc: {
+                        processDate: { date: '15 Mar 2024' },
+                        payments: {
+                            hourly: {
+                                basic: { units: 160, rate: 14.5, amount: 2320 },
+                                holiday: { units: 0, rate: null, amount: 0 },
+                            },
+                            salary: {},
+                            misc: [],
+                        },
+                        deductions: {
+                            payeTax: { amount: 100 },
+                            natIns: { amount: 80 },
+                            pensionEE: { amount: 50 },
+                            pensionER: { amount: 30 },
+                            misc: [],
+                        },
+                        netPay: { amount: 2140 },
+                        thisPeriod: { totalGrossPay: { amount: 2320 } },
+                    },
+                },
+                validation: {
+                    flags: [],
+                    lowConfidence: false,
+                },
+            })
+        )
+        const currentYearEntry = buildStageTwoEntry({
+            record: {
+                imageData: null,
+                payrollDoc: {
+                    processDate: { date: '15 Apr 2024' },
+                    payments: {
+                        hourly: {
+                            basic: { units: 0, rate: null, amount: 0 },
+                            holiday: { units: 8, rate: null, amount: 80 },
+                        },
+                        salary: {},
+                        misc: [],
+                    },
+                    deductions: {
+                        payeTax: { amount: 100 },
+                        natIns: { amount: 80 },
+                        pensionEE: { amount: 50 },
+                        pensionER: { amount: 30 },
+                        misc: [],
+                    },
+                    netPay: { amount: -150 },
+                    thisPeriod: { totalGrossPay: { amount: 80 } },
+                },
+            },
+            parsedDate: new Date('2024-04-15T00:00:00.000Z'),
+            monthIndex: 1,
+            validation: {
+                flags: [],
+                lowConfidence: false,
+            },
+        })
+        const priorYearEntriesForGroup = [...priorYearEntries]
+        priorYearEntriesForGroup.reconciliation = {
+            months: new Map(),
+            totals: { actualEE: 0, actualER: 0 },
+        }
+        const currentYearEntries = [currentYearEntry]
+        currentYearEntries.reconciliation = {
+            months: new Map([[1, { actualEE: 60, actualER: 40 }]]),
+            totals: { actualEE: 60, actualER: 40 },
+        }
+        const { context, meta } = buildStageTwoContext()
+        context.entries = [...priorYearEntries, currentYearEntry]
+        context.yearGroups = new Map([
+            ['2023/24', priorYearEntriesForGroup],
+            ['2024/25', currentYearEntries],
+        ])
+
+        const viewModel = buildSummaryViewModel(context, meta)
+        const currentYearRow = viewModel.yearSummaryRows.find(
+            (row) => row.yearKey === '2024/25'
+        )
+
+        expect(currentYearRow?.coverageWarning).toMatchObject({
+            kind: 'limited_weeks',
+            periodsCounted: 6,
+        })
+        expect(currentYearRow?.coverageWarning?.totalWeeks).toBeGreaterThan(20)
+        expect(viewModel.globalCoverageNotice?.affectedYears).toEqual([
+            '2024/25',
+        ])
+    })
+
+    it('does not count the holiday target itself as one of its own reference periods', () => {
+        // Regression: the summary helper previously called normalizeHolidayCoverageEntries
+        // twice — once for sortedEntries, once for the targets — producing different object
+        // references. getRollingReferenceCoverage skips the target via object identity
+        // (entry === targetEntry), so with two different clones the skip never fired and the
+        // target was included in its own 52-week reference, inflating periodsCounted by 1.
+        //
+        // With 2 prior eligible months, the corrected path must report insufficient_months
+        // (periodsCounted: 2). The buggy path counted the target itself and returned 3,
+        // which is above the threshold, masking the warning.
+        const makeEntry = (date, monthIndex, yearKey, withHolidayPay) =>
+            buildStageTwoEntry({
+                parsedDate: new Date(date + 'T00:00:00.000Z'),
+                monthIndex,
+                yearKey,
+                leaveYearKey: yearKey,
+                record: {
+                    imageData: null,
+                    payrollDoc: {
+                        processDate: { date },
+                        payments: {
+                            hourly: {
+                                basic: { units: 160, rate: 12.5, amount: 2000 },
+                                holiday: withHolidayPay
+                                    ? { units: 8, rate: 12.5, amount: 100 }
+                                    : { units: 0, rate: null, amount: 0 },
+                            },
+                            salary: {},
+                            misc: [],
+                        },
+                        deductions: {
+                            payeTax: { amount: 100 },
+                            natIns: { amount: 80 },
+                            pensionEE: { amount: 50 },
+                            pensionER: { amount: 30 },
+                            misc: [],
+                        },
+                        netPay: { amount: 1820 },
+                        thisPeriod: { totalGrossPay: { amount: 2100 } },
+                    },
+                },
+                validation: { flags: [], lowConfidence: false },
+            })
+
+        // Two prior eligible months (pure basic pay, no holiday)
+        const priorA = makeEntry('2024-01-15', 10, '2023/24', false)
+        const priorB = makeEntry('2024-02-15', 11, '2023/24', false)
+        // Target: has basic pay (reference-eligible) AND holiday pay (coverage target).
+        // Without the fix it would self-include and return periodsCounted: 3.
+        const target = makeEntry('2024-04-15', 1, '2024/25', true)
+
+        const priorEntries = [priorA, priorB]
+        priorEntries.reconciliation = {
+            months: new Map(),
+            totals: { actualEE: 0, actualER: 0 },
+        }
+        const currentYearEntries = [target]
+        currentYearEntries.reconciliation = {
+            months: new Map([[1, { actualEE: 50, actualER: 30 }]]),
+            totals: { actualEE: 50, actualER: 30 },
+        }
+        const { context, meta } = buildStageTwoContext()
+        context.entries = [priorA, priorB, target]
+        context.yearGroups = new Map([
+            ['2023/24', priorEntries],
+            ['2024/25', currentYearEntries],
+        ])
+
+        const viewModel = buildSummaryViewModel(context, meta)
+        const currentYearRow = viewModel.yearSummaryRows.find(
+            (row) => row.yearKey === '2024/25'
+        )
+
+        expect(currentYearRow?.coverageWarning).toMatchObject({
+            kind: 'insufficient_months',
+            periodsCounted: 2,
+        })
+    })
 })
 
 describe('buildYearViewModel', () => {
@@ -526,6 +859,8 @@ describe('buildYearViewModel', () => {
             yearKey: '2024/25',
             anchorId: 'year-summary-2024-25',
         })
+        expect(viewModel.coverageWarning).toBeTruthy()
+        expect(viewModel.coverageWarning.kind).toBe('insufficient_months')
         expect(viewModel.missingMonths).toEqual(['May'])
         expect(viewModel.rows).toHaveLength(12)
         expect(viewModel.rows[0]).toMatchObject({
@@ -669,5 +1004,34 @@ describe('buildYearViewModel', () => {
         expect(yearViewModel.annualCrossCheckDisplay.summaryLines[0]).toContain(
             'Recorded 8.00 holiday hrs'
         )
+    })
+
+    it('omits year-level holiday coverage notices for salary-only years', () => {
+        const { context, entriesForYear } = buildSalaryStageTwoContext()
+
+        const viewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            0
+        )
+
+        expect(viewModel.coverageWarning).toBeNull()
+    })
+
+    it('omits year-level holiday coverage notices when entry has null parsedDate', () => {
+        const { context, entriesForYear } = buildStageTwoContext()
+        // Remove parsedDate to simulate an entry with an unparseable date
+        entriesForYear[0].parsedDate = null
+        context.entries[0].parsedDate = null
+
+        const viewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            0
+        )
+
+        expect(viewModel.coverageWarning).toBeNull()
     })
 })

@@ -113,6 +113,18 @@ export const FLAG_CATALOG = {
         section: 'holiday',
         severity: 'warning',
     },
+    holiday_reference_insufficient_history: {
+        id: 'holiday_reference_insufficient_history',
+        label: "Fewer than 3 pay periods available — not enough to estimate holiday days taken. If you're a new starter, ask your employer how many holiday days this payment represents. Otherwise, adding earlier payslips to this run will improve accuracy.",
+        section: 'holiday',
+        severity: 'notice',
+    },
+    holiday_mixed_basic_holiday_pay: {
+        id: 'holiday_mixed_basic_holiday_pay',
+        label: 'Mixed basic pay + holiday pay detected in this period. Holiday calculations are based on estimated weekly pay and so for monthly payslips we make a best guess estimate based on your previous working patterns.',
+        section: 'holiday',
+        severity: 'notice',
+    },
 }
 
 /**

@@ -12,6 +12,7 @@ import {
     formatCurrency,
     formatDeduction,
     FLAG_NOTES_TITLE,
+    LOW_CONFIDENCE_PREFACE_TEXT,
     MISC_REVIEW_TITLE,
     YEAR_SUMMARY_TITLE,
 } from './report_formatters.js'
@@ -295,6 +296,11 @@ export function renderHtmlReport(context, meta) {
             `<div class="report-warning-banner"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
         )
     }
+    if (summaryViewModel.globalCoverageNotice) {
+        reportSections.push(
+            `<div class="notice"><ul class="report-warning-list"><li>${summaryViewModel.globalCoverageNotice.message}</li></ul></div>`
+        )
+    }
     reportSections.push(
         `<h2>${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
     )
@@ -370,6 +376,11 @@ export function renderHtmlReport(context, meta) {
         reportSections.push(
             `<h2 id="${yearViewModel.heading.anchorId}">${yearViewModel.heading.yearKey} Summary: ${employeeName}</h2>`
         )
+        if (yearViewModel.coverageWarning) {
+            reportSections.push(
+                `<div class="notice"><ul class="report-warning-list"><li>${yearViewModel.coverageWarning.message}</li></ul></div>`
+            )
+        }
         if (yearViewModel.missingMonths.length) {
             const yearMissingPill = `Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span>`
             reportSections.push(
@@ -638,6 +649,9 @@ function renderReportCell(entry) {
     const noticesHtml = noticeItems.length
         ? `<div class="notice"><ul class="report-warning-list">${noticeItems.join('')}</ul></div>`
         : ''
+    const lowConfidencePrefaceHtml = payslipViewModel.flags.lowConfidence
+        ? `<div class="notice low-confidence-preface"><p>${LOW_CONFIDENCE_PREFACE_TEXT}</p></div>`
+        : ''
 
     const rows = [
         '<table class="report-table">',
@@ -751,6 +765,7 @@ function renderReportCell(entry) {
       <div class="report-cell-image">${imageHtml}</div>
       <div class="report-cell-main">
         ${rows.join('\n')}
+                ${lowConfidencePrefaceHtml}
         ${warningsHtml}
                 ${noticesHtml}
         ${holidayAnalysisFootnote}

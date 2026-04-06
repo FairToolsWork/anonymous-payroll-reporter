@@ -662,7 +662,16 @@ describe('exportReportPdf', () => {
         expect(result).toBeInstanceOf(Uint8Array)
         const pdfText = decodePdfText(result)
         expect(pdfText).toContain('Payslip details - 28 Apr 2022')
+        expect(pdfText).toContain('Low confidence')
+        expect(pdfText).toContain(
+            'Period flagged as low confidence. The figures for this period may be worth reviewing.'
+        )
         expect(pdfText).toContain('Notices')
+        expect(
+            pdfText.indexOf(
+                'Period flagged as low confidence. The figures for this period may be worth reviewing.'
+            )
+        ).toBeLessThan(pdfText.indexOf('Notices'))
         expect(pdfText).toContain(
             'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
         )

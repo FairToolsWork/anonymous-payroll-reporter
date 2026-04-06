@@ -25,6 +25,8 @@ describe('FLAG_CATALOG', () => {
             'net_mismatch',
             'holiday_rate_below_basic',
             'holiday_rate_below_rolling_avg',
+            'holiday_reference_insufficient_history',
+            'holiday_mixed_basic_holiday_pay',
         ]
         for (const id of expectedIds) {
             expect(FLAG_CATALOG).toHaveProperty(id)
@@ -37,6 +39,12 @@ describe('FLAG_CATALOG', () => {
         expect(
             FLAG_CATALOG.pension_join_no_mandatory_employer_contrib.severity
         ).toBe('notice')
+        expect(
+            FLAG_CATALOG.holiday_reference_insufficient_history.severity
+        ).toBe('notice')
+        expect(FLAG_CATALOG.holiday_mixed_basic_holiday_pay.severity).toBe(
+            'notice'
+        )
     })
 
     it('has warning severity for pension missing-deductions flag', () => {

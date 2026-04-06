@@ -10,7 +10,7 @@ export { HOLIDAY_RATE_TOLERANCE } from './uk_thresholds.js'
 const timing = /** @type {any} */ (globalThis).__payrollTiming || null
 
 /**
- * @typedef {{ id: string, label: string, noteIndex?: number, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
+ * @typedef {{ id: string, label: string, severity?: 'notice' | 'warning', noteIndex?: number, ruleId?: string, inputs?: Record<string, number | null> }} ValidationFlag
  * @typedef {{ flags: ValidationFlag[], lowConfidence: boolean }} ValidationResult
  * @typedef {{ level: 'high' | 'medium' | 'low', reasons: string[] }} ReferenceConfidence
  * @typedef {{ hasBaseline: false, typicalDays: number } | { hasBaseline: true, avgWeeklyHours: number, avgHoursPerDay: number, avgRatePerHour: number, typicalDays: number, entitlementHours?: number, useAccrualMethod?: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence }} HolidayContext
@@ -178,7 +178,7 @@ function buildReferenceConfidence({
  * @returns {void}
  */
 function applyMixedMonthLowConfidence(entry, ref) {
-    if (!entry.validation || !ref || (ref.mixedMonthsIncluded ?? 0) <= 0) {
+    if (!entry.validation) {
         return
     }
     // Mixed-month confidence only affects holiday-rate interpretation.
@@ -186,7 +186,177 @@ function applyMixedMonthLowConfidence(entry, ref) {
     if (!hasHolidayPayment(entry)) {
         return
     }
-    entry.validation.lowConfidence = true
+    // Set lowConfidence if:
+    // 1. The rolling reference contains mixed months, OR
+    // 2. This entry itself is a mixed month candidate
+    const referenceHasMixedMonths = ref && (ref.mixedMonthsIncluded ?? 0) > 0
+    const targetIsMixed = isMixedMonthCandidate(entry)
+    if (referenceHasMixedMonths || targetIsMixed) {
+        entry.validation.lowConfidence = true
+    }
+}
+
+/**
+ * @param {HolidayEntry} entry
+ * @param {ValidationFlag} flag
+ */
+function pushFlagIfMissing(entry, flag) {
+    if (!entry.validation) {
+        entry.validation = { flags: [], lowConfidence: false }
+    }
+    const hasExisting = entry.validation.flags.some(
+        (existing) => existing.id === flag.id
+    )
+    if (!hasExisting) {
+        entry.validation.flags.push(flag)
+    }
+}
+
+/**
+ * Derive a stable month key for rolling-reference comparisons.
+ * Prefer pay-period start month when available to avoid timezone-shifted
+ * parsedDate values collapsing adjacent payroll periods.
+ *
+ * USAGE:
+ * This function extracts year:month keys to deduplicate payroll entries by calendar month.
+ * It is used in getRollingReferenceCoverage() to prevent the same month key from appearing
+ * twice in the rolling reference (e.g., duplicate payslips from the same month or timezone-
+ * shifted entries that logically belong to the same calendar month).
+ *
+ * VALIDATION LOGIC:
+ * The format is DD/MM/YYYY (day/month/year). Regex capture groups are:
+ *   - match[1] (day): unused here because we only need year:month for deduplication
+ *   - match[2] (month): extracted directly as month (1–12)
+ *   - match[3] (year): extracted and normalized (2-digit years become 20xx)
+ * The month range check (1–12) is a safety guard that also rejects entries where
+ * day > 12, preventing silent misinterpretation if format assumptions change.
+ *
+ * FALLBACK:
+ * If payPeriod.start is missing or unparseable, falls back to entry.parsedDate.
+ * This may be timezone-shifted but provides coverage over no key at all.
+ *
+ * @param {HolidayEntry} entry
+ * @returns {string | null}
+ */
+function getEntryMonthKey(entry) {
+    const periodStart = entry.record?.payrollDoc?.payPeriod?.start
+    if (typeof periodStart === 'string') {
+        const match = periodStart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+        if (match) {
+            const month = Number(match[2])
+            const yearRaw = Number(match[3])
+            if (month >= 1 && month <= 12 && Number.isFinite(yearRaw)) {
+                const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw
+                return `${year}:${month}`
+            }
+        }
+    }
+
+    if (entry.parsedDate instanceof Date) {
+        return `${entry.parsedDate.getFullYear()}:${entry.parsedDate.getMonth() + 1}`
+    }
+
+    return null
+}
+
+/**
+ * Computes rolling-reference coverage for a target entry.
+ * @param {HolidayEntry[]} sortedEntries
+ * @param {HolidayEntry} targetEntry
+ * @param {{ pureOnly?: boolean }} [options]
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, mixedMonthsIncluded: number, scannedEntries: number }}
+ */
+export function getRollingReferenceCoverage(
+    sortedEntries,
+    targetEntry,
+    options = {}
+) {
+    const pureOnly = Boolean(options.pureOnly)
+    const targetDate = targetEntry.parsedDate
+    if (!targetDate) {
+        return {
+            totalBasicPay: 0,
+            totalBasicHours: 0,
+            totalWeeks: 0,
+            periodsCounted: 0,
+            mixedMonthsIncluded: 0,
+            scannedEntries: 0,
+        }
+    }
+    const cutoff = new Date(targetDate)
+    cutoff.setDate(cutoff.getDate() - 104 * 7)
+    const cutoffMs = cutoff.getTime()
+    const targetMonthKey = getEntryMonthKey(targetEntry)
+
+    let totalBasicPay = 0
+    let totalBasicHours = 0
+    let totalWeeks = 0
+    let periodsCounted = 0
+    let mixedMonthsIncluded = 0
+    let scannedEntries = 0
+    /** @type {Set<string>} */
+    const monthsSeen = new Set()
+
+    for (let i = sortedEntries.length - 1; i >= 0; i -= 1) {
+        const entry = sortedEntries[i]
+        scannedEntries += 1
+        if (entry === targetEntry) {
+            continue
+        }
+        const entryDate = entry.parsedDate
+        if (!entryDate) {
+            continue
+        }
+        if (entryDate >= targetDate) {
+            continue
+        }
+        if (entryDate.getTime() < cutoffMs) {
+            break
+        }
+        const entryMonthKey = getEntryMonthKey(entry)
+        if (targetMonthKey && entryMonthKey === targetMonthKey) {
+            continue
+        }
+
+        if (!entryMonthKey || monthsSeen.has(entryMonthKey)) {
+            continue
+        }
+        let shouldInclude = false
+        let countedAsMixedMonth = false
+        if (isReferenceEligible(entry)) {
+            shouldInclude = true
+        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
+            shouldInclude = true
+            countedAsMixedMonth = true
+        }
+        if (!shouldInclude) {
+            continue
+        }
+        monthsSeen.add(entryMonthKey)
+
+        const basic = getBasicPay(entry)
+        const weeks = getWeeksInPeriod(entryDate)
+        totalBasicPay += basic.amount ?? 0
+        totalBasicHours += basic.units ?? 0
+        totalWeeks += weeks
+        periodsCounted += 1
+        if (countedAsMixedMonth) {
+            mixedMonthsIncluded += 1
+        }
+
+        if (totalWeeks >= 52) {
+            break
+        }
+    }
+
+    return {
+        totalBasicPay,
+        totalBasicHours,
+        totalWeeks,
+        periodsCounted,
+        mixedMonthsIncluded,
+        scannedEntries,
+    }
 }
 
 /**
@@ -203,7 +373,7 @@ function buildPureRollingReference(sortedEntries, targetEntry) {
  * @param {HolidayEntry} mixedEntry
  * @returns {boolean}
  */
-function isGatePassingMixedMonth(sortedEntries, mixedEntry) {
+export function isGatePassingMixedMonth(sortedEntries, mixedEntry) {
     if (!isMixedMonthCandidate(mixedEntry) || !mixedEntry.parsedDate) {
         return false
     }
@@ -282,88 +452,16 @@ export function buildRollingReference(
         }
         return null
     }
-    const cutoff = new Date(targetDate)
-    cutoff.setDate(cutoff.getDate() - 104 * 7)
-    const cutoffMs = cutoff.getTime()
-
-    let totalBasicPay = 0
-    let totalBasicHours = 0
-    let totalWeeks = 0
-    let periodsCounted = 0
-    let mixedMonthsIncluded = 0
-    let scannedEntries = 0
-    /** @type {Set<string>} — `yearKey:monthIndex` to deduplicate same-month payslips */
-    const monthsSeen = new Set()
-
-    for (let i = sortedEntries.length - 1; i >= 0; i--) {
-        const entry = sortedEntries[i]
-        scannedEntries += 1
-        if (entry === targetEntry) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.targetEntry')
-            }
-            continue
-        }
-        const entryDate = entry.parsedDate
-        if (!entryDate) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.noDate')
-            }
-            continue
-        }
-        if (entryDate >= targetDate) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.notBeforeTarget')
-            }
-            continue
-        }
-        if (entryDate.getTime() < cutoffMs) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.break.cutoff')
-            }
-            break
-        }
-        const calYear = entryDate.getFullYear()
-        const monthKey = `${calYear}:${entry.monthIndex}`
-        if (monthsSeen.has(monthKey)) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.duplicateMonth')
-            }
-            continue
-        }
-        let shouldInclude = false
-        let countedAsMixedMonth = false
-        if (isReferenceEligible(entry)) {
-            shouldInclude = true
-        } else if (!pureOnly && isGatePassingMixedMonth(sortedEntries, entry)) {
-            shouldInclude = true
-            countedAsMixedMonth = true
-        }
-        if (!shouldInclude) {
-            if (timingEnabled) {
-                timing.increment('rollingReference.skip.ineligible')
-            }
-            continue
-        }
-        monthsSeen.add(monthKey)
-
-        const basic = getBasicPay(entry)
-        const weeks = getWeeksInPeriod(entryDate)
-        totalBasicPay += basic.amount ?? 0
-        totalBasicHours += basic.units ?? 0
-        totalWeeks += weeks
-        periodsCounted += 1
-        if (countedAsMixedMonth) {
-            mixedMonthsIncluded += 1
-            if (timingEnabled) {
-                timing.increment('rollingReference.include.mixedMonth')
-            }
-        }
-
-        if (totalWeeks >= 52) {
-            break
-        }
-    }
+    const {
+        totalBasicPay,
+        totalBasicHours,
+        totalWeeks,
+        periodsCounted,
+        mixedMonthsIncluded,
+        scannedEntries,
+    } = getRollingReferenceCoverage(sortedEntries, targetEntry, {
+        pureOnly,
+    })
 
     if (timingEnabled) {
         timing.increment('rollingReference.calls')
@@ -371,6 +469,10 @@ export function buildRollingReference(
         timing.increment('rollingReference.periodsCounted', periodsCounted)
         timing.recordMax('rollingReference.maxScannedEntries', scannedEntries)
         timing.recordMax('rollingReference.maxPeriodsCounted', periodsCounted)
+        timing.increment(
+            'rollingReference.include.mixedMonth',
+            mixedMonthsIncluded
+        )
     }
 
     if (periodsCounted < 3) {
@@ -454,6 +556,10 @@ export function buildHolidayPayFlags(entries) {
 
         const impliedHolidayRate = holidayAmount / holidayUnits
 
+        if (!entry.parsedDate || Number.isNaN(entry.parsedDate.getTime())) {
+            continue
+        }
+
         if (!entry.validation) {
             entry.validation = { flags: [], lowConfidence: false }
         }
@@ -469,6 +575,40 @@ export function buildHolidayPayFlags(entries) {
 
         const ref = buildRollingReference(sortedEntries, entry)
         applyMixedMonthLowConfidence(entry, ref)
+
+        if (!ref && hasHolidayPayment(entry)) {
+            const coverage = getRollingReferenceCoverage(sortedEntries, entry)
+            if (coverage.periodsCounted < 3) {
+                entry.validation.lowConfidence = true
+                pushFlagIfMissing(entry, {
+                    id: 'holiday_reference_insufficient_history',
+                    severity: 'notice',
+                    label: formatFlagLabel(
+                        'holiday_reference_insufficient_history'
+                    ),
+                    ruleId: 'holiday_reference_insufficient_history',
+                    inputs: {},
+                })
+            }
+        }
+
+        const entryIsMixedMonthCandidate = isMixedMonthCandidate(entry)
+        const totalMixed =
+            (ref?.mixedMonthsIncluded ?? 0) +
+            (entryIsMixedMonthCandidate ? 1 : 0)
+
+        if (ref && entryIsMixedMonthCandidate && totalMixed > 0) {
+            pushFlagIfMissing(entry, {
+                id: 'holiday_mixed_basic_holiday_pay',
+                severity: 'notice',
+                label: formatFlagLabel('holiday_mixed_basic_holiday_pay'),
+                ruleId: 'holiday_mixed_basic_holiday_pay',
+                inputs: {
+                    mixedMonthsIncluded: totalMixed,
+                },
+            })
+        }
+
         const holidayMatchesBasic =
             basicRate !== null &&
             Math.abs(basicRate - impliedHolidayRate) <= HOLIDAY_RATE_TOLERANCE

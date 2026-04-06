@@ -63,6 +63,33 @@ export const YEAR_SUMMARY_TITLE = 'Year Summary'
 export const ACCUMULATED_TOTALS_TITLE = 'Accumulated Totals'
 export const MISC_REVIEW_TITLE = 'Misc entries to review'
 export const FLAG_NOTES_TITLE = 'Flag notes'
+export const LOW_CONFIDENCE_PREFACE_TEXT =
+    'Period flagged as low confidence. The figures for this period may be worth reviewing.'
+
+/**
+ * @param {{ periodsCounted: number, totalWeeks: number }} params
+ * @returns {string}
+ */
+export function buildCoverageWarningMessage({ periodsCounted, totalWeeks }) {
+    if (periodsCounted < 3) {
+        return `Limited holiday-reference coverage: fewer than 3 eligible pay periods (${periodsCounted}) were found, so holiday-rate checks are limited for this year.`
+    }
+    return `Limited holiday-reference coverage: ${Math.floor(
+        totalWeeks
+    )} weeks from ${periodsCounted} eligible pay periods are available (up to 52 weeks recommended).`
+}
+
+/**
+ * @param {string[]} affectedYears
+ * @returns {string}
+ */
+export function buildGlobalCoverageNoticeMessage(affectedYears) {
+    if (!affectedYears.length) {
+        return ''
+    }
+    const yearList = affectedYears.join(', ')
+    return `Holiday-reference coverage is limited for: ${yearList}. Year-level notices below explain where holiday-rate checks are constrained.`
+}
 
 /**
  * @param {number} value
