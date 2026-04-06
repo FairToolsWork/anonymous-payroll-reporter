@@ -273,10 +273,10 @@ describe('report workflow', () => {
 
         expect(result.report.html).toContain('Payroll Report \u2014')
         expect(result.report.html).toContain(
-            'The figures on this period may be worth reviewing.'
+            'Period flagged as low confidence. The figures for this period may be worth reviewing.'
         )
         const prefaceIndex = result.report.html.indexOf(
-            'The figures on this period may be worth reviewing.'
+            'Period flagged as low confidence. The figures for this period may be worth reviewing.'
         )
         const warningBlockAfterPreface = result.report.html.indexOf(
             '<div class="notice error">',

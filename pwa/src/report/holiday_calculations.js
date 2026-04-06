@@ -178,7 +178,7 @@ function buildReferenceConfidence({
  * @returns {void}
  */
 function applyMixedMonthLowConfidence(entry, ref) {
-    if (!entry.validation || !ref || (ref.mixedMonthsIncluded ?? 0) <= 0) {
+    if (!entry.validation) {
         return
     }
     // Mixed-month confidence only affects holiday-rate interpretation.
@@ -186,7 +186,14 @@ function applyMixedMonthLowConfidence(entry, ref) {
     if (!hasHolidayPayment(entry)) {
         return
     }
-    entry.validation.lowConfidence = true
+    // Set lowConfidence if:
+    // 1. The rolling reference contains mixed months, OR
+    // 2. This entry itself is a mixed month candidate
+    const referenceHasMixedMonths = ref && (ref.mixedMonthsIncluded ?? 0) > 0
+    const targetIsMixed = isMixedMonthCandidate(entry)
+    if (referenceHasMixedMonths || targetIsMixed) {
+        entry.validation.lowConfidence = true
+    }
 }
 
 /**

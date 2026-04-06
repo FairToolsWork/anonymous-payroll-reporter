@@ -664,12 +664,12 @@ describe('exportReportPdf', () => {
         expect(pdfText).toContain('Payslip details - 28 Apr 2022')
         expect(pdfText).toContain('Low confidence')
         expect(pdfText).toContain(
-            'The figures on this period may be worth reviewing.'
+            'Period flagged as low confidence. The figures for this period may be worth reviewing.'
         )
         expect(pdfText).toContain('Notices')
         expect(
             pdfText.indexOf(
-                'The figures on this period may be worth reviewing.'
+                'Period flagged as low confidence. The figures for this period may be worth reviewing.'
             )
         ).toBeLessThan(pdfText.indexOf('Notices'))
         expect(pdfText).toContain(

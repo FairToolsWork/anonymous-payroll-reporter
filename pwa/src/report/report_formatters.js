@@ -64,7 +64,7 @@ export const ACCUMULATED_TOTALS_TITLE = 'Accumulated Totals'
 export const MISC_REVIEW_TITLE = 'Misc entries to review'
 export const FLAG_NOTES_TITLE = 'Flag notes'
 export const LOW_CONFIDENCE_PREFACE_TEXT =
-    'The figures on this period may be worth reviewing.'
+    'Period flagged as low confidence. The figures for this period may be worth reviewing.'
 
 /**
  * @param {{ periodsCounted: number, totalWeeks: number }} params
