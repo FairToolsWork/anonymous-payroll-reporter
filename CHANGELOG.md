@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.3](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.2...anonymous-payroll-reporter-v3.8.3) (2026-04-06)
+
+
+### Bug Fixes
+
+* **pay-calculations-hourly:** tighten PAYE zero-refund handling and treat invalid deferment windows as low confidence ([4545b85](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/4545b857f234e835ab8339335dd32541e4081b76))
+
 ## [3.8.2](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.1...anonymous-payroll-reporter-v3.8.2) (2026-04-06)
 
 
