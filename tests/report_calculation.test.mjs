@@ -3,6 +3,7 @@ import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
 import { buildReport, buildValidationSummary } from '../pwa/src/report/build.js'
 import {
     buildValidation,
+    isWithinPayeTolerance,
     sumDeductionsForNetPay,
     sumMiscAmounts,
     sumPayments,
@@ -323,7 +324,7 @@ describe('report calculations', () => {
         )
         expect(pensionFlag?.label).toContain('Pre-tax earnings are')
         expect(pensionFlag?.label).toContain(
-            'lower qualifying earnings threshold'
+            'below the lower qualifying earnings threshold'
         )
     })
 
@@ -2997,5 +2998,166 @@ describe('buildValidation — flag evidence payload', () => {
                 globalThis.__payeCumulativeMode = previousMode
             }
         }
+    })
+})
+
+describe('isWithinPayeTolerance', () => {
+    it('returns true when actual equals expected exactly', () => {
+        expect(isWithinPayeTolerance(250, 250)).toBe(true)
+    })
+
+    it('returns true when difference is exactly at the default tolerance (0.50)', () => {
+        expect(isWithinPayeTolerance(250.5, 250)).toBe(true)
+        expect(isWithinPayeTolerance(249.5, 250)).toBe(true)
+    })
+
+    it('returns false when difference exceeds default tolerance', () => {
+        expect(isWithinPayeTolerance(251, 250)).toBe(false)
+        expect(isWithinPayeTolerance(249, 250)).toBe(false)
+    })
+
+    it('respects a custom tolerance value', () => {
+        expect(isWithinPayeTolerance(252, 250, 2)).toBe(true)
+        expect(isWithinPayeTolerance(253, 250, 2)).toBe(false)
+    })
+
+    it('returns false when either operand is null', () => {
+        expect(isWithinPayeTolerance(null, 250)).toBe(false)
+        expect(isWithinPayeTolerance(250, null)).toBe(false)
+        expect(isWithinPayeTolerance(null, null)).toBe(false)
+    })
+
+    it('returns false when either operand is undefined', () => {
+        expect(isWithinPayeTolerance(undefined, 250)).toBe(false)
+        expect(isWithinPayeTolerance(250, undefined)).toBe(false)
+    })
+
+    it('handles floating-point comparison correctly at sub-penny precision', () => {
+        // 100.50 - 100.00 = 0.50 exactly, should be within default tolerance
+        expect(isWithinPayeTolerance(100.5, 100.0)).toBe(true)
+        // 100.51 - 100.00 = 0.51, should exceed tolerance
+        expect(isWithinPayeTolerance(100.51, 100.0)).toBe(false)
+    })
+
+    it('uses table_mode tolerance (2.0) for larger drift checks', () => {
+        expect(isWithinPayeTolerance(252, 250, 2)).toBe(true)
+        expect(isWithinPayeTolerance(252.01, 250, 2)).toBe(false)
+    })
+})
+
+describe('buildReport payrollRunStartDate handling', () => {
+    function buildMinimalRecord({ start, end, payeTax = 0, natIns = 0 }) {
+        const grossPay = 1000
+        return {
+            employee: { natInsNumber: 'AB123456C' },
+            payrollDoc: {
+                payPeriod: { start, end },
+                processDate: { date: `${start} - ${end}` },
+                taxCode: { code: '1257L' },
+                payments: {
+                    hourly: {
+                        basic: { units: 80, rate: 12.5, amount: grossPay },
+                        holiday: { units: 0, rate: null, amount: 0 },
+                    },
+                    salary: {
+                        basic: { amount: 0 },
+                        holiday: { units: 0, rate: null, amount: 0 },
+                    },
+                    misc: [],
+                },
+                thisPeriod: {
+                    totalGrossPay: { amount: grossPay },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                deductions: {
+                    payeTax: { amount: payeTax },
+                    natIns: { amount: natIns },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                    totalDeductions: { amount: payeTax + natIns },
+                },
+                netPay: { amount: grossPay - payeTax - natIns },
+            },
+            sourceFiles: ['test.pdf'],
+        }
+    }
+
+    it('infers payrollRunStartDate from earliest entry when caller does not supply one', () => {
+        const records = [
+            buildMinimalRecord({ start: '01/06/25', end: '30/06/25' }),
+            buildMinimalRecord({ start: '01/05/25', end: '31/05/25' }),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+        })
+        // The inferred start should be the earliest parsed date (May 2025)
+        expect(context.workerProfile.payrollRunStartDate).toBe('2025-05-01')
+    })
+
+    it('uses caller-supplied payrollRunStartDate over inferred date', () => {
+        const records = [
+            buildMinimalRecord({ start: '01/06/25', end: '30/06/25' }),
+            buildMinimalRecord({ start: '01/05/25', end: '31/05/25' }),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            payrollRunStartDate: '2025-01-01',
+        })
+        expect(context.workerProfile.payrollRunStartDate).toBe('2025-01-01')
+    })
+
+    it('propagates payrollRunStartDate to all entries', () => {
+        const records = [
+            buildMinimalRecord({ start: '01/05/25', end: '31/05/25' }),
+            buildMinimalRecord({ start: '01/06/25', end: '30/06/25' }),
+        ]
+        const { context } = buildReport(records, [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+            statutoryHolidayDays: 28,
+            payrollRunStartDate: '2025-03-01',
+        })
+        for (const entry of context.entries) {
+            expect(entry.workerProfile?.payrollRunStartDate).toBe('2025-03-01')
+        }
+    })
+
+    it('preserves null payrollRunStartDate when no dates can be inferred', () => {
+        // Record with no parseable dates
+        const recordNoDates = {
+            employee: { natInsNumber: 'AB123456C' },
+            payrollDoc: {
+                taxCode: { code: '1257L' },
+                payments: {
+                    hourly: {
+                        basic: { units: 80, rate: 12.5, amount: 1000 },
+                        holiday: { units: 0, rate: null, amount: 0 },
+                    },
+                    salary: { basic: { amount: 0 }, holiday: { amount: 0 } },
+                    misc: [],
+                },
+                thisPeriod: { totalGrossPay: { amount: 1000 } },
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                netPay: { amount: 1000 },
+            },
+            sourceFiles: ['test.pdf'],
+        }
+        const { context } = buildReport([recordNoDates], [], null, {
+            workerType: 'hourly',
+            typicalDays: 5,
+        })
+        // No caller-supplied date, no parseable dates → null
+        expect(context.workerProfile.payrollRunStartDate).toBeNull()
     })
 })
