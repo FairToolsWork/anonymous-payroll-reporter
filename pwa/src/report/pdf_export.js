@@ -14,6 +14,7 @@ import {
     formatContribution,
     formatCurrency,
     formatDeduction,
+    LOW_CONFIDENCE_PREFACE_TEXT,
     MISC_REVIEW_TITLE,
     YEAR_SUMMARY_TITLE,
 } from './report_formatters.js'
@@ -419,6 +420,12 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         y += warnBoxH + SECTION_GAP
     }
 
+    if (summaryViewModel.globalCoverageNotice) {
+        y = writeText(doc, summaryViewModel.globalCoverageNotice.message, y, {
+            fontSize: FONT_SMALL,
+        })
+    }
+
     y += LINE_GAP
     y = writeHeading(doc, YEAR_SUMMARY_TITLE, y)
 
@@ -623,6 +630,11 @@ function renderYearPage(
                 fontSize: FONT_SMALL,
             }
         )
+    }
+    if (yearViewModel.coverageWarning) {
+        y = writeText(doc, yearViewModel.coverageWarning.message, y, {
+            fontSize: FONT_SMALL,
+        })
     }
 
     /** @type {Array<Array<string>>} */
@@ -944,12 +956,9 @@ function renderPayslipPage(doc, entry) {
 
     if (payslipViewModel.flags.lowConfidence) {
         y = writeHeading(doc, 'Low confidence', y, { fontSize: FONT_BODY })
-        y = writeText(
-            doc,
-            'Payments and deductions may not fully reconcile for this period.',
-            y,
-            { fontSize: FONT_SMALL }
-        )
+        y = writeText(doc, LOW_CONFIDENCE_PREFACE_TEXT, y, {
+            fontSize: FONT_SMALL,
+        })
     }
 
     if (payslipViewModel.warningItems?.length) {

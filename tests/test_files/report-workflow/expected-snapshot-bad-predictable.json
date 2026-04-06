@@ -37,7 +37,8 @@
             "payeTax": 179.8,
             "pensionEE": 75.73,
             "flagIds": [
-                "holiday_rate_below_basic"
+                "holiday_rate_below_basic",
+                "holiday_reference_insufficient_history"
             ]
         },
         {
@@ -113,6 +114,7 @@
             "payeTax": 179.8,
             "pensionEE": 75.73,
             "flagIds": [
+                "holiday_mixed_basic_holiday_pay",
                 "holiday_rate_below_rolling_avg"
             ]
         },
@@ -151,6 +153,7 @@
             "payeTax": 179.8,
             "pensionEE": 75.73,
             "flagIds": [
+                "holiday_mixed_basic_holiday_pay",
                 "holiday_rate_below_rolling_avg"
             ]
         },

@@ -77,7 +77,21 @@ describe('buildHolidayPayFlags — Signal A (same-payslip rate)', () => {
             holidayAmount: 116.0,
         })
         buildHolidayPayFlags([entry])
-        expect(entry.validation.flags).toHaveLength(0)
+        expect(
+            entry.validation.flags.find(
+                (flag) => flag.id === 'holiday_rate_below_basic'
+            )
+        ).toBeUndefined()
+        expect(
+            entry.validation.flags.find(
+                (flag) => flag.id === 'holiday_rate_below_rolling_avg'
+            )
+        ).toBeUndefined()
+        expect(
+            entry.validation.flags.some(
+                (flag) => flag.id === 'holiday_reference_insufficient_history'
+            )
+        ).toBe(true)
     })
 
     it('adds no flag when rates differ by less than the tolerance (0.04 delta)', () => {
@@ -89,7 +103,21 @@ describe('buildHolidayPayFlags — Signal A (same-payslip rate)', () => {
             holidayAmount: 8 * 14.46,
         })
         buildHolidayPayFlags([entry])
-        expect(entry.validation.flags).toHaveLength(0)
+        expect(
+            entry.validation.flags.find(
+                (flag) => flag.id === 'holiday_rate_below_basic'
+            )
+        ).toBeUndefined()
+        expect(
+            entry.validation.flags.find(
+                (flag) => flag.id === 'holiday_rate_below_rolling_avg'
+            )
+        ).toBeUndefined()
+        expect(
+            entry.validation.flags.some(
+                (flag) => flag.id === 'holiday_reference_insufficient_history'
+            )
+        ).toBe(true)
     })
 
     it('flags holiday_rate_below_basic when holiday rate is materially lower', () => {
@@ -1713,12 +1741,66 @@ describe('mixed-month reference propagation', () => {
         const flag = target.validation.flags.find(
             (f) => f.id === 'holiday_rate_below_rolling_avg'
         )
+        const mixedNotice = target.validation.flags.find(
+            (f) => f.id === 'holiday_mixed_basic_holiday_pay'
+        )
         expect(flag).toBeDefined()
         expect(flag.label).toMatch(
             /low confidence: includes 1 mixed work\+holiday month/
         )
         expect(flag.inputs.mixedMonthsIncluded).toBe(1)
         expect(target.validation.lowConfidence).toBe(true)
+        expect(mixedNotice).toBeUndefined()
+    })
+
+    it('emits mixed-period notice only when the current period is mixed basic+holiday pay', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 128,
+            basicRate: 12.5,
+            holidayUnits: 8,
+            holidayAmount: 72,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+
+        buildHolidayPayFlags([...entries, target])
+
+        const mixedNotice = target.validation.flags.find(
+            (f) => f.id === 'holiday_mixed_basic_holiday_pay'
+        )
+        expect(mixedNotice).toBeDefined()
+        expect(mixedNotice.severity).toBe('notice')
+        expect(mixedNotice.label).toContain(
+            'Mixed basic pay + holiday pay detected in this period'
+        )
     })
 
     it('propagates confidence into holidayContext when mixed months are included', () => {
@@ -1767,6 +1849,81 @@ describe('mixed-month reference propagation', () => {
             'Includes 1 mixed work+holiday month'
         )
         expect(target.validation.lowConfidence).toBe(false)
+    })
+})
+
+describe('insufficient-history low-confidence holiday notices', () => {
+    it('marks holiday entries low-confidence and emits insufficient-history notice when fewer than 3 eligible periods are available', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+        ]
+        const holidayEntry = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 80,
+            monthIndex: 3,
+            parsedDate: new Date(2024, 2, 15),
+        })
+
+        buildHolidayPayFlags([...entries, holidayEntry])
+
+        const insufficientHistoryNotice = holidayEntry.validation.flags.find(
+            (f) => f.id === 'holiday_reference_insufficient_history'
+        )
+        expect(holidayEntry.validation.lowConfidence).toBe(true)
+        expect(insufficientHistoryNotice).toBeDefined()
+        expect(insufficientHistoryNotice.severity).toBe('notice')
+        expect(insufficientHistoryNotice.label).toContain(
+            'Fewer than 3 pay periods available'
+        )
+    })
+
+    it('does not mark entries without holiday pay as low-confidence in the <3 period window', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 0,
+            holidayAmount: 0,
+            monthIndex: 3,
+            parsedDate: new Date(2024, 2, 15),
+        })
+
+        buildHolidayPayFlags([...entries, target])
+
+        expect(target.validation.lowConfidence).toBe(false)
+        expect(
+            target.validation.flags.some(
+                (f) => f.id === 'holiday_reference_insufficient_history'
+            )
+        ).toBe(false)
     })
 })
 

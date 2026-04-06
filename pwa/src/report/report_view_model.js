@@ -13,6 +13,8 @@ import { getTaxYearThresholdsForContext } from './uk_thresholds.js'
 import {
     ACCUMULATED_TOTALS_NOTE,
     buildAnnualCrossCheckDisplay,
+    buildCoverageWarningMessage,
+    buildGlobalCoverageNoticeMessage,
     buildZeroTaxAllowanceNote,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
@@ -20,7 +22,12 @@ import {
 import {
     formatDateLabel,
     getCalendarMonthFromFiscalIndex,
+    getWeeksInPeriod,
 } from './tax_year_utils.js'
+import {
+    isGatePassingMixedMonth,
+    isReferenceEligible,
+} from './holiday_calculations.js'
 import {
     buildEntryHolidaySummary,
     buildLeaveYearGroups,
@@ -494,6 +501,7 @@ function buildSummaryYearRow(
         reportedContribution !== null &&
         payrollContribution === 0 &&
         reportedContribution === 0
+    const coverageWarning = buildCoverageWarning(entriesForYear)
     return {
         yearKey,
         anchorId: `year-summary-${formatYearAnchor(yearKey)}`,
@@ -521,6 +529,7 @@ function buildSummaryYearRow(
         },
         overUnder,
         zeroReview,
+        coverageWarning,
         hasFlags: entriesForYear.some((/** @type {ReportEntry} */ entry) =>
             (entry.validation?.flags || []).some(
                 (flag) => flag.severity !== 'notice'
@@ -632,6 +641,17 @@ export function buildSummaryViewModel(context, meta) {
                 context.workerProfile || null
             )
         )
+    const yearsWithCoverageWarnings = yearSummaryRows
+        .filter((row) => Boolean(row.coverageWarning))
+        .map((row) => row.yearKey)
+    const globalCoverageNotice = yearsWithCoverageWarnings.length
+        ? {
+              message: buildGlobalCoverageNoticeMessage(
+                  yearsWithCoverageWarnings
+              ),
+              affectedYears: yearsWithCoverageWarnings,
+          }
+        : null
     const notes = /** @type {Array<{ id: string, text: string }>} */ ([
         {
             id: 'accumulated-totals',
@@ -685,6 +705,7 @@ export function buildSummaryViewModel(context, meta) {
         metaRows,
         contractTypeMismatchWarning:
             context.contractTypeMismatchWarning || null,
+        globalCoverageNotice,
         yearSummaryRows,
         accumulatedTotals: {
             dateRangeLabel: meta.dateRangeLabel || 'Unknown',
@@ -893,6 +914,7 @@ export function buildYearViewModel(
         leaveYearGroups,
         workerProfile
     )
+    const coverageWarning = buildCoverageWarning(yearEntries)
     const annualCrossCheck =
         yearHolidaySummary.kind === 'hourly_hours'
             ? yearHolidaySummary.annualCrossCheck || null
@@ -989,6 +1011,7 @@ export function buildYearViewModel(
                       : 0
               )
             : null,
+        coverageWarning,
         missingMonths:
             context.missingMonths?.missingMonthsByYear?.[yearKey] || [],
         rows,
@@ -996,5 +1019,65 @@ export function buildYearViewModel(
         miscReviewItems: collectMiscReviewItems(yearEntries),
         flagNotes: noteLabels,
         notes,
+    }
+}
+
+/**
+ * @param {ReportEntry[]} entriesForYear
+ * @returns {{ kind: 'limited_weeks' | 'insufficient_months', periodsCounted: number, totalWeeks: number, message: string } | null}
+ */
+function buildCoverageWarning(entriesForYear) {
+    const sortedEntries = entriesForYear.slice().sort((a, b) => {
+        const aTime = a.parsedDate instanceof Date ? a.parsedDate.getTime() : 0
+        const bTime = b.parsedDate instanceof Date ? b.parsedDate.getTime() : 0
+        return aTime - bTime
+    })
+    const normalizedEntries = sortedEntries.map((entry) => ({
+        ...entry,
+        yearKey: entry.yearKey ?? null,
+    }))
+    /** @type {Map<string, Date>} */
+    const uniqueEligibleMonths = new Map()
+    normalizedEntries.forEach((entryForEligibility) => {
+        const isEligible =
+            isReferenceEligible(entryForEligibility) ||
+            isGatePassingMixedMonth(normalizedEntries, entryForEligibility)
+        if (!isEligible) {
+            return
+        }
+        if (!(entryForEligibility.parsedDate instanceof Date)) {
+            return
+        }
+        const key = `${entryForEligibility.parsedDate.getFullYear()}:${entryForEligibility.parsedDate.getMonth()}`
+        if (!uniqueEligibleMonths.has(key)) {
+            uniqueEligibleMonths.set(key, entryForEligibility.parsedDate)
+        }
+    })
+
+    const periodsCounted = uniqueEligibleMonths.size
+    const totalWeeks = Array.from(uniqueEligibleMonths.values()).reduce(
+        (acc, parsedDate) => acc + getWeeksInPeriod(parsedDate),
+        0
+    )
+
+    if (periodsCounted < 3) {
+        return {
+            kind: 'insufficient_months',
+            periodsCounted,
+            totalWeeks,
+            message: buildCoverageWarningMessage({
+                periodsCounted,
+                totalWeeks,
+            }),
+        }
+    }
+    if (totalWeeks >= 52) {
+        return null
+    }
+    return {
+        kind: 'limited_weeks',
+        periodsCounted,
+        totalWeeks,
+        message: buildCoverageWarningMessage({ periodsCounted, totalWeeks }),
     }
 }

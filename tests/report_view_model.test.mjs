@@ -367,6 +367,28 @@ describe('buildPayslipViewModel', () => {
         expect(viewModel.flags.warningCount).toBe(0)
     })
 
+    it('places explicit notice-severity holiday flags in noticeItems (not warningItems)', () => {
+        const viewModel = buildPayslipViewModel(
+            buildEntry({
+                validation: {
+                    flags: [
+                        {
+                            id: 'holiday_reference_insufficient_history',
+                            label: 'Fewer than 3 pay periods available — not enough to estimate holiday days taken.',
+                            severity: 'notice',
+                        },
+                    ],
+                    lowConfidence: true,
+                },
+            })
+        )
+
+        expect(viewModel.noticeItems).toEqual([
+            'Fewer than 3 pay periods available — not enough to estimate holiday days taken.',
+        ])
+        expect(viewModel.warningItems).toEqual([])
+    })
+
     it('routes pension warning and notice flags to separate callout buckets', () => {
         const viewModel = buildPayslipViewModel(
             buildEntry({
@@ -460,6 +482,10 @@ describe('buildSummaryViewModel', () => {
         expect(viewModel.contractTypeMismatchWarning).toBe(
             'Worker type mismatch'
         )
+        expect(viewModel.globalCoverageNotice).toBeTruthy()
+        expect(viewModel.globalCoverageNotice?.affectedYears).toEqual([
+            '2024/25',
+        ])
         expect(viewModel.yearSummaryRows).toHaveLength(1)
         expect(viewModel.yearSummaryRows[0]).toMatchObject({
             yearKey: '2024/25',
@@ -470,6 +496,10 @@ describe('buildSummaryViewModel', () => {
             overUnder: 20,
             hasFlags: true,
         })
+        expect(viewModel.yearSummaryRows[0].coverageWarning).toBeTruthy()
+        expect(viewModel.yearSummaryRows[0].coverageWarning.kind).toBe(
+            'insufficient_months'
+        )
         expect(viewModel.accumulatedTotals).toMatchObject({
             dateRangeLabel: 'Apr 2024',
             payrollContribution: { total: 80, ee: 50, er: 30 },
@@ -526,6 +556,8 @@ describe('buildYearViewModel', () => {
             yearKey: '2024/25',
             anchorId: 'year-summary-2024-25',
         })
+        expect(viewModel.coverageWarning).toBeTruthy()
+        expect(viewModel.coverageWarning.kind).toBe('insufficient_months')
         expect(viewModel.missingMonths).toEqual(['May'])
         expect(viewModel.rows).toHaveLength(12)
         expect(viewModel.rows[0]).toMatchObject({
