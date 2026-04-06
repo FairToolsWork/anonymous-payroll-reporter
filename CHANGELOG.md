@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.7.1...anonymous-payroll-reporter-v3.8.0) (2026-04-06)
+
+
+### Features
+
+* **validation:** close [#26](https://github.com/FairToolsWork/anonymous-payroll-reporter/issues/26) [#32](https://github.com/FairToolsWork/anonymous-payroll-reporter/issues/32) [#33](https://github.com/FairToolsWork/anonymous-payroll-reporter/issues/33) with tax-year-aware PAYE and pension flags ([#36](https://github.com/FairToolsWork/anonymous-payroll-reporter/issues/36)) ([a1ea604](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/a1ea6045490061e7ea93bd1eba045fd185a7e8d4))
+
 ## [3.7.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.7.0...anonymous-payroll-reporter-v3.7.1) (2026-04-04)
 
 
