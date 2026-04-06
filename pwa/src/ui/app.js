@@ -458,7 +458,11 @@ export function initPayrollApp() {
 
                 this.appVersion = getAppVersionFromDemoLink()
 
-                if (DEBUG_LEVEL === '2') {
+                if (
+                    DEBUG_LEVEL === '2' ||
+                    DEBUG_LEVEL === '3' ||
+                    DEBUG_LEVEL === '4'
+                ) {
                     this.updateAvailable = true
                 }
                 if (!Array.isArray(this.stagedFiles)) {
@@ -532,6 +536,21 @@ export function initPayrollApp() {
                                     parsed.leaveYearStartMonth <= 12
                                         ? parsed.leaveYearStartMonth
                                         : 4,
+                                ...(typeof parsed.pensionDefermentCommunicated ===
+                                    'boolean' && {
+                                    pensionDefermentCommunicated:
+                                        parsed.pensionDefermentCommunicated,
+                                }),
+                                ...(typeof parsed.pensionDefermentStartDate ===
+                                    'string' && {
+                                    pensionDefermentStartDate:
+                                        parsed.pensionDefermentStartDate,
+                                }),
+                                ...(typeof parsed.pensionDefermentEndDate ===
+                                    'string' && {
+                                    pensionDefermentEndDate:
+                                        parsed.pensionDefermentEndDate,
+                                }),
                             }
                         }
                     }

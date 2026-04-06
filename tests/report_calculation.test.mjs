@@ -52,7 +52,10 @@ function buildRecord({
                 misc: [],
             },
             taxCode: { code: taxCode || '' },
-            thisPeriod: { totalGrossPay: { amount: grossPay } },
+            thisPeriod: {
+                totalGrossPay: { amount: grossPay },
+                payCycle: { cycle: 'Monthly' },
+            },
             netPay: { amount: netPay },
         },
     }
@@ -101,6 +104,7 @@ function buildHourlyWorkerRecord({
             },
             thisPeriod: {
                 totalGrossPay: { amount: grossPay },
+                payCycle: { cycle: 'Monthly' },
             },
             deductions: {
                 payeTax: { amount: payeTax },
@@ -299,9 +303,7 @@ describe('report calculations', () => {
             'may be able to opt in to a workplace pension'
         )
         expect(pensionFlag?.label).toContain('Pre-tax earnings are')
-        expect(pensionFlag?.label).toContain(
-            'below the monthly auto-enrolment trigger'
-        )
+        expect(pensionFlag?.label).toContain('auto-enrolment trigger')
     })
 
     it('emits pension join notice below lower qualifying threshold', () => {

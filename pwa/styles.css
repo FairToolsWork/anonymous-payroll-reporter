@@ -85,6 +85,7 @@
     --days-stale: hsl(6deg 72% 45%);
     --days-fresh-bg: hsl(145deg 52% 33% / 16%);
     --days-stale-bg: hsl(6deg 72% 45% / 16%);
+    --notice: hsl(42deg 79% 52%);
     --notice-border: hsl(42deg 68% 48% / 45%);
     --notice-bg: hsl(42deg 68% 48% / 14%);
     --notice-text: hsl(35deg 52% 32%);
@@ -964,7 +965,7 @@ ul {
     padding-inline: var(--space-16) 0;
 
     & li {
-        margin-block: var(--space-4);
+        margin-block-end: var(--space-4);
         margin-inline: 0;
     }
 }
@@ -1126,6 +1127,18 @@ details .notice {
     color: var(--warning-text);
     background: var(--warning-bg);
     border-color: var(--warning-border);
+}
+
+.notice p:first-of-type,
+.notice li:first-of-type {
+    padding-block-start: 0;
+    margin-block-start: 0;
+}
+
+.notice p:last-of-type,
+.notice li:last-of-type {
+    padding-block-end: 0;
+    margin-block-end: 0;
 }
 
 .notice.no-left-border {
@@ -1919,8 +1932,8 @@ label.field span {
 }
 
 .report-cell.is-low-confidence {
-    border-color: var(--accent-60);
-    box-shadow: 0 0 0 2px var(--accent-15);
+    border-inline-start: var(--space-4) solid var(--notice);
+    border-radius: var(--radius-8);
 }
 
 .report-cell {
@@ -2142,8 +2155,7 @@ p.report-footnote-row {
     padding-inline-start: var(--space-16);
 }
 
-.report-footnote li,
-.report-warning-list li {
+.report-footnote li {
     margin-block: 0;
 }
 

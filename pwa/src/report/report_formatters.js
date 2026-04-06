@@ -5,18 +5,42 @@
 
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
-    PERSONAL_ALLOWANCE_ANNUAL,
-    PERSONAL_ALLOWANCE_MONTHLY,
+    TAX_YEAR_THRESHOLDS,
+    getTaxYearThresholdsByStartYear,
 } from './uk_thresholds.js'
+
+const DEFAULT_NOTE_THRESHOLDS = (() => {
+    const configuredStartYears = Object.keys(TAX_YEAR_THRESHOLDS)
+        .map((key) => Number.parseInt(key, 10))
+        .filter((year) => Number.isFinite(year))
+        .sort((a, b) => b - a)
+    if (!configuredStartYears.length) {
+        return null
+    }
+    return getTaxYearThresholdsByStartYear(configuredStartYears[0])
+})()
 
 export const APRIL_BOUNDARY_NOTE =
     'April payslips may include pay accrued across the 6 April tax year boundary. <br/>' +
     'This tool cannot determine how the employer has attributed hours or amounts between tax years, ' +
     'which may cause discrepancies in year-end figures.'
 
-export const ZERO_TAX_ALLOWANCE_NOTE =
-    `PAYE Tax / National Insurance may be £0 when monthly pay is below £${PERSONAL_ALLOWANCE_MONTHLY.toLocaleString('en-GB')} ` +
-    `(Personal Allowance £${PERSONAL_ALLOWANCE_ANNUAL.toLocaleString('en-GB')} per year, based on the current configured UK rate).`
+/**
+ * @param {{ personalAllowanceAnnual: number, personalAllowanceMonthly: number } | null} [thresholds=null]
+ * @returns {string}
+ */
+export function buildZeroTaxAllowanceNote(thresholds = null) {
+    const resolved = thresholds || DEFAULT_NOTE_THRESHOLDS
+    if (!resolved) {
+        return 'PAYE Tax / National Insurance context note unavailable.'
+    }
+    return (
+        `PAYE Tax / National Insurance may be £0 when monthly pay is below £${resolved.personalAllowanceMonthly.toLocaleString('en-GB')} ` +
+        `(Personal Allowance £${resolved.personalAllowanceAnnual.toLocaleString('en-GB')} per year, based on the current configured UK rate).`
+    )
+}
+
+export const ZERO_TAX_ALLOWANCE_NOTE = buildZeroTaxAllowanceNote()
 
 export const ACCUMULATED_TOTALS_NOTE =
     'Accumulated Over / Under = Reported (EE+ER) - Payroll Contributions (EE+ER). <br/>' +
