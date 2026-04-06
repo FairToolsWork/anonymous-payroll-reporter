@@ -447,13 +447,14 @@ function buildYearFlagModel(entriesForYear) {
     return { noteLabels, refsByEntry }
 }
 
-/** @param {ReportEntry[]} allEntries @param {any} entriesForYear @param {string} yearKey @param {Map<string, any>} leaveYearGroups @param {any} workerProfile */
+/** @param {ReportEntry[]} allEntries @param {any} entriesForYear @param {string} yearKey @param {Map<string, any>} leaveYearGroups @param {any} workerProfile @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] */
 function buildSummaryYearRow(
     allEntries,
     entriesForYear,
     yearKey,
     leaveYearGroups,
-    workerProfile
+    workerProfile,
+    coverageEntriesPrecomputed = null
 ) {
     const holidaySummary = buildYearHolidaySummary(
         entriesForYear,
@@ -500,7 +501,11 @@ function buildSummaryYearRow(
         reportedContribution !== null &&
         payrollContribution === 0 &&
         reportedContribution === 0
-    const coverageWarning = buildCoverageWarning(allEntries, entriesForYear)
+    const coverageWarning = buildCoverageWarning(
+        allEntries,
+        entriesForYear,
+        coverageEntriesPrecomputed
+    )
     return {
         yearKey,
         anchorId: `year-summary-${formatYearAnchor(yearKey)}`,
@@ -630,6 +635,7 @@ export function buildSummaryViewModel(context, meta) {
             emptyLabel: '0',
         },
     ]
+    const coverageEntriesPrecomputed = prepareCoverageEntries(entries)
     const yearSummaryRows = Array.from(yearGroups.entries())
         .filter(([yearKey]) => Boolean(yearKey) && yearKey !== 'Unknown')
         .map(([yearKey, entriesForYear]) =>
@@ -638,7 +644,8 @@ export function buildSummaryViewModel(context, meta) {
                 entriesForYear,
                 String(yearKey),
                 leaveYearGroups,
-                context.workerProfile || null
+                context.workerProfile || null,
+                coverageEntriesPrecomputed
             )
         )
     const yearsWithCoverageWarnings = yearSummaryRows
@@ -914,7 +921,11 @@ export function buildYearViewModel(
         leaveYearGroups,
         workerProfile
     )
-    const coverageWarning = buildCoverageWarning(allEntries, yearEntries)
+    const coverageWarning = buildCoverageWarning(
+        allEntries,
+        yearEntries,
+        prepareCoverageEntries(allEntries)
+    )
     const annualCrossCheck =
         yearHolidaySummary.kind === 'hourly_hours'
             ? yearHolidaySummary.annualCrossCheck || null
@@ -1027,6 +1038,9 @@ export function buildYearViewModel(
  * @returns {boolean}
  */
 function isHolidayCoverageTarget(entry) {
+    if (!(entry.parsedDate instanceof Date)) {
+        return false
+    }
     const holiday = entry.record?.payrollDoc?.payments?.hourly?.holiday
     return (holiday?.units ?? 0) > 0 && (holiday?.amount ?? 0) > 0
 }
@@ -1043,16 +1057,14 @@ function normalizeHolidayCoverageEntries(entries) {
 }
 
 /**
+ * Precompute normalized + sorted coverage entries and a lookup map from original
+ * to normalized entry. Call once per report and pass the result into
+ * buildCoverageWarning to avoid redundant O(N log N) sorts across year rows.
+ *
  * @param {ReportEntry[]} allEntries
- * @param {ReportEntry[]} entriesForYear
- * @returns {CoverageWarning | null}
+ * @returns {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> }}
  */
-function buildCoverageWarning(allEntries, entriesForYear) {
-    const holidayTargets = entriesForYear.filter(isHolidayCoverageTarget)
-    if (!holidayTargets.length) {
-        return null
-    }
-
+function prepareCoverageEntries(allEntries) {
     // Normalize allEntries once so that the same object references appear in both
     // sortedEntries and normalizedHolidayTargets. getRollingReferenceCoverage uses
     // entry === targetEntry (object identity) to skip the target month; a second
@@ -1061,13 +1073,6 @@ function buildCoverageWarning(allEntries, entriesForYear) {
     const normalizedEntryByOriginalEntry = new Map(
         allEntries.map((entry, index) => [entry, normalizedAllEntries[index]])
     )
-    const normalizedHolidayTargets = holidayTargets
-        .map((entry) => normalizedEntryByOriginalEntry.get(entry))
-        .filter(
-            (/** @type {HolidayCoverageEntry | undefined} */ entry) =>
-                entry !== undefined
-        )
-
     const sortedEntries = normalizedAllEntries
         .slice()
         .sort(
@@ -1081,6 +1086,29 @@ function buildCoverageWarning(allEntries, entriesForYear) {
                     b.parsedDate instanceof Date ? b.parsedDate.getTime() : 0
                 return aTime - bTime
             }
+        )
+    return { sortedEntries, normalizedEntryByOriginalEntry }
+}
+
+/**
+ * @param {ReportEntry[]} allEntries
+ * @param {ReportEntry[]} entriesForYear
+ * @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [precomputed]
+ * @returns {CoverageWarning | null}
+ */
+function buildCoverageWarning(allEntries, entriesForYear, precomputed = null) {
+    const holidayTargets = entriesForYear.filter(isHolidayCoverageTarget)
+    if (!holidayTargets.length) {
+        return null
+    }
+
+    const { sortedEntries, normalizedEntryByOriginalEntry } =
+        precomputed ?? prepareCoverageEntries(allEntries)
+    const normalizedHolidayTargets = holidayTargets
+        .map((entry) => normalizedEntryByOriginalEntry.get(entry))
+        .filter(
+            (/** @type {HolidayCoverageEntry | undefined} */ entry) =>
+                entry !== undefined
         )
 
     /** @type {{ periodsCounted: number, totalWeeks: number } | null} */

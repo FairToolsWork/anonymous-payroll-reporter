@@ -1925,6 +1925,23 @@ describe('insufficient-history low-confidence holiday notices', () => {
             )
         ).toBe(false)
     })
+
+    it('skips entries with null parsedDate entirely and emits no holiday flags', () => {
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 80,
+            monthIndex: 3,
+            parsedDate: null,
+        })
+
+        buildHolidayPayFlags([target])
+
+        expect(target.validation.lowConfidence).toBe(false)
+        expect(target.validation.flags).toHaveLength(0)
+    })
 })
 
 describe('isReferenceEligible — statutory pay titles', () => {

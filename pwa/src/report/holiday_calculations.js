@@ -497,6 +497,10 @@ export function buildHolidayPayFlags(entries) {
 
         const impliedHolidayRate = holidayAmount / holidayUnits
 
+        if (!entry.parsedDate) {
+            continue
+        }
+
         if (!entry.validation) {
             entry.validation = { flags: [], lowConfidence: false }
         }

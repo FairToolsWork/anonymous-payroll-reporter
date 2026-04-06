@@ -1018,4 +1018,20 @@ describe('buildYearViewModel', () => {
 
         expect(viewModel.coverageWarning).toBeNull()
     })
+
+    it('omits year-level holiday coverage notices when entry has null parsedDate', () => {
+        const { context, entriesForYear } = buildStageTwoContext()
+        // Remove parsedDate to simulate an entry with an unparseable date
+        entriesForYear[0].parsedDate = null
+        context.entries[0].parsedDate = null
+
+        const viewModel = buildYearViewModel(
+            entriesForYear,
+            '2024/25',
+            context,
+            0
+        )
+
+        expect(viewModel.coverageWarning).toBeNull()
+    })
 })
