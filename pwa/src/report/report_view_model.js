@@ -1053,7 +1053,22 @@ function buildCoverageWarning(allEntries, entriesForYear) {
         return null
     }
 
-    const sortedEntries = normalizeHolidayCoverageEntries(allEntries)
+    // Normalize allEntries once so that the same object references appear in both
+    // sortedEntries and normalizedHolidayTargets. getRollingReferenceCoverage uses
+    // entry === targetEntry (object identity) to skip the target month; a second
+    // independent normalization pass would create different objects and break that skip.
+    const normalizedAllEntries = normalizeHolidayCoverageEntries(allEntries)
+    const normalizedEntryByOriginalEntry = new Map(
+        allEntries.map((entry, index) => [entry, normalizedAllEntries[index]])
+    )
+    const normalizedHolidayTargets = holidayTargets
+        .map((entry) => normalizedEntryByOriginalEntry.get(entry))
+        .filter(
+            (/** @type {HolidayCoverageEntry | undefined} */ entry) =>
+                entry !== undefined
+        )
+
+    const sortedEntries = normalizedAllEntries
         .slice()
         .sort(
             (
@@ -1067,9 +1082,6 @@ function buildCoverageWarning(allEntries, entriesForYear) {
                 return aTime - bTime
             }
         )
-
-    const normalizedHolidayTargets =
-        normalizeHolidayCoverageEntries(holidayTargets)
 
     /** @type {{ periodsCounted: number, totalWeeks: number } | null} */
     let insufficientCoverage = null

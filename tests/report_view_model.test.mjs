@@ -763,6 +763,85 @@ describe('buildSummaryViewModel', () => {
             '2024/25',
         ])
     })
+
+    it('does not count the holiday target itself as one of its own reference periods', () => {
+        // Regression: the summary helper previously called normalizeHolidayCoverageEntries
+        // twice — once for sortedEntries, once for the targets — producing different object
+        // references. getRollingReferenceCoverage skips the target via object identity
+        // (entry === targetEntry), so with two different clones the skip never fired and the
+        // target was included in its own 52-week reference, inflating periodsCounted by 1.
+        //
+        // With 2 prior eligible months, the corrected path must report insufficient_months
+        // (periodsCounted: 2). The buggy path counted the target itself and returned 3,
+        // which is above the threshold, masking the warning.
+        const makeEntry = (date, monthIndex, yearKey, withHolidayPay) =>
+            buildStageTwoEntry({
+                parsedDate: new Date(date + 'T00:00:00.000Z'),
+                monthIndex,
+                yearKey,
+                leaveYearKey: yearKey,
+                record: {
+                    imageData: null,
+                    payrollDoc: {
+                        processDate: { date },
+                        payments: {
+                            hourly: {
+                                basic: { units: 160, rate: 12.5, amount: 2000 },
+                                holiday: withHolidayPay
+                                    ? { units: 8, rate: 12.5, amount: 100 }
+                                    : { units: 0, rate: null, amount: 0 },
+                            },
+                            salary: {},
+                            misc: [],
+                        },
+                        deductions: {
+                            payeTax: { amount: 100 },
+                            natIns: { amount: 80 },
+                            pensionEE: { amount: 50 },
+                            pensionER: { amount: 30 },
+                            misc: [],
+                        },
+                        netPay: { amount: 1820 },
+                        thisPeriod: { totalGrossPay: { amount: 2100 } },
+                    },
+                },
+                validation: { flags: [], lowConfidence: false },
+            })
+
+        // Two prior eligible months (pure basic pay, no holiday)
+        const priorA = makeEntry('2024-01-15', 10, '2023/24', false)
+        const priorB = makeEntry('2024-02-15', 11, '2023/24', false)
+        // Target: has basic pay (reference-eligible) AND holiday pay (coverage target).
+        // Without the fix it would self-include and return periodsCounted: 3.
+        const target = makeEntry('2024-04-15', 1, '2024/25', true)
+
+        const priorEntries = [priorA, priorB]
+        priorEntries.reconciliation = {
+            months: new Map(),
+            totals: { actualEE: 0, actualER: 0 },
+        }
+        const currentYearEntries = [target]
+        currentYearEntries.reconciliation = {
+            months: new Map([[1, { actualEE: 50, actualER: 30 }]]),
+            totals: { actualEE: 50, actualER: 30 },
+        }
+        const { context, meta } = buildStageTwoContext()
+        context.entries = [priorA, priorB, target]
+        context.yearGroups = new Map([
+            ['2023/24', priorEntries],
+            ['2024/25', currentYearEntries],
+        ])
+
+        const viewModel = buildSummaryViewModel(context, meta)
+        const currentYearRow = viewModel.yearSummaryRows.find(
+            (row) => row.yearKey === '2024/25'
+        )
+
+        expect(currentYearRow?.coverageWarning).toMatchObject({
+            kind: 'insufficient_months',
+            periodsCounted: 2,
+        })
+    })
 })
 
 describe('buildYearViewModel', () => {
