@@ -558,7 +558,7 @@ function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
     }
 
     const difference = roundMoney(payeTax - expectedPaye)
-    const isZeroFlag = payeTax <= 0
+    const isZeroFlag = roundMoney(payeTax) === 0
     const isSignificantMismatch = Math.abs(difference) > payeTolerance
     const severity = isSignificantMismatch ? 'warning' : 'notice'
     const label = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {

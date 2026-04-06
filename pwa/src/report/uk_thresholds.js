@@ -409,14 +409,11 @@ export function parsePayeTaxCode(taxCode) {
     const regionlessCode =
         region === 'england' ? normalizedCode : normalizedCode.slice(1).trim()
     const emergencyToken = '(?:W1\\/M1|M1\\/W1|W1|M1|X)'
-    const isEmergency = new RegExp(
-        `(?:^|\\s)${emergencyToken}(?:\\s|$)`
-    ).test(regionlessCode)
+    const isEmergency = new RegExp(`(?:^|\\s)${emergencyToken}(?:\\s|$)`).test(
+        regionlessCode
+    )
     const baseCode = regionlessCode
-        .replace(
-            new RegExp(`(?:^|\\s)${emergencyToken}(?:\\s|$)`, 'g'),
-            ' '
-        )
+        .replace(new RegExp(`(?:^|\\s)${emergencyToken}(?:\\s|$)`, 'g'), ' ')
         .replace(/\s+/g, '')
         .trim()
 
@@ -499,14 +496,22 @@ export function getPayPeriodIndexForDate(date, periodsPerYear) {
         if (startYear === null) {
             return null
         }
-        return (
-            (((date.getFullYear() - startYear) * 12 +
-                date.getMonth() -
-                3 +
-                12) %
-                12) +
-            1
+        const taxYearAnchor = new Date(
+            startYear,
+            TAX_YEAR_START_MONTH_INDEX,
+            TAX_YEAR_START_DAY
         )
+        let monthsSinceTaxYearStart =
+            (date.getFullYear() - taxYearAnchor.getFullYear()) * 12 +
+            (date.getMonth() - taxYearAnchor.getMonth())
+
+        // Count only whole months from the tax-year anchor day.
+        if (date.getDate() < taxYearAnchor.getDate()) {
+            monthsSinceTaxYearStart -= 1
+        }
+
+        const normalizedMonths = ((monthsSinceTaxYearStart % 12) + 12) % 12
+        return normalizedMonths + 1
     }
     if (periodsPerYear === 52) {
         const startYear = getTaxYearStartYearFromDate(date)

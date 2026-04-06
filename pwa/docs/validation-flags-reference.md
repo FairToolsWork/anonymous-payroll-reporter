@@ -14,6 +14,7 @@ Threshold-backed validation follows four operating modes:
 - `fallback-to-previous-tax-year`: requested year is newer than configured data; emit `tax_year_thresholds_unavailable`, run threshold-driven checks using the most recent prior configured year, and keep low confidence true.
 - `partial-threshold-support`: threshold rows exist but some checks are intentionally limited for the period; emit `tax_year_thresholds_partial_support`, skip threshold-driven PAYE/NI checks, and continue pension threshold checks.
 - `skip`: tax year is unknown or unsupported historical with no usable fallback baseline; emit threshold warning flag and skip threshold-driven PAYE/NI/pension checks.
+
 ## Severity model
 
 - `warning`: likely payroll anomaly that should be investigated now.
