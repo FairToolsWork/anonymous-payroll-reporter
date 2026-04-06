@@ -447,7 +447,14 @@ function buildYearFlagModel(entriesForYear) {
     return { noteLabels, refsByEntry }
 }
 
-/** @param {ReportEntry[]} allEntries @param {any} entriesForYear @param {string} yearKey @param {Map<string, any>} leaveYearGroups @param {any} workerProfile @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] */
+/**
+ * @param {ReportEntry[]} allEntries
+ * @param {any} entriesForYear
+ * @param {string} yearKey
+ * @param {Map<string, any>} leaveYearGroups
+ * @param {any} workerProfile
+ * @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed]
+ */
 function buildSummaryYearRow(
     allEntries,
     entriesForYear,
@@ -1091,6 +1098,7 @@ function prepareCoverageEntries(allEntries) {
 }
 
 /**
+ * Compute the holiday-reference coverage warning for a set of year entries.
  * @param {ReportEntry[]} allEntries
  * @param {ReportEntry[]} entriesForYear
  * @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [precomputed]
