@@ -9,13 +9,13 @@
  * @typedef {{ id: string, marker: string | null, text: string }} FooterNote
  */
 import { formatMonthLabel } from '../parse/parser_config.js'
-import { PERSONAL_ALLOWANCE_MONTHLY } from './uk_thresholds.js'
+import { getTaxYearThresholdsForContext } from './uk_thresholds.js'
 import {
     ACCUMULATED_TOTALS_NOTE,
     buildAnnualCrossCheckDisplay,
+    buildZeroTaxAllowanceNote,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
-    ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
 import {
     formatDateLabel,
@@ -415,7 +415,7 @@ function collectMiscReviewItems(entries) {
 
 /** @param {ReportEntry[]} entriesForYear */
 function buildYearFlagModel(entriesForYear) {
-    const noteIndexById = new Map()
+    const noteIndexByLabel = new Map()
     const noteLabels =
         /** @type {Array<{ id: string, index: number, label: string }>} */ ([])
     const refsByEntry = new Map()
@@ -424,10 +424,11 @@ function buildYearFlagModel(entriesForYear) {
             (flag) => flag.severity !== 'notice'
         )
         const refs = entryFlags.map((flag) => {
-            let noteIndex = noteIndexById.get(flag.id)
+            const noteKey = String(flag.label || '')
+            let noteIndex = noteIndexByLabel.get(noteKey)
             if (noteIndex === undefined) {
                 noteIndex = noteLabels.length + 1
-                noteIndexById.set(flag.id, noteIndex)
+                noteIndexByLabel.set(noteKey, noteIndex)
                 noteLabels.push({
                     id: flag.id,
                     index: noteIndex,
@@ -642,9 +643,26 @@ export function buildSummaryViewModel(context, meta) {
             entry.parsedDate instanceof Date &&
             entry.parsedDate.getMonth() === 3
     )
+    let lowPayThresholds =
+        /** @type {{ personalAllowanceAnnual: number, personalAllowanceMonthly: number } | null} */ (
+            null
+        )
     const hasLowPretaxPay = entries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
+        const thresholds = getTaxYearThresholdsForContext(
+            entry.parsedDate,
+            entry.yearKey
+        )
+        if (!thresholds) {
+            return false
+        }
+        const isLowPay =
+            typeof gross === 'number' &&
+            gross < thresholds.personalAllowanceMonthly
+        if (isLowPay && !lowPayThresholds) {
+            lowPayThresholds = thresholds
+        }
+        return isLowPay
     })
     if (hasAprilEntry) {
         notes.push({
@@ -655,7 +673,7 @@ export function buildSummaryViewModel(context, meta) {
     if (hasLowPretaxPay) {
         notes.push({
             id: 'zero-tax-allowance',
-            text: ZERO_TAX_ALLOWANCE_NOTE,
+            text: buildZeroTaxAllowanceNote(lowPayThresholds),
         })
     }
     return {
@@ -919,9 +937,26 @@ export function buildYearViewModel(
             entry.parsedDate instanceof Date &&
             entry.parsedDate.getMonth() === 3
     )
+    let lowPayThresholds =
+        /** @type {{ personalAllowanceAnnual: number, personalAllowanceMonthly: number } | null} */ (
+            null
+        )
     const hasLowPretaxPay = yearEntries.some((entry) => {
         const gross = entry.record.payrollDoc?.thisPeriod?.totalGrossPay?.amount
-        return typeof gross === 'number' && gross < PERSONAL_ALLOWANCE_MONTHLY
+        const thresholds = getTaxYearThresholdsForContext(
+            entry.parsedDate,
+            entry.yearKey
+        )
+        if (!thresholds) {
+            return false
+        }
+        const isLowPay =
+            typeof gross === 'number' &&
+            gross < thresholds.personalAllowanceMonthly
+        if (isLowPay && !lowPayThresholds) {
+            lowPayThresholds = thresholds
+        }
+        return isLowPay
     })
     if (hasAprilEntry) {
         notes.push({
@@ -932,7 +967,7 @@ export function buildYearViewModel(
     if (hasLowPretaxPay) {
         notes.push({
             id: 'zero-tax-allowance',
-            text: ZERO_TAX_ALLOWANCE_NOTE,
+            text: buildZeroTaxAllowanceNote(lowPayThresholds),
         })
     }
     return {

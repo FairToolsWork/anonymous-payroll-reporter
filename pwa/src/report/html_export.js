@@ -1,6 +1,5 @@
 import {
     ACCUMULATED_TOTALS_TITLE,
-    APRIL_BOUNDARY_NOTE,
     buildAnnualMonthBreakdownDisplay,
     buildContributionBreakdownParts,
     buildContributionRecencyDisplay,
@@ -15,16 +14,12 @@ import {
     FLAG_NOTES_TITLE,
     MISC_REVIEW_TITLE,
     YEAR_SUMMARY_TITLE,
-    ZERO_TAX_ALLOWANCE_NOTE,
 } from './report_formatters.js'
 import {
     buildPayslipViewModel,
     buildSummaryViewModel,
     buildYearViewModel,
 } from './report_view_model.js'
-
-const APRIL_BOUNDARY_NOTE_HTML = `<b>Note:</b> <i>${APRIL_BOUNDARY_NOTE}</i>`
-const ZERO_TAX_ALLOWANCE_NOTE_HTML = `<b>Note:</b> <i>${ZERO_TAX_ALLOWANCE_NOTE}</i>`
 
 /**
  * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string }} workerProfile
@@ -745,10 +740,10 @@ function renderReportCell(entry) {
         ? `<p class="report-footnote-row"><sup>${employerContributionNote.marker}</sup> ${employerContributionNote.text}</p>`
         : ''
     const aprilBoundaryFootnote = aprilBoundaryNote
-        ? `<p class="report-footnote-row">${APRIL_BOUNDARY_NOTE_HTML}</p>`
+        ? `<p class="report-footnote-row"><b>Note:</b> <i>${aprilBoundaryNote.text}</i></p>`
         : ''
     const zeroTaxAllowanceFootnote = zeroTaxAllowanceNote
-        ? `<p class="report-footnote-row">${ZERO_TAX_ALLOWANCE_NOTE_HTML}</p>`
+        ? `<p class="report-footnote-row"><b>Note:</b> <i>${zeroTaxAllowanceNote.text}</i></p>`
         : ''
 
     return `

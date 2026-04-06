@@ -19,7 +19,7 @@ import {
 import { buildValidation } from './hourly_pay_calculations.js'
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
-    PERSONAL_ALLOWANCE_MONTHLY,
+    getTaxYearThresholdsForContext,
     RULES_VERSION,
     THRESHOLDS_VERSION,
 } from './uk_thresholds.js'
@@ -53,14 +53,15 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {{ expectedEE: number, expectedER: number, actualEE: number, actualER: number, delta: number }} ContributionYearTotals
  * @typedef {{ months: Map<number, ContributionMonthSummary>, totals: ContributionYearTotals, yearEndBalance: number }} ContributionYearSummary
  * @typedef {{ years: Map<string, ContributionYearSummary>, balance: number, sourceFiles: string[] }} ContributionSummary
- * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null }} ReportEntry
+ * @typedef {{ payrollRunStartDate?: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }} WorkerProfileDefermentContext
+ * @typedef {{ record: PayrollRecordWithImage, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, reconciliation?: ContributionYearSummary | null, workerProfile?: WorkerProfileContext | WorkerProfileDefermentContext | null }} ReportEntry
  * @typedef {ReportEntry[] & { yearKey?: string, reconciliation?: ContributionYearSummary | null }} YearEntries
  * @typedef {PayrollRecord[] & { contributionData?: ContributionData }} PayrollRecordCollection
  * @typedef {{ fileCount: number, recordCount: number, dateRangeLabel: string }} ContributionMeta
- * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }} WorkerProfileContext
+ * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number, payrollRunStartDate: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, auditMetadata: { rulesVersion: string, thresholdsVersion: string }, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, auditMetadata: { rulesVersion: string, thresholdsVersion: string }, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number, payrollRunStartDate: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
  */
 
 /**
@@ -81,7 +82,10 @@ function formatTimestamp(date) {
  * @param {PayrollRecordCollection} records
  * @param {string[]} [failedPayPeriods=[]]
  * @param {ContributionData | null} [contributionData=null]
- * @param {{ typicalDays?: number, workerType?: string, statutoryHolidayDays?: number | null, leaveYearStartMonth?: number } | null} [workerProfile=null]
+ * @param {{ typicalDays?: number, workerType?: string, statutoryHolidayDays?: number | null, leaveYearStartMonth?: number, payrollRunStartDate?: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null } | null} [workerProfile=null]
+ * Caller-supplied payrollRunStartDate takes precedence over the inferred earliest
+ * parsed entry date. This allows incomplete payslip datasets to preserve the
+ * actual payroll start used by pension timing checks.
  * @returns {{ html: string, filename: string, stats: ReportStats, context: ReportContext }}
  */
 export function buildReport(
@@ -130,14 +134,76 @@ export function buildReport(
             buildReportEntries(records, leaveYearStartMonth)
         )
 
+        let payrollRunStartDate = null
+        const callerPayrollRunStartDate =
+            typeof workerProfile?.payrollRunStartDate === 'string' &&
+            workerProfile.payrollRunStartDate.trim()
+                ? workerProfile.payrollRunStartDate.trim()
+                : null
+        /** @type {Date[]} */
+        const parsedEntryDates = entries
+            .map((entry) => entry.parsedDate)
+            .filter(
+                /** @returns {date is Date} */
+                (date) => date instanceof Date && !Number.isNaN(date.getTime())
+            )
+        if (parsedEntryDates.length) {
+            let earliestTimestamp = parsedEntryDates[0].getTime()
+            for (let index = 1; index < parsedEntryDates.length; index += 1) {
+                const entryTimestamp = parsedEntryDates[index].getTime()
+                if (entryTimestamp < earliestTimestamp) {
+                    earliestTimestamp = entryTimestamp
+                }
+            }
+            const earliestDate = new Date(earliestTimestamp)
+            payrollRunStartDate = [
+                String(earliestDate.getFullYear()),
+                String(earliestDate.getMonth() + 1).padStart(2, '0'),
+                String(earliestDate.getDate()).padStart(2, '0'),
+            ].join('-')
+        }
+        // Prefer an explicit caller-provided payroll start date. The inferred
+        // earliest entry date is only a fallback when the uploaded dataset is
+        // assumed to start from the first available payslip.
+        if (callerPayrollRunStartDate !== null) {
+            payrollRunStartDate = callerPayrollRunStartDate
+        }
+
+        const workerType = workerProfile?.workerType ?? null
+        const typicalDays = workerProfile?.typicalDays ?? 0
+        const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? null
+        const pensionDefermentCommunicated =
+            workerProfile?.pensionDefermentCommunicated ?? undefined
+        const pensionDefermentStartDate =
+            workerProfile?.pensionDefermentStartDate ?? undefined
+        const pensionDefermentEndDate =
+            workerProfile?.pensionDefermentEndDate ?? undefined
+        const normalizedWorkerProfile = {
+            workerType,
+            typicalDays,
+            statutoryHolidayDays,
+            leaveYearStartMonth,
+            payrollRunStartDate,
+            ...(pensionDefermentCommunicated !== undefined && {
+                pensionDefermentCommunicated,
+            }),
+            ...(pensionDefermentStartDate !== undefined && {
+                pensionDefermentStartDate,
+            }),
+            ...(pensionDefermentEndDate !== undefined && {
+                pensionDefermentEndDate,
+            }),
+        }
+
+        entries.forEach((entry) => {
+            entry.workerProfile = normalizedWorkerProfile
+        })
+
         timeBuildPhase('buildReport.validation', () => {
             entries.forEach((entry) => {
                 entry.validation = buildValidation(entry)
             })
         })
-        const workerType = workerProfile?.workerType ?? null
-        const typicalDays = workerProfile?.typicalDays ?? 0
-        const statutoryHolidayDays = workerProfile?.statutoryHolidayDays ?? null
 
         timeBuildPhase('buildReport.holidayFlags', () => {
             buildHolidayPayFlags(entries)
@@ -344,9 +410,16 @@ export function buildReport(
                     const totalGrossPay =
                         entry.record.payrollDoc?.thisPeriod?.totalGrossPay
                             ?.amount
+                    const thresholds = getTaxYearThresholdsForContext(
+                        entry.parsedDate,
+                        entry.yearKey
+                    )
+                    if (!thresholds) {
+                        return false
+                    }
                     return (
                         typeof totalGrossPay === 'number' &&
-                        totalGrossPay < PERSONAL_ALLOWANCE_MONTHLY
+                        totalGrossPay < thresholds.personalAllowanceMonthly
                     )
                 })
                 const contributionTotalsResult = buildContributionTotals(
@@ -439,12 +512,7 @@ export function buildReport(
                     ...contributionRecency,
                     daysThreshold,
                 },
-                workerProfile: {
-                    workerType,
-                    typicalDays,
-                    statutoryHolidayDays,
-                    leaveYearStartMonth,
-                },
+                workerProfile: normalizedWorkerProfile,
                 contractTypeMismatchWarning,
                 leaveYearGroups: /** @type {Map<string, YearEntries>} */ (
                     leaveYearGroups

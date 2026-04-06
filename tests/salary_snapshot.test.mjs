@@ -57,6 +57,7 @@ function buildSalariedRecord({
             taxCode: { code: taxCode },
             thisPeriod: {
                 totalGrossPay: { amount: monthlySalary + holidaySalary },
+                payCycle: { cycle: 'Monthly' },
             },
             netPay: { amount: net },
             processDate: { date: processDateStr },

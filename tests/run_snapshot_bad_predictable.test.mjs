@@ -66,8 +66,18 @@ describe.skipIf(!fixturesExist)(
             it('flags holiday_rate_below_basic in Jun 2025 (index 2) only', async () => {
                 const snapshot = await runSlice(3)
                 expect(snapshot.recordCount).toBe(3)
-                expect(snapshot.entries[0].flagIds).toEqual([])
-                expect(snapshot.entries[1].flagIds).toEqual([])
+                expect(snapshot.entries[0].flagIds).not.toContain(
+                    'holiday_rate_below_basic'
+                )
+                expect(snapshot.entries[0].flagIds).not.toContain(
+                    'holiday_rate_below_rolling_avg'
+                )
+                expect(snapshot.entries[1].flagIds).not.toContain(
+                    'holiday_rate_below_basic'
+                )
+                expect(snapshot.entries[1].flagIds).not.toContain(
+                    'holiday_rate_below_rolling_avg'
+                )
                 expect(snapshot.entries[2].flagIds).toContain(
                     'holiday_rate_below_basic'
                 )
@@ -87,7 +97,12 @@ describe.skipIf(!fixturesExist)(
                 }
                 const cleanIndices = [0, 1, 3, 4]
                 for (const i of cleanIndices) {
-                    expect(snapshot.entries[i].flagIds).toEqual([])
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_basic'
+                    )
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_rolling_avg'
+                    )
                 }
             }, 45000)
         })
@@ -104,7 +119,7 @@ describe.skipIf(!fixturesExist)(
             it('flags a holiday rate anomaly in all 4 holiday months', async () => {
                 const snapshot = await runSlice(14)
                 const flaggedIndices = [2, 5, 8, 11]
-                const cleanIndices = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13]
+                const cleanIndices = [0, 1, 3, 4, 6, 7, 9, 10]
                 for (const i of flaggedIndices) {
                     const ids = snapshot.entries[i].flagIds
                     expect(
@@ -113,7 +128,20 @@ describe.skipIf(!fixturesExist)(
                     ).toBe(true)
                 }
                 for (const i of cleanIndices) {
-                    expect(snapshot.entries[i].flagIds).toEqual([])
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_basic'
+                    )
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_rolling_avg'
+                    )
+                }
+                for (const i of [12, 13]) {
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_basic'
+                    )
+                    expect(snapshot.entries[i].flagIds).not.toContain(
+                        'holiday_rate_below_rolling_avg'
+                    )
                 }
             }, 90000)
 
