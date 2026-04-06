@@ -513,13 +513,19 @@ export function getPayPeriodIndexForDate(date, periodsPerYear) {
         if (startYear === null) {
             return null
         }
-        const taxYearStart = new Date(
+        const taxYearStartUtc = Date.UTC(
             startYear,
             TAX_YEAR_START_MONTH_INDEX,
             TAX_YEAR_START_DAY
         )
-        const diffMs = date.getTime() - taxYearStart.getTime()
-        const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+        const dateUtc = Date.UTC(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate()
+        )
+        const diffDays = Math.floor(
+            (dateUtc - taxYearStartUtc) / (24 * 60 * 60 * 1000)
+        )
         return Math.max(1, Math.floor(diffDays / 7) + 1)
     }
     return null
