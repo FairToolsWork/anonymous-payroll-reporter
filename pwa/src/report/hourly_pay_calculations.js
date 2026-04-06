@@ -44,6 +44,7 @@ function buildCatalogFlag(catalogEntry, overrides = {}) {
     return {
         id: catalogEntry.id,
         label: catalogEntry.label,
+        severity: overrides.severity ?? catalogEntry.severity,
         ...overrides,
     }
 }
@@ -822,6 +823,7 @@ function buildPensionValidationFlags(
     )
 
     const timingContext = resolvePensionTimingContext(entry)
+    const periodLabel = periodsPerYear === 52 ? 'weekly' : 'monthly'
     const sharedInputs = {
         earnings,
         periodAutoEnrolmentTrigger: autoEnrolmentTrigger,
@@ -848,6 +850,7 @@ function buildPensionValidationFlags(
             thresholdResolution.taxYearStart === null
                 ? null
                 : thresholdResolution.taxYearStart,
+        periodLabel,
     }
 
     const pensionAutoEnrolmentMissingDeductionsCatalog =
@@ -871,6 +874,7 @@ function buildPensionValidationFlags(
                                     periodTrigger: autoEnrolmentTrigger,
                                     elapsedRunDays:
                                         timingContext.elapsedRunDays,
+                                    periodLabel,
                                 }
                             ),
                             severity: 'warning',
@@ -896,6 +900,7 @@ function buildPensionValidationFlags(
                                     periodTrigger: autoEnrolmentTrigger,
                                     elapsedRunDays:
                                         timingContext.elapsedRunDays,
+                                    periodLabel,
                                 }
                             ),
                             severity: 'notice',
@@ -919,6 +924,7 @@ function buildPensionValidationFlags(
                                     context: 'pre_enrolment_notice',
                                     earnings,
                                     periodTrigger: autoEnrolmentTrigger,
+                                    periodLabel,
                                 }
                             ),
                             severity: 'notice',
@@ -941,6 +947,7 @@ function buildPensionValidationFlags(
                                 context: 'default_warning',
                                 earnings,
                                 periodTrigger: autoEnrolmentTrigger,
+                                periodLabel,
                             }
                         ),
                         severity: 'warning',
@@ -960,6 +967,7 @@ function buildPensionValidationFlags(
                         earnings,
                         qualifyingLower,
                         autoEnrolmentTrigger,
+                        periodLabel,
                     }),
                     severity: 'notice',
                     inputs: sharedInputs,
@@ -977,6 +985,7 @@ function buildPensionValidationFlags(
                     {
                         earnings,
                         qualifyingLower,
+                        periodLabel,
                     }
                 ),
                 severity: 'notice',
