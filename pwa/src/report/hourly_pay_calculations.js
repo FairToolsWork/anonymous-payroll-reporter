@@ -1132,7 +1132,7 @@ export function buildValidation(entry) {
         flags.push({
             ...buildCatalogRuleFlag(thresholdCatalogEntry, {
                 label: warningLabel,
-                severity: 'warning',
+                severity: thresholdCatalogEntry.severity,
                 inputs: {
                     taxYearStart:
                         thresholdResolution.taxYearStart === null

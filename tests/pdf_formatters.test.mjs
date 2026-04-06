@@ -647,8 +647,8 @@ describe('exportReportPdf', () => {
                     },
                     {
                         id: 'tax_year_thresholds_partial_support',
-                        label: 'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.',
-                        severity: 'warning',
+                        label: 'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.',
+                        severity: 'notice',
                     },
                 ],
                 lowConfidence: true,
@@ -662,10 +662,9 @@ describe('exportReportPdf', () => {
         expect(result).toBeInstanceOf(Uint8Array)
         const pdfText = decodePdfText(result)
         expect(pdfText).toContain('Payslip details - 28 Apr 2022')
-        expect(pdfText).toContain('Warnings')
         expect(pdfText).toContain('Notices')
         expect(pdfText).toContain(
-            'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
+            'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
         )
         expect(pdfText).toContain(
             'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'

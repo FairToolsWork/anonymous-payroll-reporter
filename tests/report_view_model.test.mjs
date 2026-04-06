@@ -399,7 +399,7 @@ describe('buildPayslipViewModel', () => {
         const pensionNotice =
             'Pension deductions have not yet appeared, so this is being treated as a pre-enrolment period. Pre-tax earnings are £1,305.00, which are above the monthly auto-enrolment trigger of £833.00.'
         const thresholdWarning =
-            'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
+            'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.'
 
         const viewModel = buildPayslipViewModel(
             buildEntry({
@@ -418,7 +418,7 @@ describe('buildPayslipViewModel', () => {
                         {
                             id: 'tax_year_thresholds_partial_support',
                             label: thresholdWarning,
-                            severity: 'warning',
+                            severity: 'notice',
                         },
                     ],
                     lowConfidence: true,
@@ -426,12 +426,9 @@ describe('buildPayslipViewModel', () => {
             })
         )
 
-        expect(viewModel.warningItems).toEqual([
-            pensionWarning,
-            thresholdWarning,
-        ])
-        expect(viewModel.noticeItems).toEqual([pensionNotice])
-        expect(viewModel.flags.warningCount).toBe(2)
+        expect(viewModel.warningItems).toEqual([pensionWarning])
+        expect(viewModel.noticeItems).toEqual([pensionNotice, thresholdWarning])
+        expect(viewModel.flags.warningCount).toBe(1)
         expect(viewModel.flags.lowConfidence).toBe(true)
     })
 })

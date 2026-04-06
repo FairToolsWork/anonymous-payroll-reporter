@@ -61,9 +61,9 @@ export const FLAG_CATALOG = {
     },
     tax_year_thresholds_partial_support: {
         id: 'tax_year_thresholds_partial_support',
-        label: 'In 2022 due to mid-year changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.',
+        label: 'In 2022 due to mid-year HMRC changes, threshold-based checks are only partially supported before 6 July 2022. PAYE and NI threshold checks are skipped for this payslip, but pension auto-enrolment checks still run.',
         section: 'tax',
-        severity: 'warning',
+        severity: 'notice',
     },
     pension_auto_enrolment_missing_deductions: {
         id: 'pension_auto_enrolment_missing_deductions',

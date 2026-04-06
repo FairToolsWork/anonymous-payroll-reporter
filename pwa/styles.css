@@ -85,6 +85,7 @@
     --days-stale: hsl(6deg 72% 45%);
     --days-fresh-bg: hsl(145deg 52% 33% / 16%);
     --days-stale-bg: hsl(6deg 72% 45% / 16%);
+    --notice: hsl(42deg 79% 52%);
     --notice-border: hsl(42deg 68% 48% / 45%);
     --notice-bg: hsl(42deg 68% 48% / 14%);
     --notice-text: hsl(35deg 52% 32%);
@@ -1931,10 +1932,8 @@ label.field span {
 }
 
 .report-cell.is-low-confidence {
-    /*
-    border-color: var(--accent-60);
-    box-shadow: 0 0 0 2px var(--accent-15);
-    */
+    border-inline-start: var(--space-4) solid var(--notice);
+    border-radius: var(--radius-8);
 }
 
 .report-cell {
