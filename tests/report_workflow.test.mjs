@@ -6,7 +6,7 @@ import { buildReport } from '../pwa/src/report/build.js'
 import {
     sumDeductionsForNetPay,
     sumPayments,
-} from '../pwa/src/report/hourly_pay_calculations.js'
+} from '../pwa/src/report/pay_calculations_shared.js'
 import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
 import {
     buildContributionBreakdownParts,

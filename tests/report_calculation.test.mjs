@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { formatMonthLabel } from '../pwa/src/parse/parser_config.js'
 import { buildReport, buildValidationSummary } from '../pwa/src/report/build.js'
+import { buildValidation } from '../pwa/src/report/pay_calculations_hourly.js'
 import {
-    buildValidation,
     isWithinPayeTolerance,
     sumDeductionsForNetPay,
     sumMiscAmounts,
     sumPayments,
-} from '../pwa/src/report/hourly_pay_calculations.js'
+} from '../pwa/src/report/pay_calculations_shared.js'
 import { buildContributionSummary } from '../pwa/src/report/pension_calculations.js'
 import { buildReportEntries } from '../pwa/src/report/report_calculations.js'
 import { buildSummaryViewModel } from '../pwa/src/report/report_view_model.js'

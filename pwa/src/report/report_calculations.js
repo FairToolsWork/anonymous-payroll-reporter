@@ -8,11 +8,11 @@ import {
     buildYearHolidayContext,
 } from './holiday_calculations.js'
 import {
-    buildValidation,
     sumDeductionsForNetPay,
     sumMiscAmounts,
     sumPayments,
-} from './hourly_pay_calculations.js'
+} from './pay_calculations_shared.js'
+import { buildValidation } from './pay_calculations_hourly.js'
 import { buildContributionSummary } from './pension_calculations.js'
 import {
     buildMissingMonthsWithRange,
@@ -31,7 +31,7 @@ import {
 /**
  * @param {PayrollRecord[]} records
  * @param {number} [leaveYearStartMonth] - 1-indexed month (1=January, 4=April). Defaults to 4 (April, matching the tax year).
- * @returns {import('./hourly_pay_calculations.js').HourlyPayEntry[]}
+ * @returns {import('./pay_calculations_shared.js').HourlyPayEntry[]}
  * @note monthIndex is a fiscal month index (1=April … 12=March).
  */
 function buildReportEntries(records, leaveYearStartMonth = 4) {
