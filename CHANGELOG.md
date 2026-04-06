@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.2](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.1...anonymous-payroll-reporter-v3.8.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* **release:** trigger release please after non-conventional squash commit d4c37bb ([1b04813](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/1b04813c418dfa4be1422ebe92bbf7eb90493a50))
+
 ## [3.8.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.0...anonymous-payroll-reporter-v3.8.1) (2026-04-06)
 
 
