@@ -57,7 +57,9 @@ describe('buildZeroTaxAllowanceNote', () => {
         // (DEFAULT_NOTE_THRESHOLDS is set at module level from TAX_YEAR_THRESHOLDS)
         const note = buildZeroTaxAllowanceNote(null)
         // Should not return unavailable message since we have configured thresholds
-        expect(note).not.toBe('PAYE Tax / National Insurance context note unavailable.')
+        expect(note).not.toBe(
+            'PAYE Tax / National Insurance context note unavailable.'
+        )
         expect(note).toContain('PAYE Tax / National Insurance')
     })
 })
@@ -69,6 +71,8 @@ describe('APRIL_BOUNDARY_NOTE', () => {
     })
 
     it('mentions discrepancies in year-end figures', () => {
-        expect(APRIL_BOUNDARY_NOTE).toContain('discrepancies in year-end figures')
+        expect(APRIL_BOUNDARY_NOTE).toContain(
+            'discrepancies in year-end figures'
+        )
     })
 })

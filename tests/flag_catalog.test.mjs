@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { FLAG_CATALOG, formatFlagLabel, resolveFlagLabel } from '../pwa/src/report/flag_catalog.js'
+import {
+    FLAG_CATALOG,
+    formatFlagLabel,
+    resolveFlagLabel,
+} from '../pwa/src/report/flag_catalog.js'
 
 describe('FLAG_CATALOG', () => {
     it('contains all expected flag IDs', () => {
@@ -30,11 +34,15 @@ describe('FLAG_CATALOG', () => {
 
     it('has notice severity for pension opt-in and join flags', () => {
         expect(FLAG_CATALOG.pension_opt_in_possible.severity).toBe('notice')
-        expect(FLAG_CATALOG.pension_join_no_mandatory_employer_contrib.severity).toBe('notice')
+        expect(
+            FLAG_CATALOG.pension_join_no_mandatory_employer_contrib.severity
+        ).toBe('notice')
     })
 
     it('has warning severity for pension missing-deductions flag', () => {
-        expect(FLAG_CATALOG.pension_auto_enrolment_missing_deductions.severity).toBe('warning')
+        expect(
+            FLAG_CATALOG.pension_auto_enrolment_missing_deductions.severity
+        ).toBe('warning')
     })
 
     it('has warning severity for PAYE flags', () => {
@@ -52,7 +60,9 @@ describe('resolveFlagLabel', () => {
     })
 
     it('returns fallback for unknown id when provided', () => {
-        expect(resolveFlagLabel('unknown_flag', 'Custom fallback')).toBe('Custom fallback')
+        expect(resolveFlagLabel('unknown_flag', 'Custom fallback')).toBe(
+            'Custom fallback'
+        )
     })
 
     it('returns the id itself when no fallback and id is unknown', () => {
@@ -66,7 +76,9 @@ describe('formatFlagLabel — paye_pay_cycle_unsupported', () => {
             context: 'reported_pay_cycle',
             payCycle: 'Fortnightly',
         })
-        expect(label).toContain('PAYE checks currently support weekly and monthly payslips only')
+        expect(label).toContain(
+            'PAYE checks currently support weekly and monthly payslips only'
+        )
         expect(label).toContain('Reported pay cycle: Fortnightly.')
     })
 
@@ -74,12 +86,16 @@ describe('formatFlagLabel — paye_pay_cycle_unsupported', () => {
         const label = formatFlagLabel('paye_pay_cycle_unsupported', {
             context: 'period_position_unknown',
         })
-        expect(label).toBe('PAYE period position could not be determined for this payslip, so standard PAYE checks were skipped.')
+        expect(label).toBe(
+            'PAYE period position could not be determined for this payslip, so standard PAYE checks were skipped.'
+        )
     })
 
     it('defaults to catalog label for unknown context', () => {
         const label = formatFlagLabel('paye_pay_cycle_unsupported', {})
-        expect(label).toBe('PAYE checks currently support weekly and monthly payslips only')
+        expect(label).toBe(
+            'PAYE checks currently support weekly and monthly payslips only'
+        )
     })
 })
 
@@ -89,7 +105,9 @@ describe('formatFlagLabel — paye_tax_code_unsupported', () => {
             context: 'reported_tax_code',
             taxCode: 'D1',
         })
-        expect(label).toContain('This tax code is outside the standard PAYE check path')
+        expect(label).toContain(
+            'This tax code is outside the standard PAYE check path'
+        )
         expect(label).toContain('Reported tax code: D1.')
     })
 
@@ -104,7 +122,9 @@ describe('formatFlagLabel — paye_tax_code_unsupported', () => {
         const label = formatFlagLabel('paye_tax_code_unsupported', {
             context: 'region_unknown',
         })
-        expect(label).toBe('PAYE region could not be determined from the tax code, so standard PAYE checks were skipped.')
+        expect(label).toBe(
+            'PAYE region could not be determined from the tax code, so standard PAYE checks were skipped.'
+        )
     })
 })
 
@@ -113,7 +133,9 @@ describe('formatFlagLabel — paye_zero', () => {
         const label = formatFlagLabel('paye_zero', {
             context: 'missing_tax_code',
         })
-        expect(label).toBe('PAYE Tax is £0 and the tax code is missing, so the exact PAYE check could not be completed for this payslip.')
+        expect(label).toBe(
+            'PAYE Tax is £0 and the tax code is missing, so the exact PAYE check could not be completed for this payslip.'
+        )
     })
 
     it('returns catalog label for paye_zero without context', () => {
@@ -167,7 +189,9 @@ describe('formatFlagLabel — paye_mismatch', () => {
             isSignificantMismatch: true,
             explanation: 'Some explanation.',
         })
-        expect(label).toContain('PAYE Tax is £0.00 but standard PAYE for this payslip is about £250.00')
+        expect(label).toContain(
+            'PAYE Tax is £0.00 but standard PAYE for this payslip is about £250.00'
+        )
         expect(label).toContain('Some explanation.')
     })
 
@@ -180,7 +204,9 @@ describe('formatFlagLabel — paye_mismatch', () => {
             isSignificantMismatch: false,
             explanation: 'Matches closely.',
         })
-        expect(label).toContain('PAYE Tax is £0.00 and standard PAYE also works out to about £0.30 for this payslip')
+        expect(label).toContain(
+            'PAYE Tax is £0.00 and standard PAYE also works out to about £0.30 for this payslip'
+        )
         expect(label).toContain('Matches closely.')
     })
 
@@ -193,7 +219,9 @@ describe('formatFlagLabel — paye_mismatch', () => {
             isSignificantMismatch: true,
             explanation: 'Higher than expected.',
         })
-        expect(label).toContain('PAYE Tax £300.00 is £50.00 above the expected PAYE amount')
+        expect(label).toContain(
+            'PAYE Tax £300.00 is £50.00 above the expected PAYE amount'
+        )
         expect(label).toContain('£250.00')
     })
 
@@ -206,7 +234,9 @@ describe('formatFlagLabel — paye_mismatch', () => {
             isSignificantMismatch: true,
             explanation: 'Lower than expected.',
         })
-        expect(label).toContain('PAYE Tax £200.00 is £50.00 under the expected PAYE amount')
+        expect(label).toContain(
+            'PAYE Tax £200.00 is £50.00 under the expected PAYE amount'
+        )
         expect(label).toContain('£250.00')
     })
 })
@@ -218,7 +248,9 @@ describe('formatFlagLabel — nat_ins_zero', () => {
             grossPay: 1500,
             niPrimaryThresholdMonthly: 1048,
         })
-        expect(label).toContain('National Insurance missing or £0 while gross pay £1,500.00 is above the primary threshold of £1,048.00')
+        expect(label).toContain(
+            'National Insurance missing or £0 while gross pay £1,500.00 is above the primary threshold of £1,048.00'
+        )
     })
 
     it('formats at_or_below_threshold_notice context', () => {
@@ -227,7 +259,9 @@ describe('formatFlagLabel — nat_ins_zero', () => {
             grossPay: 800,
             niPrimaryThresholdMonthly: 1048,
         })
-        expect(label).toContain('NI deductions not taken as gross pay £800.00 is at or below the primary threshold of £1,048.00')
+        expect(label).toContain(
+            'NI deductions not taken as gross pay £800.00 is at or below the primary threshold of £1,048.00'
+        )
     })
 
     it('uses Unknown for null gross pay', () => {
@@ -252,8 +286,12 @@ describe('formatFlagLabel — tax_year_thresholds_unavailable', () => {
             taxYearStartLabel: '2028/29',
             fallbackTaxYearStartLabel: '2026/27',
         })
-        expect(label).toContain('Tax-year thresholds are not configured for 2028/29')
-        expect(label).toContain('Using 2026/27 thresholds as a temporary baseline')
+        expect(label).toContain(
+            'Tax-year thresholds are not configured for 2028/29'
+        )
+        expect(label).toContain(
+            'Using 2026/27 thresholds as a temporary baseline'
+        )
     })
 
     it('formats unsupported-tax-year context', () => {
@@ -261,15 +299,21 @@ describe('formatFlagLabel — tax_year_thresholds_unavailable', () => {
             context: 'unsupported-tax-year',
             taxYearStartLabel: '2015/16',
         })
-        expect(label).toContain('Tax-year thresholds are not configured for 2015/16')
-        expect(label).toContain('Threshold-based checks were skipped for this payslip')
+        expect(label).toContain(
+            'Tax-year thresholds are not configured for 2015/16'
+        )
+        expect(label).toContain(
+            'Threshold-based checks were skipped for this payslip'
+        )
     })
 
     it('formats unknown-tax-year context', () => {
         const label = formatFlagLabel('tax_year_thresholds_unavailable', {
             context: 'unknown-tax-year',
         })
-        expect(label).toBe('Tax year could not be determined for this payslip. Threshold-based checks were skipped.')
+        expect(label).toBe(
+            'Tax year could not be determined for this payslip. Threshold-based checks were skipped.'
+        )
     })
 
     it('uses fallback text when labels are missing in fallback context', () => {
@@ -283,11 +327,14 @@ describe('formatFlagLabel — tax_year_thresholds_unavailable', () => {
 
 describe('formatFlagLabel — pension_auto_enrolment_missing_deductions', () => {
     it('formats pre_enrolment_notice context', () => {
-        const label = formatFlagLabel('pension_auto_enrolment_missing_deductions', {
-            context: 'pre_enrolment_notice',
-            earnings: 1200,
-            periodTrigger: 833,
-        })
+        const label = formatFlagLabel(
+            'pension_auto_enrolment_missing_deductions',
+            {
+                context: 'pre_enrolment_notice',
+                earnings: 1200,
+                periodTrigger: 833,
+            }
+        )
         expect(label).toContain('Pension deductions have not yet appeared')
         expect(label).toContain('pre-enrolment period')
         expect(label).toContain('£1,200.00')
@@ -295,36 +342,47 @@ describe('formatFlagLabel — pension_auto_enrolment_missing_deductions', () => 
     })
 
     it('formats three_month_warning context with elapsed days', () => {
-        const label = formatFlagLabel('pension_auto_enrolment_missing_deductions', {
-            context: 'three_month_warning',
-            earnings: 1200,
-            periodTrigger: 833,
-            elapsedRunDays: 95,
-        })
+        const label = formatFlagLabel(
+            'pension_auto_enrolment_missing_deductions',
+            {
+                context: 'three_month_warning',
+                earnings: 1200,
+                periodTrigger: 833,
+                elapsedRunDays: 95,
+            }
+        )
         expect(label).toContain('95 days')
         expect(label).toContain('should have been auto-enrolled by now')
         expect(label).toContain('£1,200.00')
     })
 
     it('formats six_week_notice context with elapsed days', () => {
-        const label = formatFlagLabel('pension_auto_enrolment_missing_deductions', {
-            context: 'six_week_notice',
-            earnings: 1200,
-            periodTrigger: 833,
-            elapsedRunDays: 50,
-        })
+        const label = formatFlagLabel(
+            'pension_auto_enrolment_missing_deductions',
+            {
+                context: 'six_week_notice',
+                earnings: 1200,
+                periodTrigger: 833,
+                elapsedRunDays: 50,
+            }
+        )
         expect(label).toContain('after more than 6 weeks (50 days)')
         expect(label).toContain('postponement (up to 3 months)')
         expect(label).toContain('£1,200.00')
     })
 
     it('formats default_warning context', () => {
-        const label = formatFlagLabel('pension_auto_enrolment_missing_deductions', {
-            context: 'default_warning',
-            earnings: 1200,
-            periodTrigger: 833,
-        })
-        expect(label).toContain('Pension deductions do not appear to be present')
+        const label = formatFlagLabel(
+            'pension_auto_enrolment_missing_deductions',
+            {
+                context: 'default_warning',
+                earnings: 1200,
+                periodTrigger: 833,
+            }
+        )
+        expect(label).toContain(
+            'Pension deductions do not appear to be present'
+        )
         expect(label).toContain('£1,200.00')
         expect(label).toContain('£833.00')
     })
@@ -355,10 +413,13 @@ describe('formatFlagLabel — pension_opt_in_possible', () => {
 
 describe('formatFlagLabel — pension_join_no_mandatory_employer_contrib', () => {
     it('formats the join label with earnings and qualifying lower threshold', () => {
-        const label = formatFlagLabel('pension_join_no_mandatory_employer_contrib', {
-            earnings: 400,
-            qualifyingLower: 520,
-        })
+        const label = formatFlagLabel(
+            'pension_join_no_mandatory_employer_contrib',
+            {
+                earnings: 400,
+                qualifyingLower: 520,
+            }
+        )
         expect(label).toContain('may ask to join a workplace pension')
         expect(label).toContain('employer contributions may not be required')
         expect(label).toContain('£400.00')

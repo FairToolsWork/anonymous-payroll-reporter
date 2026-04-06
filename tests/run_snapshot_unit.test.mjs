@@ -85,19 +85,35 @@ describe('buildRunSnapshot — basic behavior', () => {
         const context = {
             entries: [
                 buildMinimalContextEntry({
-                    flags: [{ id: 'nat_ins_zero', label: 'NI zero', severity: 'warning' }],
+                    flags: [
+                        {
+                            id: 'nat_ins_zero',
+                            label: 'NI zero',
+                            severity: 'warning',
+                        },
+                    ],
                 }),
             ],
         }
         const snapshot = buildRunSnapshot([], context, null)
         expect(snapshot.entries[0].flagIds).toContain('nat_ins_zero')
-        expect(Object.prototype.hasOwnProperty.call(snapshot.entries[0], 'flagDetails')).toBe(false)
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot.entries[0],
+                'flagDetails'
+            )
+        ).toBe(false)
     })
 
     it('does not include payeMismatchDiagnostics by default', () => {
         const context = { entries: [buildMinimalContextEntry()] }
         const snapshot = buildRunSnapshot([], context, null)
-        expect(Object.prototype.hasOwnProperty.call(snapshot, 'payeMismatchDiagnostics')).toBe(false)
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot,
+                'payeMismatchDiagnostics'
+            )
+        ).toBe(false)
     })
 })
 
@@ -118,7 +134,9 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includeFlagDetails: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includeFlagDetails: true,
+        })
         expect(Array.isArray(snapshot.entries[0].flagDetails)).toBe(true)
         expect(snapshot.entries[0].flagDetails).toHaveLength(1)
         const detail = snapshot.entries[0].flagDetails[0]
@@ -150,14 +168,22 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includeFlagDetails: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includeFlagDetails: true,
+        })
         const inputs = snapshot.entries[0].flagDetails[0].inputs
         expect(inputs.numberVal).toBe(42)
         expect(inputs.stringVal).toBe('hello')
         expect(inputs.nullVal).toBeNull()
-        expect(Object.prototype.hasOwnProperty.call(inputs, 'objectVal')).toBe(false)
-        expect(Object.prototype.hasOwnProperty.call(inputs, 'booleanVal')).toBe(false)
-        expect(Object.prototype.hasOwnProperty.call(inputs, 'undefinedVal')).toBe(false)
+        expect(Object.prototype.hasOwnProperty.call(inputs, 'objectVal')).toBe(
+            false
+        )
+        expect(Object.prototype.hasOwnProperty.call(inputs, 'booleanVal')).toBe(
+            false
+        )
+        expect(
+            Object.prototype.hasOwnProperty.call(inputs, 'undefinedVal')
+        ).toBe(false)
     })
 
     it('sorts flagDetails alphabetically by id', () => {
@@ -165,14 +191,28 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
             entries: [
                 buildMinimalContextEntry({
                     flags: [
-                        { id: 'paye_zero', label: 'PAYE zero', severity: 'warning' },
-                        { id: 'missing_tax_code', label: 'Missing tax code', severity: 'warning' },
-                        { id: 'nat_ins_zero', label: 'NI zero', severity: 'warning' },
+                        {
+                            id: 'paye_zero',
+                            label: 'PAYE zero',
+                            severity: 'warning',
+                        },
+                        {
+                            id: 'missing_tax_code',
+                            label: 'Missing tax code',
+                            severity: 'warning',
+                        },
+                        {
+                            id: 'nat_ins_zero',
+                            label: 'NI zero',
+                            severity: 'warning',
+                        },
                     ],
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includeFlagDetails: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includeFlagDetails: true,
+        })
         const ids = snapshot.entries[0].flagDetails.map((f) => f.id)
         expect(ids).toEqual(['missing_tax_code', 'nat_ins_zero', 'paye_zero'])
     })
@@ -185,7 +225,9 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includeFlagDetails: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includeFlagDetails: true,
+        })
         expect(snapshot.entries[0].flagDetails[0].severity).toBeNull()
     })
 
@@ -193,11 +235,19 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
         const context = {
             entries: [
                 buildMinimalContextEntry({
-                    flags: [{ id: 'some_flag', label: 'Some flag', severity: 'warning' }],
+                    flags: [
+                        {
+                            id: 'some_flag',
+                            label: 'Some flag',
+                            severity: 'warning',
+                        },
+                    ],
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includeFlagDetails: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includeFlagDetails: true,
+        })
         expect(snapshot.entries[0].flagDetails[0].inputs).toEqual({})
     })
 })
@@ -207,8 +257,15 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         const context = {
             entries: [buildMinimalContextEntry()],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includePayeDiagnostics: true })
-        expect(Object.prototype.hasOwnProperty.call(snapshot, 'payeMismatchDiagnostics')).toBe(true)
+        const snapshot = buildRunSnapshot([], context, null, {
+            includePayeDiagnostics: true,
+        })
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshot,
+                'payeMismatchDiagnostics'
+            )
+        ).toBe(true)
         expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
     })
 
@@ -216,11 +273,20 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         const context = {
             entries: [
                 buildMinimalContextEntry({
-                    flags: [{ id: 'nat_ins_zero', label: 'NI zero', severity: 'warning', inputs: {} }],
+                    flags: [
+                        {
+                            id: 'nat_ins_zero',
+                            label: 'NI zero',
+                            severity: 'warning',
+                            inputs: {},
+                        },
+                    ],
                 }),
             ],
         }
-        const snapshot = buildRunSnapshot([], context, null, { includePayeDiagnostics: true })
+        const snapshot = buildRunSnapshot([], context, null, {
+            includePayeDiagnostics: true,
+        })
         expect(snapshot.payeMismatchDiagnostics).toEqual([])
     })
 
@@ -289,7 +355,11 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
                             id: 'paye_mismatch',
                             label: 'PAYE mismatch',
                             severity: 'warning',
-                            inputs: { payeTax: 0, expectedPaye: 200, payeDifference: -200 },
+                            inputs: {
+                                payeTax: 0,
+                                expectedPaye: 200,
+                                payeDifference: -200,
+                            },
                         },
                     ],
                 }),

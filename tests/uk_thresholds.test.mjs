@@ -167,9 +167,9 @@ describe('getPayPeriodIndexForDate', () => {
         expect(getPayPeriodIndexForDate(new Date(2025, 3, 6), 12)).toBe(1)
     })
 
-    it('returns period 2 for May in a monthly cycle', () => {
-        // May 1 2025 is in the 2025/26 tax year, 2nd month
-        expect(getPayPeriodIndexForDate(new Date(2025, 4, 1), 12)).toBe(2)
+    it('returns period 2 on the second monthly period boundary', () => {
+        // Monthly periods are anchored to the 6 April tax-year start day.
+        expect(getPayPeriodIndexForDate(new Date(2025, 4, 6), 12)).toBe(2)
     })
 
     it('returns period 12 for March (final month of tax year) — monthly', () => {
@@ -192,7 +192,9 @@ describe('getPayPeriodIndexForDate', () => {
 
     it('returns null for unsupported periodsPerYear', () => {
         expect(getPayPeriodIndexForDate(new Date(2025, 3, 6), null)).toBeNull()
-        expect(getPayPeriodIndexForDate(new Date(2025, 3, 6), undefined)).toBeNull()
+        expect(
+            getPayPeriodIndexForDate(new Date(2025, 3, 6), undefined)
+        ).toBeNull()
     })
 
     it('returns null for invalid date', () => {
