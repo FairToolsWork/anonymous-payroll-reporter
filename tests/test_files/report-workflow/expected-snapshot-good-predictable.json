@@ -74,7 +74,9 @@
             "salariedPay": 0,
             "payeTax": 185.12,
             "pensionEE": 77.12,
-            "flagIds": []
+            "flagIds": [
+                "holiday_mixed_basic_holiday_pay"
+            ]
         },
         {
             "period": "20 Oct 2025",

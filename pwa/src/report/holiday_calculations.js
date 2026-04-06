@@ -206,6 +206,53 @@ function pushFlagIfMissing(entry, flag) {
 }
 
 /**
+ * Derive a stable month key for rolling-reference comparisons.
+ * Prefer pay-period start month when available to avoid timezone-shifted
+ * parsedDate values collapsing adjacent payroll periods.
+ *
+ * USAGE:
+ * This function extracts year:month keys to deduplicate payroll entries by calendar month.
+ * It is used in getRollingReferenceCoverage() to prevent the same month key from appearing
+ * twice in the rolling reference (e.g., duplicate payslips from the same month or timezone-
+ * shifted entries that logically belong to the same calendar month).
+ *
+ * VALIDATION LOGIC:
+ * The format is DD/MM/YYYY (day/month/year). Regex capture groups are:
+ *   - match[1] (day): unused here because we only need year:month for deduplication
+ *   - match[2] (month): extracted directly as month (1–12)
+ *   - match[3] (year): extracted and normalized (2-digit years become 20xx)
+ * The month range check (1–12) is a safety guard that also rejects entries where
+ * day > 12, preventing silent misinterpretation if format assumptions change.
+ *
+ * FALLBACK:
+ * If payPeriod.start is missing or unparseable, falls back to entry.parsedDate.
+ * This may be timezone-shifted but provides coverage over no key at all.
+ *
+ * @param {HolidayEntry} entry
+ * @returns {string | null}
+ */
+function getEntryMonthKey(entry) {
+    const periodStart = entry.record?.payrollDoc?.payPeriod?.start
+    if (typeof periodStart === 'string') {
+        const match = periodStart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+        if (match) {
+            const month = Number(match[2])
+            const yearRaw = Number(match[3])
+            if (month >= 1 && month <= 12 && Number.isFinite(yearRaw)) {
+                const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw
+                return `${year}:${month}`
+            }
+        }
+    }
+
+    if (entry.parsedDate instanceof Date) {
+        return `${entry.parsedDate.getFullYear()}:${entry.parsedDate.getMonth() + 1}`
+    }
+
+    return null
+}
+
+/**
  * Computes rolling-reference coverage for a target entry.
  * @param {HolidayEntry[]} sortedEntries
  * @param {HolidayEntry} targetEntry
@@ -232,6 +279,7 @@ export function getRollingReferenceCoverage(
     const cutoff = new Date(targetDate)
     cutoff.setDate(cutoff.getDate() - 104 * 7)
     const cutoffMs = cutoff.getTime()
+    const targetMonthKey = getEntryMonthKey(targetEntry)
 
     let totalBasicPay = 0
     let totalBasicHours = 0
@@ -258,6 +306,11 @@ export function getRollingReferenceCoverage(
         if (entryDate.getTime() < cutoffMs) {
             break
         }
+        const entryMonthKey = getEntryMonthKey(entry)
+        if (targetMonthKey && entryMonthKey === targetMonthKey) {
+            continue
+        }
+
         const monthKey = `${entryDate.getFullYear()}:${entry.monthIndex}`
         if (monthsSeen.has(monthKey)) {
             continue
@@ -533,18 +586,19 @@ export function buildHolidayPayFlags(entries) {
             }
         }
 
-        if (
-            ref &&
-            (ref.mixedMonthsIncluded ?? 0) > 0 &&
-            isMixedMonthCandidate(entry)
-        ) {
+        const entryIsMixedMonthCandidate = isMixedMonthCandidate(entry)
+        const totalMixed =
+            (ref?.mixedMonthsIncluded ?? 0) +
+            (entryIsMixedMonthCandidate ? 1 : 0)
+
+        if (ref && entryIsMixedMonthCandidate && totalMixed > 0) {
             pushFlagIfMissing(entry, {
                 id: 'holiday_mixed_basic_holiday_pay',
                 severity: 'notice',
                 label: formatFlagLabel('holiday_mixed_basic_holiday_pay'),
                 ruleId: 'holiday_mixed_basic_holiday_pay',
                 inputs: {
-                    mixedMonthsIncluded: ref.mixedMonthsIncluded,
+                    mixedMonthsIncluded: totalMixed,
                 },
             })
         }

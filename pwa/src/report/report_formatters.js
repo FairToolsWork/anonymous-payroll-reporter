@@ -74,7 +74,7 @@ export function buildCoverageWarningMessage({ periodsCounted, totalWeeks }) {
     if (periodsCounted < 3) {
         return `Limited holiday-reference coverage: fewer than 3 eligible pay periods (${periodsCounted}) were found, so holiday-rate checks are limited for this year.`
     }
-    return `Limited holiday-reference coverage: ${Math.round(
+    return `Limited holiday-reference coverage: ${Math.floor(
         totalWeeks
     )} weeks from ${periodsCounted} eligible pay periods are available (up to 52 weeks recommended).`
 }
