@@ -102,7 +102,7 @@ export function isDefermentProblematicForPension(entry) {
     const parsedStartDate = parseIsoDateInput(startDateStr)
     const parsedEndDate = parseIsoDateInput(endDateStr)
 
-    if (!parsedStartDate || !parsedEndDate) {
+    if (!parsedStartDate || !parsedEndDate || parsedEndDate < parsedStartDate) {
         return true
     }
 
@@ -280,7 +280,7 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         })
     } else if (!Number.isFinite(grossForTaxTD) || !Number.isFinite(taxPaidTD)) {
         if (payeTax > 0) {
-            return { flag: null, lowConfidence: false }
+            return { flag: null, lowConfidence: true }
         }
         calculationMode = 'period-only-approximation'
         expectedPaye = periodOnlyPaye.expectedPaye
@@ -384,10 +384,13 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
             : PAYE_VALIDATION_TOLERANCE
 
     if (
-        payeTax > 0 &&
+        roundMoney(payeTax) !== 0 &&
         isWithinPayeTolerance(payeTax, expectedPaye, payeTolerance)
     ) {
-        return { flag: null, lowConfidence: false }
+        return {
+            flag: null,
+            lowConfidence: calculationMode === 'period-only-approximation',
+        }
     }
 
     const difference = roundMoney(payeTax - expectedPaye)
@@ -442,7 +445,7 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 expectedPayeTableMode,
             },
         }),
-        lowConfidence: false,
+        lowConfidence: calculationMode === 'period-only-approximation',
     }
 }
 

@@ -72,6 +72,8 @@ function buildHourlyWorkerRecord({
     natIns = 0,
     pensionEE = 0,
     pensionER = 0,
+    grossForTaxTD = null,
+    taxPaidTD = null,
 }) {
     const basicAmount = Math.round(basicUnits * basicRate * 100) / 100
     const holidayAmount = Math.round(holidayUnits * holidayRate * 100) / 100
@@ -106,6 +108,9 @@ function buildHourlyWorkerRecord({
                 totalGrossPay: { amount: grossPay },
                 payCycle: { cycle: 'Monthly' },
             },
+            ...(grossForTaxTD !== null && taxPaidTD !== null
+                ? { yearToDate: { grossForTaxTD, taxPaidTD } }
+                : {}),
             deductions: {
                 payeTax: { amount: payeTax },
                 natIns: { amount: natIns },
@@ -148,6 +153,7 @@ function buildPensionValidationEntry({
                     totalGrossPay: { amount: grossPay },
                     payCycle: { cycle: 'Monthly' },
                 },
+                yearToDate: { grossForTaxTD: grossPay, taxPaidTD: 0 },
                 deductions: {
                     payeTax: { amount: 0 },
                     natIns: { amount: 0 },
@@ -368,6 +374,28 @@ describe('report calculations', () => {
         expect(pensionFlag).toBeTruthy()
         expect(pensionFlag?.severity).toBe('warning')
         // Incomplete deferment dates → uncertainty about deduction expectations → low confidence
+        expect(validation.lowConfidence).toBe(true)
+    })
+
+    it('downgrades above-trigger pension warning when deferment end date precedes start date', () => {
+        const validation = buildValidation(
+            buildPensionValidationEntry({
+                grossPay: 1200,
+                processDate: new Date('2025-05-15T00:00:00.000Z'),
+                workerProfile: {
+                    pensionDefermentCommunicated: true,
+                    pensionDefermentStartDate: '2025-07-31',
+                    pensionDefermentEndDate: '2025-05-01',
+                },
+            })
+        )
+        const pensionFlag = validation.flags.find(
+            (flag) => flag.id === 'pension_auto_enrolment_missing_deductions'
+        )
+
+        expect(pensionFlag).toBeTruthy()
+        expect(pensionFlag?.severity).toBe('warning')
+        // Reversed deferment window → unreliable deferment data → low confidence
         expect(validation.lowConfidence).toBe(true)
     })
 
@@ -662,6 +690,8 @@ describe('report calculations', () => {
                 basicRate: 12.5,
                 payeTax: 100,
                 natIns: 80,
+                grossForTaxTD: 3642.5,
+                taxPaidTD: 100,
             }),
         ]
 
@@ -2998,6 +3028,81 @@ describe('buildValidation — flag evidence payload', () => {
                 globalThis.__payeCumulativeMode = previousMode
             }
         }
+    })
+
+    it('suppresses PAYE mismatch for a negative PAYE refund within tolerance', () => {
+        // payeTax = -0.3 (refund), expectedPaye ≈ -0.6 — difference 0.3 ≤ 0.5 tolerance
+        // grossForTaxTD=1100, taxPaidTD=10.8, month 1 → priorTaxPaid=11.1, expectedTaxYtd=10.5
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: -0.3 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: {
+                    grossForTax: { amount: 1100 },
+                    totalGrossPay: { amount: 1100 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1100,
+                    taxPaidTD: 10.8,
+                },
+                netPay: { amount: 1100.3 },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-04-30T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 1,
+        })
+        const result = buildValidation(entry)
+        const payeFlag = result.flags.find(
+            (f) => f.id === 'paye_mismatch' || f.id === 'paye_zero'
+        )
+
+        expect(payeFlag).toBeUndefined()
+    })
+
+    it('does not suppress PAYE when payeTax rounds to zero — routes to paye_zero instead', () => {
+        // payeTax = 0.004 rounds to 0.00 via roundMoney; tolerance guard is skipped
+        // because roundMoney(payeTax) === 0, so it falls through to the paye_zero path
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0.004 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                taxCode: { code: '1257L' },
+                thisPeriod: {
+                    grossForTax: { amount: 1500 },
+                    totalGrossPay: { amount: 1500 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1500,
+                    taxPaidTD: 0.004,
+                },
+                netPay: { amount: 1499.996 },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-04-30T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 1,
+        })
+        const result = buildValidation(entry)
+        const payeFlag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(payeFlag).toBeDefined()
+        expect(payeFlag.inputs.payeTax).toBe(0.004)
     })
 })
 
