@@ -408,9 +408,15 @@ export function parsePayeTaxCode(taxCode) {
           : 'england'
     const regionlessCode =
         region === 'england' ? normalizedCode : normalizedCode.slice(1).trim()
-    const isEmergency = /(?:^|\s)(W1|M1|X)(?:\s|$)/.test(regionlessCode)
+    const emergencyToken = '(?:W1\\/M1|M1\\/W1|W1|M1|X)'
+    const isEmergency = new RegExp(
+        `(?:^|\\s)${emergencyToken}(?:\\s|$)`
+    ).test(regionlessCode)
     const baseCode = regionlessCode
-        .replace(/(?:^|\s)(W1|M1|X)(?:\s|$)/g, ' ')
+        .replace(
+            new RegExp(`(?:^|\\s)${emergencyToken}(?:\\s|$)`, 'g'),
+            ' '
+        )
         .replace(/\s+/g, '')
         .trim()
 
