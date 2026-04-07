@@ -26,8 +26,6 @@ This follows the existing `ValidationFlag` model (`id`, `label`, optional `sever
 
 ### `nat_ins_zero`
 
-Current behavior in validation:
-
 - Condition: `nationalInsurance <= 0`
 - Threshold source: tax-year NI primary threshold (monthly) from `uk_thresholds`
 - Severity split:
@@ -38,6 +36,16 @@ Current intent:
 
 - Above threshold + zero NI should be treated as a stronger anomaly (`warning`).
 - At/below threshold + zero NI is usually expected, but still surfaced as context (`notice`).
+
+### `nat_ins_taken_below_threshold`
+
+- Condition: `nationalInsurance > 0` while gross pay is at or below NI primary threshold
+- Threshold source: tax-year NI primary threshold (monthly) from `uk_thresholds`
+- Severity: always `warning`
+
+Current intent:
+
+- Surface likely ineligible NI deductions where threshold-driven rules indicate no NI should be taken.
 
 ## Identity and baseline tax metadata flags
 
@@ -61,18 +69,20 @@ Used when reported PAYE is zero and expected PAYE logic indicates this is notabl
 
 Used when reported PAYE differs from expected PAYE by more than tolerance.
 
-Current behavior details:
-
 - Mismatch significance is evaluated using absolute difference (`|reported - expected|`) against active tolerance.
 - Standard PAYE tolerance: `0.5`.
 - Cumulative table-mode tolerance: `2.0` (used to suppress known low-level table drift).
 - Severity is `warning` when mismatch is significant for the active tolerance, otherwise `notice`.
 
+### `paye_taken_not_due`
+
+- Condition: cumulative PAYE context, reported PAYE is positive, expected PAYE is non-positive, and current period gross for tax is at or below period allowance.
+- Severity: `warning`
+- Emission behavior: raised as a distinct rule in this path (instead of generic `paye_mismatch`) to make likely ineligible PAYE deductions explicit.
+
 ### `paye_tax_code_unsupported`
 
 Used when the tax code is outside the standard validation path (or region cannot be inferred safely).
-
-Current behavior details:
 
 - This does not trigger any previous-tax-year threshold fallback.
 - The standard PAYE expected-value calculation path is skipped for that payslip and manual verification is required.
@@ -84,8 +94,6 @@ Used when period position cannot be resolved from pay-cycle/date inputs.
 ### `tax_year_thresholds_unavailable`
 
 Used when threshold-backed tax validation cannot run due to missing/unsupported threshold data.
-
-Current behavior details:
 
 - If the payslip is for a newer tax year than the latest configured threshold set, this warning is still emitted.
 - In that future-year case, threshold-driven checks run using the most recent prior configured tax year as a temporary baseline, and the flag inputs include both requested and fallback tax years.
@@ -148,8 +156,8 @@ Current behavior:
     - 3 months or more with no pension deductions: emits `warning` stating worker should have been auto-enrolled by now.
     - Before 6 weeks from payroll run start: emits `notice` using a pre-enrolment wording.
 - Deferment handling in current implementation:
-    - Deferment-specific branching is not currently applied in pension validation decisions.
-    - Deferment-specific evidence fields are not currently included in pension flag `inputs` payloads.
+    - Deferment date quality is evaluated; problematic deferment data sets pension `lowConfidence` true.
+    - Timing evidence fields are included in pension flag `inputs` payloads (`payrollRunStartDate`, elapsed run days, and 6-week/3-month window markers).
 
 #### 2) `pension_opt_in_possible`
 
@@ -170,6 +178,16 @@ Current behavior:
 - Fires when period earnings are below the lower qualifying threshold.
 - Requires no pension deduction evidence for the period.
 - Message explicitly distinguishes join rights from mandatory employer-contribution rules.
+
+#### 4) `pension_employer_contrib_not_required`
+
+Severity: `warning`
+
+Current behavior:
+
+- Fires when employer pension contribution is present (`pensionER > 0`) while earnings are below the period lower qualifying threshold.
+- Raised before the generic deduction-evidence early return so this anomaly is not hidden.
+- Includes payroll/threshold context in `inputs` for audit traceability.
 
 ## Implementation notes for pension flags
 
