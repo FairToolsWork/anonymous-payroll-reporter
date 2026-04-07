@@ -384,6 +384,45 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
             : PAYE_VALIDATION_TOLERANCE
 
     if (
+        calculationMode === 'cumulative' &&
+        roundMoney(payeTax) > 0 &&
+        roundMoney(expectedPaye) <= 0 &&
+        Number.isFinite(currentGrossForTax) &&
+        currentGrossForTax <= periodOnlyPaye.allowanceThisPeriod
+    ) {
+        return {
+            flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_taken_not_due, {
+                label: formatFlagLabel(FLAG_CATALOG.paye_taken_not_due.id, {
+                    payeTax,
+                    expectedPaye,
+                    explanation,
+                }),
+                severity: 'warning',
+                inputs: {
+                    payeTax,
+                    expectedPaye,
+                    periodIndex,
+                    grossForTax: Number.isFinite(currentGrossForTax)
+                        ? currentGrossForTax
+                        : null,
+                    grossForTaxTD: Number.isFinite(grossForTaxTD)
+                        ? grossForTaxTD
+                        : null,
+                    taxPaidTD: Number.isFinite(taxPaidTD) ? taxPaidTD : null,
+                    taxCode: parsedTaxCode.normalizedCode,
+                    region: bandSelection.region,
+                    payeCalculationMode: calculationMode,
+                    payeCumulativeMode,
+                    cumulativeAllowance,
+                    taxableYtd,
+                    expectedTaxYtd,
+                },
+            }),
+            lowConfidence: false,
+        }
+    }
+
+    if (
         roundMoney(payeTax) !== 0 &&
         isWithinPayeTolerance(payeTax, expectedPaye, payeTolerance)
     ) {
@@ -483,9 +522,6 @@ export function buildPensionValidationFlags(
     const pensionEE = payrollDoc?.deductions?.pensionEE?.amount || 0
     const pensionER = payrollDoc?.deductions?.pensionER?.amount || 0
     const hasPensionDeductionEvidence = pensionEE > 0 || pensionER > 0
-    if (hasPensionDeductionEvidence) {
-        return { flags: [], lowConfidence: false }
-    }
 
     const payCycle =
         payrollDoc?.thisPeriod?.payCycle?.cycle ||
@@ -540,6 +576,35 @@ export function buildPensionValidationFlags(
                 ? null
                 : thresholdResolution.taxYearStart,
         periodLabel,
+    }
+
+    if (pensionER > 0 && earnings < qualifyingLower) {
+        return {
+            flags: [
+                buildCatalogRuleFlag(
+                    FLAG_CATALOG.pension_employer_contrib_not_required,
+                    {
+                        label: formatFlagLabel(
+                            FLAG_CATALOG.pension_employer_contrib_not_required
+                                .id,
+                            {
+                                earnings,
+                                qualifyingLower,
+                                periodLabel,
+                                pensionER,
+                            }
+                        ),
+                        severity: 'warning',
+                        inputs: sharedInputs,
+                    }
+                ),
+            ],
+            lowConfidence: false,
+        }
+    }
+
+    if (hasPensionDeductionEvidence) {
+        return { flags: [], lowConfidence: false }
     }
 
     const pensionAutoEnrolmentMissingDeductionsCatalog =
@@ -795,6 +860,33 @@ export function buildValidation(entry) {
             buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_zero, {
                 label: niLabel,
                 severity: isNiWarning ? 'warning' : 'notice',
+                inputs: {
+                    nationalInsurance,
+                    grossPay: grossForNiContext,
+                    niPrimaryThresholdMonthly,
+                },
+            })
+        )
+    }
+
+    if (
+        nationalInsurance > 0 &&
+        niPrimaryThresholdMonthly !== null &&
+        canRunThresholdDrivenChecks &&
+        typeof grossForNiContext === 'number' &&
+        grossForNiContext <= niPrimaryThresholdMonthly
+    ) {
+        flags.push(
+            buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_taken_below_threshold, {
+                label: formatFlagLabel(
+                    FLAG_CATALOG.nat_ins_taken_below_threshold.id,
+                    {
+                        nationalInsurance,
+                        grossPay: grossForNiContext,
+                        niPrimaryThresholdMonthly,
+                    }
+                ),
+                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,

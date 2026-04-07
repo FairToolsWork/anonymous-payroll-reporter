@@ -53,6 +53,18 @@ export const FLAG_CATALOG = {
         section: 'tax',
         severity: 'warning',
     },
+    nat_ins_taken_below_threshold: {
+        id: 'nat_ins_taken_below_threshold',
+        label: 'National Insurance deductions taken while gross pay is at or below the primary threshold',
+        section: 'tax',
+        severity: 'warning',
+    },
+    paye_taken_not_due: {
+        id: 'paye_taken_not_due',
+        label: 'PAYE Tax was deducted even though standard PAYE for this period appears to be £0',
+        section: 'tax',
+        severity: 'warning',
+    },
     tax_year_thresholds_unavailable: {
         id: 'tax_year_thresholds_unavailable',
         label: 'Tax-year thresholds unavailable for this payslip',
@@ -82,6 +94,12 @@ export const FLAG_CATALOG = {
         label: 'Pre-tax earnings are below the lower qualifying threshold; worker may ask to join, but employer contributions may not be required',
         section: 'validation',
         severity: 'notice',
+    },
+    pension_employer_contrib_not_required: {
+        id: 'pension_employer_contrib_not_required',
+        label: 'Employer pension contributions were detected even though earnings are below the lower qualifying threshold',
+        section: 'validation',
+        severity: 'warning',
     },
     payment_line_mismatch: {
         id: 'payment_line_mismatch',
@@ -152,7 +170,7 @@ function formatCurrency(amount) {
 
 /**
  * @param {string} id
- * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, expectedPaye?: number | null, isSignificantMismatch?: boolean, payeDifference?: number | null, explanation?: string, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, cumulativeAllowance?: number | null, grossForTaxTD?: number | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null }} [params]
+ * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, expectedPaye?: number | null, isSignificantMismatch?: boolean, payeDifference?: number | null, explanation?: string, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, cumulativeAllowance?: number | null, grossForTaxTD?: number | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null, pensionER?: number | null, nationalInsurance?: number | null }} [params]
  * @returns {string}
  */
 export function formatFlagLabel(id, params = {}) {
@@ -209,6 +227,10 @@ export function formatFlagLabel(id, params = {}) {
         }
     }
 
+    if (id === 'paye_taken_not_due') {
+        return `PAYE Tax ${formatCurrency(params.payeTax)} was deducted, but standard PAYE for this period is about ${formatCurrency(params.expectedPaye)}. ${String(params.explanation || '')}`
+    }
+
     if (id === 'pension_auto_enrolment_missing_deductions') {
         const periodLabel = params.periodLabel || 'period'
         if (params.context === 'pre_enrolment_notice') {
@@ -235,6 +257,11 @@ export function formatFlagLabel(id, params = {}) {
         return `The worker may ask to join a workplace pension, but employer contributions may not be required. Pre-tax earnings are ${formatCurrency(params.earnings)}, which are below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)}.`
     }
 
+    if (id === 'pension_employer_contrib_not_required') {
+        const periodLabel = params.periodLabel || 'period'
+        return `Employer pension contributions ${formatCurrency(params.pensionER)} were detected while pre-tax earnings are ${formatCurrency(params.earnings)}, below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} where employer contributions are not normally required.`
+    }
+
     if (id === 'tax_year_thresholds_unavailable') {
         if (params.context === 'fallback-to-previous-tax-year') {
             return `Tax-year thresholds are not configured for ${String(params.taxYearStartLabel || 'unknown tax year')}. Using ${String(params.fallbackTaxYearStartLabel || 'an earlier available tax year')} thresholds as a temporary baseline for threshold-based checks on this payslip.`
@@ -256,6 +283,12 @@ export function formatFlagLabel(id, params = {}) {
         if (params.context === 'at_or_below_threshold_notice') {
             return `NI deductions not taken as gross pay ${grossPayLabel} is at or below the primary threshold of ${thresholdLabel}`
         }
+    }
+
+    if (id === 'nat_ins_taken_below_threshold') {
+        const grossPayLabel = formatCurrency(params.grossPay)
+        const thresholdLabel = formatCurrency(params.niPrimaryThresholdMonthly)
+        return `NI deductions of ${formatCurrency(params.nationalInsurance)} were taken while gross pay ${grossPayLabel} is at or below the primary threshold of ${thresholdLabel}`
     }
 
     if (id === 'holiday_rate_below_basic') {

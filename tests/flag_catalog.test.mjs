@@ -15,11 +15,14 @@ describe('FLAG_CATALOG', () => {
             'paye_tax_code_unsupported',
             'paye_pay_cycle_unsupported',
             'nat_ins_zero',
+            'nat_ins_taken_below_threshold',
+            'paye_taken_not_due',
             'tax_year_thresholds_unavailable',
             'tax_year_thresholds_partial_support',
             'pension_auto_enrolment_missing_deductions',
             'pension_opt_in_possible',
             'pension_join_no_mandatory_employer_contrib',
+            'pension_employer_contrib_not_required',
             'payment_line_mismatch',
             'gross_mismatch',
             'net_mismatch',
@@ -56,8 +59,18 @@ describe('FLAG_CATALOG', () => {
     it('has warning severity for PAYE flags', () => {
         expect(FLAG_CATALOG.paye_zero.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_mismatch.severity).toBe('warning')
+        expect(FLAG_CATALOG.paye_taken_not_due.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_tax_code_unsupported.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_pay_cycle_unsupported.severity).toBe('warning')
+    })
+
+    it('has warning severity for ineligible deduction flags', () => {
+        expect(FLAG_CATALOG.nat_ins_taken_below_threshold.severity).toBe(
+            'warning'
+        )
+        expect(
+            FLAG_CATALOG.pension_employer_contrib_not_required.severity
+        ).toBe('warning')
     })
 })
 
@@ -287,6 +300,32 @@ describe('formatFlagLabel — nat_ins_zero', () => {
     })
 })
 
+describe('formatFlagLabel — nat_ins_taken_below_threshold', () => {
+    it('formats NI taken while at or below threshold', () => {
+        const label = formatFlagLabel('nat_ins_taken_below_threshold', {
+            nationalInsurance: 15,
+            grossPay: 800,
+            niPrimaryThresholdMonthly: 1048,
+        })
+        expect(label).toContain('NI deductions of £15.00 were taken')
+        expect(label).toContain('gross pay £800.00 is at or below')
+        expect(label).toContain('£1,048.00')
+    })
+})
+
+describe('formatFlagLabel — paye_taken_not_due', () => {
+    it('formats PAYE taken when standard PAYE is non-positive', () => {
+        const label = formatFlagLabel('paye_taken_not_due', {
+            payeTax: 20,
+            expectedPaye: 0,
+            explanation: 'Cumulative evidence indicates no PAYE due.',
+        })
+        expect(label).toContain('PAYE Tax £20.00 was deducted')
+        expect(label).toContain('standard PAYE for this period is about £0.00')
+        expect(label).toContain('Cumulative evidence indicates no PAYE due.')
+    })
+})
+
 describe('formatFlagLabel — tax_year_thresholds_unavailable', () => {
     it('formats fallback-to-previous-tax-year context', () => {
         const label = formatFlagLabel('tax_year_thresholds_unavailable', {
@@ -432,6 +471,21 @@ describe('formatFlagLabel — pension_join_no_mandatory_employer_contrib', () =>
         expect(label).toContain('employer contributions may not be required')
         expect(label).toContain('£400.00')
         expect(label).toContain('£520.00')
+    })
+})
+
+describe('formatFlagLabel — pension_employer_contrib_not_required', () => {
+    it('formats employer contribution below lower qualifying threshold', () => {
+        const label = formatFlagLabel('pension_employer_contrib_not_required', {
+            pensionER: 25,
+            earnings: 400,
+            qualifyingLower: 520,
+        })
+        expect(label).toContain('Employer pension contributions £25.00')
+        expect(label).toContain('pre-tax earnings are £400.00')
+        expect(label).toContain(
+            'lower qualifying earnings threshold of £520.00'
+        )
     })
 })
 

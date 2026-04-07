@@ -2521,6 +2521,32 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag.label).toContain('is above the primary threshold')
     })
 
+    it('flags NI taken while gross pay is at or below NI primary threshold', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 15 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: { totalGrossPay: { amount: 900 } },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find(
+            (f) => f.id === 'nat_ins_taken_below_threshold'
+        )
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('nat_ins_taken_below_threshold')
+        expect(flag.severity).toBe('warning')
+        expect(flag.inputs.nationalInsurance).toBe(15)
+        expect(flag.inputs.grossPay).toBe(900)
+    })
+
     it('notice-only flags are excluded from flagged periods summary', () => {
         const entry = {
             parsedDate: new Date('2025-04-30T00:00:00.000Z'),
@@ -2804,6 +2830,76 @@ describe('buildValidation — flag evidence payload', () => {
         const mismatchFlag = result.flags.find((f) => f.id === 'paye_mismatch')
 
         expect(mismatchFlag).toBeUndefined()
+    })
+
+    it('flags PAYE taken when standard PAYE is not due', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 20 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 1000 },
+                    totalGrossPay: { amount: 1000 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 1000,
+                    taxPaidTD: 20,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_taken_not_due')
+        const mismatchFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('paye_taken_not_due')
+        expect(flag.severity).toBe('warning')
+        expect(flag.inputs.expectedPaye).toBeCloseTo(0)
+        expect(mismatchFlag).toBeUndefined()
+    })
+
+    it('flags employer pension contribution when earnings are below qualifying lower threshold', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 25 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 400 },
+                    totalGrossPay: { amount: 400 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 400,
+                    taxPaidTD: 0,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find(
+            (f) => f.id === 'pension_employer_contrib_not_required'
+        )
+        const joinNotice = result.flags.find(
+            (f) => f.id === 'pension_join_no_mandatory_employer_contrib'
+        )
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('pension_employer_contrib_not_required')
+        expect(flag.severity).toBe('warning')
+        expect(flag.inputs.pensionER).toBe(25)
+        expect(joinNotice).toBeUndefined()
     })
 
     it('flags unsupported PAYE pay cycles as low-confidence validation', () => {
