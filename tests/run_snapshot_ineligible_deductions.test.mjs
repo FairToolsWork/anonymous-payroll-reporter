@@ -63,5 +63,67 @@ describe.skipIf(!fixturesExist)(
                 expect([...entry.flagIds].sort()).toEqual(expectedFlagIds)
             }
         }, 45000)
+
+        it('includes warning detail labels and evidence payloads for ineligible deductions', async () => {
+            const result = await runReportFromFixtures({
+                pdfPaths: allPdfPaths,
+                requireEmployeeDetails: false,
+                includeReportContext: true,
+            })
+            const snapshot = buildRunSnapshot(
+                result.records,
+                result.reportContext,
+                result.contributionData,
+                { includeFlagDetails: true }
+            )
+
+            for (const entry of snapshot.entries) {
+                const details = entry.flagDetails || []
+                const detailsById = Object.fromEntries(
+                    details.map((flag) => [flag.id, flag])
+                )
+
+                const niFlag = detailsById.nat_ins_taken_below_threshold
+                expect(niFlag).toBeDefined()
+                expect(niFlag.ruleId).toBe('nat_ins_taken_below_threshold')
+                expect(niFlag.severity).toBe('warning')
+                expect(niFlag.label).toContain(
+                    'at or below the primary threshold'
+                )
+                expect(typeof niFlag.inputs.nationalInsurance).toBe('number')
+                expect(typeof niFlag.inputs.grossPay).toBe('number')
+                expect(typeof niFlag.inputs.niPrimaryThresholdMonthly).toBe(
+                    'number'
+                )
+
+                const payeFlag = detailsById.paye_taken_not_due
+                expect(payeFlag).toBeDefined()
+                expect(payeFlag.ruleId).toBe('paye_taken_not_due')
+                expect(payeFlag.severity).toBe('warning')
+                expect(payeFlag.label).toContain('PAYE Tax')
+                expect(typeof payeFlag.inputs.payeTax).toBe('number')
+                expect(typeof payeFlag.inputs.grossForTax).toBe('number')
+                expect(typeof payeFlag.inputs.periodAllowance).toBe('number')
+                expect(typeof payeFlag.inputs.payeCalculationMode).toBe(
+                    'string'
+                )
+
+                const pensionFlag =
+                    detailsById.pension_employer_contrib_not_required
+                expect(pensionFlag).toBeDefined()
+                expect(pensionFlag.ruleId).toBe(
+                    'pension_employer_contrib_not_required'
+                )
+                expect(pensionFlag.severity).toBe('warning')
+                expect(pensionFlag.label).toContain(
+                    'Employer pension contributions'
+                )
+                expect(typeof pensionFlag.inputs.pensionER).toBe('number')
+                expect(typeof pensionFlag.inputs.earnings).toBe('number')
+                expect(
+                    typeof pensionFlag.inputs.periodQualifyingEarningsLower
+                ).toBe('number')
+            }
+        }, 45000)
     }
 )

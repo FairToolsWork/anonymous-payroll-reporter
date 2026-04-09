@@ -2580,6 +2580,43 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag.inputs.grossPay).toBe(900)
     })
 
+    it('flags NI taken while gross pay is at or below threshold on weekly pay cycle', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 15 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 200 },
+                    totalGrossPay: { amount: 200 },
+                    payCycle: { cycle: 'Weekly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 200,
+                    taxPaidTD: 0,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-04-11T00:00:00.000Z'),
+            monthIndex: null,
+        })
+        const result = buildValidation(entry)
+        const flag = result.flags.find(
+            (f) => f.id === 'nat_ins_taken_below_threshold'
+        )
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('nat_ins_taken_below_threshold')
+        expect(flag.severity).toBe('warning')
+        expect(flag.inputs.nationalInsurance).toBe(15)
+        expect(flag.inputs.grossPay).toBe(200)
+    })
+
     it('notice-only flags are excluded from flagged periods summary', () => {
         const entry = {
             parsedDate: new Date('2025-04-30T00:00:00.000Z'),
@@ -2978,6 +3015,36 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag.severity).toBe('warning')
         expect(flag.inputs.pensionER).toBe(25)
         expect(joinNotice).toBeUndefined()
+    })
+
+    it('does not flag employer pension contribution not required when earnings equal qualifying lower threshold', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 25 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 520 },
+                    totalGrossPay: { amount: 520 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 520,
+                    taxPaidTD: 0,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find(
+            (f) => f.id === 'pension_employer_contrib_not_required'
+        )
+
+        expect(flag).toBeUndefined()
     })
 
     it('flags unsupported PAYE pay cycles as low-confidence validation', () => {
