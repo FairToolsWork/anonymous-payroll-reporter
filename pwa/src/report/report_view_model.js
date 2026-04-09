@@ -209,27 +209,8 @@ export function buildPayslipViewModel(entry) {
 
     const noticeItems = /** @type {string[]} */ ([])
     const warningItems = /** @type {string[]} */ ([])
-    const isLegacyNiNotice = (/** @type {ValidationFlag} */ flag) => {
-        if (flag.id !== 'nat_ins_zero') {
-            return false
-        }
-        const grossPay = flag.inputs?.grossPay
-        const niPrimaryThresholdMonthly = flag.inputs?.niPrimaryThresholdMonthly
-        if (
-            typeof grossPay === 'number' &&
-            typeof niPrimaryThresholdMonthly === 'number'
-        ) {
-            return grossPay <= niPrimaryThresholdMonthly
-        }
-        const label = String(flag.label || '').toLowerCase()
-        return (
-            (label.includes('at or below the primary threshold') ||
-                label.includes('below the primary threshold')) &&
-            !label.includes('above the primary threshold')
-        )
-    }
     validation.flags.forEach((/** @type {ValidationFlag} */ flag) => {
-        if (flag.severity === 'notice' || isLegacyNiNotice(flag)) {
+        if (flag.severity === 'notice') {
             noticeItems.push(flag.label)
             return
         }

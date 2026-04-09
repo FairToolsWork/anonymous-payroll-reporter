@@ -51,16 +51,17 @@ describe.skipIf(!fixturesExist)(
                 result.reportContext,
                 result.contributionData
             )
-            const ids = new Set(
-                snapshot.entries.flatMap((entry) => entry.flagIds)
-            )
 
-            expect(snapshot.recordCount).toBe(3)
-            expect([...ids].sort()).toEqual([
+            const expectedFlagIds = [
                 'nat_ins_taken_below_threshold',
                 'paye_taken_not_due',
                 'pension_employer_contrib_not_required',
-            ])
+            ]
+
+            expect(snapshot.recordCount).toBe(3)
+            for (const entry of snapshot.entries) {
+                expect([...entry.flagIds].sort()).toEqual(expectedFlagIds)
+            }
         }, 45000)
     }
 )

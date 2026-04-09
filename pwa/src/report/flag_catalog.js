@@ -29,12 +29,6 @@ export const FLAG_CATALOG = {
         section: 'tax',
         severity: 'warning',
     },
-    paye_mismatch: {
-        id: 'paye_mismatch',
-        label: 'PAYE Tax does not match the expected amount for this payslip',
-        section: 'tax',
-        severity: 'warning',
-    },
     paye_tax_code_unsupported: {
         id: 'paye_tax_code_unsupported',
         label: 'This tax code is outside the standard PAYE check path and should be verified manually',
@@ -61,7 +55,7 @@ export const FLAG_CATALOG = {
     },
     paye_taken_not_due: {
         id: 'paye_taken_not_due',
-        label: 'PAYE Tax was deducted even though standard PAYE for this period appears to be £0',
+        label: 'PAYE Tax was deducted even though earnings appear to be within the tax-free allowance',
         section: 'tax',
         severity: 'warning',
     },
@@ -170,7 +164,7 @@ function formatCurrency(amount) {
 
 /**
  * @param {string} id
- * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, expectedPaye?: number | null, isSignificantMismatch?: boolean, payeDifference?: number | null, explanation?: string, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, cumulativeAllowance?: number | null, grossForTaxTD?: number | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null, pensionER?: number | null, nationalInsurance?: number | null }} [params]
+ * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, grossForTax?: number | null, grossForTaxTD?: number | null, periodAllowance?: number | null, cumulativeAllowance?: number | null, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null, pensionER?: number | null, nationalInsurance?: number | null }} [params]
  * @returns {string}
  */
 export function formatFlagLabel(id, params = {}) {
@@ -193,42 +187,26 @@ export function formatFlagLabel(id, params = {}) {
     }
 
     if (id === 'paye_zero' && params.context === 'missing_tax_code') {
-        return 'PAYE Tax is £0 and the tax code is missing, so the exact PAYE check could not be completed for this payslip.'
+        return 'PAYE Tax is £0 and the tax code is missing, so the threshold check could not be completed for this payslip.'
     }
 
-    if (id === 'paye_mismatch') {
-        if (params.context === 'explanation_emergency') {
-            return `Emergency code ${String(params.taxCode || 'Unknown')} uses period-only PAYE with ${formatCurrency(params.periodTrigger)} tax-free pay this ${String(params.payCycle || 'Unknown').toLowerCase()} period.`
+    if (id === 'paye_zero') {
+        if (params.context === 'ytd_above_allowance') {
+            return `No PAYE deduction recorded. Your taxable gross pay to date is ${formatCurrency(params.grossForTaxTD)} — and these earnings appear to be above your tax-free allowance.`
         }
-        if (params.context === 'explanation_period_only') {
-            return `Gross for Tax TD and Tax Paid TD are missing, so this uses a period-only approximation with ${formatCurrency(params.periodTrigger)} tax-free pay.`
-        }
-        if (params.context === 'explanation_cumulative') {
-            return `Cumulative PAYE for ${String(params.taxCode || 'Unknown')} uses Gross for Tax TD ${formatCurrency(params.grossForTaxTD)} less cumulative allowance ${formatCurrency(params.cumulativeAllowance)} in the ${String(params.region || 'Unknown')} tax bands.`
-        }
-        if (params.context === 'zero_or_mismatch') {
-            const payeTax = Number(params.payeTax)
-            const expectedPaye = Number(params.expectedPaye)
-            const diff = Number(params.payeDifference)
-            const isSignificantMismatch = params.isSignificantMismatch === true
-            const explanation = String(params.explanation || '')
-            const isZeroFlag = payeTax <= 0
-            const discrepancyDirection =
-                diff < 0
-                    ? 'under the expected PAYE amount'
-                    : 'above the expected PAYE amount'
-            if (isZeroFlag) {
-                if (isSignificantMismatch) {
-                    return `PAYE Tax is ${formatCurrency(payeTax)} but standard PAYE for this payslip is about ${formatCurrency(expectedPaye)}. ${explanation}`
-                }
-                return `PAYE Tax is ${formatCurrency(payeTax)} and standard PAYE also works out to about ${formatCurrency(expectedPaye)} for this payslip. ${explanation}`
-            }
-            return `PAYE Tax ${formatCurrency(payeTax)} is ${formatCurrency(Math.abs(diff))} ${discrepancyDirection}; standard PAYE is about ${formatCurrency(expectedPaye)}. ${explanation}`
+        if (params.context === 'period_above_allowance') {
+            return `No PAYE deduction recorded. Gross pay for this period is ${formatCurrency(params.grossForTax)} — and these earnings appear to be above your tax-free allowance for this pay period.`
         }
     }
 
     if (id === 'paye_taken_not_due') {
-        return `PAYE Tax ${formatCurrency(params.payeTax)} was deducted, but standard PAYE for this period is about ${formatCurrency(params.expectedPaye)}. ${String(params.explanation || '')}`
+        if (params.context === 'ytd_within_allowance') {
+            return `PAYE Tax of ${formatCurrency(params.payeTax)} was deducted, but your taxable gross pay to date is ${formatCurrency(params.grossForTaxTD)} — and these earnings appear to fall within your tax-free allowance.`
+        }
+        if (params.context === 'period_within_allowance') {
+            return `PAYE Tax of ${formatCurrency(params.payeTax)} was deducted, but gross pay for this period is ${formatCurrency(params.grossForTax)} — and these earnings appear to fall within your tax-free allowance for this pay period.`
+        }
+        return `PAYE Tax of ${formatCurrency(params.payeTax)} was deducted, but earnings appear to fall within the tax-free allowance.`
     }
 
     if (id === 'pension_auto_enrolment_missing_deductions') {
@@ -279,9 +257,6 @@ export function formatFlagLabel(id, params = {}) {
         const thresholdLabel = formatCurrency(params.niPrimaryThresholdMonthly)
         if (params.context === 'above_threshold_warning') {
             return `National Insurance missing or £0 while gross pay ${grossPayLabel} is above the primary threshold of ${thresholdLabel}`
-        }
-        if (params.context === 'at_or_below_threshold_notice') {
-            return `NI deductions not taken as gross pay ${grossPayLabel} is at or below the primary threshold of ${thresholdLabel}`
         }
     }
 

@@ -290,36 +290,27 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         expect(snapshot.payeMismatchDiagnostics).toEqual([])
     })
 
-    it('extracts PAYE diagnostic data from paye_mismatch flags', () => {
+    it('extracts PAYE diagnostic data from paye_zero flags', () => {
         const context = {
             entries: [
                 buildMinimalContextEntry({
                     periodLabel: 'Jun 2025',
                     flags: [
                         {
-                            id: 'paye_mismatch',
-                            label: 'PAYE mismatch',
+                            id: 'paye_zero',
+                            label: 'PAYE Tax missing or £0',
                             severity: 'warning',
-                            ruleId: 'paye_mismatch',
+                            ruleId: 'paye_zero',
                             inputs: {
-                                payeTax: 100,
-                                expectedPaye: 150,
-                                payeDifference: -50,
-                                periodIndex: 3,
+                                payeTax: 0,
+                                grossForTax: 1200,
+                                grossForTaxTD: 6000,
+                                periodAllowance: 1048,
+                                cumulativeAllowance: 6288,
+                                periodIndex: 6,
                                 taxCode: '1257L',
                                 region: 'england',
                                 payeCalculationMode: 'cumulative',
-                                payeCumulativeMode: 'exact',
-                                cumulativeAllowance: 3144,
-                                taxableYtd: 1856,
-                                expectedTaxYtd: 371.2,
-                                priorTaxPaid: 221.2,
-                                expectedPayeExact: 150,
-                                expectedPayeSageApprox: 149.5,
-                                expectedPayeTableMode: 148,
-                                expectedTaxYtdExact: 371.2,
-                                expectedTaxYtdSageApprox: 370.7,
-                                expectedTaxYtdTableMode: 369,
                             },
                         },
                     ],
@@ -334,16 +325,13 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         const diag = snapshot.payeMismatchDiagnostics[0]
         expect(diag.taxCode).toBe('1257L')
         expect(diag.region).toBe('england')
-        expect(diag.periodIndex).toBe(3)
-        expect(diag.payeTax).toBe(100)
-        expect(diag.expectedPaye).toBe(150)
-        expect(diag.payeDifference).toBe(-50)
-        expect(diag.cumulativeAllowance).toBe(3144)
-        expect(diag.expectedPayeExact).toBe(150)
-        expect(diag.expectedPayeSageApprox).toBe(149.5)
-        expect(diag.expectedPayeTableMode).toBe(148)
+        expect(diag.periodIndex).toBe(6)
+        expect(diag.payeTax).toBe(0)
+        expect(diag.grossForTax).toBe(1200)
+        expect(diag.grossForTaxTD).toBe(6000)
+        expect(diag.periodAllowance).toBe(1048)
+        expect(diag.cumulativeAllowance).toBe(6288)
         expect(diag.calculationMode).toBe('cumulative')
-        expect(diag.cumulativeMode).toBe('exact')
     })
 
     it('includes both options simultaneously without conflict', () => {
@@ -352,13 +340,13 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
                 buildMinimalContextEntry({
                     flags: [
                         {
-                            id: 'paye_mismatch',
-                            label: 'PAYE mismatch',
+                            id: 'paye_zero',
+                            label: 'PAYE Tax missing or £0',
                             severity: 'warning',
                             inputs: {
                                 payeTax: 0,
-                                expectedPaye: 200,
-                                payeDifference: -200,
+                                grossForTax: 1200,
+                                periodAllowance: 1048,
                             },
                         },
                     ],

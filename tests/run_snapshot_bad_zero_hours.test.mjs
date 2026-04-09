@@ -134,8 +134,7 @@ describe.skipIf(!fixturesExist)(
                 const belowThresholdIndices = [0, 3, 6, 9, 12]
                 for (const i of belowThresholdIndices) {
                     const ids = snapshot.entries[i].flagIds
-                    expect(ids).toContain('paye_zero')
-                    expect(ids).toContain('nat_ins_zero')
+                    expect(ids).not.toContain('nat_ins_zero')
                 }
             }, 90000)
 

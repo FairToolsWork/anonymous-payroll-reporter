@@ -182,7 +182,6 @@ describe('uk rules catalog', () => {
             'missing_nat_ins',
             'missing_tax_code',
             'paye_zero',
-            'paye_mismatch',
             'paye_tax_code_unsupported',
             'paye_pay_cycle_unsupported',
             'nat_ins_zero',

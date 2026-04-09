@@ -235,7 +235,6 @@ describe('report calculations', () => {
         const flagIds = validation.flags.map((flag) => flag.id)
         expect(flagIds).toContain('missing_tax_code')
         expect(flagIds).toContain('paye_zero')
-        expect(flagIds).toContain('nat_ins_zero')
         expect(flagIds).toContain('net_mismatch')
     })
 
@@ -2333,20 +2332,15 @@ describe('buildValidation — flag evidence payload', () => {
         }
     }
 
-    it('paye_zero becomes a notice when standard cumulative PAYE also works out to zero', () => {
+    it('does not emit paye_zero when earnings are within the cumulative allowance', () => {
         const record = buildValidationRecord()
         const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'paye_zero')
-        expect(flag).toBeDefined()
-        expect(flag.ruleId).toBe('paye_zero')
-        expect(flag.severity).toBe('notice')
-        expect(typeof flag.inputs.payeTax).toBe('number')
-        expect(typeof flag.inputs.expectedPaye).toBe('number')
-        expect(flag.inputs.expectedPaye).toBeCloseTo(0)
+        expect(flag).toBeUndefined()
     })
 
-    it('paye_zero becomes a warning when standard cumulative PAYE should have been deducted', () => {
+    it('paye_zero becomes a warning when period-only PAYE should have been deducted', () => {
         const record = buildValidationRecord({
             payrollDoc: {
                 thisPeriod: {
@@ -2366,11 +2360,12 @@ describe('buildValidation — flag evidence payload', () => {
 
         expect(flag).toBeDefined()
         expect(flag.severity).toBe('warning')
-        expect(flag.inputs.expectedPaye).toBeCloseTo(90.4)
-        expect(flag.label).toContain('about £90.40')
+        expect(flag.inputs.grossForTaxTD).toBe(1500)
+        expect(flag.label).toContain('taxable gross pay to date')
+        expect(flag.label).toContain('£1,500.00')
     })
 
-    it('uses cumulative YTD values for standard 1257L checks', () => {
+    it('uses YTD allowance context for standard 1257L checks when YTD gross is available', () => {
         const record = buildValidationRecord({
             payrollDoc: {
                 deductions: {
@@ -2400,8 +2395,43 @@ describe('buildValidation — flag evidence payload', () => {
         const flag = result.flags.find((f) => f.id === 'paye_zero')
 
         expect(flag).toBeDefined()
-        expect(flag.inputs.expectedPaye).toBeCloseTo(181)
-        expect(flag.label).toContain('Gross for Tax TD £3,000.00')
+        expect(flag.inputs.grossForTaxTD).toBe(3000)
+        expect(flag.inputs.payeCalculationMode).toBe(
+            'period-plus-ytd-threshold'
+        )
+        expect(flag.label).toContain('taxable gross pay to date')
+    })
+
+    it('does not warn for missing PAYE when YTD gross remains within cumulative allowance', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 0 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 1800 },
+                    totalGrossPay: { amount: 1800 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 2000,
+                    taxPaidTD: 0,
+                },
+                processDate: { date: '01/05/25 - 31/05/25' },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-05-31T00:00:00.000Z'),
+            monthIndex: 2,
+        })
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_zero')
+
+        expect(flag).toBeUndefined()
     })
 
     it('uses emergency non-cumulative treatment for 1257L M1/W1/X codes', () => {
@@ -2435,8 +2465,8 @@ describe('buildValidation — flag evidence payload', () => {
         const flag = result.flags.find((f) => f.id === 'paye_zero')
 
         expect(flag).toBeDefined()
-        expect(flag.inputs.expectedPaye).toBeCloseTo(290.4)
-        expect(flag.label).toContain('Emergency code 1257L M1')
+        expect(flag.inputs.payeCalculationMode).toBe('emergency-period-only')
+        expect(flag.inputs.grossForTax).toBe(2500)
     })
 
     it('routes standard PAYE through Scotland bands for S-prefixed tax codes', () => {
@@ -2460,7 +2490,8 @@ describe('buildValidation — flag evidence payload', () => {
 
         expect(flag).toBeDefined()
         expect(flag.inputs.region).toBe('scotland')
-        expect(flag.inputs.expectedPaye).toBeCloseTo(188.04)
+        expect(flag.inputs.grossForTaxTD).toBe(2000)
+        expect(flag.severity).toBe('warning')
     })
 
     it('emits an explicit warning for non-standard tax codes', () => {
@@ -2482,7 +2513,11 @@ describe('buildValidation — flag evidence payload', () => {
     })
 
     it('nat_ins_zero flag carries ruleId and numeric inputs.nationalInsurance', () => {
-        const record = buildValidationRecord()
+        const record = buildValidationRecord({
+            payrollDoc: {
+                thisPeriod: { totalGrossPay: { amount: 1200 } },
+            },
+        })
         const entry = buildValidationEntry(record)
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
@@ -2491,7 +2526,7 @@ describe('buildValidation — flag evidence payload', () => {
         expect(typeof flag.inputs.nationalInsurance).toBe('number')
     })
 
-    it('nat_ins_zero is a notice when gross pay is below NI primary threshold', () => {
+    it('does not emit nat_ins_zero when gross pay is below NI primary threshold', () => {
         const record = buildValidationRecord({
             payrollDoc: {
                 thisPeriod: { totalGrossPay: { amount: 1000 } },
@@ -2501,9 +2536,7 @@ describe('buildValidation — flag evidence payload', () => {
         const result = buildValidation(entry)
         const flag = result.flags.find((f) => f.id === 'nat_ins_zero')
 
-        expect(flag).toBeDefined()
-        expect(flag.severity).toBe('notice')
-        expect(flag.label).toContain('is at or below the primary threshold')
+        expect(flag).toBeUndefined()
     })
 
     it('nat_ins_zero is a warning when gross pay exceeds NI primary threshold', () => {
@@ -2727,7 +2760,11 @@ describe('buildValidation — flag evidence payload', () => {
     })
 
     it('flags future unsupported tax year but uses prior thresholds for checks', () => {
-        const record = buildValidationRecord()
+        const record = buildValidationRecord({
+            payrollDoc: {
+                thisPeriod: { totalGrossPay: { amount: 1200 } },
+            },
+        })
         const entry = buildValidationEntry(record, {
             parsedDate: new Date('2027-04-30T00:00:00.000Z'),
             yearKey: '2027/28',
@@ -2747,7 +2784,8 @@ describe('buildValidation — flag evidence payload', () => {
         expect(thresholdFlag.inputs.taxYearStart).toBe(2027)
         expect(thresholdFlag.inputs.fallbackTaxYearStart).toBe(2026)
         expect(niFlag).toBeDefined()
-        expect(payeFlag).toBeDefined()
+        expect(niFlag.severity).toBe('warning')
+        expect(payeFlag).toBeUndefined()
         expect(result.lowConfidence).toBe(true)
     })
 
@@ -2861,7 +2899,47 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag).toBeDefined()
         expect(flag.ruleId).toBe('paye_taken_not_due')
         expect(flag.severity).toBe('warning')
-        expect(flag.inputs.expectedPaye).toBeCloseTo(0)
+        expect(flag.inputs.grossForTax).toBe(1000)
+        expect(mismatchFlag).toBeUndefined()
+    })
+
+    it('flags PAYE taken for variable-pay worker when YTD is within allowance but current period gross exceeds monthly allowance', () => {
+        // Period 6 (September 2025/26). YTD gross £4,000 is well within the
+        // cumulative allowance of ~£6,285 (6 × £1,047.50), but the current
+        // month gross £1,200 exceeds the single-period allowance of ~£1,047.50.
+        // The cumulative picture is unambiguous: no PAYE should have been owed,
+        // so paye_taken_not_due should fire instead of falling back to paye_mismatch.
+        const record = buildValidationRecord({
+            payrollDoc: {
+                deductions: {
+                    payeTax: { amount: 20 },
+                    natIns: { amount: 0 },
+                    pensionEE: { amount: 0 },
+                    pensionER: { amount: 0 },
+                    misc: [],
+                },
+                thisPeriod: {
+                    grossForTax: { amount: 1200 },
+                    totalGrossPay: { amount: 1200 },
+                    payCycle: { cycle: 'Monthly' },
+                },
+                yearToDate: {
+                    grossForTaxTD: 4000,
+                    taxPaidTD: 20,
+                },
+            },
+        })
+        const entry = buildValidationEntry(record, {
+            parsedDate: new Date('2025-09-30T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 6,
+        })
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_taken_not_due')
+        const mismatchFlag = result.flags.find((f) => f.id === 'paye_mismatch')
+
+        expect(flag).toBeDefined()
+        expect(flag.severity).toBe('warning')
         expect(mismatchFlag).toBeUndefined()
     })
 
@@ -2936,7 +3014,7 @@ describe('buildValidation — flag evidence payload', () => {
         expect(result.lowConfidence).toBe(true)
     })
 
-    it('supports PAYE cumulative mode flag and exposes exact vs sage approximation', () => {
+    it('uses period-plus-YTD-threshold PAYE context and does not emit paye_mismatch for positive PAYE deltas', () => {
         const previousMode = globalThis.__payeCumulativeMode
         globalThis.__payeCumulativeMode = 'sage_approx'
 
@@ -2968,17 +3046,15 @@ describe('buildValidation — flag evidence payload', () => {
                 monthIndex: 6,
             })
             const result = buildValidation(entry)
-            const payeFlag = result.flags.find(
-                (f) => f.id === 'paye_mismatch' || f.id === 'paye_zero'
+            const payeZeroFlag = result.flags.find((f) => f.id === 'paye_zero')
+            const payeMismatchFlag = result.flags.find(
+                (f) => f.id === 'paye_mismatch'
             )
 
-            expect(payeFlag).toBeDefined()
-            expect(payeFlag.inputs.payeCalculationMode).toBe('cumulative')
-            expect(payeFlag.inputs.payeCumulativeMode).toBe('sage_approx')
-            expect(typeof payeFlag.inputs.expectedPayeExact).toBe('number')
-            expect(typeof payeFlag.inputs.expectedPayeSageApprox).toBe('number')
-            expect(payeFlag.inputs.expectedPaye).toBe(
-                payeFlag.inputs.expectedPayeSageApprox
+            expect(payeMismatchFlag).toBeUndefined()
+            expect(payeZeroFlag).toBeDefined()
+            expect(payeZeroFlag.inputs.payeCalculationMode).toBe(
+                'period-plus-ytd-threshold'
             )
         } finally {
             if (previousMode === undefined) {
@@ -3066,13 +3142,7 @@ describe('buildValidation — flag evidence payload', () => {
             })
             const result = buildValidation(entry)
             const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
-
-            expect(payeFlag).toBeDefined()
-            expect(payeFlag.inputs.payeCumulativeMode).toBe('table_mode')
-            expect(typeof payeFlag.inputs.expectedPayeTableMode).toBe('number')
-            expect(payeFlag.inputs.expectedPaye).toBe(
-                payeFlag.inputs.expectedPayeTableMode
-            )
+            expect(payeFlag).toBeUndefined()
         } finally {
             if (previousMode === undefined) {
                 delete globalThis.__payeCumulativeMode
@@ -3126,9 +3196,7 @@ describe('buildValidation — flag evidence payload', () => {
         }
     })
 
-    it('suppresses PAYE mismatch for a negative PAYE refund within tolerance', () => {
-        // payeTax = -0.3 (refund), expectedPaye ≈ -0.6 — difference 0.3 ≤ 0.5 tolerance
-        // grossForTaxTD=1100, taxPaidTD=10.8, month 1 → priorTaxPaid=11.1, expectedTaxYtd=10.5
+    it('flags refund-like negative PAYE values with paye_zero when period-only expected PAYE is positive', () => {
         const record = buildValidationRecord({
             payrollDoc: {
                 deductions: {
@@ -3161,12 +3229,12 @@ describe('buildValidation — flag evidence payload', () => {
             (f) => f.id === 'paye_mismatch' || f.id === 'paye_zero'
         )
 
-        expect(payeFlag).toBeUndefined()
+        expect(payeFlag).toBeDefined()
+        expect(payeFlag.id).toBe('paye_zero')
+        expect(payeFlag.severity).toBe('warning')
     })
 
-    it('does not suppress PAYE when payeTax rounds to zero — routes to paye_zero instead', () => {
-        // payeTax = 0.004 rounds to 0.00 via roundMoney; tolerance guard is skipped
-        // because roundMoney(payeTax) === 0, so it falls through to the paye_zero path
+    it('routes near-zero PAYE values to paye_zero using period-only expectation', () => {
         const record = buildValidationRecord({
             payrollDoc: {
                 deductions: {
@@ -3198,7 +3266,7 @@ describe('buildValidation — flag evidence payload', () => {
         const payeFlag = result.flags.find((f) => f.id === 'paye_zero')
 
         expect(payeFlag).toBeDefined()
-        expect(payeFlag.inputs.payeTax).toBe(0.004)
+        expect(payeFlag.inputs.payeTax).toBe(0)
     })
 })
 

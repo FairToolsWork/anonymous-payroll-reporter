@@ -63,8 +63,7 @@
             "payeTax": 71.23,
             "pensionEE": 47.16,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -77,9 +76,7 @@
             "salariedPay": 0,
             "payeTax": 262.72,
             "pensionEE": 97.34,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Oct 2024",
@@ -91,9 +88,7 @@
             "salariedPay": 0,
             "payeTax": 135.74,
             "pensionEE": 64.13,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Nov 2024",
@@ -105,9 +100,7 @@
             "salariedPay": 0,
             "payeTax": 227.83,
             "pensionEE": 88.37,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Dec 2024",
@@ -120,8 +113,7 @@
             "payeTax": 112.99,
             "pensionEE": 58.15,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -135,8 +127,7 @@
             "payeTax": 239.17,
             "pensionEE": 91.35,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -149,9 +140,7 @@
             "salariedPay": 0,
             "payeTax": 68.42,
             "pensionEE": 46.41,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Mar 2025",
@@ -163,9 +152,7 @@
             "salariedPay": 0,
             "payeTax": 243.9,
             "pensionEE": 92.6,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Apr 2025",

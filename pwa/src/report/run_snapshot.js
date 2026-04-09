@@ -11,24 +11,16 @@
  *   contributionEntries: number,
  *   payeMismatchDiagnostics?: Array<{
  *     period: string,
+ *     flagId: string,
  *     taxCode: string | null,
  *     region: string | null,
  *     periodIndex: number | null,
  *     payeTax: number | null,
- *     expectedPaye: number | null,
- *     payeDifference: number | null,
+ *     grossForTax: number | null,
+ *     grossForTaxTD: number | null,
+ *     periodAllowance: number | null,
  *     cumulativeAllowance: number | null,
- *     taxableYtd: number | null,
- *     expectedTaxYtd: number | null,
- *     priorTaxPaid: number | null,
- *     calculationMode: string | null,
- *     cumulativeMode: string | null,
- *     expectedPayeExact: number | null,
- *     expectedPayeSageApprox: number | null,
- *     expectedPayeTableMode: number | null,
- *     expectedTaxYtdExact: number | null,
- *     expectedTaxYtdSageApprox: number | null,
- *     expectedTaxYtdTableMode: number | null
+ *     calculationMode: string | null
  *   }>,
  *   entries: Array<{
  *     period: string,
@@ -92,24 +84,16 @@ export function buildRunSnapshot(
     /**
      * @typedef {{
      *   period: string,
+     *   flagId: string,
      *   taxCode: string | null,
      *   region: string | null,
      *   periodIndex: number | null,
      *   payeTax: number | null,
-     *   expectedPaye: number | null,
-     *   payeDifference: number | null,
+     *   grossForTax: number | null,
+     *   grossForTaxTD: number | null,
+     *   periodAllowance: number | null,
      *   cumulativeAllowance: number | null,
-     *   taxableYtd: number | null,
-     *   expectedTaxYtd: number | null,
-     *   priorTaxPaid: number | null,
-     *   calculationMode: string | null,
-     *   cumulativeMode: string | null,
-     *   expectedPayeExact: number | null,
-     *   expectedPayeSageApprox: number | null,
-     *   expectedPayeTableMode: number | null,
-     *   expectedTaxYtdExact: number | null,
-     *   expectedTaxYtdSageApprox: number | null,
-     *   expectedTaxYtdTableMode: number | null
+     *   calculationMode: string | null
      * }} PayeMismatchDiagnostic
      */
 
@@ -219,7 +203,8 @@ export function buildRunSnapshot(
 
         if (includePayeDiagnostics) {
             const payeMismatchFlag = flagDetails.find(
-                (flag) => flag.id === 'paye_mismatch'
+                (flag) =>
+                    flag.id === 'paye_zero' || flag.id === 'paye_taken_not_due'
             )
             if (payeMismatchFlag) {
                 const inputs = payeMismatchFlag.inputs || {}
@@ -235,30 +220,16 @@ export function buildRunSnapshot(
                 }
                 payeMismatchDiagnostics.push({
                     period,
+                    flagId: payeMismatchFlag.id,
                     taxCode: stringOrNull('taxCode'),
                     region: stringOrNull('region'),
                     periodIndex: valueOrNull('periodIndex'),
                     payeTax: valueOrNull('payeTax'),
-                    expectedPaye: valueOrNull('expectedPaye'),
-                    payeDifference: valueOrNull('payeDifference'),
+                    grossForTax: valueOrNull('grossForTax'),
+                    grossForTaxTD: valueOrNull('grossForTaxTD'),
+                    periodAllowance: valueOrNull('periodAllowance'),
                     cumulativeAllowance: valueOrNull('cumulativeAllowance'),
-                    taxableYtd: valueOrNull('taxableYtd'),
-                    expectedTaxYtd: valueOrNull('expectedTaxYtd'),
-                    priorTaxPaid: valueOrNull('priorTaxPaid'),
                     calculationMode: stringOrNull('payeCalculationMode'),
-                    cumulativeMode: stringOrNull('payeCumulativeMode'),
-                    expectedPayeExact: valueOrNull('expectedPayeExact'),
-                    expectedPayeSageApprox: valueOrNull(
-                        'expectedPayeSageApprox'
-                    ),
-                    expectedPayeTableMode: valueOrNull('expectedPayeTableMode'),
-                    expectedTaxYtdExact: valueOrNull('expectedTaxYtdExact'),
-                    expectedTaxYtdSageApprox: valueOrNull(
-                        'expectedTaxYtdSageApprox'
-                    ),
-                    expectedTaxYtdTableMode: valueOrNull(
-                        'expectedTaxYtdTableMode'
-                    ),
                 })
             }
         }

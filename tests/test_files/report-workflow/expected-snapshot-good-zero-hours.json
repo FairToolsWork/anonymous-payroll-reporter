@@ -12,10 +12,7 @@
             "salariedPay": 0,
             "payeTax": 0,
             "pensionEE": 0.25,
-            "flagIds": [
-                "nat_ins_zero",
-                "paye_zero"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 May 2025",
@@ -27,9 +24,7 @@
             "salariedPay": 0,
             "payeTax": 192.24,
             "pensionEE": 79,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Jun 2025",
@@ -42,8 +37,7 @@
             "payeTax": 13.39,
             "pensionEE": 31.5,
             "flagIds": [
-                "holiday_reference_insufficient_history",
-                "paye_mismatch"
+                "holiday_reference_insufficient_history"
             ]
         },
         {
@@ -57,8 +51,6 @@
             "payeTax": 0,
             "pensionEE": 0,
             "flagIds": [
-                "nat_ins_zero",
-                "paye_zero",
                 "pension_join_no_mandatory_employer_contrib"
             ]
         },
@@ -72,9 +64,7 @@
             "salariedPay": 0,
             "payeTax": 142.37,
             "pensionEE": 65.88,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Sep 2025",
@@ -87,8 +77,7 @@
             "payeTax": 261.86,
             "pensionEE": 97.12,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -102,7 +91,6 @@
             "payeTax": 0,
             "pensionEE": 13.38,
             "flagIds": [
-                "nat_ins_zero",
                 "paye_zero"
             ]
         },
@@ -116,9 +104,7 @@
             "salariedPay": 0,
             "payeTax": 294.28,
             "pensionEE": 105.25,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Dec 2025",
@@ -131,8 +117,7 @@
             "payeTax": 111.49,
             "pensionEE": 57.75,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -146,7 +131,6 @@
             "payeTax": 0,
             "pensionEE": 0,
             "flagIds": [
-                "nat_ins_zero",
                 "paye_zero",
                 "pension_join_no_mandatory_employer_contrib"
             ]
@@ -161,9 +145,7 @@
             "salariedPay": 0,
             "payeTax": 225.49,
             "pensionEE": 87.75,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 Mar 2026",
@@ -176,8 +158,7 @@
             "payeTax": 61.62,
             "pensionEE": 44.62,
             "flagIds": [
-                "holiday_mixed_basic_holiday_pay",
-                "paye_mismatch"
+                "holiday_mixed_basic_holiday_pay"
             ]
         },
         {
@@ -190,10 +171,7 @@
             "salariedPay": 0,
             "payeTax": 0,
             "pensionEE": 22.12,
-            "flagIds": [
-                "nat_ins_zero",
-                "paye_zero"
-            ]
+            "flagIds": []
         },
         {
             "period": "20 May 2026",
@@ -205,9 +183,7 @@
             "salariedPay": 0,
             "payeTax": 158.99,
             "pensionEE": 70.25,
-            "flagIds": [
-                "paye_mismatch"
-            ]
+            "flagIds": []
         }
     ]
 }

@@ -82,25 +82,22 @@ describe('run snapshot regression', () => {
         expect(typeof firstFlagged.flagDetails[0].id).toBe('string')
         expect(typeof firstFlagged.flagDetails[0].label).toBe('string')
         expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
-        expect(snapshot.payeMismatchDiagnostics.length).toBeGreaterThan(0)
-        expect(typeof snapshot.payeMismatchDiagnostics[0].period).toBe('string')
-        expect(
-            Object.prototype.hasOwnProperty.call(
-                snapshot.payeMismatchDiagnostics[0],
-                'expectedPayeExact'
+        if (snapshot.payeMismatchDiagnostics.length > 0) {
+            expect(typeof snapshot.payeMismatchDiagnostics[0].period).toBe(
+                'string'
             )
-        ).toBe(true)
-        expect(
-            Object.prototype.hasOwnProperty.call(
-                snapshot.payeMismatchDiagnostics[0],
-                'expectedPayeSageApprox'
-            )
-        ).toBe(true)
-        expect(
-            Object.prototype.hasOwnProperty.call(
-                snapshot.payeMismatchDiagnostics[0],
-                'expectedPayeTableMode'
-            )
-        ).toBe(true)
+            expect(
+                Object.prototype.hasOwnProperty.call(
+                    snapshot.payeMismatchDiagnostics[0],
+                    'grossForTax'
+                )
+            ).toBe(true)
+            expect(
+                Object.prototype.hasOwnProperty.call(
+                    snapshot.payeMismatchDiagnostics[0],
+                    'periodAllowance'
+                )
+            ).toBe(true)
+        }
     })
 })

@@ -438,7 +438,7 @@ describe('buildPayslipViewModel', () => {
         })
     })
 
-    it('classifies legacy NI threshold notice flags without severity as notices', () => {
+    it('classifies legacy nat_ins_zero flags without severity as warnings', () => {
         const viewModel = buildPayslipViewModel(
             buildEntry({
                 validation: {
@@ -457,11 +457,11 @@ describe('buildPayslipViewModel', () => {
             })
         )
 
-        expect(viewModel.noticeItems).toEqual([
+        expect(viewModel.noticeItems).toEqual([])
+        expect(viewModel.warningItems).toEqual([
             'NI deductions not taken as gross pay £415.14 is at or below the primary threshold of £1,048.00',
         ])
-        expect(viewModel.warningItems).toEqual([])
-        expect(viewModel.flags.warningCount).toBe(0)
+        expect(viewModel.flags.warningCount).toBe(1)
     })
 
     it('places explicit notice-severity holiday flags in noticeItems (not warningItems)', () => {

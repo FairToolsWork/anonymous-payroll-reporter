@@ -1,12 +1,4 @@
 import { UNKNOWN_APP_VERSION } from './app_version.js'
-import { ACTIVE_PAYROLL_FORMAT } from '../parse/active_format.js'
-import { PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT } from '../report/pay_calculations_shared.js'
-
-/** @type {'exact' | 'sage_approx' | 'table_mode'} */
-const DEFAULT_PAYE_CUMULATIVE_MODE =
-    PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT[
-        String(ACTIVE_PAYROLL_FORMAT?.id || '')
-    ] || 'exact'
 
 /** @type {string | null} */
 export const DEBUG_LEVEL = new URLSearchParams(window.location.search).get(
@@ -22,21 +14,7 @@ export const DEBUG_ENABLED =
     DEBUG_LEVEL === '2' ||
     DEBUG_LEVEL === '3' ||
     DEBUG_LEVEL === '4'
-/** @type {'exact' | 'sage_approx' | 'table_mode'} */
-export const PAYE_CUMULATIVE_MODE =
-    DEBUG_LEVEL === '4'
-        ? 'table_mode'
-        : DEBUG_LEVEL === '3'
-          ? 'sage_approx'
-          : DEFAULT_PAYE_CUMULATIVE_MODE
 
-const globalAny = /** @type {any} */ (globalThis)
-
-if (PAYE_CUMULATIVE_MODE !== DEFAULT_PAYE_CUMULATIVE_MODE) {
-    globalAny.__payeCumulativeMode = PAYE_CUMULATIVE_MODE
-} else {
-    delete globalAny.__payeCumulativeMode
-}
 /** @type {boolean} */
 export const MEMORY_LOG_ENABLED = MEMORY_LEVEL === '1'
 /** @type {boolean} */
