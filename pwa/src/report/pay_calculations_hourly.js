@@ -308,7 +308,7 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 severity: 'warning',
                 inputs: sharedInputs,
             }),
-            lowConfidence: false,
+            lowConfidence: !hasUsableYtdGross,
         }
     }
 
@@ -342,7 +342,7 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
             severity: 'warning',
             inputs: sharedInputs,
         }),
-        lowConfidence: false,
+        lowConfidence: !hasUsableYtdGross,
     }
 }
 
@@ -631,6 +631,14 @@ export function buildValidation(entry) {
     const thresholds = thresholdResolution.thresholds
     const niPrimaryThresholdMonthly =
         thresholds?.niPrimaryThresholdMonthly ?? null
+    const niPayCycle =
+        record.payrollDoc?.thisPeriod?.payCycle?.cycle ||
+        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
+    const niPeriodsPerYear = getPayPeriodsPerYear(niPayCycle)
+    const niPrimaryThresholdForPeriod =
+        niPrimaryThresholdMonthly !== null && niPeriodsPerYear !== null
+            ? (niPrimaryThresholdMonthly * 12) / niPeriodsPerYear
+            : niPrimaryThresholdMonthly
     const grossForNiContext =
         typeof totalGrossPay === 'number' ? totalGrossPay : paymentsTotal
     const canRunThresholdDrivenChecks = hasUsableThresholds(thresholdResolution)
@@ -701,23 +709,23 @@ export function buildValidation(entry) {
 
     if (
         nationalInsurance <= 0 &&
-        niPrimaryThresholdMonthly !== null &&
+        niPrimaryThresholdForPeriod !== null &&
         canRunThresholdDrivenChecks &&
         typeof grossForNiContext === 'number' &&
-        grossForNiContext > niPrimaryThresholdMonthly
+        grossForNiContext > niPrimaryThresholdForPeriod
     ) {
         flags.push(
             buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_zero, {
                 label: formatFlagLabel(FLAG_CATALOG.nat_ins_zero.id, {
                     context: 'above_threshold_warning',
                     grossPay: grossForNiContext,
-                    niPrimaryThresholdMonthly,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 }),
                 severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
-                    niPrimaryThresholdMonthly,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 },
             })
         )
@@ -725,10 +733,10 @@ export function buildValidation(entry) {
 
     if (
         nationalInsurance > 0 &&
-        niPrimaryThresholdMonthly !== null &&
+        niPrimaryThresholdForPeriod !== null &&
         canRunThresholdDrivenChecks &&
         typeof grossForNiContext === 'number' &&
-        grossForNiContext <= niPrimaryThresholdMonthly
+        grossForNiContext <= niPrimaryThresholdForPeriod
     ) {
         flags.push(
             buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_taken_below_threshold, {
@@ -737,14 +745,14 @@ export function buildValidation(entry) {
                     {
                         nationalInsurance,
                         grossPay: grossForNiContext,
-                        niPrimaryThresholdMonthly,
+                        niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                     }
                 ),
                 severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
-                    niPrimaryThresholdMonthly,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 },
             })
         )

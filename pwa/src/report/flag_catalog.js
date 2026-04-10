@@ -237,7 +237,7 @@ export function formatFlagLabel(id, params = {}) {
 
     if (id === 'pension_employer_contrib_not_required') {
         const periodLabel = params.periodLabel || 'period'
-        return `Employer pension contributions ${formatCurrency(params.pensionER)} were detected while pre-tax earnings are ${formatCurrency(params.earnings)}, below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} where employer contributions are not normally required.`
+        return `Employer pension contributions ${formatCurrency(params.pensionER)} were detected while pre-tax earnings are ${formatCurrency(params.earnings)}, below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} where employer contributions are not normally required. The employee may still choose to opt in and make voluntary contributions.`
     }
 
     if (id === 'tax_year_thresholds_unavailable') {

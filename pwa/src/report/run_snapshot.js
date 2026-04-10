@@ -202,12 +202,12 @@ export function buildRunSnapshot(
         }
 
         if (includePayeDiagnostics) {
-            const payeMismatchFlag = flagDetails.find(
+            const payeFlags = flagDetails.filter(
                 (flag) =>
                     flag.id === 'paye_zero' || flag.id === 'paye_taken_not_due'
             )
-            if (payeMismatchFlag) {
-                const inputs = payeMismatchFlag.inputs || {}
+            for (const payeFlag of payeFlags) {
+                const inputs = payeFlag.inputs || {}
                 /** @param {string} key */
                 const valueOrNull = (key) => {
                     const value = inputs[key]
@@ -220,7 +220,7 @@ export function buildRunSnapshot(
                 }
                 payeMismatchDiagnostics.push({
                     period,
-                    flagId: payeMismatchFlag.id,
+                    flagId: payeFlag.id,
                     taxCode: stringOrNull('taxCode'),
                     region: stringOrNull('region'),
                     periodIndex: valueOrNull('periodIndex'),

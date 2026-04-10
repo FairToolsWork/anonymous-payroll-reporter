@@ -81,22 +81,25 @@ describe('run snapshot regression', () => {
         expect(firstFlagged.flagDetails.length).toBeGreaterThan(0)
         expect(typeof firstFlagged.flagDetails[0].id).toBe('string')
         expect(typeof firstFlagged.flagDetails[0].label).toBe('string')
+        const expectedDiagnosticsCount = snapshot.entries.reduce(
+            (count, entry) =>
+                count +
+                (entry.flagDetails || []).filter(
+                    (f) => f.id === 'paye_zero' || f.id === 'paye_taken_not_due'
+                ).length,
+            0
+        )
         expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
-        if (snapshot.payeMismatchDiagnostics.length > 0) {
-            expect(typeof snapshot.payeMismatchDiagnostics[0].period).toBe(
-                'string'
-            )
+        expect(snapshot.payeMismatchDiagnostics.length).toBe(
+            expectedDiagnosticsCount
+        )
+        for (const diag of snapshot.payeMismatchDiagnostics) {
+            expect(typeof diag.period).toBe('string')
             expect(
-                Object.prototype.hasOwnProperty.call(
-                    snapshot.payeMismatchDiagnostics[0],
-                    'grossForTax'
-                )
+                Object.prototype.hasOwnProperty.call(diag, 'grossForTax')
             ).toBe(true)
             expect(
-                Object.prototype.hasOwnProperty.call(
-                    snapshot.payeMismatchDiagnostics[0],
-                    'periodAllowance'
-                )
+                Object.prototype.hasOwnProperty.call(diag, 'periodAllowance')
             ).toBe(true)
         }
     })
