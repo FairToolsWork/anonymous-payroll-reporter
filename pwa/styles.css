@@ -2032,7 +2032,7 @@ label.field span {
 .summary-table thead th {
     text-align: start;
     overflow: hidden;
-    line-break: anywhere;
+    line-break: auto;
 }
 
 .summary-table .col-center {
@@ -2045,31 +2045,32 @@ label.field span {
 }
 
 .summary-table thead th:nth-child(1) {
-    inline-size: 8%;
+    inline-size: 4%;
 } /* Month/Year */
 .summary-table thead th:nth-child(2) {
-    inline-size: 10%;
+    inline-size: 3%;
 } /* Hours */
 .summary-table thead th:nth-child(3) {
-    inline-size: 25%;
+    inline-size: 5%;
 } /* Holiday */
 .summary-table thead th:nth-child(4) {
-    inline-size: 18%;
+    inline-size: 8%;
 } /* Reference state */
 .summary-table thead th:nth-child(5) {
-    inline-size: 18%;
+    inline-size: 5%;
 } /* Pension Payroll */
 .summary-table thead th:nth-child(6) {
-    inline-size: 15%;
+    inline-size: 5%;
 } /* Reported */
 .summary-table thead th:nth-child(7) {
-    inline-size: 8%;
+    inline-size: 3%;
 } /* Over/Under */
 .summary-table thead th:nth-child(8) {
-    inline-size: 8%;
-    text-align: center;
+    inline-size: 3%;
 } /* Flags */
 
+.summary-table th:nth-child(1),
+.summary-table td:nth-child(1),
 .summary-table th:nth-child(2),
 .summary-table td:nth-child(2),
 .summary-table th:nth-child(7),
@@ -2099,6 +2100,28 @@ label.field span {
 .summary-table.accumulated-totals td {
     text-align: center;
 }
+
+.summary-table.global thead th:nth-child(1) {
+    inline-size: 10%;
+} /* Year */
+.summary-table.global thead th:nth-child(2) {
+    inline-size: 10%;
+} /* Hours */
+.summary-table.global thead th:nth-child(3) {
+    inline-size: 20%;
+} /* Holiday */
+.summary-table.global thead th:nth-child(4) {
+    inline-size: 20%;
+} /* Deducted Pension Payroll */
+.summary-table.global thead th:nth-child(5) {
+    inline-size: 15%;
+} /* Reported Pension Payroll */
+.summary-table.global thead th:nth-child(6) {
+    inline-size: 10%;
+} /* Reported */
+.summary-table.global thead th:nth-child(7) {
+    inline-size: 10%;
+} /* Flags */
 
 .holiday-est-days {
     font-size: var(--text-xs);

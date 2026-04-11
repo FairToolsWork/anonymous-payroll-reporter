@@ -484,7 +484,7 @@ export function buildAnnualMonthBreakdownDisplay(monthBreakdownEntry) {
     const reference = monthBreakdownEntry?.referenceState
     const referenceLabel = !reference?.hasBaseline
         ? 'No baseline'
-        : `52 week avg: ${(reference.avgWeeklyHours ?? 0).toFixed(2)} hrs/wk @ ${formatCurrency(reference.avgRatePerHour ?? 0)} (${reference.confidenceLevel || 'unknown'} confidence)`
+        : `52 week avg: ${(reference.avgWeeklyHours ?? 0).toFixed(2)} hrs/wk @ ${formatCurrency(reference.avgRatePerHour ?? 0)}<br/>(${reference.confidenceLevel || 'unknown'} confidence)`
     const signalsLabel = (monthBreakdownEntry?.signalsFired || []).length
         ? monthBreakdownEntry.signalsFired
               .map((/** @type {{ label: string }} */ signal) => signal.label)

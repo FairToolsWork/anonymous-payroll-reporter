@@ -335,9 +335,29 @@ def apply_fixture(
     holiday_amount = round(holiday_hours * holiday_rate, 2)
     hours_first, rate_first = data["basic_lines"][0]
     amount_first = round(hours_first * rate_first, 2)
-    replacements = [fmt_units(hours_first), fmt_money(rate_first), fmt_money(amount_first), fmt_money(data["paye"])]
+    basic_flat_amount = bool(payments_table.get("basicPayFlatAmount", False))
+    if basic_flat_amount:
+        replacements = ["", "", fmt_money(amount_first), fmt_money(data["paye"])]
+    else:
+        replacements = [fmt_units(hours_first), fmt_money(rate_first), fmt_money(amount_first), fmt_money(data["paye"])]
     for idx, value in zip(basic_numeric, replacements):
         update_text(words, idx, value)
+
+    basic_label = payments_table.get("basicPayLabel")
+    if basic_label and basic_numeric:
+        sorted_basic = sorted(basic_indices, key=lambda i: words[i]["x0"])
+        first_numeric_idx = basic_numeric[0]
+        label_indices = []
+        for idx in sorted_basic:
+            if idx == first_numeric_idx:
+                break
+            label_indices.append(idx)
+        tokens = basic_label.split()
+        for target_idx, token in zip(label_indices, tokens):
+            update_text(words, target_idx, token)
+        for target_idx in label_indices[len(tokens):]:
+            update_text(words, target_idx, "")
+
     paye_idx = basic_numeric[-1]
     if len(basic_numeric) >= 3:
         sorted_basic = sorted(basic_indices, key=lambda i: words[i]["x0"])
@@ -428,12 +448,20 @@ def apply_fixture(
         numeric_indices = [
             idx for idx in payment_indices if is_numeric_token(words[idx]["text"])
         ]
-        holiday_label = payments_table["holidayLineAnchor"]
-        holiday_values = [
-            fmt_units(holiday_hours),
-            fmt_money(holiday_rate),
-            fmt_money(holiday_amount),
-        ]
+        holiday_label = payments_table.get(
+            "holidayLineLabel",
+            payments_table["holidayLineAnchor"],
+        )
+        holiday_flat_amount = bool(payments_table.get("holidayLineFlatAmount", False))
+        holiday_values = (
+            [fmt_money(holiday_amount)]
+            if holiday_flat_amount
+            else [
+                fmt_units(holiday_hours),
+                fmt_money(holiday_rate),
+                fmt_money(holiday_amount),
+            ]
+        )
         if label_indices:
             label_anchor = words[label_indices[0]]
             label_size = max(6, round(label_anchor["bottom"] - label_anchor["top"], 1))
@@ -444,12 +472,16 @@ def apply_fixture(
             holiday_word["bottom"] = holiday_word["bottom"] + line_offset
             holiday_word["x1"] = holiday_word["x0"] + holiday_width
             words.append(holiday_word)
-        for value, source_idx in zip(holiday_values, numeric_indices[:3]):
+        numeric_sources = [numeric_indices[2]] if holiday_flat_amount and len(numeric_indices) >= 3 else numeric_indices[:3]
+        for value, source_idx in zip(holiday_values, numeric_sources):
             new_word = dict(words[source_idx])
             new_word["text"] = value
             new_word["top"] = new_word["top"] + line_offset
             new_word["bottom"] = new_word["bottom"] + line_offset
             words.append(new_word)
+            if holiday_flat_amount:
+                holiday_amount_idx = len(words) - 1
+                continue
             if holiday_unit_idx is None:
                 holiday_unit_idx = len(words) - 1
             elif holiday_rate_idx is None:

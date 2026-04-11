@@ -301,6 +301,18 @@ function renderDisplayText(display) {
 }
 
 /**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSummaryYearHoursText(row) {
+    const kind = row?.holidaySummary?.kind
+    if (kind === 'salary_days' || kind === 'salary_amount') {
+        return 'N/A'
+    }
+    return row.hours.toFixed(2)
+}
+
+/**
  * @param {any} holidaySummary
  * @param {number | null} [accruedHoursHint=null]
  */
@@ -309,6 +321,19 @@ function renderYearRowHolidayText(holidaySummary, accruedHoursHint = null) {
     return [display.primaryLabel, ...display.detailLines]
         .filter(Boolean)
         .join('\n')
+}
+
+/**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSalaryYearRowHolidayText(row) {
+    const holidayAmount = row?.salaryHolidayAmount ?? 0
+    const estimatedDays = row?.salaryHolidayEstimatedDays
+    if (estimatedDays === null || Number.isNaN(estimatedDays)) {
+        return `${formatCurrency(holidayAmount)} holiday pay`
+    }
+    return `${formatCurrency(holidayAmount)} holiday pay\n~${estimatedDays.toFixed(1)} days`
 }
 
 /**
@@ -339,6 +364,7 @@ function renderHourlyVariableFooterText(holidayHours, workedHours) {
 function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
     const summaryViewModel = buildSummaryViewModel(context, meta)
+    const isSalaryWorker = context.workerProfile?.workerType === 'salary'
     const summaryHeading = summaryViewModel.heading
 
     /**
@@ -458,7 +484,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         const diff = buildDiffDisplay(row.overUnder, row.zeroReview)
         yearRows.push([
             String(row.yearKey || 'Unknown'),
-            row.hours.toFixed(2),
+            renderSummaryYearHoursText(row),
             renderDisplayText(buildHolidaySummaryDisplay(row.holidaySummary)),
             formatBreakdown(
                 row.payrollContribution.total,
@@ -483,7 +509,9 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 [
                     'Tax Year',
                     'Hours',
-                    'Holiday (hrs/days)',
+                    isSalaryWorker
+                        ? 'Holiday (pay/days)'
+                        : 'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'YE Over/Under',
@@ -674,6 +702,7 @@ function renderYearPage(
     const isAccrualHourlyContext = yearViewModel.isAccrualHourlyContext === true
     const isFixedScheduleHourlyContext =
         yearViewModel.isFixedScheduleHourlyContext === true
+    const isSalaryContext = yearViewModel.isSalaryContext === true
     yearViewModel.rows.forEach((/** @type {any} */ row) => {
         const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
         const bd = breakdownByMonth.get(row.monthIndex)
@@ -681,18 +710,20 @@ function renderYearPage(
         const isHourlyRow =
             rowHolidayKind === 'hours_only' || rowHolidayKind === 'hours_days'
         const accruedHoursHint = isHourlyRow ? row.hours * 0.1207 : null
-        const holidayCellText = renderYearRowHolidayText(
-            row.holidaySummary,
-            accruedHoursHint
-        )
+        const holidayCellText = isSalaryContext
+            ? renderSalaryYearRowHolidayText(row)
+            : renderYearRowHolidayText(row.holidaySummary, accruedHoursHint)
+        const hoursCellText = isSalaryContext ? 'N/A' : row.hours.toFixed(2)
         const breakdownCells = isFixedScheduleHourlyContext
             ? ['N/A']
             : bd
               ? [buildAnnualMonthBreakdownDisplay(bd).referenceLabel]
-              : [isAccrualHourlyContext ? 'No baseline' : '—']
+              : isSalaryContext
+                ? ['N/A']
+                : [isAccrualHourlyContext ? 'No baseline' : '—']
         bodyRows.push([
             row.monthLabel,
-            row.hours.toFixed(2),
+            hoursCellText,
             holidayCellText,
             ...breakdownCells,
             formatBreakdown(
@@ -722,7 +753,7 @@ function renderYearPage(
             row.id === 'total'
                 ? [
                       row.label,
-                      row.hours.toFixed(2),
+                      isSalaryContext ? 'N/A' : row.hours.toFixed(2),
                       row.yearHolidaySummary?.kind === 'hourly_variable'
                           ? renderHourlyVariableFooterText(
                                 row.yearHolidaySummary?.holidayHours ?? 0,
@@ -755,7 +786,7 @@ function renderYearPage(
     const headColumns = [
         'Month',
         'Hours',
-        'Holiday (hrs/days)',
+        isSalaryContext ? 'Holiday (pay/days)' : 'Holiday (hrs/days)',
         'Reference state',
         'Payroll Cont. (EE+ER)',
         'Reported (EE+ER)',

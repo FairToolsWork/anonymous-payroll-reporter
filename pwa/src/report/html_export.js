@@ -89,6 +89,18 @@ function renderHolidaySummaryHtml(holidaySummary) {
 }
 
 /**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSummaryYearHoursHtml(row) {
+    const kind = row?.holidaySummary?.kind
+    if (kind === 'salary_days' || kind === 'salary_amount') {
+        return 'N/A'
+    }
+    return row.hours.toFixed(2)
+}
+
+/**
  * @param {any} holidaySummary
  * @param {number | null} [accruedHoursHint=null]
  * @returns {string}
@@ -102,6 +114,19 @@ function renderYearRowHolidayHtml(holidaySummary, accruedHoursHint = null) {
         return `${display.primaryLabel} <span class="summary-breakdown">${display.detailLines.join(' ')}</span>`
     }
     return `${display.primaryLabel}${renderSummaryBreakdownLinesHtml(display.detailLines)}`
+}
+
+/**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSalaryYearRowHolidayHtml(row) {
+    const holidayAmount = row?.salaryHolidayAmount ?? 0
+    const estimatedDays = row?.salaryHolidayEstimatedDays
+    if (estimatedDays === null || Number.isNaN(estimatedDays)) {
+        return `${formatCurrency(holidayAmount)} holiday pay`
+    }
+    return `${formatCurrency(holidayAmount)} holiday pay<br><span class="summary-breakdown">~${estimatedDays.toFixed(1)} days</span>`
 }
 
 /**
@@ -178,6 +203,10 @@ export function renderHtmlReport(context, meta) {
         employeeName,
         dateRangeLabel,
     })
+    const isSalaryWorker = context.workerProfile?.workerType === 'salary'
+    const summaryHolidayHeader = isSalaryWorker
+        ? 'Holiday <span class="summary-breakdown">(pay / est. days)</span>'
+        : 'Holiday <span class="summary-breakdown">(hrs / est. days)</span>'
 
     /**
      * @param {Array<{ year: string, months: string[] }> | undefined} groupedMonths
@@ -256,7 +285,7 @@ export function renderHtmlReport(context, meta) {
             return (
                 '<tr>' +
                 `<th><a href="#${row.anchorId}">${row.yearKey}</a></th>` +
-                `<td>${row.hours.toFixed(2)}</td>` +
+                `<td>${renderSummaryYearHoursHtml(row)}</td>` +
                 `<td>${renderHolidaySummaryHtml(row.holidaySummary)}</td>` +
                 `<td>${renderBreakdownCellHtml(
                     row.payrollContribution.total,
@@ -326,8 +355,8 @@ export function renderHtmlReport(context, meta) {
 
     if (summaryYearRowsHtml) {
         reportSections.push(
-            '<table class="summary-table"><thead><tr>' +
-                '<th>Tax Year</th><th>Hours worked</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+            '<table class="summary-table global"><thead><tr>' +
+                `<th>Tax Year</th><th>Hours worked</th><th>${summaryHolidayHeader}</th>` +
                 '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
                 '<th class="col-center">YE Over / Under</th><th class="col-center">Flags</th>' +
                 '</tr></thead>' +
@@ -482,6 +511,10 @@ function renderYearSummaryFromViewModel(yearViewModel) {
     const isAccrualHourlyContext = yearViewModel.isAccrualHourlyContext === true
     const isFixedScheduleHourlyContext =
         yearViewModel.isFixedScheduleHourlyContext === true
+    const isSalaryContext = yearViewModel.isSalaryContext === true
+    const yearHolidayHeader = isSalaryContext
+        ? 'Holiday <span class="summary-breakdown">(pay / est. days)</span>'
+        : 'Holiday <span class="summary-breakdown">(hrs / est. days)</span>'
     const bodyRows = yearViewModel.rows.map(
         /** @param {any} row */
         (row) => {
@@ -499,21 +532,23 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 rowHolidayKind === 'hours_only' ||
                 rowHolidayKind === 'hours_days'
             const accruedHoursHint = isHourlyRow ? row.hours * 0.1207 : null
-            const holidayCellHtml = renderYearRowHolidayHtml(
-                row.holidaySummary,
-                accruedHoursHint
-            )
+            const holidayCellHtml = isSalaryContext
+                ? renderSalaryYearRowHolidayHtml(row)
+                : renderYearRowHolidayHtml(row.holidaySummary, accruedHoursHint)
             const breakdownCells = isFixedScheduleHourlyContext
                 ? '<td>N/A</td>'
                 : bd
                   ? `<td>${buildAnnualMonthBreakdownDisplay(bd).referenceLabel}</td>`
-                  : isAccrualHourlyContext
-                    ? '<td>No baseline</td>'
-                    : '<td>—</td>'
+                  : isSalaryContext
+                    ? '<td>N/A</td>'
+                    : isAccrualHourlyContext
+                      ? '<td>No baseline</td>'
+                      : '<td>—</td>'
+            const hoursCellHtml = isSalaryContext ? 'N/A' : row.hours.toFixed(2)
             return (
                 '<tr>' +
                 `<th>${monthCell}</th>` +
-                `<td>${row.hours.toFixed(2)}</td>` +
+                `<td>${hoursCellHtml}</td>` +
                 `<td>${holidayCellHtml}</td>` +
                 breakdownCells +
                 `<td>${renderBreakdownCellHtml(
@@ -544,10 +579,13 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                               row.hours
                           )
                         : renderHolidaySummaryHtml(row.yearHolidaySummary)
+                const totalHoursCellHtml = isSalaryContext
+                    ? 'N/A'
+                    : row.hours.toFixed(2)
                 return (
                     '<tr>' +
                     `<th>${row.label}</th>` +
-                    `<td>${row.hours.toFixed(2)}</td>` +
+                    `<td>${totalHoursCellHtml}</td>` +
                     `<td colspan="2">${totalHolidayCellHtml}</td>` +
                     `<td>${renderBreakdownCellHtml(
                         row.payrollContribution.total,
@@ -576,9 +614,9 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         }
     )
     const sections = [
-        '<table class="summary-table">' +
+        '<table class="summary-table annual">' +
             '<thead><tr>' +
-            '<th>Month</th><th>Hours worked</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+            `<th>Month</th><th>Hours worked</th><th>${yearHolidayHeader}</th>` +
             '<th>Reference state</th>' +
             '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
             '<th class="col-center">Over / Under</th><th class="col-center">Flags</th>' +
