@@ -345,7 +345,9 @@ describe('report calculations', () => {
 
         const validation = buildValidation(entry)
         expect(
-            validation.flags.some((flag) => flag.id === 'unrecognised_deduction')
+            validation.flags.some(
+                (flag) => flag.id === 'unrecognised_deduction'
+            )
         ).toBe(false)
     })
 
@@ -3229,188 +3231,6 @@ describe('buildValidation — flag evidence payload', () => {
         expect(result.lowConfidence).toBe(true)
     })
 
-    it('uses period-plus-YTD-threshold PAYE context and does not emit paye_mismatch for positive PAYE deltas', () => {
-        const previousMode = globalThis.__payeCumulativeMode
-        globalThis.__payeCumulativeMode = 'sage_approx'
-
-        try {
-            const record = buildValidationRecord({
-                payrollDoc: {
-                    deductions: {
-                        payeTax: { amount: 0 },
-                        natIns: { amount: 0 },
-                        pensionEE: { amount: 0 },
-                        pensionER: { amount: 0 },
-                        misc: [],
-                    },
-                    taxCode: { code: 'S1257L' },
-                    thisPeriod: {
-                        grossForTax: { amount: 2525.45 },
-                        totalGrossPay: { amount: 2525.45 },
-                        payCycle: { cycle: 'Monthly' },
-                    },
-                    yearToDate: {
-                        grossForTaxTD: 13549.19,
-                        taxPaidTD: 1447.99,
-                    },
-                },
-            })
-            const entry = buildValidationEntry(record, {
-                parsedDate: new Date('2022-09-28T00:00:00.000Z'),
-                yearKey: '2022/23',
-                monthIndex: 6,
-            })
-            const result = buildValidation(entry)
-            const payeZeroFlag = result.flags.find((f) => f.id === 'paye_zero')
-            const payeMismatchFlag = result.flags.find(
-                (f) => f.id === 'paye_mismatch'
-            )
-
-            expect(payeMismatchFlag).toBeUndefined()
-            expect(payeZeroFlag).toBeDefined()
-            expect(payeZeroFlag.inputs.payeCalculationMode).toBe(
-                'period-plus-ytd-threshold'
-            )
-        } finally {
-            if (previousMode === undefined) {
-                delete globalThis.__payeCumulativeMode
-            } else {
-                globalThis.__payeCumulativeMode = previousMode
-            }
-        }
-    })
-
-    it('defaults PAYE cumulative mode to table_mode for Sage payroll format', () => {
-        const previousMode = globalThis.__payeCumulativeMode
-        delete globalThis.__payeCumulativeMode
-
-        try {
-            const record = buildValidationRecord({
-                payrollDoc: {
-                    deductions: {
-                        payeTax: { amount: 168.06 },
-                        natIns: { amount: 0 },
-                        pensionEE: { amount: 0 },
-                        pensionER: { amount: 0 },
-                        misc: [],
-                    },
-                    taxCode: { code: 'S1257L' },
-                    thisPeriod: {
-                        grossForTax: { amount: 1897.5 },
-                        totalGrossPay: { amount: 1897.5 },
-                        payCycle: { cycle: 'Monthly' },
-                    },
-                    yearToDate: {
-                        grossForTaxTD: 14906,
-                        taxPaidTD: 1289.82,
-                    },
-                },
-            })
-            const entry = buildValidationEntry(record, {
-                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
-                yearKey: '2021/22',
-                monthIndex: 8,
-            })
-            const result = buildValidation(entry)
-            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
-
-            expect(payeFlag).toBeUndefined()
-        } finally {
-            if (previousMode === undefined) {
-                delete globalThis.__payeCumulativeMode
-            } else {
-                globalThis.__payeCumulativeMode = previousMode
-            }
-        }
-    })
-
-    it('supports PAYE table_mode and still flags larger PAYE deltas', () => {
-        const previousMode = globalThis.__payeCumulativeMode
-        globalThis.__payeCumulativeMode = 'table_mode'
-
-        try {
-            const record = buildValidationRecord({
-                payrollDoc: {
-                    deductions: {
-                        payeTax: { amount: 168.06 },
-                        natIns: { amount: 0 },
-                        pensionEE: { amount: 0 },
-                        pensionER: { amount: 0 },
-                        misc: [],
-                    },
-                    taxCode: { code: 'S1257L' },
-                    thisPeriod: {
-                        grossForTax: { amount: 1897.5 },
-                        totalGrossPay: { amount: 1897.5 },
-                        payCycle: { cycle: 'Monthly' },
-                    },
-                    yearToDate: {
-                        grossForTaxTD: 14906,
-                        taxPaidTD: 1287.22,
-                    },
-                },
-            })
-            const entry = buildValidationEntry(record, {
-                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
-                yearKey: '2021/22',
-                monthIndex: 8,
-            })
-            const result = buildValidation(entry)
-            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
-            expect(payeFlag).toBeUndefined()
-        } finally {
-            if (previousMode === undefined) {
-                delete globalThis.__payeCumulativeMode
-            } else {
-                globalThis.__payeCumulativeMode = previousMode
-            }
-        }
-    })
-
-    it('suppresses PAYE mismatch for small table_mode cumulative drift', () => {
-        const previousMode = globalThis.__payeCumulativeMode
-        globalThis.__payeCumulativeMode = 'table_mode'
-
-        try {
-            const record = buildValidationRecord({
-                payrollDoc: {
-                    deductions: {
-                        payeTax: { amount: 168.06 },
-                        natIns: { amount: 0 },
-                        pensionEE: { amount: 0 },
-                        pensionER: { amount: 0 },
-                        misc: [],
-                    },
-                    taxCode: { code: 'S1257L' },
-                    thisPeriod: {
-                        grossForTax: { amount: 1897.5 },
-                        totalGrossPay: { amount: 1897.5 },
-                        payCycle: { cycle: 'Monthly' },
-                    },
-                    yearToDate: {
-                        grossForTaxTD: 14906,
-                        taxPaidTD: 1289.82,
-                    },
-                },
-            })
-            const entry = buildValidationEntry(record, {
-                parsedDate: new Date('2021-11-26T00:00:00.000Z'),
-                yearKey: '2021/22',
-                monthIndex: 8,
-            })
-            const result = buildValidation(entry)
-            const payeFlag = result.flags.find((f) => f.id === 'paye_mismatch')
-
-            expect(payeFlag).toBeUndefined()
-        } finally {
-            if (previousMode === undefined) {
-                delete globalThis.__payeCumulativeMode
-            } else {
-                globalThis.__payeCumulativeMode = previousMode
-            }
-        }
-    })
-
     it('flags refund-like negative PAYE values with paye_zero when period-only expected PAYE is positive', () => {
         const record = buildValidationRecord({
             payrollDoc: {
@@ -3523,7 +3343,7 @@ describe('isWithinPayeTolerance', () => {
         expect(isWithinPayeTolerance(100.51, 100.0)).toBe(false)
     })
 
-    it('uses table_mode tolerance (2.0) for larger drift checks', () => {
+    it('uses explicit custom tolerance (2.0) for larger drift checks', () => {
         expect(isWithinPayeTolerance(252, 250, 2)).toBe(true)
         expect(isWithinPayeTolerance(252.01, 250, 2)).toBe(false)
     })

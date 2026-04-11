@@ -105,13 +105,13 @@ describe('buildRunSnapshot — basic behavior', () => {
         ).toBe(false)
     })
 
-    it('does not include payeMismatchDiagnostics by default', () => {
+    it('does not include payeFlagDiagnostics by default', () => {
         const context = { entries: [buildMinimalContextEntry()] }
         const snapshot = buildRunSnapshot([], context, null)
         expect(
             Object.prototype.hasOwnProperty.call(
                 snapshot,
-                'payeMismatchDiagnostics'
+                'payeFlagDiagnostics'
             )
         ).toBe(false)
     })
@@ -253,7 +253,7 @@ describe('buildRunSnapshot — includeFlagDetails option', () => {
 })
 
 describe('buildRunSnapshot — includePayeDiagnostics option', () => {
-    it('includes payeMismatchDiagnostics array when includePayeDiagnostics is true', () => {
+    it('includes payeFlagDiagnostics array when includePayeDiagnostics is true', () => {
         const context = {
             entries: [buildMinimalContextEntry()],
         }
@@ -263,13 +263,13 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         expect(
             Object.prototype.hasOwnProperty.call(
                 snapshot,
-                'payeMismatchDiagnostics'
+                'payeFlagDiagnostics'
             )
         ).toBe(true)
-        expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
+        expect(Array.isArray(snapshot.payeFlagDiagnostics)).toBe(true)
     })
 
-    it('produces empty payeMismatchDiagnostics when no paye_mismatch flags are present', () => {
+    it('produces empty payeFlagDiagnostics when no PAYE flags are present', () => {
         const context = {
             entries: [
                 buildMinimalContextEntry({
@@ -287,7 +287,7 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
         const snapshot = buildRunSnapshot([], context, null, {
             includePayeDiagnostics: true,
         })
-        expect(snapshot.payeMismatchDiagnostics).toEqual([])
+        expect(snapshot.payeFlagDiagnostics).toEqual([])
     })
 
     it('extracts PAYE diagnostic data from paye_zero flags', () => {
@@ -321,8 +321,8 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
             includeFlagDetails: true,
             includePayeDiagnostics: true,
         })
-        expect(snapshot.payeMismatchDiagnostics).toHaveLength(1)
-        const diag = snapshot.payeMismatchDiagnostics[0]
+        expect(snapshot.payeFlagDiagnostics).toHaveLength(1)
+        const diag = snapshot.payeFlagDiagnostics[0]
         expect(diag.taxCode).toBe('1257L')
         expect(diag.region).toBe('england')
         expect(diag.periodIndex).toBe(6)
@@ -358,6 +358,6 @@ describe('buildRunSnapshot — includePayeDiagnostics option', () => {
             includePayeDiagnostics: true,
         })
         expect(Array.isArray(snapshot.entries[0].flagDetails)).toBe(true)
-        expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
+        expect(Array.isArray(snapshot.payeFlagDiagnostics)).toBe(true)
     })
 })

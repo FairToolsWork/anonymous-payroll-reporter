@@ -9,11 +9,7 @@ const MEMORY_LEVEL = new URLSearchParams(window.location.search).get('mem')
 /** @type {string | null} */
 const TIME_LEVEL = new URLSearchParams(window.location.search).get('time')
 /** @type {boolean} */
-export const DEBUG_ENABLED =
-    DEBUG_LEVEL === '1' ||
-    DEBUG_LEVEL === '2' ||
-    DEBUG_LEVEL === '3' ||
-    DEBUG_LEVEL === '4'
+export const DEBUG_ENABLED = DEBUG_LEVEL === '1' || DEBUG_LEVEL === '2'
 
 /** @type {boolean} */
 export const MEMORY_LOG_ENABLED = MEMORY_LEVEL === '1'

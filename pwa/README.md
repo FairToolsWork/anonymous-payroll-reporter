@@ -49,8 +49,6 @@ Open `pwa/index.html` in a browser or serve the folder with any static server.
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `?debug=1` | Debug panel: extracted PDF text, parsed values, regex matches, Excel raw rows and parsed entries. Copy-to-clipboard button.              |
 | `?debug=2` | Everything in `?debug=1`, plus forces the update banner to appear on mount (for testing the SW update UI without a real waiting worker). |
-| `?debug=3` | Everything in `?debug=2`, plus forces PAYE cumulative `sage_approx` mode for drift diagnostics in the debug run snapshot.                |
-| `?debug=4` | Everything in `?debug=3`, plus forces PAYE cumulative `table_mode` mode in the debug run snapshot.                                       |
 | `?mem=1`   | Logs JS heap usage during runs (start, periodic progress, Excel start, finish). Also attempts memory attribution when supported.         |
 | `?time=1`  | Logs timing totals, counters, maxima, and metadata for report runs so slow phases can be identified from the final timing summary.       |
 | `?noimg=1` | Skips PDF image extraction and removes report `<img>` tags. Testing so far shows no measurable impact on JS heap usage or SW cache size. |
@@ -58,12 +56,8 @@ Open `pwa/index.html` in a browser or serve the folder with any static server.
 ```text
 index.html?debug=1
 index.html?debug=2
-index.html?debug=3
-index.html?debug=4
 index.html?time=1&mem=1
 ```
-
-For the active `sage-uk` payroll format, cumulative PAYE defaults to `table_mode` even without debug flags. Debug flags `?debug=3` and `?debug=4` are override switches for diagnostics.
 
 ## Deploying changes
 

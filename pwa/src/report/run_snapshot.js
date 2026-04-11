@@ -9,7 +9,7 @@
  * @returns {{
  *   recordCount: number,
  *   contributionEntries: number,
- *   payeMismatchDiagnostics?: Array<{
+ *   payeFlagDiagnostics?: Array<{
  *     period: string,
  *     flagId: string,
  *     taxCode: string | null,
@@ -94,11 +94,11 @@ export function buildRunSnapshot(
      *   periodAllowance: number | null,
      *   cumulativeAllowance: number | null,
      *   calculationMode: string | null
-     * }} PayeMismatchDiagnostic
+     * }} PayeFlagDiagnostic
      */
 
-    /** @type {PayeMismatchDiagnostic[]} */
-    const payeMismatchDiagnostics = []
+    /** @type {PayeFlagDiagnostic[]} */
+    const payeFlagDiagnostics = []
 
     const entries = contextEntries.map((entry) => {
         const payrollDoc = entry.record?.payrollDoc ?? {}
@@ -218,7 +218,7 @@ export function buildRunSnapshot(
                     const value = inputs[key]
                     return typeof value === 'string' ? value : null
                 }
-                payeMismatchDiagnostics.push({
+                payeFlagDiagnostics.push({
                     period,
                     flagId: payeFlag.id,
                     taxCode: stringOrNull('taxCode'),
@@ -241,14 +241,14 @@ export function buildRunSnapshot(
      *   recordCount: number,
      *   contributionEntries: number,
      *   entries: SnapshotEntry[],
-     *   payeMismatchDiagnostics?: PayeMismatchDiagnostic[]
+     *   payeFlagDiagnostics?: PayeFlagDiagnostic[]
      * }} */ ({
         recordCount,
         contributionEntries,
         entries,
     })
     if (includePayeDiagnostics) {
-        snapshot.payeMismatchDiagnostics = payeMismatchDiagnostics
+        snapshot.payeFlagDiagnostics = payeFlagDiagnostics
     }
 
     return snapshot

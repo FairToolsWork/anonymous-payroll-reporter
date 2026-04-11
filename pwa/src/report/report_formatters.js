@@ -364,7 +364,7 @@ export function buildTotalHolidayBreakdownLines(summary) {
 export function buildYearRowHolidayDisplay(holidaySummary) {
     if (holidaySummary.kind === 'hours_days') {
         return {
-            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
             detailLines: [
                 `(~ ${holidaySummary.estimatedDays.toFixed(1)} days)`,
             ],
