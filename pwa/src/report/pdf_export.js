@@ -175,6 +175,29 @@ function maxWidth(doc) {
 }
 
 /**
+ * @param {jsPDF} doc
+ * @returns {number}
+ */
+function contentBottom(doc) {
+    return pageHeight(doc) - PAGE_MARGIN
+}
+
+/**
+ * Ensures there is enough remaining space on the current page; otherwise starts a new page.
+ * @param {jsPDF} doc
+ * @param {number} cursorY
+ * @param {number} requiredHeight
+ * @returns {number}
+ */
+function ensureSpace(doc, cursorY, requiredHeight) {
+    if (cursorY + requiredHeight > contentBottom(doc)) {
+        doc.addPage()
+        return PAGE_MARGIN
+    }
+    return cursorY
+}
+
+/**
  * Writes text and returns updated cursorY.
  * @param {jsPDF} doc
  * @param {string | string[]} text
@@ -189,12 +212,32 @@ function writeText(doc, text, cursorY, opts = {}) {
     doc.setFontSize(fontSize)
     doc.setTextColor(opts.color ?? '#000000')
     const safeText = sanitizeTextLines(text)
-    const lines = Array.isArray(safeText)
-        ? safeText
-        : doc.splitTextToSize(safeText, maxWidth(doc))
-    doc.text(lines, PAGE_MARGIN, cursorY)
+    const rawLines = Array.isArray(safeText) ? safeText : [safeText]
+    const lines = rawLines.flatMap((line) => {
+        const wrapped = doc.splitTextToSize(String(line ?? ''), maxWidth(doc))
+        return wrapped.length ? wrapped : ['']
+    })
     const lineHeight = fontSize * 1.3
-    return cursorY + lines.length * lineHeight + LINE_GAP
+    const lineContent = [...lines]
+    let y = cursorY
+
+    while (lineContent.length) {
+        y = ensureSpace(doc, y, lineHeight)
+        const availableHeight = contentBottom(doc) - y
+        const linesOnPage = Math.max(
+            1,
+            Math.floor(availableHeight / lineHeight)
+        )
+        const chunk = lineContent.splice(0, linesOnPage)
+        doc.text(chunk, PAGE_MARGIN, y)
+        y += chunk.length * lineHeight
+        if (lineContent.length) {
+            doc.addPage()
+            y = PAGE_MARGIN
+        }
+    }
+
+    return y + LINE_GAP
 }
 
 /**
@@ -209,7 +252,9 @@ function writeHeading(doc, text, cursorY, opts = {}) {
     const fontSize = opts.fontSize ?? FONT_HEADING
     const gap = opts.gap ?? SECTION_GAP
     const preGap = opts.preGap ?? HEADING_PRE_GAP
-    const y = cursorY + preGap
+    const neededHeight = preGap + fontSize * 1.3 + gap
+    let y = ensureSpace(doc, cursorY, neededHeight)
+    y += preGap
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(fontSize)
     doc.setTextColor('#000000')
@@ -370,12 +415,13 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     /**
      * @param {string | string[]} text
      * @param {number} cursorY
-     * @param {{ fontSize?: number, bold?: boolean, color?: string }} [opts]
+     * @param {{ fontSize?: number, bold?: boolean, color?: string, gap?: number }} [opts]
      * @returns {number}
      */
     function writeCenteredText(text, cursorY, opts = {}) {
         const fontSize = opts.fontSize ?? FONT_BODY
         const bold = opts.bold ?? false
+        const gap = opts.gap ?? LINE_GAP
         doc.setFont('helvetica', bold ? 'bold' : 'normal')
         doc.setFontSize(fontSize)
         doc.setTextColor(opts.color ?? '#000000')
@@ -385,19 +431,27 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             : doc.splitTextToSize(safeText, maxWidth(doc))
         doc.text(lines, pageWidth(doc) / 2, cursorY, { align: 'center' })
         const lineHeight = fontSize * 1.3
-        return cursorY + lines.length * lineHeight + LINE_GAP
+        return cursorY + lines.length * lineHeight + gap
     }
 
     y = writeCenteredText(
         `Payroll Report - ${summaryHeading.employeeName}`,
         y,
-        { fontSize: FONT_TITLE, bold: true }
+        { fontSize: FONT_TITLE, bold: true, gap: SECTION_GAP }
     )
-    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y)
+    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y, {
+        gap: SECTION_GAP,
+    })
     if (summaryHeading.generatedLabel) {
-        y = writeCenteredText(`Generated: ${summaryHeading.generatedLabel}`, y)
+        y = writeCenteredText(
+            `Generated: ${summaryHeading.generatedLabel}`,
+            y,
+            {
+                gap: SECTION_GAP,
+            }
+        )
     }
-    y += LINE_GAP
+    y += 2
 
     const metaRows = summaryViewModel.metaRows.map((/** @type {any} */ row) => [
         sanitizeText(row.label),
@@ -407,7 +461,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 : (row.displayValue ?? row.value ?? '')
         ),
     ])
-    y += LINE_GAP
+    y += 2
     autoTable(doc, {
         startY: y,
         head: [],
@@ -436,7 +490,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         tableLineWidth: 0.5,
     })
     y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
-    y += SECTION_GAP
+    y += LINE_GAP * 2
 
     if (summaryViewModel.contractTypeMismatchWarning) {
         y += SECTION_GAP
@@ -456,6 +510,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         const warnLineH = FONT_SMALL * 1.3
         const warnTextH = warnLines.length * warnLineH
         const warnBoxH = warnTextH + WARN_PAD_V * 2
+        y = ensureSpace(doc, y, warnBoxH + SECTION_GAP)
         doc.setFillColor(253, 244, 237)
         doc.roundedRect(warnBoxX, y, warnBoxW, warnBoxH, 2, 2, 'F')
         doc.setFillColor(194, 84, 45)
@@ -472,8 +527,10 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         })
     }
 
-    y += LINE_GAP
-    y = writeHeading(doc, YEAR_SUMMARY_TITLE, y)
+    y = writeHeading(doc, YEAR_SUMMARY_TITLE, y, {
+        preGap: 8,
+        gap: 2,
+    })
 
     /** @type {Array<Array<string>>} */
     const yearRows = []
@@ -616,7 +673,11 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     )
 
     if (summaryViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
         y = writeText(
             doc,
             summaryViewModel.miscReviewItems.map((/** @type {any} */ item) =>
@@ -858,7 +919,11 @@ function renderYearPage(
     }
 
     if (yearViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
         y = writeText(
             doc,
             yearViewModel.miscReviewItems.map((/** @type {any} */ item) =>
@@ -870,15 +935,18 @@ function renderYearPage(
     }
 
     if (yearViewModel.flagNotes.length) {
-        y = writeHeading(doc, FLAG_NOTES_TITLE, y)
-        y = writeText(
-            doc,
-            yearViewModel.flagNotes.map(
-                (/** @type {any} */ note) => `${note.index}. ${note.label}`
-            ),
-            y,
-            { fontSize: FONT_SMALL }
+        y = writeHeading(doc, FLAG_NOTES_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
+        const flagNoteLines = yearViewModel.flagNotes.flatMap(
+            (/** @type {any} */ note, index) =>
+                index === 0
+                    ? [`${note.index}. ${note.label}`]
+                    : ['', `${note.index}. ${note.label}`]
         )
+        y = writeText(doc, flagNoteLines, y, { fontSize: FONT_SMALL })
     }
 
     if (yearViewModel.notes.length) {
