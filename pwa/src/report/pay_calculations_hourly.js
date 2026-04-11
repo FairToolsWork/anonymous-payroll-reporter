@@ -638,7 +638,7 @@ export function buildValidation(entry) {
     const niPrimaryThresholdForPeriod =
         niPrimaryThresholdMonthly !== null && niPeriodsPerYear !== null
             ? (niPrimaryThresholdMonthly * 12) / niPeriodsPerYear
-            : niPrimaryThresholdMonthly
+            : null
     const grossForNiContext =
         typeof totalGrossPay === 'number' ? totalGrossPay : paymentsTotal
     const canRunThresholdDrivenChecks = hasUsableThresholds(thresholdResolution)
