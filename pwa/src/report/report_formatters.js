@@ -377,7 +377,7 @@ export function buildYearRowHolidayDisplay(holidaySummary) {
         holidaySummary.accruedHours > 0
     ) {
         return {
-            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+            primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
             detailLines: [
                 `+${holidaySummary.accruedHours.toFixed(1)} hrs accrued`,
             ],
@@ -385,7 +385,7 @@ export function buildYearRowHolidayDisplay(holidaySummary) {
         }
     }
     return {
-        primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs`,
+        primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
         detailLines: [],
         detailMode: 'inline',
     }

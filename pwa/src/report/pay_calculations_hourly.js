@@ -168,6 +168,22 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         }
     }
     if (!parsedTaxCode.isStandardCode) {
+        if (parsedTaxCode.isFlatRateCode) {
+            return {
+                flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_basic_rate_code, {
+                    label: formatFlagLabel(
+                        FLAG_CATALOG.paye_basic_rate_code.id,
+                        {
+                            taxCode: parsedTaxCode.normalizedCode || null,
+                            region: parsedTaxCode.region || null,
+                        }
+                    ),
+                    severity: 'notice',
+                    inputs: { taxCode: parsedTaxCode.normalizedCode || null },
+                }),
+                lowConfidence: false,
+            }
+        }
         return {
             flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_tax_code_unsupported, {
                 label: formatFlagLabel(
@@ -705,6 +721,35 @@ export function buildValidation(entry) {
     )
     if (pensionValidation.flags.length) {
         flags.push(...pensionValidation.flags)
+    }
+
+    const miscDeductions = Array.isArray(record.payrollDoc?.deductions?.misc)
+        ? record.payrollDoc.deductions.misc
+        : []
+    for (const deduction of miscDeductions) {
+        const title = String(deduction?.title || '').trim()
+        const amount = Number(deduction?.amount || 0)
+        if (!title || amount <= 0) {
+            continue
+        }
+        // Treat pension-like labels as part of pension validation paths.
+        if (/(?:\bpension\b|\bnest\b)/i.test(title)) {
+            continue
+        }
+        flags.push(
+            buildCatalogRuleFlag(FLAG_CATALOG.unrecognised_deduction, {
+                label: formatFlagLabel(FLAG_CATALOG.unrecognised_deduction.id, {
+                    context: 'reported_deduction',
+                    deductionTitle: title,
+                    deductionAmount: amount,
+                }),
+                severity: FLAG_CATALOG.unrecognised_deduction.severity,
+                inputs: {
+                    deductionTitle: title,
+                    deductionAmount: amount,
+                },
+            })
+        )
     }
 
     if (

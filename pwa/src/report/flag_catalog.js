@@ -59,6 +59,12 @@ export const FLAG_CATALOG = {
         section: 'tax',
         severity: 'warning',
     },
+    paye_basic_rate_code: {
+        id: 'paye_basic_rate_code',
+        label: 'A basic rate (BR/SBR) tax code was detected — this typically indicates a second employment where the personal allowance is applied elsewhere',
+        section: 'tax',
+        severity: 'notice',
+    },
     tax_year_thresholds_unavailable: {
         id: 'tax_year_thresholds_unavailable',
         label: 'Tax-year thresholds unavailable for this payslip',
@@ -94,6 +100,12 @@ export const FLAG_CATALOG = {
         label: 'Employer pension contributions were detected even though earnings are below the lower qualifying threshold',
         section: 'validation',
         severity: 'warning',
+    },
+    unrecognised_deduction: {
+        id: 'unrecognised_deduction',
+        label: 'Unrecognised deduction detected',
+        section: 'validation',
+        severity: 'notice',
     },
     payment_line_mismatch: {
         id: 'payment_line_mismatch',
@@ -164,7 +176,7 @@ function formatCurrency(amount) {
 
 /**
  * @param {string} id
- * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, grossForTax?: number | null, grossForTaxTD?: number | null, periodAllowance?: number | null, cumulativeAllowance?: number | null, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null, pensionER?: number | null, nationalInsurance?: number | null }} [params]
+ * @param {{ impliedHolidayRate?: number, basicRate?: number, rollingAvgRate?: number, totalWeeks?: number, periodsCounted?: number, limitedData?: boolean, mixedMonthsIncluded?: number, context?: string, payCycle?: string | null, taxCode?: string | null, payeTax?: number | null, grossForTax?: number | null, grossForTaxTD?: number | null, periodAllowance?: number | null, cumulativeAllowance?: number | null, earnings?: number | null, periodTrigger?: number | null, periodLabel?: string | null, region?: string | null, qualifyingLower?: number | null, autoEnrolmentTrigger?: number | null, elapsedRunDays?: number | null, taxYearStartLabel?: string, fallbackTaxYearStartLabel?: string, grossPay?: number | null, niPrimaryThresholdMonthly?: number | null, pensionER?: number | null, nationalInsurance?: number | null, deductionTitle?: string | null, deductionAmount?: number | null }} [params]
  * @returns {string}
  */
 export function formatFlagLabel(id, params = {}) {
@@ -184,6 +196,13 @@ export function formatFlagLabel(id, params = {}) {
         if (params.context === 'region_unknown') {
             return 'PAYE region could not be determined from the tax code, so standard PAYE checks were skipped.'
         }
+    }
+
+    if (id === 'paye_basic_rate_code') {
+        const codeStr = params.taxCode ? ` (${params.taxCode})` : ''
+        const rateLabel =
+            params.region === 'scotland' ? 'Scottish basic rate' : 'basic rate'
+        return `Tax code${codeStr} is a ${rateLabel} second job code. The personal allowance is being applied against other employment, and all earnings here will be taxed at the full 20% ${rateLabel} with no personal allowance.`
     }
 
     if (id === 'paye_zero' && params.context === 'missing_tax_code') {
@@ -238,6 +257,12 @@ export function formatFlagLabel(id, params = {}) {
     if (id === 'pension_employer_contrib_not_required') {
         const periodLabel = params.periodLabel || 'period'
         return `Employer pension contributions ${formatCurrency(params.pensionER)} were detected while pre-tax earnings are ${formatCurrency(params.earnings)}, below the ${periodLabel} lower qualifying earnings threshold of ${formatCurrency(params.qualifyingLower)} where employer contributions are not normally required. The employee may still choose to opt in and make voluntary contributions.`
+    }
+
+    if (id === 'unrecognised_deduction') {
+        if (params.context === 'reported_deduction') {
+            return `Unrecognised deduction ${String(params.deductionTitle || 'Unknown deduction')} of ${formatCurrency(params.deductionAmount)} was detected. This does not match NI, PAYE, or pension deduction categories and should be reviewed manually.`
+        }
     }
 
     if (id === 'tax_year_thresholds_unavailable') {

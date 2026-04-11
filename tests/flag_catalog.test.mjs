@@ -16,12 +16,14 @@ describe('FLAG_CATALOG', () => {
             'nat_ins_zero',
             'nat_ins_taken_below_threshold',
             'paye_taken_not_due',
+            'paye_basic_rate_code',
             'tax_year_thresholds_unavailable',
             'tax_year_thresholds_partial_support',
             'pension_auto_enrolment_missing_deductions',
             'pension_opt_in_possible',
             'pension_join_no_mandatory_employer_contrib',
             'pension_employer_contrib_not_required',
+            'unrecognised_deduction',
             'payment_line_mismatch',
             'gross_mismatch',
             'net_mismatch',
@@ -41,6 +43,7 @@ describe('FLAG_CATALOG', () => {
         expect(
             FLAG_CATALOG.pension_join_no_mandatory_employer_contrib.severity
         ).toBe('notice')
+        expect(FLAG_CATALOG.unrecognised_deduction.severity).toBe('notice')
         expect(
             FLAG_CATALOG.holiday_reference_insufficient_history.severity
         ).toBe('notice')
@@ -60,6 +63,7 @@ describe('FLAG_CATALOG', () => {
         expect(FLAG_CATALOG.paye_taken_not_due.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_tax_code_unsupported.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_pay_cycle_unsupported.severity).toBe('warning')
+        expect(FLAG_CATALOG.paye_basic_rate_code.severity).toBe('notice')
     })
 
     it('has warning severity for ineligible deduction flags', () => {
@@ -422,6 +426,28 @@ describe('formatFlagLabel — pension_employer_contrib_not_required', () => {
         expect(label).toContain(
             'lower qualifying earnings threshold of £520.00'
         )
+    })
+})
+
+describe('formatFlagLabel — unrecognised_deduction', () => {
+    it('formats reported_deduction context with title and amount', () => {
+        const label = formatFlagLabel('unrecognised_deduction', {
+            context: 'reported_deduction',
+            deductionTitle: 'Other Deduction',
+            deductionAmount: 12.5,
+        })
+        expect(label).toContain('Unrecognised deduction Other Deduction')
+        expect(label).toContain('£12.50')
+        expect(label).toContain('should be reviewed manually')
+    })
+
+    it('uses Unknown deduction when title is missing', () => {
+        const label = formatFlagLabel('unrecognised_deduction', {
+            context: 'reported_deduction',
+            deductionAmount: 5,
+        })
+        expect(label).toContain('Unknown deduction')
+        expect(label).toContain('£5.00')
     })
 })
 

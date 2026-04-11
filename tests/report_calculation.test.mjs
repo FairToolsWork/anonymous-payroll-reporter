@@ -238,6 +238,117 @@ describe('report calculations', () => {
         expect(flagIds).toContain('net_mismatch')
     })
 
+    it('emits a notice for unrecognised misc deductions', () => {
+        const entry = {
+            record: {
+                ...buildRecord({
+                    nestEE: 0,
+                    nestER: 0,
+                    natInsNumber: 'AB123456C',
+                    taxCode: '1257L',
+                    grossPay: 1500,
+                    netPay: 1500,
+                }),
+                payrollDoc: {
+                    ...buildRecord({
+                        nestEE: 0,
+                        nestER: 0,
+                        natInsNumber: 'AB123456C',
+                        taxCode: '1257L',
+                        grossPay: 1500,
+                        netPay: 1500,
+                    }).payrollDoc,
+                    deductions: {
+                        ...buildRecord({
+                            nestEE: 0,
+                            nestER: 0,
+                            natInsNumber: 'AB123456C',
+                            taxCode: '1257L',
+                            grossPay: 1500,
+                            netPay: 1500,
+                        }).payrollDoc.deductions,
+                        misc: [
+                            {
+                                title: 'Other Deduction',
+                                units: null,
+                                rate: null,
+                                amount: 25,
+                            },
+                        ],
+                    },
+                },
+            },
+            parsedDate: new Date('2025-05-01T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 2,
+        }
+
+        const validation = buildValidation(entry)
+        const unknownDeductionFlag = validation.flags.find(
+            (flag) => flag.id === 'unrecognised_deduction'
+        )
+
+        expect(unknownDeductionFlag).toBeDefined()
+        expect(unknownDeductionFlag?.severity).toBe('notice')
+        expect(unknownDeductionFlag?.ruleId).toBe('unrecognised_deduction')
+        expect(unknownDeductionFlag?.label).toContain('Other Deduction')
+        expect(unknownDeductionFlag?.inputs).toEqual({
+            deductionTitle: 'Other Deduction',
+            deductionAmount: 25,
+        })
+    })
+
+    it('does not emit unrecognised deduction notice for pension-like misc labels', () => {
+        const entry = {
+            record: {
+                ...buildRecord({
+                    nestEE: 0,
+                    nestER: 0,
+                    natInsNumber: 'AB123456C',
+                    taxCode: '1257L',
+                    grossPay: 1400,
+                    netPay: 1400,
+                }),
+                payrollDoc: {
+                    ...buildRecord({
+                        nestEE: 0,
+                        nestER: 0,
+                        natInsNumber: 'AB123456C',
+                        taxCode: '1257L',
+                        grossPay: 1400,
+                        netPay: 1400,
+                    }).payrollDoc,
+                    deductions: {
+                        ...buildRecord({
+                            nestEE: 0,
+                            nestER: 0,
+                            natInsNumber: 'AB123456C',
+                            taxCode: '1257L',
+                            grossPay: 1400,
+                            netPay: 1400,
+                        }).payrollDoc.deductions,
+                        misc: [
+                            {
+                                title: 'Pension AVC',
+                                units: null,
+                                rate: null,
+                                amount: 15,
+                            },
+                        ],
+                    },
+                },
+            },
+            parsedDate: new Date('2025-05-01T00:00:00.000Z'),
+            yearKey: '2025/26',
+            monthIndex: 2,
+        }
+
+        const validation = buildValidation(entry)
+        expect(
+            validation.flags.some((flag) => flag.id === 'unrecognised_deduction')
+        ).toBe(false)
+    })
+
     it('respects validation tolerance', () => {
         const withinToleranceEntry = {
             record: buildRecord({
@@ -2494,10 +2605,10 @@ describe('buildValidation — flag evidence payload', () => {
         expect(flag.severity).toBe('warning')
     })
 
-    it('emits an explicit warning for non-standard tax codes', () => {
+    it('emits an explicit warning for unrecognised non-standard tax codes', () => {
         const record = buildValidationRecord({
             payrollDoc: {
-                taxCode: { code: 'BR' },
+                taxCode: { code: 'D0' },
             },
         })
         const entry = buildValidationEntry(record)
@@ -2508,8 +2619,45 @@ describe('buildValidation — flag evidence payload', () => {
 
         expect(flag).toBeDefined()
         expect(flag.ruleId).toBe('paye_tax_code_unsupported')
-        expect(flag.label).toContain('Reported tax code: BR')
+        expect(flag.label).toContain('Reported tax code: D0')
         expect(result.lowConfidence).toBe(true)
+    })
+
+    it('emits a notice for BR (second job / basic rate) tax code', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                taxCode: { code: 'BR' },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_basic_rate_code')
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('paye_basic_rate_code')
+        expect(flag.severity).toBe('notice')
+        expect(flag.label).toContain('BR')
+        expect(flag.label).toContain('second job')
+        expect(result.lowConfidence).toBe(false)
+    })
+
+    it('emits a notice for SBR (Scottish second job / basic rate) tax code', () => {
+        const record = buildValidationRecord({
+            payrollDoc: {
+                taxCode: { code: 'SBR' },
+            },
+        })
+        const entry = buildValidationEntry(record)
+        const result = buildValidation(entry)
+        const flag = result.flags.find((f) => f.id === 'paye_basic_rate_code')
+
+        expect(flag).toBeDefined()
+        expect(flag.ruleId).toBe('paye_basic_rate_code')
+        expect(flag.severity).toBe('notice')
+        expect(flag.label).toContain('SBR')
+        expect(flag.label).toContain('Scottish')
+        expect(flag.label).toContain('second job')
+        expect(result.lowConfidence).toBe(false)
     })
 
     it('nat_ins_zero flag carries ruleId and numeric inputs.nationalInsurance', () => {
