@@ -46,32 +46,6 @@ describe('debug_tools query flags', () => {
         expect(globalThis.__payrollTiming).toBe(debugTools.timingApi)
     })
 
-    it('enables debug mode and PAYE sage approximation mode for ?debug=3', async () => {
-        const debugTools = await importDebugTools('?debug=3')
-
-        expect(debugTools.DEBUG_LEVEL).toBe('3')
-        expect(debugTools.DEBUG_ENABLED).toBe(true)
-        expect(debugTools.PAYE_CUMULATIVE_MODE).toBe('sage_approx')
-        expect(globalThis.__payeCumulativeMode).toBe('sage_approx')
-    })
-
-    it('enables debug mode and PAYE table mode for ?debug=4', async () => {
-        const debugTools = await importDebugTools('?debug=4')
-
-        expect(debugTools.DEBUG_LEVEL).toBe('4')
-        expect(debugTools.DEBUG_ENABLED).toBe(true)
-        expect(debugTools.PAYE_CUMULATIVE_MODE).toBe('table_mode')
-        expect(globalThis.__payeCumulativeMode).toBeUndefined()
-    })
-
-    it('defaults PAYE cumulative mode from active payroll format when debug mode is off', async () => {
-        const debugTools = await importDebugTools('?debug=9&mem=0&time=0')
-
-        expect(debugTools.DEBUG_ENABLED).toBe(false)
-        expect(debugTools.PAYE_CUMULATIVE_MODE).toBe('table_mode')
-        expect(globalThis.__payeCumulativeMode).toBeUndefined()
-    })
-
     it('keeps debug, memory, and timing disabled for unsupported or missing values', async () => {
         const debugTools = await importDebugTools('?debug=9&mem=0&time=0')
 

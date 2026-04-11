@@ -947,17 +947,18 @@ details img {
 .card header {
     align-items: flex-start;
     border-block-end: 1px solid var(--muted);
-    margin-block-end: var(--space-12);
+    margin-block: calc(var(--space-12) * -1) var(--space-12);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
-.card header:has(svg) {
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    gap: var(--space-12);
+.card header h1,
+.card header h2,
+.card header h3,
+.card header h4,
+.card header h5 {
+    margin-block-start: 1rem;
 }
 
 ul {

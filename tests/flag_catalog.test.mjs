@@ -11,15 +11,17 @@ describe('FLAG_CATALOG', () => {
             'missing_nat_ins',
             'missing_tax_code',
             'paye_zero',
-            'paye_mismatch',
             'paye_tax_code_unsupported',
             'paye_pay_cycle_unsupported',
             'nat_ins_zero',
+            'nat_ins_taken_below_threshold',
+            'paye_taken_not_due',
             'tax_year_thresholds_unavailable',
             'tax_year_thresholds_partial_support',
             'pension_auto_enrolment_missing_deductions',
             'pension_opt_in_possible',
             'pension_join_no_mandatory_employer_contrib',
+            'pension_employer_contrib_not_required',
             'payment_line_mismatch',
             'gross_mismatch',
             'net_mismatch',
@@ -55,9 +57,18 @@ describe('FLAG_CATALOG', () => {
 
     it('has warning severity for PAYE flags', () => {
         expect(FLAG_CATALOG.paye_zero.severity).toBe('warning')
-        expect(FLAG_CATALOG.paye_mismatch.severity).toBe('warning')
+        expect(FLAG_CATALOG.paye_taken_not_due.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_tax_code_unsupported.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_pay_cycle_unsupported.severity).toBe('warning')
+    })
+
+    it('has warning severity for ineligible deduction flags', () => {
+        expect(FLAG_CATALOG.nat_ins_taken_below_threshold.severity).toBe(
+            'warning'
+        )
+        expect(
+            FLAG_CATALOG.pension_employer_contrib_not_required.severity
+        ).toBe('warning')
     })
 })
 
@@ -142,110 +153,37 @@ describe('formatFlagLabel — paye_zero', () => {
             context: 'missing_tax_code',
         })
         expect(label).toBe(
-            'PAYE Tax is £0 and the tax code is missing, so the exact PAYE check could not be completed for this payslip.'
+            'PAYE Tax is £0 and the tax code is missing, so the threshold check could not be completed for this payslip.'
+        )
+    })
+
+    it('formats ytd_above_allowance context', () => {
+        const label = formatFlagLabel('paye_zero', {
+            context: 'ytd_above_allowance',
+            grossForTaxTD: 4000,
+            cumulativeAllowance: 3144,
+        })
+        expect(label).toContain('No PAYE deduction recorded')
+        expect(label).toContain('£4,000.00')
+        expect(label).toContain('above your tax-free allowance')
+    })
+
+    it('formats period_above_allowance context', () => {
+        const label = formatFlagLabel('paye_zero', {
+            context: 'period_above_allowance',
+            grossForTax: 1200,
+            periodAllowance: 1048,
+        })
+        expect(label).toContain('No PAYE deduction recorded')
+        expect(label).toContain('£1,200.00')
+        expect(label).toContain(
+            'above your tax-free allowance for this pay period'
         )
     })
 
     it('returns catalog label for paye_zero without context', () => {
         const label = formatFlagLabel('paye_zero', {})
         expect(label).toBe('PAYE Tax missing or £0')
-    })
-})
-
-describe('formatFlagLabel — paye_mismatch', () => {
-    it('formats explanation_emergency context with currency', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'explanation_emergency',
-            taxCode: '1257L W1',
-            periodTrigger: 1048,
-            payCycle: 'Monthly',
-        })
-        expect(label).toContain('Emergency code 1257L W1')
-        expect(label).toContain('£1,048.00')
-        expect(label).toContain('monthly period')
-    })
-
-    it('formats explanation_period_only context', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'explanation_period_only',
-            periodTrigger: 1048,
-        })
-        expect(label).toContain('Gross for Tax TD and Tax Paid TD are missing')
-        expect(label).toContain('£1,048.00')
-    })
-
-    it('formats explanation_cumulative context', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'explanation_cumulative',
-            taxCode: '1257L',
-            grossForTaxTD: 5000,
-            cumulativeAllowance: 4192,
-            region: 'england',
-        })
-        expect(label).toContain('Cumulative PAYE for 1257L')
-        expect(label).toContain('£5,000.00')
-        expect(label).toContain('£4,192.00')
-        expect(label).toContain('england')
-    })
-
-    it('formats zero_or_mismatch context for zero PAYE with significant mismatch', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'zero_or_mismatch',
-            payeTax: 0,
-            expectedPaye: 250,
-            payeDifference: -250,
-            isSignificantMismatch: true,
-            explanation: 'Some explanation.',
-        })
-        expect(label).toContain(
-            'PAYE Tax is £0.00 but standard PAYE for this payslip is about £250.00'
-        )
-        expect(label).toContain('Some explanation.')
-    })
-
-    it('formats zero_or_mismatch context for zero PAYE without significant mismatch', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'zero_or_mismatch',
-            payeTax: 0,
-            expectedPaye: 0.3,
-            payeDifference: -0.3,
-            isSignificantMismatch: false,
-            explanation: 'Matches closely.',
-        })
-        expect(label).toContain(
-            'PAYE Tax is £0.00 and standard PAYE also works out to about £0.30 for this payslip'
-        )
-        expect(label).toContain('Matches closely.')
-    })
-
-    it('formats zero_or_mismatch context for non-zero PAYE above expected', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'zero_or_mismatch',
-            payeTax: 300,
-            expectedPaye: 250,
-            payeDifference: 50,
-            isSignificantMismatch: true,
-            explanation: 'Higher than expected.',
-        })
-        expect(label).toContain(
-            'PAYE Tax £300.00 is £50.00 above the expected PAYE amount'
-        )
-        expect(label).toContain('£250.00')
-    })
-
-    it('formats zero_or_mismatch context for non-zero PAYE below expected', () => {
-        const label = formatFlagLabel('paye_mismatch', {
-            context: 'zero_or_mismatch',
-            payeTax: 200,
-            expectedPaye: 250,
-            payeDifference: -50,
-            isSignificantMismatch: true,
-            explanation: 'Lower than expected.',
-        })
-        expect(label).toContain(
-            'PAYE Tax £200.00 is £50.00 under the expected PAYE amount'
-        )
-        expect(label).toContain('£250.00')
     })
 })
 
@@ -261,17 +199,6 @@ describe('formatFlagLabel — nat_ins_zero', () => {
         )
     })
 
-    it('formats at_or_below_threshold_notice context', () => {
-        const label = formatFlagLabel('nat_ins_zero', {
-            context: 'at_or_below_threshold_notice',
-            grossPay: 800,
-            niPrimaryThresholdMonthly: 1048,
-        })
-        expect(label).toContain(
-            'NI deductions not taken as gross pay £800.00 is at or below the primary threshold of £1,048.00'
-        )
-    })
-
     it('uses Unknown for null gross pay', () => {
         const label = formatFlagLabel('nat_ins_zero', {
             context: 'above_threshold_warning',
@@ -284,6 +211,54 @@ describe('formatFlagLabel — nat_ins_zero', () => {
     it('returns catalog label for unknown context', () => {
         const label = formatFlagLabel('nat_ins_zero', {})
         expect(label).toBe('National Insurance missing or £0')
+    })
+})
+
+describe('formatFlagLabel — nat_ins_taken_below_threshold', () => {
+    it('formats NI taken while at or below threshold', () => {
+        const label = formatFlagLabel('nat_ins_taken_below_threshold', {
+            nationalInsurance: 15,
+            grossPay: 800,
+            niPrimaryThresholdMonthly: 1048,
+        })
+        expect(label).toContain('NI deductions of £15.00 were taken')
+        expect(label).toContain('gross pay £800.00 is at or below')
+        expect(label).toContain('£1,048.00')
+    })
+})
+
+describe('formatFlagLabel — paye_taken_not_due', () => {
+    it('formats period_within_allowance context', () => {
+        const label = formatFlagLabel('paye_taken_not_due', {
+            context: 'period_within_allowance',
+            payeTax: 20,
+            grossForTax: 800,
+            periodAllowance: 1048,
+        })
+        expect(label).toContain('PAYE Tax of £20.00 was deducted')
+        expect(label).toContain('£800.00')
+        expect(label).toContain(
+            'within your tax-free allowance for this pay period'
+        )
+    })
+
+    it('formats ytd_within_allowance context', () => {
+        const label = formatFlagLabel('paye_taken_not_due', {
+            context: 'ytd_within_allowance',
+            payeTax: 25,
+            grossForTaxTD: 2000,
+            cumulativeAllowance: 3144,
+        })
+        expect(label).toContain('PAYE Tax of £25.00 was deducted')
+        expect(label).toContain('taxable gross pay to date')
+        expect(label).toContain('£2,000.00')
+        expect(label).toContain('within your tax-free allowance')
+    })
+
+    it('returns a fallback message when no context is provided', () => {
+        const label = formatFlagLabel('paye_taken_not_due', { payeTax: 10 })
+        expect(label).toContain('PAYE Tax of £10.00 was deducted')
+        expect(label).toContain('within the tax-free allowance')
     })
 })
 
@@ -432,6 +407,21 @@ describe('formatFlagLabel — pension_join_no_mandatory_employer_contrib', () =>
         expect(label).toContain('employer contributions may not be required')
         expect(label).toContain('£400.00')
         expect(label).toContain('£520.00')
+    })
+})
+
+describe('formatFlagLabel — pension_employer_contrib_not_required', () => {
+    it('formats employer contribution below lower qualifying threshold', () => {
+        const label = formatFlagLabel('pension_employer_contrib_not_required', {
+            pensionER: 25,
+            earnings: 400,
+            qualifyingLower: 520,
+        })
+        expect(label).toContain('Employer pension contributions £25.00')
+        expect(label).toContain('pre-tax earnings are £400.00')
+        expect(label).toContain(
+            'lower qualifying earnings threshold of £520.00'
+        )
     })
 })
 

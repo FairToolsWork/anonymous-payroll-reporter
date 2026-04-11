@@ -13,16 +13,10 @@
  * @typedef {{ record: PayrollRecord, parsedDate: Date | null, yearKey: string | null, monthIndex: number, validation?: ValidationResult, workerProfile?: { payrollRunStartDate?: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null } | null }} HourlyPayEntry
  */
 
-import { ACTIVE_PAYROLL_FORMAT } from '../parse/active_format.js'
 import {
-    getPeriodizedAnnualAmount,
     PAYE_VALIDATION_TOLERANCE,
     VALIDATION_TOLERANCE,
 } from './uk_thresholds.js'
-
-/**
- * @typedef {'exact' | 'sage_approx' | 'table_mode'} PayeCumulativeMode
- */
 
 /**
  * @param {number} value
@@ -30,21 +24,6 @@ import {
  */
 export function roundMoney(value) {
     return Math.round(value * 100) / 100
-}
-
-/**
- * Sage table-style cumulative PAYE can differ by around £1-£2 from pure formula output.
- * This tolerance is measured in pounds, so a value of `2` allows table-mode PAYE
- * results to be up to £2 away from the formula result without raising a mismatch.
- * Keep these low-level drifts from surfacing as mismatches while retaining large-variance flags.
- */
-export const TABLE_MODE_PAYE_VALIDATION_TOLERANCE = 2
-
-/**
- * @type {Record<string, PayeCumulativeMode>}
- */
-export const PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT = {
-    'sage-uk': 'table_mode',
 }
 
 /**
@@ -99,172 +78,6 @@ export function hasUsablePensionThresholds(thresholdResolution) {
             thresholdResolution.status === 'fallback-to-previous-tax-year' ||
             thresholdResolution.status === 'partial-threshold-support')
     )
-}
-
-/**
- * @param {number} annualAmount
- * @param {number} completedPeriods
- * @param {12 | 52} periodsPerYear
- * @param {PayeCumulativeMode} [mode='exact']
- * @returns {number}
- */
-export function getPeriodizedAnnualAmountByMode(
-    annualAmount,
-    completedPeriods,
-    periodsPerYear,
-    mode = 'exact'
-) {
-    if (
-        !Number.isFinite(annualAmount) ||
-        !Number.isFinite(completedPeriods) ||
-        !Number.isFinite(periodsPerYear) ||
-        periodsPerYear <= 0
-    ) {
-        return 0
-    }
-    if (mode === 'sage_approx') {
-        return Math.floor((annualAmount * completedPeriods) / periodsPerYear)
-    }
-    if (mode === 'table_mode') {
-        return getPeriodizedAnnualAmount(
-            annualAmount,
-            completedPeriods,
-            periodsPerYear
-        )
-    }
-    return getPeriodizedAnnualAmount(
-        annualAmount,
-        completedPeriods,
-        periodsPerYear
-    )
-}
-
-/**
- * Resolves PAYE cumulative mode from debug override first, then payroll format defaults.
- * Consumers can override with globalThis.__payeCumulativeMode.
- *
- * @returns {PayeCumulativeMode}
- */
-export function resolvePayeCumulativeMode() {
-    const override = String(
-        /** @type {any} */ (globalThis).__payeCumulativeMode
-    )
-        .trim()
-        .toLowerCase()
-    if (override === 'exact') {
-        return 'exact'
-    }
-    if (override === 'sage_approx') {
-        return 'sage_approx'
-    }
-    if (override === 'table_mode') {
-        return 'table_mode'
-    }
-
-    const formatId = String(ACTIVE_PAYROLL_FORMAT?.id || '')
-    const defaultMode =
-        PAYE_CUMULATIVE_DEFAULT_MODE_BY_PAYROLL_FORMAT[formatId] || 'exact'
-    return defaultMode
-}
-
-/**
- * @param {number} taxableAmount
- * @param {{ rate: number, upper: number | null }[]} bands
- * @param {number} completedPeriods
- * @param {12 | 52} periodsPerYear
- * @param {PayeCumulativeMode} [mode='exact']
- * @returns {number}
- */
-export function calculateTaxFromBands(
-    taxableAmount,
-    bands,
-    completedPeriods,
-    periodsPerYear,
-    mode = 'exact'
-) {
-    if (!Number.isFinite(taxableAmount) || taxableAmount <= 0) {
-        return 0
-    }
-
-    let remaining = taxableAmount
-    let previousUpperAnnual = 0
-    let tax = 0
-
-    for (const band of bands) {
-        if (remaining <= 0) {
-            break
-        }
-        if (band.upper === null) {
-            const topSlice =
-                mode === 'sage_approx' ? roundMoney(remaining) : remaining
-            const topTax = topSlice * (band.rate / 100)
-            if (mode === 'table_mode') {
-                tax += Math.floor(topTax * 100) / 100
-            } else {
-                tax += mode === 'sage_approx' ? roundMoney(topTax) : topTax
-            }
-            break
-        }
-
-        const annualWidth = band.upper - previousUpperAnnual
-        const periodWidth = getPeriodizedAnnualAmountByMode(
-            annualWidth,
-            completedPeriods,
-            periodsPerYear,
-            mode
-        )
-        const taxableInBandRaw = Math.min(remaining, periodWidth)
-        const taxableInBand =
-            mode === 'sage_approx'
-                ? roundMoney(taxableInBandRaw)
-                : mode === 'table_mode'
-                  ? Math.floor(taxableInBandRaw * 100) / 100
-                  : taxableInBandRaw
-        const bandTaxRaw = taxableInBand * (band.rate / 100)
-        if (mode === 'table_mode') {
-            tax += Math.floor(bandTaxRaw * 100) / 100
-        } else {
-            tax += mode === 'sage_approx' ? roundMoney(bandTaxRaw) : bandTaxRaw
-        }
-        remaining -= taxableInBandRaw
-        previousUpperAnnual = band.upper
-    }
-
-    return roundMoney(tax)
-}
-
-/**
- * @param {number} grossForTax
- * @param {number} annualAllowance
- * @param {{ rate: number, upper: number | null }[]} bands
- * @param {12 | 52} periodsPerYear
- * @param {PayeCumulativeMode} [mode='exact']
- * @returns {{ expectedPaye: number, allowanceThisPeriod: number }}
- */
-export function calculatePeriodOnlyPaye(
-    grossForTax,
-    annualAllowance,
-    bands,
-    periodsPerYear,
-    mode = 'exact'
-) {
-    const allowanceThisPeriod = getPeriodizedAnnualAmountByMode(
-        annualAllowance,
-        1,
-        periodsPerYear,
-        mode
-    )
-    const taxableThisPeriod = Math.max(0, grossForTax - allowanceThisPeriod)
-    return {
-        allowanceThisPeriod,
-        expectedPaye: calculateTaxFromBands(
-            taxableThisPeriod,
-            bands,
-            1,
-            periodsPerYear,
-            mode
-        ),
-    }
 }
 
 /**

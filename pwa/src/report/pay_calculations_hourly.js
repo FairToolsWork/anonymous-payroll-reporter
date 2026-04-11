@@ -19,13 +19,7 @@ import {
     buildCatalogRuleFlag,
     hasUsableThresholds,
     hasUsablePensionThresholds,
-    getPeriodizedAnnualAmountByMode,
-    resolvePayeCumulativeMode,
-    calculateTaxFromBands,
-    calculatePeriodOnlyPaye,
-    isWithinPayeTolerance,
     isWithinTolerance,
-    TABLE_MODE_PAYE_VALIDATION_TOLERANCE,
     sumPayments,
     sumDeductionsForNetPay,
     normalizeToDateOnly,
@@ -42,7 +36,6 @@ import {
     getIncomeTaxBandsForRegion,
     getPayPeriodIndexForDate,
     formatTaxYearLabelFromStartYear,
-    PAYE_VALIDATION_TOLERANCE,
 } from './uk_thresholds.js'
 
 /**
@@ -169,11 +162,7 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                     context: 'missing_tax_code',
                 }),
                 severity: 'warning',
-                inputs: {
-                    payeTax,
-                    expectedPaye: null,
-                    taxCode: null,
-                },
+                inputs: { payeTax, taxCode: null },
             }),
             lowConfidence: true,
         }
@@ -241,211 +230,119 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
         payrollDoc?.thisPeriod?.grossForTax?.amount ??
         payrollDoc?.thisPeriod?.totalGrossPay?.amount ??
         sumPayments(entry.record)
-    const grossForTaxTD = payrollDoc?.yearToDate?.grossForTaxTD ?? null
-    const taxPaidTD = payrollDoc?.yearToDate?.taxPaidTD ?? null
     const annualAllowance = thresholds.personalAllowanceAnnual
-    const completedPeriods = parsedTaxCode.isEmergency ? 1 : periodIndex
-    const payeCumulativeMode = resolvePayeCumulativeMode()
+    const grossForTaxTD = payrollDoc?.yearToDate?.grossForTaxTD ?? null
 
-    const periodOnlyPaye = calculatePeriodOnlyPaye(
-        currentGrossForTax,
+    const completedPeriods = parsedTaxCode.isEmergency ? 1 : periodIndex
+    const hasUsableYtdGross =
+        !parsedTaxCode.isEmergency && Number.isFinite(grossForTaxTD)
+    const cumulativeAllowance = hasUsableYtdGross
+        ? getPeriodizedAnnualAmount(
+              annualAllowance,
+              completedPeriods,
+              periodsPerYear
+          )
+        : null
+    const allowanceThisPeriod = getPeriodizedAnnualAmount(
         annualAllowance,
-        bandSelection.bands,
-        periodsPerYear,
-        payeCumulativeMode
+        1,
+        periodsPerYear
     )
 
-    let expectedPaye = null
-    let explanation = ''
-    let calculationMode = 'cumulative'
-    let cumulativeAllowance = null
-    let taxableYtd = null
-    let expectedTaxYtd = null
-    let priorTaxPaid = null
-    let expectedPayeExact = null
-    let expectedPayeSageApprox = null
-    let expectedTaxYtdExact = null
-    let expectedTaxYtdSageApprox = null
-    let expectedPayeTableMode = null
-    let expectedTaxYtdTableMode = null
+    // Determine whether earnings appear to exceed the personal allowance.
+    // With YTD data we use the cumulative picture; without YTD we fall back
+    // to this period only (lower confidence).
+    const earningsAboveAllowance = hasUsableYtdGross
+        ? Number.isFinite(cumulativeAllowance) &&
+          Number(grossForTaxTD) > Number(cumulativeAllowance)
+        : Number.isFinite(currentGrossForTax) &&
+          currentGrossForTax > allowanceThisPeriod
+    // For the YTD case, the cumulative picture is sufficient: if total
+    // earnings to-date are within the cumulative allowance, no PAYE is owed
+    // regardless of the current period's individual gross (which may be an
+    // above-average month in a variable-pay run).
+    const earningsWithinAllowance = hasUsableYtdGross
+        ? Number.isFinite(cumulativeAllowance) &&
+          Number(grossForTaxTD) <= Number(cumulativeAllowance)
+        : Number.isFinite(currentGrossForTax) &&
+          currentGrossForTax <= allowanceThisPeriod
 
-    if (parsedTaxCode.isEmergency) {
-        calculationMode = 'emergency-period-only'
-        expectedPaye = periodOnlyPaye.expectedPaye
-        explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
-            context: 'explanation_emergency',
-            taxCode: parsedTaxCode.normalizedCode,
-            periodTrigger: periodOnlyPaye.allowanceThisPeriod,
-            payCycle: String(payCycle),
-        })
-    } else if (!Number.isFinite(grossForTaxTD) || !Number.isFinite(taxPaidTD)) {
-        if (payeTax > 0) {
-            return { flag: null, lowConfidence: true }
-        }
-        calculationMode = 'period-only-approximation'
-        expectedPaye = periodOnlyPaye.expectedPaye
-        explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
-            context: 'explanation_period_only',
-            periodTrigger: periodOnlyPaye.allowanceThisPeriod,
-        })
-    } else {
-        const cumulativeAllowanceExact = getPeriodizedAnnualAmountByMode(
-            annualAllowance,
-            completedPeriods,
-            periodsPerYear,
-            'exact'
-        )
-        const cumulativeAllowanceSageApprox = getPeriodizedAnnualAmountByMode(
-            annualAllowance,
-            completedPeriods,
-            periodsPerYear,
-            'sage_approx'
-        )
-        const cumulativeAllowanceTableMode = getPeriodizedAnnualAmountByMode(
-            annualAllowance,
-            completedPeriods,
-            periodsPerYear,
-            'table_mode'
-        )
-        const taxableYtdExact = Math.max(
-            0,
-            grossForTaxTD - cumulativeAllowanceExact
-        )
-        const taxableYtdSageApprox = Math.max(
-            0,
-            grossForTaxTD - cumulativeAllowanceSageApprox
-        )
-        const taxableYtdTableMode = Math.max(
-            0,
-            Math.floor(grossForTaxTD - cumulativeAllowanceTableMode)
-        )
-        expectedTaxYtdExact = calculateTaxFromBands(
-            taxableYtdExact,
-            bandSelection.bands,
-            completedPeriods,
-            periodsPerYear,
-            'exact'
-        )
-        expectedTaxYtdSageApprox = calculateTaxFromBands(
-            taxableYtdSageApprox,
-            bandSelection.bands,
-            completedPeriods,
-            periodsPerYear,
-            'sage_approx'
-        )
-        expectedTaxYtdTableMode = calculateTaxFromBands(
-            taxableYtdTableMode,
-            bandSelection.bands,
-            completedPeriods,
-            periodsPerYear,
-            'table_mode'
-        )
-        priorTaxPaid = roundMoney(taxPaidTD - payeTax)
-        expectedPayeExact = roundMoney(expectedTaxYtdExact - priorTaxPaid)
-        expectedPayeSageApprox = roundMoney(
-            expectedTaxYtdSageApprox - priorTaxPaid
-        )
-        expectedPayeTableMode = roundMoney(
-            expectedTaxYtdTableMode - priorTaxPaid
-        )
+    const payeCalculationMode = parsedTaxCode.isEmergency
+        ? 'emergency-period-only'
+        : hasUsableYtdGross
+          ? 'period-plus-ytd-threshold'
+          : 'period-only'
 
-        if (payeCumulativeMode === 'sage_approx') {
-            cumulativeAllowance = cumulativeAllowanceSageApprox
-            taxableYtd = taxableYtdSageApprox
-            expectedTaxYtd = expectedTaxYtdSageApprox
-            expectedPaye = expectedPayeSageApprox
-        } else if (payeCumulativeMode === 'table_mode') {
-            cumulativeAllowance = cumulativeAllowanceTableMode
-            taxableYtd = taxableYtdTableMode
-            expectedTaxYtd = expectedTaxYtdTableMode
-            expectedPaye = expectedPayeTableMode
-        } else {
-            cumulativeAllowance = cumulativeAllowanceExact
-            taxableYtd = taxableYtdExact
-            expectedTaxYtd = expectedTaxYtdExact
-            expectedPaye = expectedPayeExact
-        }
-        explanation = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
-            context: 'explanation_cumulative',
-            taxCode: parsedTaxCode.normalizedCode,
-            grossForTaxTD,
-            cumulativeAllowance,
-            region: bandSelection.region,
-        })
+    const sharedInputs = {
+        payeTax: roundMoney(payeTax),
+        grossForTax: Number.isFinite(currentGrossForTax)
+            ? currentGrossForTax
+            : null,
+        grossForTaxTD: Number.isFinite(grossForTaxTD) ? grossForTaxTD : null,
+        periodAllowance: allowanceThisPeriod,
+        cumulativeAllowance,
+        periodIndex,
+        taxCode: parsedTaxCode.normalizedCode,
+        region: bandSelection.region,
+        payeCalculationMode,
     }
 
-    if (!Number.isFinite(expectedPaye)) {
+    // Rule B — PAYE taken but earnings appear within the personal allowance.
+    if (roundMoney(payeTax) > 0 && earningsWithinAllowance) {
+        return {
+            flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_taken_not_due, {
+                label: formatFlagLabel(FLAG_CATALOG.paye_taken_not_due.id, {
+                    payeTax,
+                    grossForTax: Number.isFinite(currentGrossForTax)
+                        ? currentGrossForTax
+                        : null,
+                    grossForTaxTD: Number.isFinite(grossForTaxTD)
+                        ? grossForTaxTD
+                        : null,
+                    periodAllowance: allowanceThisPeriod,
+                    cumulativeAllowance,
+                    context: hasUsableYtdGross
+                        ? 'ytd_within_allowance'
+                        : 'period_within_allowance',
+                }),
+                severity: 'warning',
+                inputs: sharedInputs,
+            }),
+            lowConfidence: !hasUsableYtdGross,
+        }
+    }
+
+    if (roundMoney(payeTax) > 0) {
         return { flag: null, lowConfidence: false }
     }
 
-    const payeTolerance =
-        calculationMode === 'cumulative' && payeCumulativeMode === 'table_mode'
-            ? TABLE_MODE_PAYE_VALIDATION_TOLERANCE
-            : PAYE_VALIDATION_TOLERANCE
-
-    if (
-        roundMoney(payeTax) !== 0 &&
-        isWithinPayeTolerance(payeTax, expectedPaye, payeTolerance)
-    ) {
-        return {
-            flag: null,
-            lowConfidence: calculationMode === 'period-only-approximation',
-        }
+    // Rule A — PAYE is zero: warn only when earnings appear above allowance.
+    // If earnings appear within the allowance, zero PAYE is expected — no flag needed.
+    if (!earningsAboveAllowance) {
+        return { flag: null, lowConfidence: false }
     }
 
-    const difference = roundMoney(payeTax - expectedPaye)
-    const isZeroFlag = roundMoney(payeTax) === 0
-    const isSignificantMismatch = Math.abs(difference) > payeTolerance
-    const severity = isSignificantMismatch ? 'warning' : 'notice'
-    const label = formatFlagLabel(FLAG_CATALOG.paye_mismatch.id, {
-        context: 'zero_or_mismatch',
-        payeTax,
-        expectedPaye,
-        payeDifference: difference,
-        isSignificantMismatch,
-        explanation,
-    })
-
-    const payeCatalogEntry = isZeroFlag
-        ? FLAG_CATALOG.paye_zero
-        : FLAG_CATALOG.paye_mismatch
+    const zeroContext = hasUsableYtdGross
+        ? 'ytd_above_allowance'
+        : 'period_above_allowance'
 
     return {
-        flag: buildCatalogRuleFlag(payeCatalogEntry, {
-            label,
-            severity,
-            inputs: {
-                payeTax,
-                expectedPaye,
-                payeDifference: difference,
-                periodIndex,
+        flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_zero, {
+            label: formatFlagLabel(FLAG_CATALOG.paye_zero.id, {
+                context: zeroContext,
                 grossForTax: Number.isFinite(currentGrossForTax)
                     ? currentGrossForTax
                     : null,
                 grossForTaxTD: Number.isFinite(grossForTaxTD)
                     ? grossForTaxTD
                     : null,
-                taxPaidTD: Number.isFinite(taxPaidTD) ? taxPaidTD : null,
-                taxCode: parsedTaxCode.normalizedCode,
-                region: bandSelection.region,
-                payeCalculationMode: calculationMode,
-                payeCumulativeMode:
-                    calculationMode === 'cumulative'
-                        ? payeCumulativeMode
-                        : null,
+                periodAllowance: allowanceThisPeriod,
                 cumulativeAllowance,
-                taxableYtd,
-                expectedTaxYtd,
-                priorTaxPaid,
-                expectedTaxYtdExact,
-                expectedTaxYtdSageApprox,
-                expectedTaxYtdTableMode,
-                expectedPayeExact,
-                expectedPayeSageApprox,
-                expectedPayeTableMode,
-            },
+            }),
+            severity: 'warning',
+            inputs: sharedInputs,
         }),
-        lowConfidence: calculationMode === 'period-only-approximation',
+        lowConfidence: !hasUsableYtdGross,
     }
 }
 
@@ -483,9 +380,6 @@ export function buildPensionValidationFlags(
     const pensionEE = payrollDoc?.deductions?.pensionEE?.amount || 0
     const pensionER = payrollDoc?.deductions?.pensionER?.amount || 0
     const hasPensionDeductionEvidence = pensionEE > 0 || pensionER > 0
-    if (hasPensionDeductionEvidence) {
-        return { flags: [], lowConfidence: false }
-    }
 
     const payCycle =
         payrollDoc?.thisPeriod?.payCycle?.cycle ||
@@ -540,6 +434,35 @@ export function buildPensionValidationFlags(
                 ? null
                 : thresholdResolution.taxYearStart,
         periodLabel,
+    }
+
+    if (pensionER > 0 && earnings < qualifyingLower) {
+        return {
+            flags: [
+                buildCatalogRuleFlag(
+                    FLAG_CATALOG.pension_employer_contrib_not_required,
+                    {
+                        label: formatFlagLabel(
+                            FLAG_CATALOG.pension_employer_contrib_not_required
+                                .id,
+                            {
+                                earnings,
+                                qualifyingLower,
+                                periodLabel,
+                                pensionER,
+                            }
+                        ),
+                        severity: 'warning',
+                        inputs: sharedInputs,
+                    }
+                ),
+            ],
+            lowConfidence: false,
+        }
+    }
+
+    if (hasPensionDeductionEvidence) {
+        return { flags: [], lowConfidence: false }
     }
 
     const pensionAutoEnrolmentMissingDeductionsCatalog =
@@ -708,6 +631,14 @@ export function buildValidation(entry) {
     const thresholds = thresholdResolution.thresholds
     const niPrimaryThresholdMonthly =
         thresholds?.niPrimaryThresholdMonthly ?? null
+    const niPayCycle =
+        record.payrollDoc?.thisPeriod?.payCycle?.cycle ||
+        (Number.isFinite(entry.monthIndex) ? 'Monthly' : null)
+    const niPeriodsPerYear = getPayPeriodsPerYear(niPayCycle)
+    const niPrimaryThresholdForPeriod =
+        niPrimaryThresholdMonthly !== null && niPeriodsPerYear !== null
+            ? (niPrimaryThresholdMonthly * 12) / niPeriodsPerYear
+            : null
     const grossForNiContext =
         typeof totalGrossPay === 'number' ? totalGrossPay : paymentsTotal
     const canRunThresholdDrivenChecks = hasUsableThresholds(thresholdResolution)
@@ -778,27 +709,50 @@ export function buildValidation(entry) {
 
     if (
         nationalInsurance <= 0 &&
-        niPrimaryThresholdMonthly !== null &&
-        canRunThresholdDrivenChecks
+        niPrimaryThresholdForPeriod !== null &&
+        canRunThresholdDrivenChecks &&
+        typeof grossForNiContext === 'number' &&
+        grossForNiContext > niPrimaryThresholdForPeriod
     ) {
-        const isNiWarning =
-            typeof grossForNiContext === 'number' &&
-            grossForNiContext > niPrimaryThresholdMonthly
-        const niLabel = formatFlagLabel(FLAG_CATALOG.nat_ins_zero.id, {
-            context: isNiWarning
-                ? 'above_threshold_warning'
-                : 'at_or_below_threshold_notice',
-            grossPay: grossForNiContext,
-            niPrimaryThresholdMonthly,
-        })
         flags.push(
             buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_zero, {
-                label: niLabel,
-                severity: isNiWarning ? 'warning' : 'notice',
+                label: formatFlagLabel(FLAG_CATALOG.nat_ins_zero.id, {
+                    context: 'above_threshold_warning',
+                    grossPay: grossForNiContext,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
+                }),
+                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
-                    niPrimaryThresholdMonthly,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
+                },
+            })
+        )
+    }
+
+    if (
+        nationalInsurance > 0 &&
+        niPrimaryThresholdForPeriod !== null &&
+        canRunThresholdDrivenChecks &&
+        typeof grossForNiContext === 'number' &&
+        grossForNiContext <= niPrimaryThresholdForPeriod
+    ) {
+        flags.push(
+            buildCatalogRuleFlag(FLAG_CATALOG.nat_ins_taken_below_threshold, {
+                label: formatFlagLabel(
+                    FLAG_CATALOG.nat_ins_taken_below_threshold.id,
+                    {
+                        nationalInsurance,
+                        grossPay: grossForNiContext,
+                        niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
+                    }
+                ),
+                severity: 'warning',
+                inputs: {
+                    nationalInsurance,
+                    grossPay: grossForNiContext,
+                    niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 },
             })
         )

@@ -115,12 +115,6 @@ describe.skipIf(!fixturesExist)(
                         'holiday_rate_below_rolling_avg'
                     )
                 }
-                const belowThresholdIndices = [0, 3, 6, 9, 12]
-                for (const i of belowThresholdIndices) {
-                    const ids = snapshot.entries[i].flagIds
-                    expect(ids).toContain('paye_zero')
-                    expect(ids).toContain('nat_ins_zero')
-                }
                 expect(snapshot).toEqual(expected)
             }, 90000)
         })
