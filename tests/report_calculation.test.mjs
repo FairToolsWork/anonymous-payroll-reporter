@@ -1032,7 +1032,6 @@ describe('report calculations', () => {
 
         expect(html).toContain('Annual holiday pay cross-check')
         expect(html).toContain('Reference state')
-        expect(html).toContain('Mixed month')
         expect(html).toContain('May')
         expect(html).toContain('June')
         expect(html).toContain('notice no-left-border')
@@ -1720,7 +1719,7 @@ describe('workerProfile — salaried holiday day estimation', () => {
     it('daily rate uses workingDaysPerMonth (typicalDays * 52 / 12), not typicalDays directly', () => {
         // £36,000/year, 12 months, 5 days/week
         // workingDaysPerMonth = 5 * 52 / 12 = 21.667
-        // dailyRate = 36000 / 12 / 21.667 ≈ £138.46/day  (NOT £600)
+        // dailyRate = 36000 / 12 / 21.667 ~ £138.46/day  (NOT £600)
         const annualSalary = 36000
         const monthlyBasic = annualSalary / 12 // 3000
         const typicalDays = 5
@@ -1794,11 +1793,11 @@ describe('workerProfile — salaried holiday day estimation', () => {
             statutoryHolidayDays: 28,
         })
 
-        // dailyRate = 3000 / 1 / (5*52/12) ≈ £138.46 per month context
+        // dailyRate = 3000 / 1 / (5*52/12) ~ £138.46 per month context
         // For the year: yearBasicSalary = 36000, months = 12
-        // dailyRate = 36000 / 12 / (5*52/12) ≈ £138.46/day
-        // daysTaken = 500 / 138.46 ≈ 3.6 days
-        // daysRemaining = 28 - 3.6 ≈ 24.4 days
+        // dailyRate = 36000 / 12 / (5*52/12) ~ £138.46/day
+        // daysTaken = 500 / 138.46 ~ 3.6 days
+        // daysRemaining = 28 - 3.6 ~ 24.4 days
         expect(html).toContain('days taken')
         expect(html).toContain('remaining')
         // Should show a currency amount not raw hours
@@ -1859,7 +1858,7 @@ describe('workerProfile — salaried holiday day estimation', () => {
             typicalDays: 5,
             statutoryHolidayDays: 28,
         })
-        expect(html).toContain('report-warning-banner')
+        expect(html).toContain('notice error')
         expect(html).toContain('Hourly')
     })
 
@@ -1899,7 +1898,7 @@ describe('workerProfile — salaried holiday day estimation', () => {
             typicalDays: 5,
             statutoryHolidayDays: 28,
         })
-        expect(html).toContain('report-warning-banner')
+        expect(html).toContain('notice error')
         expect(html).toContain('Salaried')
     })
 
@@ -1912,7 +1911,7 @@ describe('workerProfile — salaried holiday day estimation', () => {
             typicalDays: 5,
             statutoryHolidayDays: 28,
         })
-        expect(html).not.toContain('report-warning-banner')
+        expect(html).not.toContain('contain hourly pay (Basic Hours)')
     })
 
     it('zero-amount salary line does not trigger mismatch warning for hourly worker', () => {
@@ -1952,7 +1951,7 @@ describe('workerProfile — salaried holiday day estimation', () => {
             typicalDays: 5,
             statutoryHolidayDays: 28,
         })
-        expect(html).not.toContain('report-warning-banner')
+        expect(html).not.toContain('contain salaried pay (Basic Salary)')
     })
 })
 

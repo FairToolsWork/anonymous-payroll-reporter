@@ -998,6 +998,13 @@ export function buildYearViewModel(
         },
         yearHolidaySummary,
         annualCrossCheck,
+        isAccrualHourlyContext:
+            workerProfile?.workerType === 'hourly' &&
+            (yearHolidaySummary.kind === 'hourly_hours' ||
+                yearHolidaySummary.kind === 'hourly_variable'),
+        isFixedScheduleHourlyContext:
+            workerProfile?.workerType === 'hourly' &&
+            (workerProfile?.typicalDays ?? 0) > 0,
         monthBreakdown:
             yearHolidaySummary.kind === 'hourly_hours'
                 ? yearHolidaySummary.monthBreakdown || []

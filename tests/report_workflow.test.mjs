@@ -293,7 +293,7 @@ describe('report workflow', () => {
             expect(prefaceIndex).toBeLessThan(noticeBlockAfterPreface)
         }
         expect(result.report.html).toContain('<th>Tax Year</th>')
-        expect(result.report.html).toContain('<th>Hours</th>')
+        expect(result.report.html).toContain('<th>Hours worked</th>')
         expect(result.report.html).toContain(
             '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th>'
         )

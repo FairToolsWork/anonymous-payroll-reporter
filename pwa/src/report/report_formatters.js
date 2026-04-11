@@ -359,10 +359,26 @@ export function buildTotalHolidayBreakdownLines(summary) {
 
 /**
  * @param {any} holidaySummary
+ * @param {number | null} [accruedHoursHint=null]
  * @returns {{ primaryLabel: string, detailLines: string[], detailMode: 'inline' | 'block' }}
  */
-export function buildYearRowHolidayDisplay(holidaySummary) {
+export function buildYearRowHolidayDisplay(
+    holidaySummary,
+    accruedHoursHint = null
+) {
+    const effectiveAccruedHours =
+        holidaySummary.accruedHours ?? accruedHoursHint ?? null
     if (holidaySummary.kind === 'hours_days') {
+        if (effectiveAccruedHours !== null) {
+            return {
+                primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
+                detailLines: [
+                    `+${effectiveAccruedHours.toFixed(2)} hrs accrued`,
+                    `(~ ${holidaySummary.estimatedDays.toFixed(1)} days)`,
+                ],
+                detailMode: 'block',
+            }
+        }
         return {
             primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
             detailLines: [
@@ -373,14 +389,11 @@ export function buildYearRowHolidayDisplay(holidaySummary) {
     }
     if (
         holidaySummary.kind === 'hours_only' &&
-        holidaySummary.accruedHours !== null &&
-        holidaySummary.accruedHours > 0
+        effectiveAccruedHours !== null
     ) {
         return {
             primaryLabel: `${holidaySummary.holidayHours.toFixed(2)} hrs taken`,
-            detailLines: [
-                `+${holidaySummary.accruedHours.toFixed(1)} hrs accrued`,
-            ],
+            detailLines: [`+${effectiveAccruedHours.toFixed(2)} hrs accrued`],
             detailMode: 'block',
         }
     }
@@ -471,7 +484,7 @@ export function buildAnnualMonthBreakdownDisplay(monthBreakdownEntry) {
     const reference = monthBreakdownEntry?.referenceState
     const referenceLabel = !reference?.hasBaseline
         ? 'No baseline'
-        : `${(reference.avgWeeklyHours ?? 0).toFixed(2)} hrs/wk @ ${formatCurrency(reference.avgRatePerHour ?? 0)} (${reference.confidenceLevel || 'unknown'})`
+        : `52 week avg: ${(reference.avgWeeklyHours ?? 0).toFixed(2)} hrs/wk @ ${formatCurrency(reference.avgRatePerHour ?? 0)} (${reference.confidenceLevel || 'unknown'} confidence)`
     const signalsLabel = (monthBreakdownEntry?.signalsFired || []).length
         ? monthBreakdownEntry.signalsFired
               .map((/** @type {{ label: string }} */ signal) => signal.label)
@@ -510,5 +523,16 @@ export function buildMiscReviewDisplay(item) {
  */
 export function buildMiscReviewLine(item) {
     const display = buildMiscReviewDisplay(item)
-    return `${item.dateLabel}: ${display.typeLabel}: ${item.label} (${display.detailLabel}): ${display.amountLabel}`
+    const label = (item.label || '').replace(
+        /\b([A-Za-z]{2,})(\d{1,2}(?:st|nd|rd|th)\b)/g,
+        '$1 $2'
+    )
+    const hasDuplicateDetail =
+        display.detailLabel !== 'flat' &&
+        label.toLowerCase().includes(`(${display.detailLabel.toLowerCase()})`)
+    const detailSuffix =
+        display.detailLabel === 'flat' || hasDuplicateDetail
+            ? ''
+            : ` (${display.detailLabel})`
+    return `${item.dateLabel}: ${display.typeLabel}: ${label}${detailSuffix}: ${display.amountLabel}`
 }

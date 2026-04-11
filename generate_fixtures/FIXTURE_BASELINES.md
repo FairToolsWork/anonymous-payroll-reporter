@@ -155,19 +155,19 @@ A worker with completely consistent hours and a correct holiday rate throughout.
 
 | Deduction   | Calculation                                  | Amount          |
 | ----------- | -------------------------------------------- | --------------- |
-| PAYE        | (£2,062.50 − £1,048) × 19% = £1,014.50 × 19% | ≈ £192.76       |
+| PAYE        | (£2,062.50 − £1,048) × 19% = £1,014.50 × 19% | ~ £192.76       |
 | NI          | (£2,062.50 − £1,048) × 12% = £1,014.50 × 12% | £121.74         |
-| Pension EE  | (£2,062.50 − £520) × 5% = £1,542.50 × 5%     | ≈ £77.13        |
-| **Net pay** | £2,062.50 − £192.76 − £121.74 − £77.13       | **≈ £1,670.87** |
+| Pension EE  | (£2,062.50 − £520) × 5% = £1,542.50 × 5%     | ~ £77.13        |
+| **Net pay** | £2,062.50 − £192.76 − £121.74 − £77.13       | **~ £1,670.87** |
 
 ### Indicative Deductions (Makeup Month — £2,162.50 Gross)
 
 | Deduction   | Calculation                                  | Amount          |
 | ----------- | -------------------------------------------- | --------------- |
-| PAYE        | (£2,162.50 − £1,048) × 19% = £1,114.50 × 19% | ≈ £211.76       |
+| PAYE        | (£2,162.50 − £1,048) × 19% = £1,114.50 × 19% | ~ £211.76       |
 | NI          | (£2,162.50 − £1,048) × 12% = £1,114.50 × 12% | £133.74         |
-| Pension EE  | (£2,162.50 − £520) × 5% = £1,642.50 × 5%     | ≈ £82.13        |
-| **Net pay** | £2,162.50 − £211.76 − £133.74 − £82.13       | **≈ £1,734.87** |
+| Pension EE  | (£2,162.50 − £520) × 5% = £1,642.50 × 5%     | ~ £82.13        |
+| **Net pay** | £2,162.50 − £211.76 − £133.74 − £82.13       | **~ £1,734.87** |
 
 ### 52-Week Rolling Reference
 
@@ -305,7 +305,7 @@ Average weekly hours: 868h ÷ ~34.6 weeks = **25.09h/week**
 Average rate: £10,850 ÷ 868h = **£12.50/hr**
 
 **Statutory entitlement context** (informational):
-Annual entitlement for an irregular-hours worker: 5.6 × 25.09h/week = **140.5h/year** (based on the reference window available). Actual holiday taken in fixture = 32h across 14 months ≈ 27.4h annualised — well below entitlement, but the fixture does not attempt to model full takeup.
+Annual entitlement for an irregular-hours worker: 5.6 × 25.09h/week = **140.5h/year** (based on the reference window available). Actual holiday taken in fixture = 32h across 14 months ~ 27.4h annualised — well below entitlement, but the fixture does not attempt to model full takeup.
 
 ---
 

@@ -300,12 +300,32 @@ function renderDisplayText(display) {
         .join('\n')
 }
 
-/** @param {any} holidaySummary */
-function renderYearRowHolidayText(holidaySummary) {
-    const display = buildYearRowHolidayDisplay(holidaySummary)
+/**
+ * @param {any} holidaySummary
+ * @param {number | null} [accruedHoursHint=null]
+ */
+function renderYearRowHolidayText(holidaySummary, accruedHoursHint = null) {
+    const display = buildYearRowHolidayDisplay(holidaySummary, accruedHoursHint)
     return [display.primaryLabel, ...display.detailLines]
         .filter(Boolean)
         .join('\n')
+}
+
+/**
+ * @param {number} holidayHours
+ * @param {number} workedHours
+ * @returns {string}
+ */
+function renderHourlyVariableFooterText(holidayHours, workedHours) {
+    const accruedHours = workedHours * 0.1207
+    const remainingHours = Math.max(0, accruedHours - holidayHours)
+    return [
+        `${holidayHours.toFixed(2)} hrs taken`,
+        `+${accruedHours.toFixed(2)} hrs accrued`,
+        `~${accruedHours.toFixed(1)} hrs/yr entitlement (fallback estimate)`,
+        `${remainingHours.toFixed(1)} hrs remaining`,
+        'Fixed-days profile method (no baseline fallback)',
+    ].join('\n')
 }
 
 // ─── Page sections ────────────────────────────────────────────────────────────
@@ -643,12 +663,38 @@ function renderYearPage(
     const diffColorByRow = []
     /** @type {Array<number | null>} */
     const payslipIndexByRow = []
+    const breakdownByMonth = new Map(
+        (yearViewModel.monthBreakdown || []).map((/** @type {any} */ bd) => [
+            bd.monthIndex,
+            bd,
+        ])
+    )
+    // Col index: Month(0) Hours(1) Holiday(2) RefState(3) Payroll(4) Reported(5) Over/Under(6) Flags(7)
+    const overUnderColIndex = 6
+    const isAccrualHourlyContext = yearViewModel.isAccrualHourlyContext === true
+    const isFixedScheduleHourlyContext =
+        yearViewModel.isFixedScheduleHourlyContext === true
     yearViewModel.rows.forEach((/** @type {any} */ row) => {
         const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
+        const bd = breakdownByMonth.get(row.monthIndex)
+        const rowHolidayKind = row.holidaySummary?.kind
+        const isHourlyRow =
+            rowHolidayKind === 'hours_only' || rowHolidayKind === 'hours_days'
+        const accruedHoursHint = isHourlyRow ? row.hours * 0.1207 : null
+        const holidayCellText = renderYearRowHolidayText(
+            row.holidaySummary,
+            accruedHoursHint
+        )
+        const breakdownCells = isFixedScheduleHourlyContext
+            ? ['N/A']
+            : bd
+              ? [buildAnnualMonthBreakdownDisplay(bd).referenceLabel]
+              : [isAccrualHourlyContext ? 'No baseline' : '—']
         bodyRows.push([
             row.monthLabel,
             row.hours.toFixed(2),
-            renderYearRowHolidayText(row.holidaySummary),
+            holidayCellText,
+            ...breakdownCells,
             formatBreakdown(
                 row.payrollContribution.total,
                 row.payrollContribution.ee,
@@ -677,9 +723,17 @@ function renderYearPage(
                 ? [
                       row.label,
                       row.hours.toFixed(2),
-                      renderDisplayText(
-                          buildHolidaySummaryDisplay(row.yearHolidaySummary)
-                      ),
+                      row.yearHolidaySummary?.kind === 'hourly_variable'
+                          ? renderHourlyVariableFooterText(
+                                row.yearHolidaySummary?.holidayHours ?? 0,
+                                row.hours
+                            )
+                          : renderDisplayText(
+                                buildHolidaySummaryDisplay(
+                                    row.yearHolidaySummary
+                                )
+                            ),
+                      '',
                       formatBreakdown(
                           row.payrollContribution.total,
                           row.payrollContribution.ee,
@@ -693,25 +747,26 @@ function renderYearPage(
                       rowDiff.text,
                       '-',
                   ]
-                : [row.label, '', '', '', '', rowDiff.text, '']
+                : [row.label, '', '', '', '', '', rowDiff.text, '']
         )
         footDiffColors.push(rowDiff.color)
     })
 
+    const headColumns = [
+        'Month',
+        'Hours',
+        'Holiday (hrs/days)',
+        'Reference state',
+        'Payroll Cont. (EE+ER)',
+        'Reported (EE+ER)',
+        'Over/Under',
+        'Flags',
+    ]
+
     y = writeTable(
         doc,
         {
-            head: [
-                [
-                    'Month',
-                    'Hours',
-                    'Holiday (hrs/days)',
-                    'Payroll Cont. (EE+ER)',
-                    'Reported (EE+ER)',
-                    'Over/Under',
-                    'Flags',
-                ],
-            ],
+            head: [headColumns],
             body: bodyRows,
             foot: footRows,
         },
@@ -719,7 +774,7 @@ function renderYearPage(
         {
             didParseCell(data) {
                 if (data.section === 'head') return
-                if (data.column.index === 5) {
+                if (data.column.index === overUnderColIndex) {
                     const color =
                         data.section === 'foot'
                             ? (footDiffColors[data.row.index] ?? null)
@@ -768,42 +823,6 @@ function renderYearPage(
             ],
             y,
             { fontSize: FONT_SMALL }
-        )
-
-        const annualRows = yearViewModel.monthBreakdown.map(
-            (/** @type {any} */ row) => {
-                const display = buildAnnualMonthBreakdownDisplay(row)
-                return [
-                    row.monthLabel,
-                    row.basicHours.toFixed(2),
-                    row.holidayHours.toFixed(2),
-                    row.estimatedDays === null
-                        ? 'N/A'
-                        : row.estimatedDays.toFixed(1),
-                    display.referenceLabel,
-                    display.mixedMonthLabel,
-                    display.signalsLabel,
-                ]
-            }
-        )
-
-        y = writeTable(
-            doc,
-            {
-                head: [
-                    [
-                        'Month',
-                        'Basic hrs',
-                        'Holiday hrs',
-                        'Est. days',
-                        'Reference state',
-                        'Mixed month',
-                        'Signals',
-                    ],
-                ],
-                body: annualRows,
-            },
-            y
         )
     }
 
