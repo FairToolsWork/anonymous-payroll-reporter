@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.9.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.3...anonymous-payroll-reporter-v3.9.0) (2026-04-12)
+
+
+### Features
+
+* **report-validation:** add BR tax-code notice and unrecognised deduction validation flags ([b097b20](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/b097b20ce1d9bed406ae305a1a1763f33c816209))
+* **report/ui:** add reference state column to year table and consolidate holiday display formatting ([a76b57b](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/a76b57b0e70259d70717dd068da598183ef0d309))
+* **salary-reporting:** add salaried fixture pipeline and salary-aware holiday presentation in HTML and PDF reports ([f161319](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/f161319fc62926a619795e5194e9fded2cbf2b06))
+
+
+### Bug Fixes
+
+* **pay-calculations:** remove redundant severity warnings from PAYE and pension validation flags ([a67bcba](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/a67bcbae59ad45debc368e88841eed33ea65918f))
+* **pdf-export:** ensure accrued hours hint is calculated only in valid hourly contexts ([d5f8c39](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/d5f8c3990a5091045e934da2d9da84feec7002cb))
+* **report-pdf:** prevent text overflow with page-space guards and tighten section spacing in PDF export ([7f8e301](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/7f8e301a8106d5ee56d13f7953d6e52595b1447d))
+* **report-validation:** replace PAYE mismatch logic with allowance-based anomaly checks ([9c976e6](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/9c976e60f934a9181e89b0037d06873ef7762610))
+* **report/buildValidation:** suppress NI threshold checks when pay cycle is unrecognised ([699f522](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/699f5228fdf89831d67216e6931a5c83f1e3fbfc))
+* **report/validation:** correct PAYE low-confidence, NI period threshold, and pension label gaps ([20d0dd9](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/20d0dd9d6871faa8f88a8e307bc630055bb3de1e))
+* **report:** flag ineligible NI, PAYE, and pension deductions with fixture-backed coverage ([97e2951](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/97e29513bd5a21a608a51ce6ca3e82bf529d8e48))
+* **salary-reporting:** harden salary context detection and fixture rendering fallbacks across report exports ([2b7df13](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/2b7df13d691bf50642d84e1bc7c4dbfb0f3f4237))
+* use div instead of p for report-missing wrapper to avoid invalid HTML ([025b58b](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/025b58b9dfd0333c07699af1c78c32aa7660dfad))
+* use HOURLY_ACCRUAL_FACTOR/FALLBACK_LABEL constants in pdf_export renderHourlyVariableFooterText ([8dcfed5](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8dcfed5f6dcf3d1cdd3c40f3d8b24f2539c86a71))
+
 ## [3.8.3](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.2...anonymous-payroll-reporter-v3.8.3) (2026-04-06)
 
 
