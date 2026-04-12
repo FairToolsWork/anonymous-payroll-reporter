@@ -111,6 +111,43 @@ export function buildThresholdStalenessNoticeMessage({
 }
 
 /**
+ * Consolidate global summary notices into a single array for efficient list rendering.
+ * @param {{ contractTypeMismatchWarning?: string | null, thresholdStalenessNotice?: { message: string } | null, globalCoverageNotice?: { message: string } | null }} summaryViewModel
+ * @returns {string[]}
+ */
+export function buildSummaryNoticesList(summaryViewModel) {
+    const notices = /** @type {string[]} */ ([])
+    if (summaryViewModel.contractTypeMismatchWarning) {
+        notices.push(summaryViewModel.contractTypeMismatchWarning)
+    }
+    if (summaryViewModel.thresholdStalenessNotice?.message) {
+        notices.push(summaryViewModel.thresholdStalenessNotice.message)
+    }
+    if (summaryViewModel.globalCoverageNotice?.message) {
+        notices.push(summaryViewModel.globalCoverageNotice.message)
+    }
+    return notices
+}
+
+/**
+ * Consolidate year summary notices into a single array for efficient list rendering.
+ * @param {{ coverageWarning?: { message: string } | null, missingMonths?: string[] }} yearViewModel
+ * @returns {string[]}
+ */
+export function buildYearNoticesList(yearViewModel) {
+    const notices = /** @type {string[]} */ ([])
+    if (yearViewModel.coverageWarning?.message) {
+        notices.push(yearViewModel.coverageWarning.message)
+    }
+    if (yearViewModel.missingMonths && yearViewModel.missingMonths.length > 0) {
+        notices.push(
+            `Missing months: ${yearViewModel.missingMonths.join(', ')}`
+        )
+    }
+    return notices
+}
+
+/**
  * @param {number} value
  * @returns {string}
  */

@@ -400,6 +400,23 @@ function collectMiscReviewItems(entries) {
     return result
 }
 
+/**
+ * @param {Array<{ type: string, dateLabel: string, yearKey?: string, item: PayrollPayItem | PayrollMiscDeduction }> | null | undefined} miscFootnotes
+ */
+function buildMiscReviewItemsFromFootnotes(miscFootnotes) {
+    if (!Array.isArray(miscFootnotes) || !miscFootnotes.length) {
+        return []
+    }
+    return miscFootnotes.map((footnote) => ({
+        type: footnote.type,
+        dateLabel: footnote.dateLabel,
+        label: formatMiscLabel(footnote.item),
+        amount: footnote.item?.amount || 0,
+        units: footnote.item?.units ?? null,
+        rate: footnote.item?.rate ?? null,
+    }))
+}
+
 /** @param {ReportEntry[]} entriesForYear */
 function buildYearFlagModel(entriesForYear) {
     const noteIndexByLabel = new Map()
@@ -559,6 +576,9 @@ export function buildSummaryViewModel(context, meta) {
     )
     const groupedFlaggedPeriods = groupPeriodsByYear(flaggedPeriods)
     const groupedLowConfidencePeriods = groupPeriodsByYear(lowConfidencePeriods)
+    const miscReviewItems = buildMiscReviewItemsFromFootnotes(
+        context.miscFootnotes
+    )
     const auditMetadata = context.auditMetadata || null
     const pdfCount = entries.length
     const metaRows = [
@@ -752,7 +772,9 @@ export function buildSummaryViewModel(context, meta) {
             contributionRecency: context.contributionRecency || null,
             hasContributionSummary: Boolean(context.contributionSummary?.years),
         },
-        miscReviewItems: collectMiscReviewItems(entries),
+        miscReviewItems: miscReviewItems.length
+            ? miscReviewItems
+            : collectMiscReviewItems(entries),
         notes,
     }
 }
@@ -1083,7 +1105,17 @@ export function buildYearViewModel(
             context.missingMonths?.missingMonthsByYear?.[yearKey] || [],
         rows,
         footerRows,
-        miscReviewItems: collectMiscReviewItems(yearEntries),
+        miscReviewItems: (() => {
+            const fromCtx = buildMiscReviewItemsFromFootnotes(
+                (context.miscFootnotes || []).filter(
+                    (/** @type {{ yearKey?: string | null }} */ fn) =>
+                        fn.yearKey === yearKey
+                )
+            )
+            return fromCtx.length
+                ? fromCtx
+                : collectMiscReviewItems(yearEntries)
+        })(),
         flagNotes: noteLabels,
         notes,
     }

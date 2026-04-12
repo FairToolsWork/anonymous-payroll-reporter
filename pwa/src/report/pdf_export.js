@@ -8,7 +8,9 @@ import {
     buildDiffDisplay,
     buildHolidaySummaryDisplay,
     buildMiscReviewLine,
+    buildSummaryNoticesList,
     buildWorkerProfileSummaryFields,
+    buildYearNoticesList,
     buildYearRowHolidayDisplay,
     FLAG_NOTES_TITLE,
     formatContribution,
@@ -532,20 +534,51 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         y += warnBoxH + SECTION_GAP
     }
 
-    if (summaryViewModel.contractTypeMismatchWarning) {
-        renderSummaryWarningBox(summaryViewModel.contractTypeMismatchWarning)
-    }
+    const summaryNotices = buildSummaryNoticesList(summaryViewModel)
+    const hasErrors =
+        Boolean(summaryViewModel.contractTypeMismatchWarning) ||
+        Boolean(summaryViewModel.thresholdStalenessNotice)
 
-    if (summaryViewModel.thresholdStalenessNotice?.message) {
-        renderSummaryWarningBox(
-            summaryViewModel.thresholdStalenessNotice.message
-        )
-    }
-
-    if (summaryViewModel.globalCoverageNotice) {
-        y = writeText(doc, summaryViewModel.globalCoverageNotice.message, y, {
-            fontSize: FONT_SMALL,
-        })
+    if (summaryNotices.length > 0) {
+        if (summaryNotices.length === 1 && hasErrors) {
+            renderSummaryWarningBox(summaryNotices[0])
+        } else if (summaryNotices.length === 1) {
+            y = writeText(doc, summaryNotices[0], y, {
+                fontSize: FONT_SMALL,
+            })
+        } else {
+            y += SECTION_GAP
+            const bulletPoints = summaryNotices
+                .map((notice) => '• ' + sanitizeText(notice))
+                .join('\n')
+            const noticeBoxX = PAGE_MARGIN
+            const noticeBoxW = maxWidth(doc)
+            const NOTICE_PAD_H = 10
+            const NOTICE_PAD_V = 6
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(FONT_SMALL)
+            const noticeLines = doc.splitTextToSize(
+                bulletPoints,
+                noticeBoxW - NOTICE_PAD_H * 2
+            )
+            const noticeLineH = FONT_SMALL * 1.3
+            const noticeTextH = noticeLines.length * noticeLineH
+            const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
+            y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
+            doc.setFillColor(245, 245, 245)
+            doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
+            doc.setFillColor(100, 100, 100)
+            doc.setLineWidth(0.5)
+            doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
+            doc.setTextColor(50, 50, 50)
+            doc.text(
+                noticeLines,
+                noticeBoxX + NOTICE_PAD_H,
+                y + NOTICE_PAD_V + FONT_SMALL
+            )
+            doc.setTextColor(0, 0, 0)
+            y += noticeBoxH + SECTION_GAP
+        }
     }
 
     y = writeHeading(doc, YEAR_SUMMARY_TITLE, y, {
@@ -765,6 +798,41 @@ function renderYearPage(
         y = writeText(doc, yearViewModel.coverageWarning.message, y, {
             fontSize: FONT_SMALL,
         })
+    }
+
+    const yearNotices = buildYearNoticesList(yearViewModel)
+    if (yearNotices.length > 1) {
+        y += SECTION_GAP
+        const bulletPoints = yearNotices
+            .map((notice) => '• ' + sanitizeText(notice))
+            .join('\n')
+        const noticeBoxX = PAGE_MARGIN
+        const noticeBoxW = maxWidth(doc)
+        const NOTICE_PAD_H = 10
+        const NOTICE_PAD_V = 6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(FONT_SMALL)
+        const noticeLines = doc.splitTextToSize(
+            bulletPoints,
+            noticeBoxW - NOTICE_PAD_H * 2
+        )
+        const noticeLineH = FONT_SMALL * 1.3
+        const noticeTextH = noticeLines.length * noticeLineH
+        const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
+        y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
+        doc.setFillColor(245, 245, 245)
+        doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
+        doc.setFillColor(100, 100, 100)
+        doc.setLineWidth(0.5)
+        doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
+        doc.setTextColor(50, 50, 50)
+        doc.text(
+            noticeLines,
+            noticeBoxX + NOTICE_PAD_H,
+            y + NOTICE_PAD_V + FONT_SMALL
+        )
+        doc.setTextColor(0, 0, 0)
+        y += noticeBoxH + SECTION_GAP
     }
 
     /** @type {Array<Array<string>>} */
