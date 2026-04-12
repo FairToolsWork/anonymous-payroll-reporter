@@ -360,6 +360,111 @@ export function getRollingReferenceCoverage(
 }
 
 /**
+ * @param {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, mixedMonthsIncluded: number }} coverage
+ * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null}
+ */
+function buildRollingReferenceFromCoverage(coverage) {
+    if (coverage.periodsCounted < 3) {
+        return null
+    }
+    return {
+        totalBasicPay: coverage.totalBasicPay,
+        totalBasicHours: coverage.totalBasicHours,
+        totalWeeks: coverage.totalWeeks,
+        periodsCounted: coverage.periodsCounted,
+        limitedData: coverage.totalWeeks < 52,
+        mixedMonthsIncluded: coverage.mixedMonthsIncluded,
+        confidence: buildReferenceConfidence({
+            limitedData: coverage.totalWeeks < 52,
+            totalWeeks: coverage.totalWeeks,
+            mixedMonthsIncluded: coverage.mixedMonthsIncluded,
+        }),
+    }
+}
+
+/**
+ * @param {HolidayEntry[]} sortedEntries
+ * @param {HolidayEntry} targetEntry
+ * @param {{ pureOnly?: boolean }} [options]
+ * @returns {{ coverage: { totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, mixedMonthsIncluded: number, scannedEntries: number }, reference: { totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null }}
+ */
+function buildRollingReferenceWithCoverage(
+    sortedEntries,
+    targetEntry,
+    options = {}
+) {
+    const timingEnabled = Boolean(timing?.enabled)
+    const startedAt = timingEnabled ? globalThis.performance.now() : 0
+    const pureOnly = Boolean(options.pureOnly)
+    const targetDate = targetEntry.parsedDate
+    if (!targetDate) {
+        if (timingEnabled) {
+            timing.increment('rollingReference.calls')
+            timing.increment('rollingReference.nullTargetDate')
+            timing.record(
+                'rollingReference.total',
+                globalThis.performance.now() - startedAt
+            )
+        }
+        return {
+            coverage: {
+                totalBasicPay: 0,
+                totalBasicHours: 0,
+                totalWeeks: 0,
+                periodsCounted: 0,
+                mixedMonthsIncluded: 0,
+                scannedEntries: 0,
+            },
+            reference: null,
+        }
+    }
+
+    const coverage = getRollingReferenceCoverage(sortedEntries, targetEntry, {
+        pureOnly,
+    })
+
+    if (timingEnabled) {
+        timing.increment('rollingReference.calls')
+        timing.increment(
+            'rollingReference.scannedEntries',
+            coverage.scannedEntries
+        )
+        timing.increment(
+            'rollingReference.periodsCounted',
+            coverage.periodsCounted
+        )
+        timing.recordMax(
+            'rollingReference.maxScannedEntries',
+            coverage.scannedEntries
+        )
+        timing.recordMax(
+            'rollingReference.maxPeriodsCounted',
+            coverage.periodsCounted
+        )
+        timing.increment(
+            'rollingReference.include.mixedMonth',
+            coverage.mixedMonthsIncluded
+        )
+    }
+
+    const reference = buildRollingReferenceFromCoverage(coverage)
+
+    if (timingEnabled) {
+        if (!reference) {
+            timing.increment('rollingReference.nullResult')
+        } else if (reference.limitedData) {
+            timing.increment('rollingReference.limitedData')
+        }
+        timing.record(
+            'rollingReference.total',
+            globalThis.performance.now() - startedAt
+        )
+    }
+
+    return { coverage, reference }
+}
+
+/**
  * @param {HolidayEntry[]} sortedEntries
  * @param {HolidayEntry} targetEntry
  * @returns {{ totalBasicPay: number, totalBasicHours: number, totalWeeks: number, periodsCounted: number, limitedData: boolean, mixedMonthsIncluded: number, confidence: ReferenceConfidence } | null}
@@ -437,77 +542,11 @@ export function buildRollingReference(
     targetEntry,
     options = {}
 ) {
-    const timingEnabled = Boolean(timing?.enabled)
-    const startedAt = timingEnabled ? globalThis.performance.now() : 0
-    const pureOnly = Boolean(options.pureOnly)
-    const targetDate = targetEntry.parsedDate
-    if (!targetDate) {
-        if (timingEnabled) {
-            timing.increment('rollingReference.calls')
-            timing.increment('rollingReference.nullTargetDate')
-            timing.record(
-                'rollingReference.total',
-                globalThis.performance.now() - startedAt
-            )
-        }
-        return null
-    }
-    const {
-        totalBasicPay,
-        totalBasicHours,
-        totalWeeks,
-        periodsCounted,
-        mixedMonthsIncluded,
-        scannedEntries,
-    } = getRollingReferenceCoverage(sortedEntries, targetEntry, {
-        pureOnly,
-    })
-
-    if (timingEnabled) {
-        timing.increment('rollingReference.calls')
-        timing.increment('rollingReference.scannedEntries', scannedEntries)
-        timing.increment('rollingReference.periodsCounted', periodsCounted)
-        timing.recordMax('rollingReference.maxScannedEntries', scannedEntries)
-        timing.recordMax('rollingReference.maxPeriodsCounted', periodsCounted)
-        timing.increment(
-            'rollingReference.include.mixedMonth',
-            mixedMonthsIncluded
-        )
-    }
-
-    if (periodsCounted < 3) {
-        if (timingEnabled) {
-            timing.increment('rollingReference.nullResult')
-            timing.record(
-                'rollingReference.total',
-                globalThis.performance.now() - startedAt
-            )
-        }
-        return null
-    }
-    const result = {
-        totalBasicPay,
-        totalBasicHours,
-        totalWeeks,
-        periodsCounted,
-        limitedData: totalWeeks < 52,
-        mixedMonthsIncluded,
-        confidence: buildReferenceConfidence({
-            limitedData: totalWeeks < 52,
-            totalWeeks,
-            mixedMonthsIncluded,
-        }),
-    }
-    if (timingEnabled) {
-        if (result.limitedData) {
-            timing.increment('rollingReference.limitedData')
-        }
-        timing.record(
-            'rollingReference.total',
-            globalThis.performance.now() - startedAt
-        )
-    }
-    return result
+    return buildRollingReferenceWithCoverage(
+        sortedEntries,
+        targetEntry,
+        options
+    ).reference
 }
 
 /**
@@ -573,23 +612,23 @@ export function buildHolidayPayFlags(entries) {
                   ? basicAmount / basicUnits
                   : null
 
-        const ref = buildRollingReference(sortedEntries, entry)
+        const { coverage, reference: ref } = buildRollingReferenceWithCoverage(
+            sortedEntries,
+            entry
+        )
         applyMixedMonthLowConfidence(entry, ref)
 
-        if (!ref && hasHolidayPayment(entry)) {
-            const coverage = getRollingReferenceCoverage(sortedEntries, entry)
-            if (coverage.periodsCounted < 3) {
-                entry.validation.lowConfidence = true
-                pushFlagIfMissing(entry, {
-                    id: 'holiday_reference_insufficient_history',
-                    severity: 'notice',
-                    label: formatFlagLabel(
-                        'holiday_reference_insufficient_history'
-                    ),
-                    ruleId: 'holiday_reference_insufficient_history',
-                    inputs: {},
-                })
-            }
+        if (!ref && coverage.periodsCounted < 3) {
+            entry.validation.lowConfidence = true
+            pushFlagIfMissing(entry, {
+                id: 'holiday_reference_insufficient_history',
+                severity: 'notice',
+                label: formatFlagLabel(
+                    'holiday_reference_insufficient_history'
+                ),
+                ruleId: 'holiday_reference_insufficient_history',
+                inputs: {},
+            })
         }
 
         const entryIsMixedMonthCandidate = isMixedMonthCandidate(entry)
