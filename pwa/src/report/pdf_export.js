@@ -56,7 +56,8 @@ const FONT_SMALL = 9
 // ─── Holiday accrual constants ────────────────────────────────────────────────
 
 const HOURLY_ACCRUAL_FACTOR = 0.1207
-const HOURLY_ACCRUAL_FALLBACK_LABEL = 'worked-hours fallback estimate (no baseline)'
+const HOURLY_ACCRUAL_FALLBACK_LABEL =
+    'worked-hours fallback estimate (no baseline)'
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
@@ -501,11 +502,12 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
     y += LINE_GAP * 2
 
-    if (summaryViewModel.contractTypeMismatchWarning) {
+    /**
+     * @param {string} warningBody
+     */
+    const renderSummaryWarningBox = (warningBody) => {
         y += SECTION_GAP
-        const warningText =
-            'WARNING: ' +
-            sanitizeText(summaryViewModel.contractTypeMismatchWarning)
+        const warningText = 'WARNING: ' + sanitizeText(warningBody)
         const WARN_ACCENT_W = 4
         const WARN_PAD_H = 10
         const WARN_PAD_V = 6
@@ -528,6 +530,16 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         doc.text(warnLines, warnTextX, y + WARN_PAD_V + FONT_SMALL)
         doc.setTextColor(0, 0, 0)
         y += warnBoxH + SECTION_GAP
+    }
+
+    if (summaryViewModel.contractTypeMismatchWarning) {
+        renderSummaryWarningBox(summaryViewModel.contractTypeMismatchWarning)
+    }
+
+    if (summaryViewModel.thresholdStalenessNotice?.message) {
+        renderSummaryWarningBox(
+            summaryViewModel.thresholdStalenessNotice.message
+        )
     }
 
     if (summaryViewModel.globalCoverageNotice) {

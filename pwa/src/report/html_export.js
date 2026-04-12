@@ -331,7 +331,7 @@ export function renderHtmlReport(context, meta) {
 
     reportSections.push('<div class="page">')
     reportSections.push(
-        `<div class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice report-meta' : 'report-meta'}">` +
+        `<div class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning || summaryViewModel.thresholdStalenessNotice ? 'has-notice report-meta' : 'report-meta'}">` +
             `<h2>Payroll Report — ${summaryViewModel.heading.employeeName}</h2>` +
             `<p class="report-range">${summaryViewModel.heading.dateRangeLabel}</p>` +
             `<p class="report-meta-generated"><b>Generated:</b> ${summaryViewModel.heading.generatedLabel || 'Unknown'}</p>` +
@@ -347,13 +347,18 @@ export function renderHtmlReport(context, meta) {
             `<div class="notice error"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
         )
     }
+    if (summaryViewModel.thresholdStalenessNotice) {
+        reportSections.push(
+            `<div class="notice error"><span class="warning-icon">⚠︎</span> ${summaryViewModel.thresholdStalenessNotice.message}</div>`
+        )
+    }
     if (summaryViewModel.globalCoverageNotice) {
         reportSections.push(
             `<div class="notice"><p >${summaryViewModel.globalCoverageNotice.message}</p></div>`
         )
     }
     reportSections.push(
-        `<h2 class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice' : ''}">${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
+        `<h2 class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning || summaryViewModel.thresholdStalenessNotice ? 'has-notice' : ''}">${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
     )
 
     if (summaryYearRowsHtml) {

@@ -19,7 +19,10 @@ import {
 } from './holiday_calculations.js'
 import {
     CONTRIBUTION_RECENCY_DAYS_THRESHOLD,
+    formatTaxYearLabelFromStartYear,
+    getTaxYearStartYearFromDate,
     getTaxYearThresholdsForContext,
+    resolveTaxYearThresholdsForContext,
     RULES_VERSION,
     THRESHOLDS_VERSION,
 } from './uk_thresholds.js'
@@ -61,7 +64,8 @@ const timing = /** @type {any} */ (globalThis).__payrollTiming || null
  * @typedef {{ workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number, payrollRunStartDate: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }} WorkerProfileContext
  * @typedef {{ flaggedCount: number, lowConfidenceCount: number, flaggedPeriods: string[] }} ValidationSummary
  * @typedef {{ dateRangeLabel: string, missingMonthsLabel: string, missingMonthsHtml: string, missingMonthsByYear: Record<string, string[]>, contributionMeta: ContributionMeta, validationSummary: ValidationSummary }} ReportStats
- * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, auditMetadata: { rulesVersion: string, thresholdsVersion: string }, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number, payrollRunStartDate: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
+ * @typedef {{ reportRunDateIso: string, runTaxYearLabel: string | null, fallbackTaxYearLabels: string[], affectedPeriods: string[], hasRunTaxYearFallback: boolean }} ThresholdStalenessContext
+ * @typedef {{ entries: ReportEntry[], yearGroups: Map<string, YearEntries>, yearKeys: string[], contributionSummary: ContributionSummary | null, contributionMeta: ContributionMeta, reportGeneratedLabel: string, auditMetadata: { rulesVersion: string, thresholdsVersion: string }, thresholdStaleness: ThresholdStalenessContext, missingMonths: { missingMonthsByYear: Record<string, string[]>, hasMissingMonths: boolean, missingMonthsLabel: string, missingMonthsHtml: string }, validationSummary: { flaggedEntries: ReportEntry[], lowConfidenceEntries: ReportEntry[], flaggedPeriods: string[], validationPill: string }, contributionTotals: { payrollEE: number, payrollER: number, payrollContribution: number, pensionEE: number | null, pensionER: number | null, reportedContribution: number | null, contributionDifference: number | null }, contributionRecency: { lastContributionLabel: string, daysSinceContribution: number | null, daysThreshold: number }, workerProfile: { workerType: string | null, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonth: number, payrollRunStartDate: string | null, pensionDefermentCommunicated?: boolean, pensionDefermentStartDate?: string | null, pensionDefermentEndDate?: string | null }, contractTypeMismatchWarning: string | null, leaveYearGroups: Map<string, YearEntries> }} ReportContext
  */
 
 /**
@@ -422,6 +426,54 @@ export function buildReport(
                         totalGrossPay < thresholds.personalAllowanceMonthly
                     )
                 })
+
+                const runTaxYearStart =
+                    getTaxYearStartYearFromDate(reportRunDate)
+                const fallbackTaxYearStarts = new Set()
+                const fallbackPeriodsInRunTaxYear = /** @type {string[]} */ ([])
+
+                entries.forEach((entry) => {
+                    const resolution = resolveTaxYearThresholdsForContext(
+                        entry.parsedDate,
+                        entry.yearKey
+                    )
+                    if (resolution.status !== 'fallback-to-previous-tax-year') {
+                        return
+                    }
+                    if (
+                        runTaxYearStart === null ||
+                        resolution.taxYearStart !== runTaxYearStart
+                    ) {
+                        return
+                    }
+                    if (resolution.fallbackTaxYearStart !== null) {
+                        fallbackTaxYearStarts.add(
+                            resolution.fallbackTaxYearStart
+                        )
+                    }
+                    const periodLabel = entry.parsedDate
+                        ? formatDateLabel(entry.parsedDate)
+                        : entry.record.payrollDoc?.processDate?.date ||
+                          'Unknown'
+                    fallbackPeriodsInRunTaxYear.push(periodLabel)
+                })
+
+                const thresholdStaleness = {
+                    reportRunDateIso: reportRunDate.toISOString(),
+                    runTaxYearLabel:
+                        runTaxYearStart === null
+                            ? null
+                            : formatTaxYearLabelFromStartYear(runTaxYearStart),
+                    fallbackTaxYearLabels: Array.from(fallbackTaxYearStarts)
+                        .sort((a, b) => a - b)
+                        .map((yearStart) =>
+                            formatTaxYearLabelFromStartYear(yearStart)
+                        ),
+                    affectedPeriods: fallbackPeriodsInRunTaxYear,
+                    hasRunTaxYearFallback:
+                        fallbackPeriodsInRunTaxYear.length > 0,
+                }
+
                 const contributionTotalsResult = buildContributionTotals(
                     entries,
                     contributionSummary
@@ -441,6 +493,7 @@ export function buildReport(
                     missingMonths,
                     validationSummary,
                     hasLowPretaxPay,
+                    thresholdStaleness,
                     contributionTotalsResult,
                     daysThreshold,
                     contributionRecency,
@@ -456,6 +509,7 @@ export function buildReport(
             missingMonths,
             validationSummary,
             hasLowPretaxPay,
+            thresholdStaleness,
             contributionTotalsResult,
             daysThreshold,
             contributionRecency,
@@ -504,6 +558,7 @@ export function buildReport(
                     rulesVersion: RULES_VERSION,
                     thresholdsVersion: THRESHOLDS_VERSION,
                 },
+                thresholdStaleness,
                 contributionMeta,
                 missingMonths: missingMonthsResult,
                 validationSummary: validationSummaryResult,

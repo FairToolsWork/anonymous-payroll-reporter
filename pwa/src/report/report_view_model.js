@@ -17,6 +17,7 @@ import {
     buildAnnualCrossCheckDisplay,
     buildCoverageWarningMessage,
     buildGlobalCoverageNoticeMessage,
+    buildThresholdStalenessNoticeMessage,
     buildZeroTaxAllowanceNote,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
@@ -647,6 +648,37 @@ export function buildSummaryViewModel(context, meta) {
               affectedYears: yearsWithCoverageWarnings,
           }
         : null
+
+    const thresholdStalenessContext = context.thresholdStaleness || null
+    const runDate = thresholdStalenessContext?.reportRunDateIso
+        ? new Date(thresholdStalenessContext.reportRunDateIso)
+        : null
+    const isValidRunDate =
+        runDate instanceof Date && !Number.isNaN(runDate.getTime())
+    const runMonth = isValidRunDate ? runDate.getMonth() : -1
+    const runDay = isValidRunDate ? runDate.getDate() : -1
+    const isAfterAprilSix =
+        isValidRunDate && (runMonth > 3 || (runMonth === 3 && runDay > 6))
+    const hasNewTaxYearFallback =
+        Boolean(thresholdStalenessContext?.hasRunTaxYearFallback) &&
+        (thresholdStalenessContext?.affectedPeriods?.length || 0) > 0
+    const thresholdStalenessNotice =
+        isAfterAprilSix && hasNewTaxYearFallback
+            ? {
+                  message: buildThresholdStalenessNoticeMessage({
+                      runTaxYearLabel:
+                          thresholdStalenessContext?.runTaxYearLabel || null,
+                      fallbackTaxYearLabels:
+                          thresholdStalenessContext?.fallbackTaxYearLabels ||
+                          [],
+                      affectedPeriods:
+                          thresholdStalenessContext?.affectedPeriods || [],
+                  }),
+                  affectedPeriods:
+                      thresholdStalenessContext?.affectedPeriods || [],
+              }
+            : null
+
     const notes = /** @type {Array<{ id: string, text: string }>} */ ([
         {
             id: 'accumulated-totals',
@@ -701,6 +733,7 @@ export function buildSummaryViewModel(context, meta) {
         contractTypeMismatchWarning:
             context.contractTypeMismatchWarning || null,
         globalCoverageNotice,
+        thresholdStalenessNotice,
         yearSummaryRows,
         accumulatedTotals: {
             dateRangeLabel: meta.dateRangeLabel || 'Unknown',

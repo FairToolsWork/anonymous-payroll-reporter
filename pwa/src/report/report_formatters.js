@@ -92,6 +92,25 @@ export function buildGlobalCoverageNoticeMessage(affectedYears) {
 }
 
 /**
+ * @param {{ runTaxYearLabel: string | null, fallbackTaxYearLabels: string[], affectedPeriods: string[] }} params
+ * @returns {string}
+ */
+export function buildThresholdStalenessNoticeMessage({
+    runTaxYearLabel,
+    fallbackTaxYearLabels,
+    affectedPeriods,
+}) {
+    const runLabel = runTaxYearLabel || 'the current tax year'
+    const fallbackLabel = fallbackTaxYearLabels.length
+        ? fallbackTaxYearLabels.join(', ')
+        : 'the most recent available tax year'
+    const periodSuffix = affectedPeriods.length
+        ? ` Affected periods in this run: ${affectedPeriods.join(', ')}.`
+        : ''
+    return `Threshold data for ${runLabel} has not been updated. The report used thresholds from ${fallbackLabel}, so tax-related checks and warnings may be out of date for new-year payslips.${periodSuffix}`
+}
+
+/**
  * @param {number} value
  * @returns {string}
  */

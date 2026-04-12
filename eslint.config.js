@@ -73,6 +73,23 @@ export default [
         },
     },
     {
+        files: ['scripts/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                console: 'readonly',
+                process: 'readonly',
+            },
+        },
+    },
+    {
+        files: ['tests/threshold_staleness_check.test.mjs'],
+        languageOptions: {
+            globals: {
+                process: 'readonly',
+            },
+        },
+    },
+    {
         files: ['pwa/src/report/build.js', 'pwa/src/parse/payroll.js'],
         rules: {
             '@typescript-eslint/no-unused-vars': 'off',

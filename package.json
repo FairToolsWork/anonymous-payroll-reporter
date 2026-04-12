@@ -2,10 +2,14 @@
     "name": "anonymous-payroll-reporter",
     "version": "3.9.0",
     "type": "module",
-    "private": true,
+    "private": false,
     "author": "bnjmnrsh",
     "license": "MIT",
     "description": "Payroll PDF Processor PWA and test/fixture tooling",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/FairToolsWork/anonymous-payroll-reporter"
+    },
     "scripts": {
         "fixtures:pdf": "./generate_fixtures/.venv/bin/python generate_fixtures/generate_pdf_fixtures.py",
         "fixtures:expected-pdf": "vitest run tests/utils/regenerate_expected_payslips.test.mjs",
@@ -24,6 +28,7 @@
         "test:report_calc": "vitest run tests/report_calculation.test.mjs",
         "test:all": "vitest run",
         "test:coverage": "vitest run --coverage",
+        "check:thresholds": "node scripts/check-threshold-staleness.mjs",
         "check:js": "tsc -p tsconfig.json",
         "jslint": "eslint .",
         "jslint:fix": "eslint . --fix",
@@ -33,7 +38,7 @@
         "precommit": "pnpm format && pnpm jslint && pnpm csslint && pnpm check:js && pnpm fixtures:check && pnpm fixtures:expected-pdf && pnpm fixtures:expected-excel && pnpm pwa:build && pnpm test:all",
         "prepare": "husky install",
         "pwa:dev": "vite",
-        "pwa:build": "vite build",
+        "pwa:build": "pnpm check:thresholds && vite build",
         "pwa:generate": "node node_modules/.pnpm/pwa-asset-generator@8.1.2/node_modules/pwa-asset-generator/dist/cli.js pwa/public/icons/icon.svg pwa/public/icons --scrape false --type png --padding \"12%\" --background \"#f4ebd4\" --manifest pwa/public/site.webmanifest --index pwa/index.html --path-override \"/icons\"",
         "cf:deploy": "wrangler deploy",
         "cf:deploy:build": "pnpm pwa:build && wrangler deploy",
