@@ -140,7 +140,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                             payCycle: String(payCycle || 'Unknown'),
                         }
                     ),
-                    severity: 'warning',
                     inputs: {
                         payCycle: String(payCycle || 'unknown'),
                         payeTax,
@@ -161,7 +160,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 label: formatFlagLabel(FLAG_CATALOG.paye_zero.id, {
                     context: 'missing_tax_code',
                 }),
-                severity: 'warning',
                 inputs: { payeTax, taxCode: null },
             }),
             lowConfidence: true,
@@ -178,7 +176,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                             region: parsedTaxCode.region || null,
                         }
                     ),
-                    severity: 'notice',
                     inputs: { taxCode: parsedTaxCode.normalizedCode || null },
                 }),
                 lowConfidence: false,
@@ -193,7 +190,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         taxCode: parsedTaxCode.normalizedCode || 'Unknown',
                     }
                 ),
-                severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
             }),
             lowConfidence: true,
@@ -213,7 +209,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         context: 'region_unknown',
                     }
                 ),
-                severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
             }),
             lowConfidence: true,
@@ -234,7 +229,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                             context: 'period_position_unknown',
                         }
                     ),
-                    severity: 'warning',
                     inputs: { payCycle: String(payCycle || 'unknown') },
                 }
             ),
@@ -321,7 +315,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         ? 'ytd_within_allowance'
                         : 'period_within_allowance',
                 }),
-                severity: 'warning',
                 inputs: sharedInputs,
             }),
             lowConfidence: !hasUsableYtdGross,
@@ -355,7 +348,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 periodAllowance: allowanceThisPeriod,
                 cumulativeAllowance,
             }),
-            severity: 'warning',
             inputs: sharedInputs,
         }),
         lowConfidence: !hasUsableYtdGross,
@@ -468,7 +460,6 @@ export function buildPensionValidationFlags(
                                 pensionER,
                             }
                         ),
-                        severity: 'warning',
                         inputs: sharedInputs,
                     }
                 ),
@@ -504,7 +495,6 @@ export function buildPensionValidationFlags(
                                         timingContext.elapsedRunDays,
                                 }
                             ),
-                            severity: 'warning',
                             inputs: sharedInputs,
                         }
                     ),
@@ -574,7 +564,6 @@ export function buildPensionValidationFlags(
                                 periodTrigger: autoEnrolmentTrigger,
                             }
                         ),
-                        severity: 'warning',
                         inputs: sharedInputs,
                     }
                 ),
@@ -592,7 +581,6 @@ export function buildPensionValidationFlags(
                         qualifyingLower,
                         autoEnrolmentTrigger,
                     }),
-                    severity: 'notice',
                     inputs: sharedInputs,
                 }),
             ],
@@ -610,7 +598,6 @@ export function buildPensionValidationFlags(
                         qualifyingLower,
                     }
                 ),
-                severity: 'notice',
                 inputs: sharedInputs,
             }),
         ],
@@ -766,7 +753,6 @@ export function buildValidation(entry) {
                     grossPay: grossForNiContext,
                     niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 }),
-                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
@@ -793,7 +779,6 @@ export function buildValidation(entry) {
                         niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                     }
                 ),
-                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
