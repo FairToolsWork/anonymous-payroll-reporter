@@ -745,7 +745,23 @@ export function buildYearViewModel(
     const reconciliation = entriesForYear.reconciliation || null
     const { noteLabels, refsByEntry } = buildYearFlagModel(yearEntries)
     const workerProfile = context.workerProfile || null
-    const isSalaryContext = workerProfile?.workerType === 'salary'
+    const leaveYearGroups = buildLeaveYearGroups(yearEntries)
+    const yearHolidaySummary = buildYearHolidaySummary(
+        yearEntries,
+        leaveYearGroups,
+        workerProfile
+    )
+    const isSalarySummaryKind =
+        yearHolidaySummary.kind === 'salary_days' ||
+        yearHolidaySummary.kind === 'salary_amount'
+    const hasSalaryPaymentEntries = yearEntries.some((entry) => {
+        const salary = entry.record?.payrollDoc?.payments?.salary
+        return (
+            (salary?.basic?.amount ?? 0) > 0 ||
+            (salary?.holiday?.amount ?? 0) > 0
+        )
+    })
+    const isSalaryContext = isSalarySummaryKind || hasSalaryPaymentEntries
     const typicalDays = workerProfile?.typicalDays ?? 0
     const workingDaysPerMonth = typicalDays > 0 ? (typicalDays * 52) / 12 : 0
     const rows = /** @type {Array<any>} */ ([])
@@ -807,9 +823,7 @@ export function buildYearViewModel(
                     entry.record.payrollDoc?.payments?.salary?.holiday
                         ?.amount || 0
                 const salaryHolidayEstimatedDays =
-                    isSalaryContext &&
-                    workingDaysPerMonth > 0 &&
-                    salaryBasicAmount > 0
+                    workingDaysPerMonth > 0 && salaryBasicAmount > 0
                         ? salaryHolidayAmount /
                           (salaryBasicAmount / workingDaysPerMonth)
                         : null
@@ -923,12 +937,6 @@ export function buildYearViewModel(
             flagRefs: [],
         })
     }
-    const leaveYearGroups = buildLeaveYearGroups(yearEntries)
-    const yearHolidaySummary = buildYearHolidaySummary(
-        yearEntries,
-        leaveYearGroups,
-        workerProfile
-    )
     const coverageWarning = buildCoverageWarning(
         allEntries,
         yearEntries,
@@ -1019,11 +1027,10 @@ export function buildYearViewModel(
         yearHolidaySummary,
         annualCrossCheck,
         isAccrualHourlyContext:
-            workerProfile?.workerType === 'hourly' &&
-            (yearHolidaySummary.kind === 'hourly_hours' ||
-                yearHolidaySummary.kind === 'hourly_variable'),
+            yearHolidaySummary.kind === 'hourly_hours' ||
+            yearHolidaySummary.kind === 'hourly_variable',
         isFixedScheduleHourlyContext:
-            workerProfile?.workerType === 'hourly' &&
+            yearHolidaySummary.kind === 'hourly_hours' &&
             (workerProfile?.typicalDays ?? 0) > 0,
         isSalaryContext,
         monthBreakdown:

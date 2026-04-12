@@ -58,7 +58,7 @@ describe('FLAG_CATALOG', () => {
         ).toBe('warning')
     })
 
-    it('has warning severity for PAYE flags', () => {
+    it('has warning and notice severities for PAYE flags', () => {
         expect(FLAG_CATALOG.paye_zero.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_taken_not_due.severity).toBe('warning')
         expect(FLAG_CATALOG.paye_tax_code_unsupported.severity).toBe('warning')

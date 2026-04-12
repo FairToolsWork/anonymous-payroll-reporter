@@ -409,7 +409,12 @@ function renderHourlyVariableFooterText(holidayHours, workedHours) {
 function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
     const summaryViewModel = buildSummaryViewModel(context, meta)
-    const isSalaryWorker = context.workerProfile?.workerType === 'salary'
+    const firstSummaryHolidayKind = summaryViewModel.yearSummaryRows.find(
+        (row) => row?.holidaySummary?.kind
+    )?.holidaySummary?.kind
+    const isSalaryWorker =
+        firstSummaryHolidayKind === 'salary_days' ||
+        firstSummaryHolidayKind === 'salary_amount'
     const summaryHeading = summaryViewModel.heading
 
     /**

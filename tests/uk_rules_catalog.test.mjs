@@ -197,6 +197,8 @@ describe('uk rules catalog', () => {
             'net_mismatch',
             'holiday_rate_below_basic',
             'holiday_rate_below_rolling_avg',
+            'holiday_reference_insufficient_history',
+            'holiday_mixed_basic_holiday_pay',
         ]
 
         expectedIds.forEach((id) => {

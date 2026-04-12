@@ -22,6 +22,10 @@ import {
     buildYearViewModel,
 } from './report_view_model.js'
 
+const HOURLY_ACCRUAL_FACTOR = 0.1207
+const HOURLY_ACCRUAL_FALLBACK_LABEL =
+    'worked-hours fallback estimate (no baseline)'
+
 /**
  * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string }} workerProfile
  * @returns {string}
@@ -123,7 +127,7 @@ function renderYearRowHolidayHtml(holidaySummary, accruedHoursHint = null) {
 function renderSalaryYearRowHolidayHtml(row) {
     const holidayAmount = row?.salaryHolidayAmount ?? 0
     const estimatedDays = row?.salaryHolidayEstimatedDays
-    if (estimatedDays === null || Number.isNaN(estimatedDays)) {
+    if (!Number.isFinite(estimatedDays)) {
         return `${formatCurrency(holidayAmount)} holiday pay`
     }
     return `${formatCurrency(holidayAmount)} holiday pay<br><span class="summary-breakdown">~${estimatedDays.toFixed(1)} days</span>`
@@ -135,14 +139,13 @@ function renderSalaryYearRowHolidayHtml(row) {
  * @returns {string}
  */
 function renderHourlyVariableFooterHtml(holidayHours, workedHours) {
-    const accruedHours = workedHours * 0.1207
+    const accruedHours = workedHours * HOURLY_ACCRUAL_FACTOR
     const remainingHours = Math.max(0, accruedHours - holidayHours)
     return `${holidayHours.toFixed(2)} hrs taken${renderSummaryBreakdownLinesHtml(
         [
             `+${accruedHours.toFixed(2)} hrs accrued`,
-            `~${accruedHours.toFixed(1)} hrs/yr entitlement (fallback estimate)`,
+            `~${accruedHours.toFixed(1)} hrs/yr entitlement (${HOURLY_ACCRUAL_FALLBACK_LABEL})`,
             `${remainingHours.toFixed(1)} hrs remaining`,
-            'Fixed-days profile method (no baseline fallback)',
         ]
     )}`
 }
@@ -533,7 +536,7 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 rowHolidayKind === 'hours_days'
             const accruedHoursHint =
                 isAccrualHourlyContext && isHourlyRow
-                    ? row.hours * 0.1207
+                    ? row.hours * HOURLY_ACCRUAL_FACTOR
                     : null
             const holidayCellHtml = isSalaryContext
                 ? renderSalaryYearRowHolidayHtml(row)

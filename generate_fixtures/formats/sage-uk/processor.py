@@ -448,9 +448,10 @@ def apply_fixture(
         numeric_indices = [
             idx for idx in payment_indices if is_numeric_token(words[idx]["text"])
         ]
-        holiday_label = payments_table.get(
-            "holidayLineLabel",
-            payments_table["holidayLineAnchor"],
+        holiday_label = (
+            payments_table.get("holidayLineLabel")
+            or payments_table.get("holidayLineAnchor")
+            or "Holiday"
         )
         holiday_flat_amount = bool(payments_table.get("holidayLineFlatAmount", False))
         holiday_values = (
