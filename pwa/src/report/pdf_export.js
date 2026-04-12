@@ -770,7 +770,10 @@ function renderYearPage(
         const rowHolidayKind = row.holidaySummary?.kind
         const isHourlyRow =
             rowHolidayKind === 'hours_only' || rowHolidayKind === 'hours_days'
-        const accruedHoursHint = isHourlyRow ? row.hours * 0.1207 : null
+        const accruedHoursHint =
+            isAccrualHourlyContext && isHourlyRow && Number.isFinite(row.hours)
+                ? row.hours * 0.1207
+                : null
         const holidayCellText = isSalaryContext
             ? renderSalaryYearRowHolidayText(row)
             : renderYearRowHolidayText(row.holidaySummary, accruedHoursHint)
