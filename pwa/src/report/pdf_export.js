@@ -53,6 +53,11 @@ const FONT_HEADING = 13
 const FONT_BODY = 10
 const FONT_SMALL = 9
 
+// ─── Holiday accrual constants ────────────────────────────────────────────────
+
+const HOURLY_ACCRUAL_FACTOR = 0.1207
+const HOURLY_ACCRUAL_FALLBACK_LABEL = 'worked-hours fallback estimate (no baseline)'
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
@@ -387,14 +392,13 @@ function renderSalaryYearRowHolidayText(row) {
  * @returns {string}
  */
 function renderHourlyVariableFooterText(holidayHours, workedHours) {
-    const accruedHours = workedHours * 0.1207
+    const accruedHours = workedHours * HOURLY_ACCRUAL_FACTOR
     const remainingHours = Math.max(0, accruedHours - holidayHours)
     return [
         `${holidayHours.toFixed(2)} hrs taken`,
         `+${accruedHours.toFixed(2)} hrs accrued`,
-        `~${accruedHours.toFixed(1)} hrs/yr entitlement (fallback estimate)`,
+        `~${accruedHours.toFixed(1)} hrs/yr entitlement (${HOURLY_ACCRUAL_FALLBACK_LABEL})`,
         `${remainingHours.toFixed(1)} hrs remaining`,
-        'Fixed-days profile method (no baseline fallback)',
     ].join('\n')
 }
 
