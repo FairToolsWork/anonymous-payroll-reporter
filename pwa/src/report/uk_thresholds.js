@@ -337,7 +337,9 @@ export function getThresholdStalenessStatus(
         THRESHOLD_REVIEW_CUTOFF_MONTH_INDEX,
         THRESHOLD_REVIEW_CUTOFF_DAY
     )
-    if (versionDate >= cutoffDate) {
+    const referenceYear = referenceDate.getFullYear()
+    const versionYear = versionDate.getFullYear()
+    if (versionYear >= referenceYear) {
         return {
             status: 'ok',
             thresholdsVersion: String(thresholdsVersion || ''),
