@@ -14,6 +14,7 @@ import {
 } from '../parse/parser_config.js'
 import { renderHtmlReport } from './html_export.js'
 import {
+    createHolidayReferenceRuntime,
     buildHolidayPayFlags,
     buildYearHolidayContext,
 } from './holiday_calculations.js'
@@ -209,11 +210,18 @@ export function buildReport(
             })
         })
 
+        /** @type {any} */
+        let holidayReferenceRuntime = null
         timeBuildPhase('buildReport.holidayFlags', () => {
-            buildHolidayPayFlags(entries)
+            holidayReferenceRuntime = createHolidayReferenceRuntime(entries)
+            buildHolidayPayFlags(entries, holidayReferenceRuntime)
         })
         timeBuildPhase('buildReport.holidayContext', () => {
-            buildYearHolidayContext(entries, workerProfile)
+            buildYearHolidayContext(
+                entries,
+                workerProfile,
+                holidayReferenceRuntime
+            )
         })
 
         let contractTypeMismatchWarning = null
