@@ -531,7 +531,10 @@ function renderYearSummaryFromViewModel(yearViewModel) {
             const isHourlyRow =
                 rowHolidayKind === 'hours_only' ||
                 rowHolidayKind === 'hours_days'
-            const accruedHoursHint = isHourlyRow ? row.hours * 0.1207 : null
+            const accruedHoursHint =
+                isAccrualHourlyContext && isHourlyRow
+                    ? row.hours * 0.1207
+                    : null
             const holidayCellHtml = isSalaryContext
                 ? renderSalaryYearRowHolidayHtml(row)
                 : renderYearRowHolidayHtml(row.holidaySummary, accruedHoursHint)
