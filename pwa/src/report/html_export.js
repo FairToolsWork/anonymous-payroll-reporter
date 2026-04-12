@@ -22,6 +22,10 @@ import {
     buildYearViewModel,
 } from './report_view_model.js'
 
+const HOURLY_ACCRUAL_FACTOR = 0.1207
+const HOURLY_ACCRUAL_FALLBACK_LABEL =
+    'worked-hours fallback estimate (no baseline)'
+
 /**
  * @param {{ workerTypeLabel: string, typicalDays: number, statutoryHolidayDays: number | null, leaveYearStartMonthName: string }} workerProfile
  * @returns {string}
@@ -89,11 +93,24 @@ function renderHolidaySummaryHtml(holidaySummary) {
 }
 
 /**
- * @param {any} holidaySummary
+ * @param {any} row
  * @returns {string}
  */
-function renderYearRowHolidayHtml(holidaySummary) {
-    const display = buildYearRowHolidayDisplay(holidaySummary)
+function renderSummaryYearHoursHtml(row) {
+    const kind = row?.holidaySummary?.kind
+    if (kind === 'salary_days' || kind === 'salary_amount') {
+        return 'N/A'
+    }
+    return row.hours.toFixed(2)
+}
+
+/**
+ * @param {any} holidaySummary
+ * @param {number | null} [accruedHoursHint=null]
+ * @returns {string}
+ */
+function renderYearRowHolidayHtml(holidaySummary, accruedHoursHint = null) {
+    const display = buildYearRowHolidayDisplay(holidaySummary, accruedHoursHint)
     if (!display.detailLines.length) {
         return display.primaryLabel
     }
@@ -101,6 +118,36 @@ function renderYearRowHolidayHtml(holidaySummary) {
         return `${display.primaryLabel} <span class="summary-breakdown">${display.detailLines.join(' ')}</span>`
     }
     return `${display.primaryLabel}${renderSummaryBreakdownLinesHtml(display.detailLines)}`
+}
+
+/**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSalaryYearRowHolidayHtml(row) {
+    const holidayAmount = row?.salaryHolidayAmount ?? 0
+    const estimatedDays = row?.salaryHolidayEstimatedDays
+    if (!Number.isFinite(estimatedDays)) {
+        return `${formatCurrency(holidayAmount)} holiday pay`
+    }
+    return `${formatCurrency(holidayAmount)} holiday pay<br><span class="summary-breakdown">~${estimatedDays.toFixed(1)} days</span>`
+}
+
+/**
+ * @param {number} holidayHours
+ * @param {number} workedHours
+ * @returns {string}
+ */
+function renderHourlyVariableFooterHtml(holidayHours, workedHours) {
+    const accruedHours = workedHours * HOURLY_ACCRUAL_FACTOR
+    const remainingHours = Math.max(0, accruedHours - holidayHours)
+    return `${holidayHours.toFixed(2)} hrs taken${renderSummaryBreakdownLinesHtml(
+        [
+            `+${accruedHours.toFixed(2)} hrs accrued`,
+            `~${accruedHours.toFixed(1)} hrs/yr entitlement (${HOURLY_ACCRUAL_FALLBACK_LABEL})`,
+            `${remainingHours.toFixed(1)} hrs remaining`,
+        ]
+    )}`
 }
 
 /**
@@ -159,6 +206,10 @@ export function renderHtmlReport(context, meta) {
         employeeName,
         dateRangeLabel,
     })
+    const isSalaryWorker = context.workerProfile?.workerType === 'salary'
+    const summaryHolidayHeader = isSalaryWorker
+        ? 'Holiday <span class="summary-breakdown">(pay / est. days)</span>'
+        : 'Holiday <span class="summary-breakdown">(hrs / est. days)</span>'
 
     /**
      * @param {Array<{ year: string, months: string[] }> | undefined} groupedMonths
@@ -237,7 +288,7 @@ export function renderHtmlReport(context, meta) {
             return (
                 '<tr>' +
                 `<th><a href="#${row.anchorId}">${row.yearKey}</a></th>` +
-                `<td>${row.hours.toFixed(2)}</td>` +
+                `<td>${renderSummaryYearHoursHtml(row)}</td>` +
                 `<td>${renderHolidaySummaryHtml(row.holidaySummary)}</td>` +
                 `<td>${renderBreakdownCellHtml(
                     row.payrollContribution.total,
@@ -280,7 +331,7 @@ export function renderHtmlReport(context, meta) {
 
     reportSections.push('<div class="page">')
     reportSections.push(
-        `<div class="report-meta">` +
+        `<div class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice report-meta' : 'report-meta'}">` +
             `<h2>Payroll Report — ${summaryViewModel.heading.employeeName}</h2>` +
             `<p class="report-range">${summaryViewModel.heading.dateRangeLabel}</p>` +
             `<p class="report-meta-generated"><b>Generated:</b> ${summaryViewModel.heading.generatedLabel || 'Unknown'}</p>` +
@@ -293,22 +344,22 @@ export function renderHtmlReport(context, meta) {
     )
     if (summaryViewModel.contractTypeMismatchWarning) {
         reportSections.push(
-            `<div class="report-warning-banner"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
+            `<div class="notice error"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
         )
     }
     if (summaryViewModel.globalCoverageNotice) {
         reportSections.push(
-            `<div class="notice"><ul class="report-warning-list"><li>${summaryViewModel.globalCoverageNotice.message}</li></ul></div>`
+            `<div class="notice"><p >${summaryViewModel.globalCoverageNotice.message}</p></div>`
         )
     }
     reportSections.push(
-        `<h2>${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
+        `<h2 class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice' : ''}">${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
     )
 
     if (summaryYearRowsHtml) {
         reportSections.push(
-            '<table class="summary-table"><thead><tr>' +
-                '<th>Tax Year</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+            '<table class="summary-table global"><thead><tr>' +
+                `<th>Tax Year</th><th>Hours worked</th><th>${summaryHolidayHeader}</th>` +
                 '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
                 '<th class="col-center">YE Over / Under</th><th class="col-center">Flags</th>' +
                 '</tr></thead>' +
@@ -319,7 +370,7 @@ export function renderHtmlReport(context, meta) {
 
     reportSections.push(`<h3>${ACCUMULATED_TOTALS_TITLE}</h3>`)
     reportSections.push(
-        '<table class="summary-table"><thead><tr>' +
+        '<table class="summary-table accumulated-totals"><thead><tr>' +
             '<th colspan="2">Date Range</th><th>Payroll Cont. (EE+ER)</th>' +
             '<th>Reported (EE+ER)</th><th>Accumulated Over/Under</th>' +
             '<th>Last Contribution Date</th></tr></thead>' +
@@ -378,13 +429,13 @@ export function renderHtmlReport(context, meta) {
         )
         if (yearViewModel.coverageWarning) {
             reportSections.push(
-                `<div class="notice"><ul class="report-warning-list"><li>${yearViewModel.coverageWarning.message}</li></ul></div>`
+                `<div class="notice "><p>${yearViewModel.coverageWarning.message}</p></div>`
             )
         }
         if (yearViewModel.missingMonths.length) {
-            const yearMissingPill = `Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span>`
+            const yearMissingPill = `<div class="notice"><p>Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span></p></div>`
             reportSections.push(
-                `<p class="report-missing">${yearMissingPill}</p>`
+                `<div class="report-missing">${yearMissingPill}</div>`
             )
         }
         reportSections.push(renderYearSummaryFromViewModel(yearViewModel))
@@ -454,6 +505,19 @@ export function renderHtmlReport(context, meta) {
  * @returns {string}
  */
 function renderYearSummaryFromViewModel(yearViewModel) {
+    const breakdownByMonth = new Map(
+        (yearViewModel.monthBreakdown || []).map((/** @type {any} */ bd) => [
+            bd.monthIndex,
+            bd,
+        ])
+    )
+    const isAccrualHourlyContext = yearViewModel.isAccrualHourlyContext === true
+    const isFixedScheduleHourlyContext =
+        yearViewModel.isFixedScheduleHourlyContext === true
+    const isSalaryContext = yearViewModel.isSalaryContext === true
+    const yearHolidayHeader = isSalaryContext
+        ? 'Holiday <span class="summary-breakdown">(pay / est. days)</span>'
+        : 'Holiday <span class="summary-breakdown">(hrs / est. days)</span>'
     const bodyRows = yearViewModel.rows.map(
         /** @param {any} row */
         (row) => {
@@ -465,11 +529,34 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                 ? row.flagRefs.join('; ')
                 : '—'
             const flagClass = row.flagRefs.length ? 'summary-warning' : ''
+            const bd = breakdownByMonth.get(row.monthIndex)
+            const rowHolidayKind = row.holidaySummary?.kind
+            const isHourlyRow =
+                rowHolidayKind === 'hours_only' ||
+                rowHolidayKind === 'hours_days'
+            const accruedHoursHint =
+                isAccrualHourlyContext && isHourlyRow
+                    ? row.hours * HOURLY_ACCRUAL_FACTOR
+                    : null
+            const holidayCellHtml = isSalaryContext
+                ? renderSalaryYearRowHolidayHtml(row)
+                : renderYearRowHolidayHtml(row.holidaySummary, accruedHoursHint)
+            const breakdownCells = isFixedScheduleHourlyContext
+                ? '<td>N/A</td>'
+                : bd
+                  ? `<td>${buildAnnualMonthBreakdownDisplay(bd).referenceLabel}</td>`
+                  : isSalaryContext
+                    ? '<td>N/A</td>'
+                    : isAccrualHourlyContext
+                      ? '<td>No baseline</td>'
+                      : '<td>—</td>'
+            const hoursCellHtml = isSalaryContext ? 'N/A' : row.hours.toFixed(2)
             return (
                 '<tr>' +
                 `<th>${monthCell}</th>` +
-                `<td>${row.hours.toFixed(2)}</td>` +
-                `<td>${renderYearRowHolidayHtml(row.holidaySummary)}</td>` +
+                `<td>${hoursCellHtml}</td>` +
+                `<td>${holidayCellHtml}</td>` +
+                breakdownCells +
                 `<td>${renderBreakdownCellHtml(
                     row.payrollContribution.total,
                     row.payrollContribution.ee,
@@ -491,11 +578,21 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         /** @param {any} row */
         (row) => {
             if (row.id === 'total') {
+                const totalHolidayCellHtml =
+                    row.yearHolidaySummary?.kind === 'hourly_variable'
+                        ? renderHourlyVariableFooterHtml(
+                              row.yearHolidaySummary?.holidayHours ?? 0,
+                              row.hours
+                          )
+                        : renderHolidaySummaryHtml(row.yearHolidaySummary)
+                const totalHoursCellHtml = isSalaryContext
+                    ? 'N/A'
+                    : row.hours.toFixed(2)
                 return (
                     '<tr>' +
                     `<th>${row.label}</th>` +
-                    `<td>${row.hours.toFixed(2)}</td>` +
-                    `<td>${renderHolidaySummaryHtml(row.yearHolidaySummary)}</td>` +
+                    `<td>${totalHoursCellHtml}</td>` +
+                    `<td colspan="2">${totalHolidayCellHtml}</td>` +
                     `<td>${renderBreakdownCellHtml(
                         row.payrollContribution.total,
                         row.payrollContribution.ee,
@@ -515,7 +612,7 @@ function renderYearSummaryFromViewModel(yearViewModel) {
             return (
                 '<tr>' +
                 `<th>${row.label}</th>` +
-                '<td colspan="4"></td>' +
+                '<td colspan="5"></td>' +
                 `<td class="col-center" colspan="1">${renderDiffHtml(row.overUnder, row.zeroReview)}</td>` +
                 '<td class="col-center">—</td>' +
                 '</tr>'
@@ -523,9 +620,10 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         }
     )
     const sections = [
-        '<table class="summary-table">' +
+        '<table class="summary-table annual">' +
             '<thead><tr>' +
-            '<th>Month</th><th>Hours</th><th>Holiday <span class="summary-breakdown">(hrs / est. days)</span></th>' +
+            `<th>Month</th><th>Hours worked</th><th>${yearHolidayHeader}</th>` +
+            '<th>Reference state</th>' +
             '<th>Pension Payroll Cont. <span class="summary-breakdown">(EE+ER)</span></th><th>Reported <span class="summary-breakdown">(EE+ER)</span></th>' +
             '<th class="col-center">Over / Under</th><th class="col-center">Flags</th>' +
             '</tr></thead>' +
@@ -555,26 +653,6 @@ function renderYearSummaryFromViewModel(yearViewModel) {
         yearViewModel.annualCrossCheck &&
         yearViewModel.annualCrossCheckDisplay
     ) {
-        const breakdownRows = yearViewModel.monthBreakdown
-            .map((/** @type {any} */ row) => {
-                const display = buildAnnualMonthBreakdownDisplay(row)
-                const estimatedDays =
-                    row.estimatedDays === null
-                        ? 'N/A'
-                        : row.estimatedDays.toFixed(1)
-                return (
-                    '<tr>' +
-                    `<th>${row.monthLabel}</th>` +
-                    `<td>${row.basicHours.toFixed(2)}</td>` +
-                    `<td>${row.holidayHours.toFixed(2)}</td>` +
-                    `<td>${estimatedDays}</td>` +
-                    `<td>${display.referenceLabel}</td>` +
-                    `<td>${display.mixedMonthLabel}</td>` +
-                    `<td>${display.signalsLabel}</td>` +
-                    '</tr>'
-                )
-            })
-            .join('')
         sections.push(
             `<div class="notice no-left-border">` +
                 `<p><b>${yearViewModel.annualCrossCheckDisplay.title}:</b> ${yearViewModel.annualCrossCheckDisplay.statusLabel}</p>` +
@@ -582,11 +660,6 @@ function renderYearSummaryFromViewModel(yearViewModel) {
                     .map((/** @type {string} */ line) => `<p>${line}</p>`)
                     .join('') +
                 `</div>`
-        )
-        sections.push(
-            '<table class="summary-table"><thead><tr>' +
-                '<th>Month</th><th>Basic hrs</th><th>Holiday hrs</th><th>Est. days</th><th>Reference state</th><th>Mixed month</th><th>Signals</th>' +
-                `</tr></thead><tbody>${breakdownRows}</tbody></table>`
         )
     }
 

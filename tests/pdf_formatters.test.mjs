@@ -518,11 +518,11 @@ describe('exportReportPdf', () => {
         expect(yearTableCall).toBeTruthy()
 
         const yearTableOptions = yearTableCall[1]
-        expect(yearTableOptions.foot?.[0]?.[5]).toBe('£0.00')
+        expect(yearTableOptions.foot?.[0]?.[6]).toBe('£0.00')
 
         const footCell = {
             section: 'foot',
-            column: { index: 5 },
+            column: { index: 6 },
             row: { index: 0 },
             cell: {
                 styles: {},

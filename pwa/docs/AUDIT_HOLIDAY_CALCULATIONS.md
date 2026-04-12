@@ -482,7 +482,7 @@ it('handles typicalDays = 0 (zero-hours workers) without division errors', () =>
 
 - Daily rate is computed from available months: `dailyRate = yearBasicSalaryAmount / monthsInYear / workingDaysPerMonth`
 - If no basic salary found, daily rate = 0 and day estimate is omitted
-- Result shows only raw £ amount with disclaimer "≈ (approximate)"
+- Result shows only raw £ amount with disclaimer "~ (approximate)"
 
 ### 4.5 Tax-Year Boundary Crossing (Hourly)
 

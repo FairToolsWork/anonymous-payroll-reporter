@@ -140,7 +140,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                             payCycle: String(payCycle || 'Unknown'),
                         }
                     ),
-                    severity: 'warning',
                     inputs: {
                         payCycle: String(payCycle || 'unknown'),
                         payeTax,
@@ -161,13 +160,27 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 label: formatFlagLabel(FLAG_CATALOG.paye_zero.id, {
                     context: 'missing_tax_code',
                 }),
-                severity: 'warning',
                 inputs: { payeTax, taxCode: null },
             }),
             lowConfidence: true,
         }
     }
     if (!parsedTaxCode.isStandardCode) {
+        if (parsedTaxCode.isFlatRateCode) {
+            return {
+                flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_basic_rate_code, {
+                    label: formatFlagLabel(
+                        FLAG_CATALOG.paye_basic_rate_code.id,
+                        {
+                            taxCode: parsedTaxCode.normalizedCode || null,
+                            region: parsedTaxCode.region || null,
+                        }
+                    ),
+                    inputs: { taxCode: parsedTaxCode.normalizedCode || null },
+                }),
+                lowConfidence: false,
+            }
+        }
         return {
             flag: buildCatalogRuleFlag(FLAG_CATALOG.paye_tax_code_unsupported, {
                 label: formatFlagLabel(
@@ -177,7 +190,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         taxCode: parsedTaxCode.normalizedCode || 'Unknown',
                     }
                 ),
-                severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
             }),
             lowConfidence: true,
@@ -197,7 +209,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         context: 'region_unknown',
                     }
                 ),
-                severity: 'warning',
                 inputs: { taxCode: parsedTaxCode.normalizedCode || null },
             }),
             lowConfidence: true,
@@ -218,7 +229,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                             context: 'period_position_unknown',
                         }
                     ),
-                    severity: 'warning',
                     inputs: { payCycle: String(payCycle || 'unknown') },
                 }
             ),
@@ -305,7 +315,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                         ? 'ytd_within_allowance'
                         : 'period_within_allowance',
                 }),
-                severity: 'warning',
                 inputs: sharedInputs,
             }),
             lowConfidence: !hasUsableYtdGross,
@@ -339,7 +348,6 @@ export function buildPayeValidationFlag(entry, thresholdResolution, payeTax) {
                 periodAllowance: allowanceThisPeriod,
                 cumulativeAllowance,
             }),
-            severity: 'warning',
             inputs: sharedInputs,
         }),
         lowConfidence: !hasUsableYtdGross,
@@ -452,7 +460,6 @@ export function buildPensionValidationFlags(
                                 pensionER,
                             }
                         ),
-                        severity: 'warning',
                         inputs: sharedInputs,
                     }
                 ),
@@ -488,7 +495,6 @@ export function buildPensionValidationFlags(
                                         timingContext.elapsedRunDays,
                                 }
                             ),
-                            severity: 'warning',
                             inputs: sharedInputs,
                         }
                     ),
@@ -558,7 +564,6 @@ export function buildPensionValidationFlags(
                                 periodTrigger: autoEnrolmentTrigger,
                             }
                         ),
-                        severity: 'warning',
                         inputs: sharedInputs,
                     }
                 ),
@@ -576,7 +581,6 @@ export function buildPensionValidationFlags(
                         qualifyingLower,
                         autoEnrolmentTrigger,
                     }),
-                    severity: 'notice',
                     inputs: sharedInputs,
                 }),
             ],
@@ -594,7 +598,6 @@ export function buildPensionValidationFlags(
                         qualifyingLower,
                     }
                 ),
-                severity: 'notice',
                 inputs: sharedInputs,
             }),
         ],
@@ -707,6 +710,35 @@ export function buildValidation(entry) {
         flags.push(...pensionValidation.flags)
     }
 
+    const miscDeductions = Array.isArray(record.payrollDoc?.deductions?.misc)
+        ? record.payrollDoc.deductions.misc
+        : []
+    for (const deduction of miscDeductions) {
+        const title = String(deduction?.title || '').trim()
+        const amount = Number(deduction?.amount || 0)
+        if (!title || amount <= 0) {
+            continue
+        }
+        // Treat pension-like labels as part of pension validation paths.
+        if (/(?:\bpension\b|\bnest\b)/i.test(title)) {
+            continue
+        }
+        flags.push(
+            buildCatalogRuleFlag(FLAG_CATALOG.unrecognised_deduction, {
+                label: formatFlagLabel(FLAG_CATALOG.unrecognised_deduction.id, {
+                    context: 'reported_deduction',
+                    deductionTitle: title,
+                    deductionAmount: amount,
+                }),
+                severity: FLAG_CATALOG.unrecognised_deduction.severity,
+                inputs: {
+                    deductionTitle: title,
+                    deductionAmount: amount,
+                },
+            })
+        )
+    }
+
     if (
         nationalInsurance <= 0 &&
         niPrimaryThresholdForPeriod !== null &&
@@ -721,7 +753,6 @@ export function buildValidation(entry) {
                     grossPay: grossForNiContext,
                     niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                 }),
-                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,
@@ -748,7 +779,6 @@ export function buildValidation(entry) {
                         niPrimaryThresholdMonthly: niPrimaryThresholdForPeriod,
                     }
                 ),
-                severity: 'warning',
                 inputs: {
                     nationalInsurance,
                     grossPay: grossForNiContext,

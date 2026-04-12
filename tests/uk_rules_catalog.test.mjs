@@ -185,16 +185,20 @@ describe('uk rules catalog', () => {
             'paye_tax_code_unsupported',
             'paye_pay_cycle_unsupported',
             'nat_ins_zero',
+            'paye_basic_rate_code',
             'tax_year_thresholds_unavailable',
             'tax_year_thresholds_partial_support',
             'pension_auto_enrolment_missing_deductions',
             'pension_opt_in_possible',
             'pension_join_no_mandatory_employer_contrib',
+            'unrecognised_deduction',
             'payment_line_mismatch',
             'gross_mismatch',
             'net_mismatch',
             'holiday_rate_below_basic',
             'holiday_rate_below_rolling_avg',
+            'holiday_reference_insufficient_history',
+            'holiday_mixed_basic_holiday_pay',
         ]
 
         expectedIds.forEach((id) => {

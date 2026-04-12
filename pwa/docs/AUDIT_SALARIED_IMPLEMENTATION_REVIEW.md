@@ -59,7 +59,7 @@ const daysTaken = dailyRate > 0 ? holidaySalaryAmount / dailyRate : null
 
 **Verification:** ✅ **CORRECT**
 
-- Formula exactly matches: `(52 ÷ 12 ≈ 4.333 weeks/month)`
+- Formula exactly matches: `(52 ÷ 12 ~ 4.333 weeks/month)`
 - Guards prevent division by zero
 - Returns `null` when unable to calculate (appropriate)
 
@@ -269,7 +269,7 @@ const dailyRate = yearBasicSalaryAmount / monthsInYear / workingDaysPerMonth
 
 - Code blends all-months salary into one rate (as documented)
 - No attempt to detect or adjust for pay rises
-- Labeled in output as `≈daysTaken` (approximate symbol shown)
+- Labeled in output as `~daysTaken` (approximate symbol shown)
 - Documentation correctly warns: "A pay rise mid-year will cause daysTaken to be slightly over- or under-estimated"
 
 ---
@@ -380,7 +380,7 @@ const daysRemainingRaw = 28 - 0
 ```
 
 **Result:** Returns `{ kind: 'salary_days', daysTaken: 0, daysRemaining: 28 }`
-**Output:** "≈0.0 days taken / 28.0 remaining"
+**Output:** "~0.0 days taken / 28.0 remaining"
 **Status:** ✅ **CORRECT** — Accurate representation
 
 ---

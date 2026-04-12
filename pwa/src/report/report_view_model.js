@@ -744,6 +744,26 @@ export function buildYearViewModel(
     })
     const reconciliation = entriesForYear.reconciliation || null
     const { noteLabels, refsByEntry } = buildYearFlagModel(yearEntries)
+    const workerProfile = context.workerProfile || null
+    const leaveYearGroups = buildLeaveYearGroups(yearEntries)
+    const yearHolidaySummary = buildYearHolidaySummary(
+        yearEntries,
+        leaveYearGroups,
+        workerProfile
+    )
+    const isSalarySummaryKind =
+        yearHolidaySummary.kind === 'salary_days' ||
+        yearHolidaySummary.kind === 'salary_amount'
+    const hasSalaryPaymentEntries = yearEntries.some((entry) => {
+        const salary = entry.record?.payrollDoc?.payments?.salary
+        return (
+            (salary?.basic?.amount ?? 0) > 0 ||
+            (salary?.holiday?.amount ?? 0) > 0
+        )
+    })
+    const isSalaryContext = isSalarySummaryKind || hasSalaryPaymentEntries
+    const typicalDays = workerProfile?.typicalDays ?? 0
+    const workingDaysPerMonth = typicalDays > 0 ? (typicalDays * 52) / 12 : 0
     const rows = /** @type {Array<any>} */ ([])
     let totalHours = 0
     let totalHolidayHours = 0
@@ -796,6 +816,17 @@ export function buildYearViewModel(
                 const hours =
                     entry.record.payrollDoc?.payments?.hourly?.basic?.units || 0
                 const holidaySummary = buildEntryHolidaySummary(entry)
+                const salaryBasicAmount =
+                    entry.record.payrollDoc?.payments?.salary?.basic?.amount ||
+                    0
+                const salaryHolidayAmount =
+                    entry.record.payrollDoc?.payments?.salary?.holiday
+                        ?.amount || 0
+                const salaryHolidayEstimatedDays =
+                    workingDaysPerMonth > 0 && salaryBasicAmount > 0
+                        ? salaryHolidayAmount /
+                          (salaryBasicAmount / workingDaysPerMonth)
+                        : null
                 const payrollEE =
                     entry.record.payrollDoc?.deductions?.pensionEE?.amount || 0
                 const payrollER =
@@ -819,6 +850,8 @@ export function buildYearViewModel(
                     globalEntryIndex: allEntries.indexOf(entry),
                     hours,
                     holidaySummary,
+                    salaryHolidayAmount,
+                    salaryHolidayEstimatedDays,
                     payrollContribution: {
                         total: payrollContribution,
                         ee: payrollEE,
@@ -853,6 +886,8 @@ export function buildYearViewModel(
                     holidayHours: 0,
                     hasVariablePattern: false,
                 },
+                salaryHolidayAmount: 0,
+                salaryHolidayEstimatedDays: null,
                 payrollContribution: {
                     total: 0,
                     ee: 0,
@@ -902,13 +937,6 @@ export function buildYearViewModel(
             flagRefs: [],
         })
     }
-    const workerProfile = context.workerProfile || null
-    const leaveYearGroups = buildLeaveYearGroups(yearEntries)
-    const yearHolidaySummary = buildYearHolidaySummary(
-        yearEntries,
-        leaveYearGroups,
-        workerProfile
-    )
     const coverageWarning = buildCoverageWarning(
         allEntries,
         yearEntries,
@@ -998,6 +1026,13 @@ export function buildYearViewModel(
         },
         yearHolidaySummary,
         annualCrossCheck,
+        isAccrualHourlyContext:
+            yearHolidaySummary.kind === 'hourly_hours' ||
+            yearHolidaySummary.kind === 'hourly_variable',
+        isFixedScheduleHourlyContext:
+            yearHolidaySummary.kind === 'hourly_hours' &&
+            (workerProfile?.typicalDays ?? 0) > 0,
+        isSalaryContext,
         monthBreakdown:
             yearHolidaySummary.kind === 'hourly_hours'
                 ? yearHolidaySummary.monthBreakdown || []

@@ -55,7 +55,7 @@ This assumes the worker's salary was the same throughout all months in the year.
 
 **Effect:** In a year containing a pay rise, days taken will be slightly over- or under-estimated depending on whether the pay rise was earlier or later in the year. The error is proportional to the size and timing of the pay rise.
 
-**Mitigation:** None currently. The estimate is labelled as approximate (`≈`) in the report. Workers with a mid-year pay rise should treat the day estimate as indicative.
+**Mitigation:** None currently. The estimate is labelled as approximate (`~`) in the report. Workers with a mid-year pay rise should treat the day estimate as indicative.
 
 ---
 
@@ -129,7 +129,7 @@ When `leaveYearStartMonth === 4` (the default), the leave year exactly matches t
 workingDaysPerMonth = (typicalDays × 52) / 12
 ```
 
-This converts a weekly days figure to the average number of working days per calendar month. Using `× 52 / 12` (≈ 4.333 weeks/month) rather than dividing by `typicalDays` directly ensures the correct monthly equivalent.
+This converts a weekly days figure to the average number of working days per calendar month. Using `× 52 / 12` (~ 4.333 weeks/month) rather than dividing by `typicalDays` directly ensures the correct monthly equivalent.
 
 Examples:
 
@@ -232,7 +232,7 @@ daysRemaining = 28 − 15.0 = 13.0 days
 
 ```text
 £1,384.62
-≈15.0 days taken / 13.0 remaining
+~15.0 days taken / 13.0 remaining
 ```
 
 ---

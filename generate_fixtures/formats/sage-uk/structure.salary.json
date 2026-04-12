@@ -1,0 +1,93 @@
+{
+    "sources": {
+        "base_pdf": "generate_fixtures/formats/sage-uk/test-payslip-no-pw.pdf",
+        "background_pdf": "generate_fixtures/formats/sage-uk/test-payslip-blank-©sage-(uk)-limited.pdf"
+    },
+    "layout": {
+        "font": "Helvetica",
+        "bold_font": "Helvetica-Bold",
+        "mid_band_scan_margin": 6,
+        "row_cluster_threshold": 3.0,
+        "debug_boxes": false,
+        "debug_box_line_width": 1
+    },
+    "header_bar": {
+        "anchor": "Jane Doe 20 Jul 2025 AA000000A",
+        "niAnchor": "AA000000A",
+        "basicLineAnchor": "189.75 10.00 1897.50",
+        "netAmountAnchor": "1416.35",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [-55, 0],
+            "date_year_spacing": 5,
+            "employee_id_offset": 56.7,
+            "process_date_century": "20"
+        }
+    },
+    "payments_table": {
+        "anchor": "Basic Hours 189.75 10.00 1897.50",
+        "basicPayLabel": "Basic Salary",
+        "basicPayFlatAmount": true,
+        "hoursLabel": "Hours-make up",
+        "holidayLineAnchor": "Holiday",
+        "holidayLineLabel": "Holiday Salary",
+        "holidayLineFlatAmount": true,
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "deductions_table": {
+        "anchor": "PAYE Tax 261.60",
+        "otherNetDedLabel": "Other Net Deduction",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "address_block": {
+        "anchor": "Some Apartment",
+        "nameAnchor": "Jane Doe",
+        "address_lines": 4,
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [5, 0]
+        }
+    },
+    "this_period": {
+        "anchor": "Earnings for NI 2462.50",
+        "payCycleLabel": "Pay Cycle",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0]
+        }
+    },
+    "year_to_date": {
+        "anchor": "Total Gross Pay TD 8630.00",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, 0],
+            "row_spacing": 8.5
+        }
+    },
+    "footer": {
+        "anchor": "The Better Place Catering Company Limited",
+        "employerAnchor": "The Better Place Catering Company Limited",
+        "payRunTextTemplate": "Pay Run: Month {}",
+        "copyrightLine": "© 1998 Sage (UK) Limited.",
+        "position": {
+            "anchor_point": [0, 0],
+            "max_width": 0,
+            "nudge": [0, -3],
+            "pay_run_min_spacing": 28,
+            "pay_run_max_spacing": 64,
+            "copyright_nudge": 20
+        }
+    }
+}

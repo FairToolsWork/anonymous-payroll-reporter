@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
     APRIL_BOUNDARY_NOTE,
+    buildMiscReviewLine,
     buildZeroTaxAllowanceNote,
     ZERO_TAX_ALLOWANCE_NOTE,
 } from '../pwa/src/report/report_formatters.js'
@@ -73,6 +74,38 @@ describe('APRIL_BOUNDARY_NOTE', () => {
     it('mentions discrepancies in year-end figures', () => {
         expect(APRIL_BOUNDARY_NOTE).toContain(
             'discrepancies in year-end figures'
+        )
+    })
+})
+
+describe('buildMiscReviewLine', () => {
+    it('normalizes missing space before ordinals and does not duplicate existing units/rate detail', () => {
+        const line = buildMiscReviewLine({
+            dateLabel: '29 Dec 2021',
+            type: 'payment',
+            label: 'Basic Hours from1st dec (80.00 @ £10.00)',
+            amount: 800,
+            units: 80,
+            rate: 10,
+        })
+
+        expect(line).toBe(
+            '29 Dec 2021: Payment: Basic Hours from 1st dec (80.00 @ £10.00): £800.00'
+        )
+    })
+
+    it('adds units/rate detail when it is not present in label', () => {
+        const line = buildMiscReviewLine({
+            dateLabel: '29 Dec 2021',
+            type: 'payment',
+            label: 'Basic Hours from 1st dec',
+            amount: 800,
+            units: 80,
+            rate: 10,
+        })
+
+        expect(line).toBe(
+            '29 Dec 2021: Payment: Basic Hours from 1st dec (80.00 @ £10.00): £800.00'
         )
     })
 })

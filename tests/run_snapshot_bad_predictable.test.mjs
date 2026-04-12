@@ -113,7 +113,6 @@ describe.skipIf(!fixturesExist)(
                 const html = result.report?.html || ''
                 expect(html).toContain('Annual holiday pay cross-check')
                 expect(html).toContain('Reference state')
-                expect(html).toContain('Mixed month')
             }, 90000)
 
             it('flags a holiday rate anomaly in all 4 holiday months', async () => {

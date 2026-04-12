@@ -349,6 +349,10 @@ h2 {
     margin-inline: 0;
 }
 
+h2.has-notice {
+    margin-block: var(--space-12);
+}
+
 .subhead {
     margin: 0;
     color: var(--muted);
@@ -1770,7 +1774,7 @@ label.field span {
     align-items: stretch;
     place-content: center center;
     overflow-x: auto;
-    min-inline-size: 825px;
+    min-inline-size: 1100px;
 }
 
 .stats {
@@ -1823,6 +1827,10 @@ label.field span {
 .report-meta {
     text-align: center;
     margin-block-end: var(--space-24);
+}
+
+.report-meta.has-notice {
+    margin-block-end: var(--space-4);
 }
 
 .report-meta-version {
@@ -2001,7 +2009,7 @@ label.field span {
 
 .summary-breakdown {
     display: inline-block;
-    font-size: var(--text-xs);
+    font-size: var(--text-2xs);
 }
 
 .summary-table {
@@ -2024,7 +2032,7 @@ label.field span {
 .summary-table thead th {
     text-align: start;
     overflow: hidden;
-    line-break: anywhere;
+    line-break: auto;
 }
 
 .summary-table .col-center {
@@ -2037,37 +2045,83 @@ label.field span {
 }
 
 .summary-table thead th:nth-child(1) {
-    inline-size: 10%;
+    inline-size: 4%;
 } /* Month/Year */
 .summary-table thead th:nth-child(2) {
-    inline-size: 8%;
+    inline-size: 3%;
 } /* Hours */
 .summary-table thead th:nth-child(3) {
-    inline-size: 28%;
+    inline-size: 5%;
 } /* Holiday */
 .summary-table thead th:nth-child(4) {
-    inline-size: 18%;
-} /* Pension Payroll */
-.summary-table thead th:nth-child(5) {
-    inline-size: 18%;
-} /* Reported */
-.summary-table thead th:nth-child(6) {
-    inline-size: 10%;
-} /* Over/Under */
-.summary-table thead th:nth-child(7) {
     inline-size: 8%;
-    text-align: center;
+} /* Reference state */
+.summary-table thead th:nth-child(5) {
+    inline-size: 5%;
+} /* Pension Payroll */
+.summary-table thead th:nth-child(6) {
+    inline-size: 5%;
+} /* Reported */
+.summary-table thead th:nth-child(7) {
+    inline-size: 3%;
+} /* Over/Under */
+.summary-table thead th:nth-child(8) {
+    inline-size: 3%;
 } /* Flags */
 
+.summary-table th:nth-child(1),
+.summary-table td:nth-child(1),
 .summary-table th:nth-child(2),
 .summary-table td:nth-child(2),
-.summary-table th:nth-child(6),
-.summary-table td:nth-child(6),
 .summary-table th:nth-child(7),
 .summary-table td:nth-child(7),
+.summary-table th:nth-child(8),
+.summary-table td:nth-child(8),
 .summary-table .col-center {
     text-align: center;
 }
+
+.summary-table.accumulated-totals thead th:nth-child(1) {
+    inline-size: 15%;
+} /* Date Range */
+.summary-table.accumulated-totals thead th:nth-child(2) {
+    inline-size: 10%;
+} /* Payroll */
+.summary-table.accumulated-totals thead th:nth-child(3) {
+    inline-size: 10%;
+} /* Reported */
+.summary-table.accumulated-totals thead th:nth-child(4) {
+    inline-size: 10%;
+} /* Accumulated */
+.summary-table.accumulated-totals thead th:nth-child(5) {
+    inline-size: 10%;
+} /* Last Contribution */
+
+.summary-table.accumulated-totals td {
+    text-align: center;
+}
+
+.summary-table.global thead th:nth-child(1) {
+    inline-size: 10%;
+} /* Year */
+.summary-table.global thead th:nth-child(2) {
+    inline-size: 10%;
+} /* Hours */
+.summary-table.global thead th:nth-child(3) {
+    inline-size: 20%;
+} /* Holiday */
+.summary-table.global thead th:nth-child(4) {
+    inline-size: 20%;
+} /* Deducted Pension Payroll */
+.summary-table.global thead th:nth-child(5) {
+    inline-size: 15%;
+} /* Reported Pension Payroll */
+.summary-table.global thead th:nth-child(6) {
+    inline-size: 10%;
+} /* Reported */
+.summary-table.global thead th:nth-child(7) {
+    inline-size: 10%;
+} /* Flags */
 
 .holiday-est-days {
     font-size: var(--text-xs);
@@ -2158,23 +2212,6 @@ p.report-footnote-row {
 
 .report-footnote li {
     margin-block: 0;
-}
-
-.report-warning-banner {
-    background: var(--accent-08);
-    border: 1px solid var(--accent-40);
-    border-inline-start: 4px solid var(--accent);
-    border-radius: var(--radius-4);
-    padding: var(--space-12) var(--space-16);
-    margin-block-end: var(--space-16);
-    font-size: var(--text-sm);
-    color: var(--warning-text);
-    line-height: var(--leading-normal);
-}
-
-.report-warning-banner .warning-icon {
-    margin-inline-end: var(--space-6);
-    color: var(--accent);
 }
 
 .summary-warning {

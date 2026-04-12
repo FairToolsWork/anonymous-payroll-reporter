@@ -89,11 +89,11 @@ describe('run snapshot regression', () => {
                 ).length,
             0
         )
-        expect(Array.isArray(snapshot.payeMismatchDiagnostics)).toBe(true)
-        expect(snapshot.payeMismatchDiagnostics.length).toBe(
+        expect(Array.isArray(snapshot.payeFlagDiagnostics)).toBe(true)
+        expect(snapshot.payeFlagDiagnostics.length).toBe(
             expectedDiagnosticsCount
         )
-        for (const diag of snapshot.payeMismatchDiagnostics) {
+        for (const diag of snapshot.payeFlagDiagnostics) {
             expect(typeof diag.period).toBe('string')
             expect(
                 Object.prototype.hasOwnProperty.call(diag, 'grossForTax')

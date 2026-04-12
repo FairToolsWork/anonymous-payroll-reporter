@@ -70,9 +70,7 @@ export function injectReportVersionFootnote(
     const rulesVersionLabel = auditMetadata?.rulesVersion || RULES_VERSION
     const thresholdsVersionLabel =
         auditMetadata?.thresholdsVersion || THRESHOLDS_VERSION
-    const versionMarkup =
-        `<p class="report-footnote">Release: ${versionLabel}</p>` +
-        `<p class="report-footnote">Rules: ${rulesVersionLabel} · Thresholds: ${thresholdsVersionLabel}</p>`
+    const versionMarkup = `<p class="report-footnote">Release: ${versionLabel} Rules: ${rulesVersionLabel} · Thresholds: ${thresholdsVersionLabel}</p>`
     return (
         reportHtml.slice(0, pageCloseIndex) +
         versionMarkup +

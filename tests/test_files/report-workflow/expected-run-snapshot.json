@@ -37,7 +37,8 @@
             "payeTax": 243.94,
             "pensionEE": 92.61,
             "flagIds": [
-                "holiday_reference_insufficient_history"
+                "holiday_reference_insufficient_history",
+                "unrecognised_deduction"
             ]
         },
         {
@@ -100,7 +101,9 @@
             "salariedPay": 0,
             "payeTax": 227.83,
             "pensionEE": 88.37,
-            "flagIds": []
+            "flagIds": [
+                "unrecognised_deduction"
+            ]
         },
         {
             "period": "20 Dec 2024",
@@ -140,7 +143,9 @@
             "salariedPay": 0,
             "payeTax": 68.42,
             "pensionEE": 46.41,
-            "flagIds": []
+            "flagIds": [
+                "unrecognised_deduction"
+            ]
         },
         {
             "period": "20 Mar 2025",

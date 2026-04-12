@@ -96,6 +96,7 @@ describe('parsePayeTaxCode', () => {
         const result = parsePayeTaxCode('D0')
         expect(result.region).toBe('england')
         expect(result.isStandardCode).toBe(false)
+        expect(result.isFlatRateCode).toBe(false)
         expect(result.normalizedCode).toBe('D0')
     })
 
@@ -103,6 +104,23 @@ describe('parsePayeTaxCode', () => {
         const result = parsePayeTaxCode('NT')
         expect(result.region).toBe('england')
         expect(result.isStandardCode).toBe(false)
+        expect(result.isFlatRateCode).toBe(false)
+    })
+
+    it('identifies BR as a flat-rate second job code for England', () => {
+        const result = parsePayeTaxCode('BR')
+        expect(result.region).toBe('england')
+        expect(result.isStandardCode).toBe(false)
+        expect(result.isFlatRateCode).toBe(true)
+        expect(result.baseCode).toBe('BR')
+    })
+
+    it('identifies SBR as a flat-rate second job code for Scotland', () => {
+        const result = parsePayeTaxCode('SBR')
+        expect(result.region).toBe('scotland')
+        expect(result.isStandardCode).toBe(false)
+        expect(result.isFlatRateCode).toBe(true)
+        expect(result.baseCode).toBe('BR')
     })
 
     it('trims whitespace before processing', () => {

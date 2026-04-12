@@ -648,8 +648,8 @@ None of the above fields affect the underlying payslip parsing or the 52-week ro
 - The statutory holiday entitlement field becomes disabled in the UI
 - Rate checks (Signals A and B) continue to operate normally
 - The report displays an hours-based entitlement using `avgWeeklyHours × 5.6` for the annual projection, with the label indicating the legislative framework:
-    - **Pre-April 2024 leave years:** `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "5.6 week avg. method"
-    - **April 2024+ leave years:** `≈X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "12.07% accrual method"
+    - **Pre-April 2024 leave years:** `~X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "5.6 week avg. method"
+    - **April 2024+ leave years:** `~X hrs/yr entitlement (Y avg hrs/wk × 5.6 wks)` labelled "12.07% accrual method"
     - For April 2024+ leave years, monthly reports additionally show `+Z hrs accrued` to make the 12.07% per-period mechanism visible
 - Shows `Z hrs remaining` using the most recent entry's 52-week rolling context
 - Falls back to `Days estimate not shown — variable work pattern` if no 52-week baseline exists (fewer than 3 eligible prior months)

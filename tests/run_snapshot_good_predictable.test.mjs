@@ -92,7 +92,6 @@ describe.skipIf(!fixturesExist)('run snapshot — good-place-predictable', () =>
             const html = result.report?.html || ''
             expect(html).toContain('Annual holiday pay cross-check')
             expect(html).toContain('Reference state')
-            expect(html).toContain('Mixed month')
         }, 90000)
 
         it('matches the expected snapshot', async () => {

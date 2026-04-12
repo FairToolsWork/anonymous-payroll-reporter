@@ -56,9 +56,7 @@ export function initServiceWorkerUpdates() {
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1'
     const debugLevel = new URLSearchParams(window.location.search).get('debug')
-    const allowDevServiceWorker =
-        isDevHost &&
-        (debugLevel === '2' || debugLevel === '3' || debugLevel === '4')
+    const allowDevServiceWorker = isDevHost && debugLevel === '2'
     if ((!isDevHost || allowDevServiceWorker) && 'serviceWorker' in navigator) {
         const hadController = !!navigator.serviceWorker.controller
         let reloadPending = false

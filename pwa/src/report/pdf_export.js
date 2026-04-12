@@ -53,6 +53,11 @@ const FONT_HEADING = 13
 const FONT_BODY = 10
 const FONT_SMALL = 9
 
+// ─── Holiday accrual constants ────────────────────────────────────────────────
+
+const HOURLY_ACCRUAL_FACTOR = 0.1207
+const HOURLY_ACCRUAL_FALLBACK_LABEL = 'worked-hours fallback estimate (no baseline)'
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
@@ -175,6 +180,29 @@ function maxWidth(doc) {
 }
 
 /**
+ * @param {jsPDF} doc
+ * @returns {number}
+ */
+function contentBottom(doc) {
+    return pageHeight(doc) - PAGE_MARGIN
+}
+
+/**
+ * Ensures there is enough remaining space on the current page; otherwise starts a new page.
+ * @param {jsPDF} doc
+ * @param {number} cursorY
+ * @param {number} requiredHeight
+ * @returns {number}
+ */
+function ensureSpace(doc, cursorY, requiredHeight) {
+    if (cursorY + requiredHeight > contentBottom(doc)) {
+        doc.addPage()
+        return PAGE_MARGIN
+    }
+    return cursorY
+}
+
+/**
  * Writes text and returns updated cursorY.
  * @param {jsPDF} doc
  * @param {string | string[]} text
@@ -189,12 +217,32 @@ function writeText(doc, text, cursorY, opts = {}) {
     doc.setFontSize(fontSize)
     doc.setTextColor(opts.color ?? '#000000')
     const safeText = sanitizeTextLines(text)
-    const lines = Array.isArray(safeText)
-        ? safeText
-        : doc.splitTextToSize(safeText, maxWidth(doc))
-    doc.text(lines, PAGE_MARGIN, cursorY)
+    const rawLines = Array.isArray(safeText) ? safeText : [safeText]
+    const lines = rawLines.flatMap((line) => {
+        const wrapped = doc.splitTextToSize(String(line ?? ''), maxWidth(doc))
+        return wrapped.length ? wrapped : ['']
+    })
     const lineHeight = fontSize * 1.3
-    return cursorY + lines.length * lineHeight + LINE_GAP
+    const lineContent = [...lines]
+    let y = cursorY
+
+    while (lineContent.length) {
+        y = ensureSpace(doc, y, lineHeight)
+        const availableHeight = contentBottom(doc) - y
+        const linesOnPage = Math.max(
+            1,
+            Math.floor(availableHeight / lineHeight)
+        )
+        const chunk = lineContent.splice(0, linesOnPage)
+        doc.text(chunk, PAGE_MARGIN, y)
+        y += chunk.length * lineHeight
+        if (lineContent.length) {
+            doc.addPage()
+            y = PAGE_MARGIN
+        }
+    }
+
+    return y + LINE_GAP
 }
 
 /**
@@ -209,7 +257,9 @@ function writeHeading(doc, text, cursorY, opts = {}) {
     const fontSize = opts.fontSize ?? FONT_HEADING
     const gap = opts.gap ?? SECTION_GAP
     const preGap = opts.preGap ?? HEADING_PRE_GAP
-    const y = cursorY + preGap
+    const neededHeight = preGap + fontSize * 1.3 + gap
+    let y = ensureSpace(doc, cursorY, neededHeight)
+    y += preGap
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(fontSize)
     doc.setTextColor('#000000')
@@ -300,12 +350,56 @@ function renderDisplayText(display) {
         .join('\n')
 }
 
-/** @param {any} holidaySummary */
-function renderYearRowHolidayText(holidaySummary) {
-    const display = buildYearRowHolidayDisplay(holidaySummary)
+/**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSummaryYearHoursText(row) {
+    const kind = row?.holidaySummary?.kind
+    if (kind === 'salary_days' || kind === 'salary_amount') {
+        return 'N/A'
+    }
+    return row.hours.toFixed(2)
+}
+
+/**
+ * @param {any} holidaySummary
+ * @param {number | null} [accruedHoursHint=null]
+ */
+function renderYearRowHolidayText(holidaySummary, accruedHoursHint = null) {
+    const display = buildYearRowHolidayDisplay(holidaySummary, accruedHoursHint)
     return [display.primaryLabel, ...display.detailLines]
         .filter(Boolean)
         .join('\n')
+}
+
+/**
+ * @param {any} row
+ * @returns {string}
+ */
+function renderSalaryYearRowHolidayText(row) {
+    const holidayAmount = row?.salaryHolidayAmount ?? 0
+    const estimatedDays = row?.salaryHolidayEstimatedDays
+    if (estimatedDays === null || Number.isNaN(estimatedDays)) {
+        return `${formatCurrency(holidayAmount)} holiday pay`
+    }
+    return `${formatCurrency(holidayAmount)} holiday pay\n~${estimatedDays.toFixed(1)} days`
+}
+
+/**
+ * @param {number} holidayHours
+ * @param {number} workedHours
+ * @returns {string}
+ */
+function renderHourlyVariableFooterText(holidayHours, workedHours) {
+    const accruedHours = workedHours * HOURLY_ACCRUAL_FACTOR
+    const remainingHours = Math.max(0, accruedHours - holidayHours)
+    return [
+        `${holidayHours.toFixed(2)} hrs taken`,
+        `+${accruedHours.toFixed(2)} hrs accrued`,
+        `~${accruedHours.toFixed(1)} hrs/yr entitlement (${HOURLY_ACCRUAL_FALLBACK_LABEL})`,
+        `${remainingHours.toFixed(1)} hrs remaining`,
+    ].join('\n')
 }
 
 // ─── Page sections ────────────────────────────────────────────────────────────
@@ -319,17 +413,24 @@ function renderYearRowHolidayText(holidaySummary) {
 function renderSummaryPage(doc, context, meta, pageNumbers) {
     let y = PAGE_MARGIN
     const summaryViewModel = buildSummaryViewModel(context, meta)
+    const firstSummaryHolidayKind = summaryViewModel.yearSummaryRows.find(
+        (row) => row?.holidaySummary?.kind
+    )?.holidaySummary?.kind
+    const isSalaryWorker =
+        firstSummaryHolidayKind === 'salary_days' ||
+        firstSummaryHolidayKind === 'salary_amount'
     const summaryHeading = summaryViewModel.heading
 
     /**
      * @param {string | string[]} text
      * @param {number} cursorY
-     * @param {{ fontSize?: number, bold?: boolean, color?: string }} [opts]
+     * @param {{ fontSize?: number, bold?: boolean, color?: string, gap?: number }} [opts]
      * @returns {number}
      */
     function writeCenteredText(text, cursorY, opts = {}) {
         const fontSize = opts.fontSize ?? FONT_BODY
         const bold = opts.bold ?? false
+        const gap = opts.gap ?? LINE_GAP
         doc.setFont('helvetica', bold ? 'bold' : 'normal')
         doc.setFontSize(fontSize)
         doc.setTextColor(opts.color ?? '#000000')
@@ -339,19 +440,27 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             : doc.splitTextToSize(safeText, maxWidth(doc))
         doc.text(lines, pageWidth(doc) / 2, cursorY, { align: 'center' })
         const lineHeight = fontSize * 1.3
-        return cursorY + lines.length * lineHeight + LINE_GAP
+        return cursorY + lines.length * lineHeight + gap
     }
 
     y = writeCenteredText(
         `Payroll Report - ${summaryHeading.employeeName}`,
         y,
-        { fontSize: FONT_TITLE, bold: true }
+        { fontSize: FONT_TITLE, bold: true, gap: SECTION_GAP }
     )
-    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y)
+    y = writeCenteredText(`Date range: ${summaryHeading.dateRangeLabel}`, y, {
+        gap: SECTION_GAP,
+    })
     if (summaryHeading.generatedLabel) {
-        y = writeCenteredText(`Generated: ${summaryHeading.generatedLabel}`, y)
+        y = writeCenteredText(
+            `Generated: ${summaryHeading.generatedLabel}`,
+            y,
+            {
+                gap: SECTION_GAP,
+            }
+        )
     }
-    y += LINE_GAP
+    y += 2
 
     const metaRows = summaryViewModel.metaRows.map((/** @type {any} */ row) => [
         sanitizeText(row.label),
@@ -361,7 +470,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 : (row.displayValue ?? row.value ?? '')
         ),
     ])
-    y += LINE_GAP
+    y += 2
     autoTable(doc, {
         startY: y,
         head: [],
@@ -390,7 +499,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         tableLineWidth: 0.5,
     })
     y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
-    y += SECTION_GAP
+    y += LINE_GAP * 2
 
     if (summaryViewModel.contractTypeMismatchWarning) {
         y += SECTION_GAP
@@ -410,6 +519,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         const warnLineH = FONT_SMALL * 1.3
         const warnTextH = warnLines.length * warnLineH
         const warnBoxH = warnTextH + WARN_PAD_V * 2
+        y = ensureSpace(doc, y, warnBoxH + SECTION_GAP)
         doc.setFillColor(253, 244, 237)
         doc.roundedRect(warnBoxX, y, warnBoxW, warnBoxH, 2, 2, 'F')
         doc.setFillColor(194, 84, 45)
@@ -426,8 +536,10 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         })
     }
 
-    y += LINE_GAP
-    y = writeHeading(doc, YEAR_SUMMARY_TITLE, y)
+    y = writeHeading(doc, YEAR_SUMMARY_TITLE, y, {
+        preGap: 8,
+        gap: 2,
+    })
 
     /** @type {Array<Array<string>>} */
     const yearRows = []
@@ -438,7 +550,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         const diff = buildDiffDisplay(row.overUnder, row.zeroReview)
         yearRows.push([
             String(row.yearKey || 'Unknown'),
-            row.hours.toFixed(2),
+            renderSummaryYearHoursText(row),
             renderDisplayText(buildHolidaySummaryDisplay(row.holidaySummary)),
             formatBreakdown(
                 row.payrollContribution.total,
@@ -463,7 +575,9 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 [
                     'Tax Year',
                     'Hours',
-                    'Holiday (hrs/days)',
+                    isSalaryWorker
+                        ? 'Holiday (pay/days)'
+                        : 'Holiday (hrs/days)',
                     'Payroll Cont. (EE+ER)',
                     'Reported (EE+ER)',
                     'YE Over/Under',
@@ -568,7 +682,11 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     )
 
     if (summaryViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
         y = writeText(
             doc,
             summaryViewModel.miscReviewItems.map((/** @type {any} */ item) =>
@@ -643,12 +761,44 @@ function renderYearPage(
     const diffColorByRow = []
     /** @type {Array<number | null>} */
     const payslipIndexByRow = []
+    const breakdownByMonth = new Map(
+        (yearViewModel.monthBreakdown || []).map((/** @type {any} */ bd) => [
+            bd.monthIndex,
+            bd,
+        ])
+    )
+    // Col index: Month(0) Hours(1) Holiday(2) RefState(3) Payroll(4) Reported(5) Over/Under(6) Flags(7)
+    const overUnderColIndex = 6
+    const isAccrualHourlyContext = yearViewModel.isAccrualHourlyContext === true
+    const isFixedScheduleHourlyContext =
+        yearViewModel.isFixedScheduleHourlyContext === true
+    const isSalaryContext = yearViewModel.isSalaryContext === true
     yearViewModel.rows.forEach((/** @type {any} */ row) => {
         const rowDiff = buildDiffDisplay(row.overUnder, row.zeroReview)
+        const bd = breakdownByMonth.get(row.monthIndex)
+        const rowHolidayKind = row.holidaySummary?.kind
+        const isHourlyRow =
+            rowHolidayKind === 'hours_only' || rowHolidayKind === 'hours_days'
+        const accruedHoursHint =
+            isAccrualHourlyContext && isHourlyRow && Number.isFinite(row.hours)
+                ? row.hours * 0.1207
+                : null
+        const holidayCellText = isSalaryContext
+            ? renderSalaryYearRowHolidayText(row)
+            : renderYearRowHolidayText(row.holidaySummary, accruedHoursHint)
+        const hoursCellText = isSalaryContext ? 'N/A' : row.hours.toFixed(2)
+        const breakdownCells = isFixedScheduleHourlyContext
+            ? ['N/A']
+            : bd
+              ? [buildAnnualMonthBreakdownDisplay(bd).referenceLabel]
+              : isSalaryContext
+                ? ['N/A']
+                : [isAccrualHourlyContext ? 'No baseline' : '—']
         bodyRows.push([
             row.monthLabel,
-            row.hours.toFixed(2),
-            renderYearRowHolidayText(row.holidaySummary),
+            hoursCellText,
+            holidayCellText,
+            ...breakdownCells,
             formatBreakdown(
                 row.payrollContribution.total,
                 row.payrollContribution.ee,
@@ -676,10 +826,18 @@ function renderYearPage(
             row.id === 'total'
                 ? [
                       row.label,
-                      row.hours.toFixed(2),
-                      renderDisplayText(
-                          buildHolidaySummaryDisplay(row.yearHolidaySummary)
-                      ),
+                      isSalaryContext ? 'N/A' : row.hours.toFixed(2),
+                      row.yearHolidaySummary?.kind === 'hourly_variable'
+                          ? renderHourlyVariableFooterText(
+                                row.yearHolidaySummary?.holidayHours ?? 0,
+                                row.hours
+                            )
+                          : renderDisplayText(
+                                buildHolidaySummaryDisplay(
+                                    row.yearHolidaySummary
+                                )
+                            ),
+                      '',
                       formatBreakdown(
                           row.payrollContribution.total,
                           row.payrollContribution.ee,
@@ -693,25 +851,26 @@ function renderYearPage(
                       rowDiff.text,
                       '-',
                   ]
-                : [row.label, '', '', '', '', rowDiff.text, '']
+                : [row.label, '', '', '', '', '', rowDiff.text, '']
         )
         footDiffColors.push(rowDiff.color)
     })
 
+    const headColumns = [
+        'Month',
+        'Hours',
+        isSalaryContext ? 'Holiday (pay/days)' : 'Holiday (hrs/days)',
+        'Reference state',
+        'Payroll Cont. (EE+ER)',
+        'Reported (EE+ER)',
+        'Over/Under',
+        'Flags',
+    ]
+
     y = writeTable(
         doc,
         {
-            head: [
-                [
-                    'Month',
-                    'Hours',
-                    'Holiday (hrs/days)',
-                    'Payroll Cont. (EE+ER)',
-                    'Reported (EE+ER)',
-                    'Over/Under',
-                    'Flags',
-                ],
-            ],
+            head: [headColumns],
             body: bodyRows,
             foot: footRows,
         },
@@ -719,7 +878,7 @@ function renderYearPage(
         {
             didParseCell(data) {
                 if (data.section === 'head') return
-                if (data.column.index === 5) {
+                if (data.column.index === overUnderColIndex) {
                     const color =
                         data.section === 'foot'
                             ? (footDiffColors[data.row.index] ?? null)
@@ -769,46 +928,14 @@ function renderYearPage(
             y,
             { fontSize: FONT_SMALL }
         )
-
-        const annualRows = yearViewModel.monthBreakdown.map(
-            (/** @type {any} */ row) => {
-                const display = buildAnnualMonthBreakdownDisplay(row)
-                return [
-                    row.monthLabel,
-                    row.basicHours.toFixed(2),
-                    row.holidayHours.toFixed(2),
-                    row.estimatedDays === null
-                        ? 'N/A'
-                        : row.estimatedDays.toFixed(1),
-                    display.referenceLabel,
-                    display.mixedMonthLabel,
-                    display.signalsLabel,
-                ]
-            }
-        )
-
-        y = writeTable(
-            doc,
-            {
-                head: [
-                    [
-                        'Month',
-                        'Basic hrs',
-                        'Holiday hrs',
-                        'Est. days',
-                        'Reference state',
-                        'Mixed month',
-                        'Signals',
-                    ],
-                ],
-                body: annualRows,
-            },
-            y
-        )
     }
 
     if (yearViewModel.miscReviewItems.length) {
-        y = writeHeading(doc, MISC_REVIEW_TITLE, y)
+        y = writeHeading(doc, MISC_REVIEW_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
         y = writeText(
             doc,
             yearViewModel.miscReviewItems.map((/** @type {any} */ item) =>
@@ -820,15 +947,18 @@ function renderYearPage(
     }
 
     if (yearViewModel.flagNotes.length) {
-        y = writeHeading(doc, FLAG_NOTES_TITLE, y)
-        y = writeText(
-            doc,
-            yearViewModel.flagNotes.map(
-                (/** @type {any} */ note) => `${note.index}. ${note.label}`
-            ),
-            y,
-            { fontSize: FONT_SMALL }
+        y = writeHeading(doc, FLAG_NOTES_TITLE, y, {
+            fontSize: FONT_BODY,
+            preGap: 10,
+            gap: LINE_GAP,
+        })
+        const flagNoteLines = yearViewModel.flagNotes.flatMap(
+            (/** @type {any} */ note, index) =>
+                index === 0
+                    ? [`${note.index}. ${note.label}`]
+                    : ['', `${note.index}. ${note.label}`]
         )
+        y = writeText(doc, flagNoteLines, y, { fontSize: FONT_SMALL })
     }
 
     if (yearViewModel.notes.length) {

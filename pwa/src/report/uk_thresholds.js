@@ -377,6 +377,7 @@ export function formatTaxYearLabelFromStartYear(startYear) {
  *   region: IncomeTaxRegion | null,
  *   isEmergency: boolean,
  *   isStandardCode: boolean,
+ *   isFlatRateCode: boolean,
  *   hasKnownRegion: boolean,
  * }} ParsedPayeTaxCode
  */
@@ -397,6 +398,7 @@ export function parsePayeTaxCode(taxCode) {
             region: null,
             isEmergency: false,
             isStandardCode: false,
+            isFlatRateCode: false,
             hasKnownRegion: false,
         }
     }
@@ -423,6 +425,7 @@ export function parsePayeTaxCode(taxCode) {
         region,
         isEmergency,
         isStandardCode: baseCode === '1257L',
+        isFlatRateCode: baseCode === 'BR',
         hasKnownRegion: region !== null,
     }
 }
