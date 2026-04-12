@@ -789,6 +789,9 @@ export function buildYearViewModel(
 ) {
     const yearEntries = /** @type {ReportEntry[]} */ (entriesForYear || [])
     const allEntries = /** @type {ReportEntry[]} */ (context.entries || [])
+    const globalEntryIndexByEntry = new Map(
+        allEntries.map((entry, index) => [entry, index])
+    )
     const monthEntries = new Map()
     yearEntries.forEach((entry) => {
         if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
@@ -903,7 +906,8 @@ export function buildYearViewModel(
                             ? `${monthLabelBase} (${entryIndex + 1})`
                             : monthLabelBase,
                     monthAnchorId,
-                    globalEntryIndex: allEntries.indexOf(entry),
+                    globalEntryIndex:
+                        globalEntryIndexByEntry.get(entry) ?? null,
                     hours,
                     holidaySummary,
                     salaryHolidayAmount,
