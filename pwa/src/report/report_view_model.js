@@ -675,8 +675,8 @@ export function buildSummaryViewModel(context, meta) {
         : null
     const isValidRunDate =
         runDate instanceof Date && !Number.isNaN(runDate.getTime())
-    const runMonth = isValidRunDate ? runDate.getMonth() : -1
-    const runDay = isValidRunDate ? runDate.getDate() : -1
+    const runMonth = isValidRunDate ? runDate.getUTCMonth() : -1
+    const runDay = isValidRunDate ? runDate.getUTCDate() : -1
     const isAfterAprilSix =
         isValidRunDate && (runMonth > 3 || (runMonth === 3 && runDay > 6))
     const hasNewTaxYearFallback =
