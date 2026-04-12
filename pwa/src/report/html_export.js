@@ -432,7 +432,7 @@ export function renderHtmlReport(context, meta) {
         if (yearViewModel.missingMonths.length) {
             const yearMissingPill = `<div class="notice"><p>Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span></p></div>`
             reportSections.push(
-                `<p class="report-missing">${yearMissingPill}</p>`
+                `<div class="report-missing">${yearMissingPill}</div>`
             )
         }
         reportSections.push(renderYearSummaryFromViewModel(yearViewModel))
