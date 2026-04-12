@@ -620,6 +620,10 @@ export function buildValidation(entry) {
     const flags = /** @type {ValidationFlag[]} */ ([])
     const natInsNumber = record.employee?.natInsNumber || ''
     const taxCode = record.payrollDoc?.taxCode?.code || ''
+    // The `|| 0` coercions below mean both payeTax and nationalInsurance are
+    // always >= 0 at the point the validators see them. Real-world refunds
+    // appear in payments.misc (not as negative deductions), so the validators
+    // below treat <= 0 as "zero or missing" — not "possible refund".
     const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
     const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0
     const totalGrossPay =

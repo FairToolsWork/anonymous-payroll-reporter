@@ -24,6 +24,7 @@ import {
     buildPayslipViewModel,
     buildSummaryViewModel,
     buildYearViewModel,
+    prepareCoverageEntries,
 } from './report_view_model.js'
 import { CONTRIBUTION_RECENCY_DAYS_THRESHOLD } from './uk_thresholds.js'
 
@@ -756,6 +757,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
  * @param {any} context
  * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
  * @param {number} openingBalance
+ * @param {{ sortedEntries: import('./report_view_model.js').HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<import('./report_view_model.js').ReportEntry, import('./report_view_model.js').HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed]
  * @returns {number}
  */
 function renderYearPage(
@@ -764,7 +766,8 @@ function renderYearPage(
     yearKey,
     context,
     pageNumbers,
-    openingBalance
+    openingBalance,
+    coverageEntriesPrecomputed = null
 ) {
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
@@ -773,7 +776,8 @@ function renderYearPage(
         entriesForYear,
         String(yearKey),
         context,
-        openingBalance
+        openingBalance,
+        coverageEntriesPrecomputed
     )
 
     y = writeHeading(
@@ -1246,6 +1250,9 @@ export async function exportReportPdf(context, meta) {
 
     context.employeeName = meta.employeeName || 'Unknown'
 
+    const yearCoveragePrecomputed = prepareCoverageEntries(
+        /** @type {any[]} */ (context.entries || [])
+    )
     context.yearGroups.forEach((entriesForYear, yearKey) => {
         const strYearKey = String(yearKey || 'Unknown')
         const yearIdx = pdfYearKeys.indexOf(strYearKey)
@@ -1263,7 +1270,8 @@ export async function exportReportPdf(context, meta) {
             strYearKey,
             context,
             { yearPageNumbers, payslipPageNumbers },
-            openingBalance
+            openingBalance,
+            yearCoveragePrecomputed
         )
         yearPageNumbers.set(strYearKey, pageNumber)
     })

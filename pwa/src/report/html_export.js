@@ -21,6 +21,7 @@ import {
     buildPayslipViewModel,
     buildSummaryViewModel,
     buildYearViewModel,
+    prepareCoverageEntries,
 } from './report_view_model.js'
 
 const HOURLY_ACCRUAL_FACTOR = 0.1207
@@ -405,6 +406,9 @@ export function renderHtmlReport(context, meta) {
     reportSections.push(summaryNotesHtml)
     reportSections.push('</div>')
 
+    const yearCoveragePrecomputed = prepareCoverageEntries(
+        /** @type {any[]} */ (context.entries || [])
+    )
     Array.from(context.yearGroups.keys()).forEach((yearKey) => {
         const entriesForYear = context.yearGroups.get(yearKey)
         if (!entriesForYear) {
@@ -432,7 +436,8 @@ export function renderHtmlReport(context, meta) {
                 },
                 workerProfile: context.workerProfile,
             },
-            openingBalance
+            openingBalance,
+            yearCoveragePrecomputed
         )
         reportSections.push('<div class="page">')
         reportSections.push(

@@ -779,12 +779,13 @@ export function buildSummaryViewModel(context, meta) {
     }
 }
 
-/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance */
+/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] */
 export function buildYearViewModel(
     entriesForYear,
     yearKey,
     context,
-    openingBalance
+    openingBalance,
+    coverageEntriesPrecomputed = null
 ) {
     const yearEntries = /** @type {ReportEntry[]} */ (entriesForYear || [])
     const allEntries = /** @type {ReportEntry[]} */ (context.entries || [])
@@ -995,7 +996,7 @@ export function buildYearViewModel(
     const coverageWarning = buildCoverageWarning(
         allEntries,
         yearEntries,
-        prepareCoverageEntries(allEntries)
+        coverageEntriesPrecomputed ?? prepareCoverageEntries(allEntries)
     )
     const annualCrossCheck =
         yearHolidaySummary.kind === 'hourly_hours'
@@ -1155,7 +1156,7 @@ function normalizeHolidayCoverageEntries(entries) {
  * @param {ReportEntry[]} allEntries
  * @returns {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> }}
  */
-function prepareCoverageEntries(allEntries) {
+export function prepareCoverageEntries(allEntries) {
     // Normalize allEntries once so that the same object references appear in both
     // sortedEntries and normalizedHolidayTargets. getRollingReferenceCoverage uses
     // entry === targetEntry (object identity) to skip the target month; a second
