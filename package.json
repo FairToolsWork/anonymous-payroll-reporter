@@ -2,7 +2,7 @@
     "name": "anonymous-payroll-reporter",
     "version": "3.9.0",
     "type": "module",
-    "private": false,
+    "private": true,
     "author": "bnjmnrsh",
     "license": "MIT",
     "description": "Payroll PDF Processor PWA and test/fixture tooling",
