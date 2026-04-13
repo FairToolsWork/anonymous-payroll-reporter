@@ -788,24 +788,10 @@ function renderYearPage(
             preGap: 0,
         }
     )
-    if (yearViewModel.missingMonths.length) {
-        y = writeText(
-            doc,
-            `Missing months: ${yearViewModel.missingMonths.join(', ')}`,
-            y,
-            {
-                fontSize: FONT_SMALL,
-            }
-        )
-    }
-    if (yearViewModel.coverageWarning) {
-        y = writeText(doc, yearViewModel.coverageWarning.message, y, {
-            fontSize: FONT_SMALL,
-        })
-    }
-
     const yearNotices = buildYearNoticesList(yearViewModel)
-    if (yearNotices.length > 1) {
+    if (yearNotices.length === 1) {
+        y = writeText(doc, yearNotices[0], y, { fontSize: FONT_SMALL })
+    } else if (yearNotices.length > 1) {
         y += SECTION_GAP
         const bulletPoints = yearNotices
             .map((notice) => '• ' + sanitizeText(notice))
