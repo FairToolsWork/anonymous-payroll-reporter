@@ -10,6 +10,10 @@ export const RULES_VERSION = '2026-04-04'
 /** Version marker for the current threshold set. */
 export const THRESHOLDS_VERSION = RULES_VERSION
 
+/** Threshold review checks switch from warning to failure from 1 April each year. */
+export const THRESHOLD_REVIEW_CUTOFF_MONTH_INDEX = 3
+export const THRESHOLD_REVIEW_CUTOFF_DAY = 1
+
 /**
  * Year-variant statutory thresholds keyed by UK tax-year start year.
  *
@@ -236,6 +240,131 @@ export const TAX_YEAR_THRESHOLDS = Object.freeze({
         },
     }),
 })
+
+/**
+ * @typedef {{
+ *   status: 'ok' | 'warning' | 'expired' | 'invalid-thresholds-version' | 'invalid-reference-date',
+ *   thresholdsVersion: string,
+ *   thresholdsVersionDate: Date | null,
+ *   referenceDate: Date | null,
+ *   cutoffDate: Date | null,
+ * }} ThresholdStalenessStatus
+ */
+
+/**
+ * @param {string | null | undefined} version
+ * @returns {Date | null}
+ */
+export function parseThresholdsVersionDate(version) {
+    const match = String(version || '')
+        .trim()
+        .match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!match) {
+        return null
+    }
+    const year = Number.parseInt(match[1], 10)
+    const month = Number.parseInt(match[2], 10)
+    const day = Number.parseInt(match[3], 10)
+    if (
+        !Number.isFinite(year) ||
+        !Number.isFinite(month) ||
+        !Number.isFinite(day)
+    ) {
+        return null
+    }
+    const parsed = new Date(year, month - 1, day)
+    if (
+        Number.isNaN(parsed.getTime()) ||
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+    ) {
+        return null
+    }
+    return parsed
+}
+
+/**
+ * @returns {number | null}
+ */
+export function getLatestConfiguredThresholdTaxYearStart() {
+    const configuredYears = Object.keys(TAX_YEAR_THRESHOLDS)
+        .map((value) => Number.parseInt(value, 10))
+        .filter((year) => Number.isFinite(year))
+    if (!configuredYears.length) {
+        return null
+    }
+    return Math.max(...configuredYears)
+}
+
+/**
+ * @param {Date | null | undefined} [referenceDate=new Date()]
+ * @param {string | null | undefined} [thresholdsVersion=THRESHOLDS_VERSION]
+ * @returns {ThresholdStalenessStatus}
+ */
+export function getThresholdStalenessStatus(
+    referenceDate = new Date(),
+    thresholdsVersion = THRESHOLDS_VERSION
+) {
+    const versionDate = parseThresholdsVersionDate(thresholdsVersion)
+    if (!versionDate) {
+        return {
+            status: 'invalid-thresholds-version',
+            thresholdsVersion: String(thresholdsVersion || ''),
+            thresholdsVersionDate: null,
+            referenceDate:
+                referenceDate instanceof Date &&
+                !Number.isNaN(referenceDate.getTime())
+                    ? referenceDate
+                    : null,
+            cutoffDate: null,
+        }
+    }
+    if (
+        !(referenceDate instanceof Date) ||
+        Number.isNaN(referenceDate.getTime())
+    ) {
+        return {
+            status: 'invalid-reference-date',
+            thresholdsVersion: String(thresholdsVersion || ''),
+            thresholdsVersionDate: versionDate,
+            referenceDate: null,
+            cutoffDate: null,
+        }
+    }
+    const cutoffDate = new Date(
+        referenceDate.getFullYear(),
+        THRESHOLD_REVIEW_CUTOFF_MONTH_INDEX,
+        THRESHOLD_REVIEW_CUTOFF_DAY
+    )
+    const referenceYear = referenceDate.getFullYear()
+    const versionYear = versionDate.getFullYear()
+    if (versionYear >= referenceYear) {
+        return {
+            status: 'ok',
+            thresholdsVersion: String(thresholdsVersion || ''),
+            thresholdsVersionDate: versionDate,
+            referenceDate,
+            cutoffDate,
+        }
+    }
+    if (referenceDate < cutoffDate) {
+        return {
+            status: 'warning',
+            thresholdsVersion: String(thresholdsVersion || ''),
+            thresholdsVersionDate: versionDate,
+            referenceDate,
+            cutoffDate,
+        }
+    }
+    return {
+        status: 'expired',
+        thresholdsVersion: String(thresholdsVersion || ''),
+        thresholdsVersionDate: versionDate,
+        referenceDate,
+        cutoffDate,
+    }
+}
 
 /** Default staleness threshold for contribution recency displays.
  * https://www.moneyhelper.org.uk/en/pensions-and-retirement/pension-problems/complaining-about-delays-to-your-pension#When-must-my-employer-make-my-pension-contributions-by--

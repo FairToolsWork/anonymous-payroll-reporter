@@ -17,6 +17,7 @@ import {
     buildAnnualCrossCheckDisplay,
     buildCoverageWarningMessage,
     buildGlobalCoverageNoticeMessage,
+    buildThresholdStalenessNoticeMessage,
     buildZeroTaxAllowanceNote,
     APRIL_BOUNDARY_NOTE,
     formatMiscLabel,
@@ -399,6 +400,23 @@ function collectMiscReviewItems(entries) {
     return result
 }
 
+/**
+ * @param {Array<{ type: string, dateLabel: string, yearKey?: string, item: PayrollPayItem | PayrollMiscDeduction }> | null | undefined} miscFootnotes
+ */
+function buildMiscReviewItemsFromFootnotes(miscFootnotes) {
+    if (!Array.isArray(miscFootnotes) || !miscFootnotes.length) {
+        return []
+    }
+    return miscFootnotes.map((footnote) => ({
+        type: footnote.type,
+        dateLabel: footnote.dateLabel,
+        label: formatMiscLabel(footnote.item),
+        amount: footnote.item?.amount || 0,
+        units: footnote.item?.units ?? null,
+        rate: footnote.item?.rate ?? null,
+    }))
+}
+
 /** @param {ReportEntry[]} entriesForYear */
 function buildYearFlagModel(entriesForYear) {
     const noteIndexByLabel = new Map()
@@ -558,6 +576,9 @@ export function buildSummaryViewModel(context, meta) {
     )
     const groupedFlaggedPeriods = groupPeriodsByYear(flaggedPeriods)
     const groupedLowConfidencePeriods = groupPeriodsByYear(lowConfidencePeriods)
+    const miscReviewItems = buildMiscReviewItemsFromFootnotes(
+        context.miscFootnotes
+    )
     const auditMetadata = context.auditMetadata || null
     const pdfCount = entries.length
     const metaRows = [
@@ -647,6 +668,37 @@ export function buildSummaryViewModel(context, meta) {
               affectedYears: yearsWithCoverageWarnings,
           }
         : null
+
+    const thresholdStalenessContext = context.thresholdStaleness || null
+    const runDate = thresholdStalenessContext?.reportRunDateIso
+        ? new Date(thresholdStalenessContext.reportRunDateIso)
+        : null
+    const isValidRunDate =
+        runDate instanceof Date && !Number.isNaN(runDate.getTime())
+    const runMonth = isValidRunDate ? runDate.getUTCMonth() : -1
+    const runDay = isValidRunDate ? runDate.getUTCDate() : -1
+    const isAfterAprilSix =
+        isValidRunDate && (runMonth > 3 || (runMonth === 3 && runDay > 6))
+    const hasNewTaxYearFallback =
+        Boolean(thresholdStalenessContext?.hasRunTaxYearFallback) &&
+        (thresholdStalenessContext?.affectedPeriods?.length || 0) > 0
+    const thresholdStalenessNotice =
+        isAfterAprilSix && hasNewTaxYearFallback
+            ? {
+                  message: buildThresholdStalenessNoticeMessage({
+                      runTaxYearLabel:
+                          thresholdStalenessContext?.runTaxYearLabel || null,
+                      fallbackTaxYearLabels:
+                          thresholdStalenessContext?.fallbackTaxYearLabels ||
+                          [],
+                      affectedPeriods:
+                          thresholdStalenessContext?.affectedPeriods || [],
+                  }),
+                  affectedPeriods:
+                      thresholdStalenessContext?.affectedPeriods || [],
+              }
+            : null
+
     const notes = /** @type {Array<{ id: string, text: string }>} */ ([
         {
             id: 'accumulated-totals',
@@ -701,6 +753,7 @@ export function buildSummaryViewModel(context, meta) {
         contractTypeMismatchWarning:
             context.contractTypeMismatchWarning || null,
         globalCoverageNotice,
+        thresholdStalenessNotice,
         yearSummaryRows,
         accumulatedTotals: {
             dateRangeLabel: meta.dateRangeLabel || 'Unknown',
@@ -719,20 +772,27 @@ export function buildSummaryViewModel(context, meta) {
             contributionRecency: context.contributionRecency || null,
             hasContributionSummary: Boolean(context.contributionSummary?.years),
         },
-        miscReviewItems: collectMiscReviewItems(entries),
+        miscReviewItems: miscReviewItems.length
+            ? miscReviewItems
+            : collectMiscReviewItems(entries),
         notes,
     }
 }
 
-/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance */
+/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] @param {Map<ReportEntry, number> | null} [globalEntryIndexByEntryPrecomputed] */
 export function buildYearViewModel(
     entriesForYear,
     yearKey,
     context,
-    openingBalance
+    openingBalance,
+    coverageEntriesPrecomputed = null,
+    globalEntryIndexByEntryPrecomputed = null
 ) {
     const yearEntries = /** @type {ReportEntry[]} */ (entriesForYear || [])
     const allEntries = /** @type {ReportEntry[]} */ (context.entries || [])
+    const globalEntryIndexByEntry =
+        globalEntryIndexByEntryPrecomputed ??
+        new Map(allEntries.map((entry, index) => [entry, index]))
     const monthEntries = new Map()
     yearEntries.forEach((entry) => {
         if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {
@@ -847,7 +907,8 @@ export function buildYearViewModel(
                             ? `${monthLabelBase} (${entryIndex + 1})`
                             : monthLabelBase,
                     monthAnchorId,
-                    globalEntryIndex: allEntries.indexOf(entry),
+                    globalEntryIndex:
+                        globalEntryIndexByEntry.get(entry) ?? null,
                     hours,
                     holidaySummary,
                     salaryHolidayAmount,
@@ -940,7 +1001,7 @@ export function buildYearViewModel(
     const coverageWarning = buildCoverageWarning(
         allEntries,
         yearEntries,
-        prepareCoverageEntries(allEntries)
+        coverageEntriesPrecomputed ?? prepareCoverageEntries(allEntries)
     )
     const annualCrossCheck =
         yearHolidaySummary.kind === 'hourly_hours'
@@ -1050,7 +1111,17 @@ export function buildYearViewModel(
             context.missingMonths?.missingMonthsByYear?.[yearKey] || [],
         rows,
         footerRows,
-        miscReviewItems: collectMiscReviewItems(yearEntries),
+        miscReviewItems: (() => {
+            const fromCtx = buildMiscReviewItemsFromFootnotes(
+                (context.miscFootnotes || []).filter(
+                    (/** @type {{ yearKey?: string | null }} */ fn) =>
+                        fn.yearKey === yearKey
+                )
+            )
+            return fromCtx.length
+                ? fromCtx
+                : collectMiscReviewItems(yearEntries)
+        })(),
         flagNotes: noteLabels,
         notes,
     }
@@ -1090,7 +1161,7 @@ function normalizeHolidayCoverageEntries(entries) {
  * @param {ReportEntry[]} allEntries
  * @returns {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> }}
  */
-function prepareCoverageEntries(allEntries) {
+export function prepareCoverageEntries(allEntries) {
     // Normalize allEntries once so that the same object references appear in both
     // sortedEntries and normalizedHolidayTargets. getRollingReferenceCoverage uses
     // entry === targetEntry (object identity) to skip the target month; a second

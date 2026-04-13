@@ -6,6 +6,8 @@ import {
     buildDiffDisplay,
     buildHolidaySummaryDisplay,
     buildMiscReviewLine,
+    buildSummaryNoticesList,
+    buildYearNoticesList,
     buildWorkerProfileSummaryFields,
     buildYearRowHolidayDisplay,
     formatContribution,
@@ -20,6 +22,7 @@ import {
     buildPayslipViewModel,
     buildSummaryViewModel,
     buildYearViewModel,
+    prepareCoverageEntries,
 } from './report_view_model.js'
 
 const HOURLY_ACCRUAL_FACTOR = 0.1207
@@ -331,7 +334,7 @@ export function renderHtmlReport(context, meta) {
 
     reportSections.push('<div class="page">')
     reportSections.push(
-        `<div class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice report-meta' : 'report-meta'}">` +
+        `<div class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning || summaryViewModel.thresholdStalenessNotice ? 'has-notice report-meta' : 'report-meta'}">` +
             `<h2>Payroll Report — ${summaryViewModel.heading.employeeName}</h2>` +
             `<p class="report-range">${summaryViewModel.heading.dateRangeLabel}</p>` +
             `<p class="report-meta-generated"><b>Generated:</b> ${summaryViewModel.heading.generatedLabel || 'Unknown'}</p>` +
@@ -342,18 +345,28 @@ export function renderHtmlReport(context, meta) {
             `</div>` +
             `</div>`
     )
-    if (summaryViewModel.contractTypeMismatchWarning) {
+    const summaryNotices = buildSummaryNoticesList(summaryViewModel)
+    if (summaryNotices.length > 0) {
+        const noticeListHtml = summaryNotices
+            .map((notice) => `<li>${notice}</li>`)
+            .join('')
+        let noticeClass = 'notice'
+        if (
+            summaryViewModel.contractTypeMismatchWarning ||
+            summaryViewModel.thresholdStalenessNotice
+        ) {
+            noticeClass = 'notice error'
+        }
         reportSections.push(
-            `<div class="notice error"><span class="warning-icon">⚠︎</span> ${summaryViewModel.contractTypeMismatchWarning}</div>`
-        )
-    }
-    if (summaryViewModel.globalCoverageNotice) {
-        reportSections.push(
-            `<div class="notice"><p >${summaryViewModel.globalCoverageNotice.message}</p></div>`
+            `<div class="${noticeClass}">` +
+                (summaryNotices.length === 1
+                    ? `<span class="warning-icon">⚠︎</span> ${summaryNotices[0]}`
+                    : `<ul>${noticeListHtml}</ul>`) +
+                `</div>`
         )
     }
     reportSections.push(
-        `<h2 class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning ? 'has-notice' : ''}">${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
+        `<h2 class="${summaryViewModel.globalCoverageNotice || summaryViewModel.contractTypeMismatchWarning || summaryViewModel.thresholdStalenessNotice ? 'has-notice' : ''}">${YEAR_SUMMARY_TITLE}: (${summaryViewModel.heading.dateRangeLabel})</h2>`
     )
 
     if (summaryYearRowsHtml) {
@@ -394,6 +407,15 @@ export function renderHtmlReport(context, meta) {
     reportSections.push(summaryNotesHtml)
     reportSections.push('</div>')
 
+    const yearCoveragePrecomputed = prepareCoverageEntries(
+        /** @type {any[]} */ (context.entries || [])
+    )
+    const globalEntryIndexPrecomputed = new Map(
+        /** @type {any[]} */ (context.entries || []).map((entry, index) => [
+            entry,
+            index,
+        ])
+    )
     Array.from(context.yearGroups.keys()).forEach((yearKey) => {
         const entriesForYear = context.yearGroups.get(yearKey)
         if (!entriesForYear) {
@@ -421,23 +443,30 @@ export function renderHtmlReport(context, meta) {
                 },
                 workerProfile: context.workerProfile,
             },
-            openingBalance
+            openingBalance,
+            yearCoveragePrecomputed,
+            globalEntryIndexPrecomputed
         )
         reportSections.push('<div class="page">')
         reportSections.push(
             `<h2 id="${yearViewModel.heading.anchorId}">${yearViewModel.heading.yearKey} Summary: ${employeeName}</h2>`
         )
-        if (yearViewModel.coverageWarning) {
-            reportSections.push(
-                `<div class="notice "><p>${yearViewModel.coverageWarning.message}</p></div>`
-            )
+        const yearNotices = buildYearNoticesList(yearViewModel)
+        if (yearNotices.length > 0) {
+            const renderedYearNotices = yearNotices.map((notice) => {
+                if (notice.startsWith('Missing months: ')) {
+                    const months = notice.slice('Missing months: '.length)
+                    return `Missing months: <span class="missing-months">${months}</span>`
+                }
+                return notice
+            })
+            const noticeHtml =
+                renderedYearNotices.length === 1
+                    ? `<p>${renderedYearNotices[0]}</p>`
+                    : `<ul>${renderedYearNotices.map((notice) => `<li>${notice}</li>`).join('')}</ul>`
+            reportSections.push(`<div class="notice">${noticeHtml}</div>`)
         }
-        if (yearViewModel.missingMonths.length) {
-            const yearMissingPill = `<div class="notice"><p>Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span></p></div>`
-            reportSections.push(
-                `<div class="report-missing">${yearMissingPill}</div>`
-            )
-        }
+
         reportSections.push(renderYearSummaryFromViewModel(yearViewModel))
         if (yearViewModel.flagNotes.length) {
             const noteItems = yearViewModel.flagNotes

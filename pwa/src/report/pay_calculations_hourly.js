@@ -620,6 +620,11 @@ export function buildValidation(entry) {
     const flags = /** @type {ValidationFlag[]} */ ([])
     const natInsNumber = record.employee?.natInsNumber || ''
     const taxCode = record.payrollDoc?.taxCode?.code || ''
+    // Parsing invariants keep deduction amounts non-negative before they reach
+    // these validators. The `|| 0` coercions below are only fallbacks for
+    // missing/falsy values, not a non-negativity guarantee. Real-world refunds
+    // are expected via payments.misc (not negative deductions), so validators
+    // treat <= 0 as "zero or missing" rather than "refund".
     const payeTax = record.payrollDoc?.deductions?.payeTax?.amount || 0
     const nationalInsurance = record.payrollDoc?.deductions?.natIns?.amount || 0
     const totalGrossPay =

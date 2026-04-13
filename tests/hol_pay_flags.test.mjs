@@ -2086,6 +2086,161 @@ describe('insufficient-history low-confidence holiday notices', () => {
     })
 })
 
+describe('two-pass holiday pipeline characterization', () => {
+    it('preserves mixed-month propagation consistently across flags and holidayContext', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+            makeEntry({
+                basicUnits: 128,
+                basicRate: 12.5,
+                holidayUnits: 8,
+                holidayAmount: 72,
+                monthIndex: 4,
+                parsedDate: new Date(2024, 3, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 72,
+            monthIndex: 5,
+            parsedDate: new Date(2024, 4, 15),
+        })
+        const reportEntries = [...entries, target]
+
+        buildHolidayPayFlags(reportEntries)
+        buildYearHolidayContext(reportEntries, { typicalDays: 5 })
+
+        const rollingFlag = target.validation.flags.find(
+            (f) => f.id === 'holiday_rate_below_rolling_avg'
+        )
+        expect(rollingFlag).toBeDefined()
+        expect(rollingFlag?.inputs?.mixedMonthsIncluded).toBe(1)
+        expect(target.validation.lowConfidence).toBe(true)
+        expect(target.holidayContext.hasBaseline).toBe(true)
+        expect(target.holidayContext.mixedMonthsIncluded).toBe(1)
+        expect(target.holidayContext.confidence.level).toBe('low')
+        expect(target.holidayContext.confidence.reasons).toContain(
+            'Includes 1 mixed work+holiday month'
+        )
+    })
+
+    it('preserves first mixed-target notice while keeping holidayContext reference pure', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 3,
+                parsedDate: new Date(2024, 2, 15),
+            }),
+        ]
+        const target = makeEntry({
+            basicUnits: 128,
+            basicRate: 12.5,
+            holidayUnits: 8,
+            holidayAmount: 72,
+            monthIndex: 4,
+            parsedDate: new Date(2024, 3, 15),
+        })
+        const reportEntries = [...entries, target]
+
+        buildHolidayPayFlags(reportEntries)
+        buildYearHolidayContext(reportEntries, { typicalDays: 5 })
+
+        const mixedNotice = target.validation.flags.find(
+            (f) => f.id === 'holiday_mixed_basic_holiday_pay'
+        )
+        expect(mixedNotice).toBeDefined()
+        expect(mixedNotice?.inputs?.mixedMonthsIncluded).toBe(1)
+        expect(target.validation.lowConfidence).toBe(true)
+        expect(target.holidayContext.hasBaseline).toBe(true)
+        expect(target.holidayContext.mixedMonthsIncluded).toBe(0)
+        expect(target.holidayContext.confidence.level).toBe('medium')
+    })
+
+    it('keeps insufficient-history notice and no-baseline context aligned across both passes', () => {
+        const entries = [
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 1,
+                parsedDate: new Date(2024, 0, 15),
+            }),
+            makeEntry({
+                basicUnits: 160,
+                basicRate: 12.5,
+                monthIndex: 2,
+                parsedDate: new Date(2024, 1, 15),
+            }),
+        ]
+        const holidayEntry = makeEntry({
+            basicUnits: 0,
+            basicRate: null,
+            basicAmount: 0,
+            holidayUnits: 8,
+            holidayAmount: 80,
+            monthIndex: 3,
+            parsedDate: new Date(2024, 2, 15),
+        })
+        const reportEntries = [...entries, holidayEntry]
+
+        buildHolidayPayFlags(reportEntries)
+        buildYearHolidayContext(reportEntries, { typicalDays: 5 })
+
+        expect(holidayEntry.validation.lowConfidence).toBe(true)
+        expect(
+            holidayEntry.validation.flags.some(
+                (f) => f.id === 'holiday_reference_insufficient_history'
+            )
+        ).toBe(true)
+        expect(
+            holidayEntry.validation.flags.some(
+                (f) => f.id === 'holiday_rate_below_rolling_avg'
+            )
+        ).toBe(false)
+        expect(
+            holidayEntry.validation.flags.some(
+                (f) => f.id === 'holiday_mixed_basic_holiday_pay'
+            )
+        ).toBe(false)
+        expect(holidayEntry.holidayContext).toMatchObject({
+            hasBaseline: false,
+            typicalDays: 5,
+        })
+    })
+})
+
 describe('isReferenceEligible — statutory pay titles', () => {
     it('returns false when basic.units is null (not zero)', () => {
         const entry = makeEntry({ basicUnits: 160, basicRate: 14.5 })

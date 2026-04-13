@@ -8,7 +8,9 @@ import {
     buildDiffDisplay,
     buildHolidaySummaryDisplay,
     buildMiscReviewLine,
+    buildSummaryNoticesList,
     buildWorkerProfileSummaryFields,
+    buildYearNoticesList,
     buildYearRowHolidayDisplay,
     FLAG_NOTES_TITLE,
     formatContribution,
@@ -22,6 +24,7 @@ import {
     buildPayslipViewModel,
     buildSummaryViewModel,
     buildYearViewModel,
+    prepareCoverageEntries,
 } from './report_view_model.js'
 import { CONTRIBUTION_RECENCY_DAYS_THRESHOLD } from './uk_thresholds.js'
 
@@ -56,7 +59,8 @@ const FONT_SMALL = 9
 // ─── Holiday accrual constants ────────────────────────────────────────────────
 
 const HOURLY_ACCRUAL_FACTOR = 0.1207
-const HOURLY_ACCRUAL_FALLBACK_LABEL = 'worked-hours fallback estimate (no baseline)'
+const HOURLY_ACCRUAL_FALLBACK_LABEL =
+    'worked-hours fallback estimate (no baseline)'
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
@@ -501,11 +505,12 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
     y = /** @type {any} */ (doc).lastAutoTable?.finalY ?? y
     y += LINE_GAP * 2
 
-    if (summaryViewModel.contractTypeMismatchWarning) {
+    /**
+     * @param {string} warningBody
+     */
+    const renderSummaryWarningBox = (warningBody) => {
         y += SECTION_GAP
-        const warningText =
-            'WARNING: ' +
-            sanitizeText(summaryViewModel.contractTypeMismatchWarning)
+        const warningText = 'WARNING: ' + sanitizeText(warningBody)
         const WARN_ACCENT_W = 4
         const WARN_PAD_H = 10
         const WARN_PAD_V = 6
@@ -530,10 +535,71 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         y += warnBoxH + SECTION_GAP
     }
 
-    if (summaryViewModel.globalCoverageNotice) {
-        y = writeText(doc, summaryViewModel.globalCoverageNotice.message, y, {
-            fontSize: FONT_SMALL,
-        })
+    const summaryNotices = buildSummaryNoticesList(summaryViewModel)
+    const hasErrors =
+        Boolean(summaryViewModel.contractTypeMismatchWarning) ||
+        Boolean(summaryViewModel.thresholdStalenessNotice)
+
+    if (summaryNotices.length > 0) {
+        if (summaryNotices.length === 1 && hasErrors) {
+            renderSummaryWarningBox(summaryNotices[0])
+        } else if (summaryNotices.length === 1) {
+            y = writeText(doc, summaryNotices[0], y, {
+                fontSize: FONT_SMALL,
+            })
+        } else {
+            const isErrorNotice =
+                hasErrors ||
+                Boolean(summaryViewModel.thresholdStalenessNotice) ||
+                Boolean(summaryViewModel.contractTypeMismatchWarning)
+            y += SECTION_GAP
+            const bulletPoints = summaryNotices
+                .map((notice) => '- ' + sanitizeText(notice))
+                .join('\n')
+            const noticeBoxX = PAGE_MARGIN
+            const noticeBoxW = maxWidth(doc)
+            const NOTICE_PAD_H = 10
+            const NOTICE_PAD_V = 6
+            doc.setFont('helvetica', isErrorNotice ? 'bold' : 'normal')
+            doc.setFontSize(FONT_SMALL)
+            const noticeLines = doc.splitTextToSize(
+                bulletPoints,
+                noticeBoxW - NOTICE_PAD_H * 2
+            )
+            const noticeLineH = FONT_SMALL * 1.3
+            const noticeTextH = noticeLines.length * noticeLineH
+            const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
+            y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
+            if (isErrorNotice) {
+                doc.setFillColor(253, 244, 237)
+                doc.roundedRect(
+                    noticeBoxX,
+                    y,
+                    noticeBoxW,
+                    noticeBoxH,
+                    2,
+                    2,
+                    'F'
+                )
+                doc.setFillColor(194, 84, 45)
+                doc.rect(noticeBoxX, y, 4, noticeBoxH, 'F')
+                doc.setTextColor(74, 40, 0)
+            } else {
+                doc.setFillColor(245, 245, 245)
+                doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
+                doc.setFillColor(100, 100, 100)
+                doc.setLineWidth(0.5)
+                doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
+                doc.setTextColor(50, 50, 50)
+            }
+            doc.text(
+                noticeLines,
+                noticeBoxX + NOTICE_PAD_H,
+                y + NOTICE_PAD_V + FONT_SMALL
+            )
+            doc.setTextColor(0, 0, 0)
+            y += noticeBoxH + SECTION_GAP
+        }
     }
 
     y = writeHeading(doc, YEAR_SUMMARY_TITLE, y, {
@@ -711,6 +777,8 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
  * @param {any} context
  * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
  * @param {number} openingBalance
+ * @param {{ sortedEntries: import('./report_view_model.js').HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<import('./report_view_model.js').ReportEntry, import('./report_view_model.js').HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed]
+ * @param {Map<import('./report_view_model.js').ReportEntry, number> | null} [globalEntryIndexByEntryPrecomputed]
  * @returns {number}
  */
 function renderYearPage(
@@ -719,7 +787,9 @@ function renderYearPage(
     yearKey,
     context,
     pageNumbers,
-    openingBalance
+    openingBalance,
+    coverageEntriesPrecomputed = null,
+    globalEntryIndexByEntryPrecomputed = null
 ) {
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
@@ -728,7 +798,9 @@ function renderYearPage(
         entriesForYear,
         String(yearKey),
         context,
-        openingBalance
+        openingBalance,
+        coverageEntriesPrecomputed,
+        globalEntryIndexByEntryPrecomputed
     )
 
     y = writeHeading(
@@ -739,20 +811,41 @@ function renderYearPage(
             preGap: 0,
         }
     )
-    if (yearViewModel.missingMonths.length) {
-        y = writeText(
-            doc,
-            `Missing months: ${yearViewModel.missingMonths.join(', ')}`,
-            y,
-            {
-                fontSize: FONT_SMALL,
-            }
+    const yearNotices = buildYearNoticesList(yearViewModel)
+    if (yearNotices.length === 1) {
+        y = writeText(doc, yearNotices[0], y, { fontSize: FONT_SMALL })
+    } else if (yearNotices.length > 1) {
+        y += SECTION_GAP
+        const bulletPoints = yearNotices
+            .map((notice) => '- ' + sanitizeText(notice))
+            .join('\n')
+        const noticeBoxX = PAGE_MARGIN
+        const noticeBoxW = maxWidth(doc)
+        const NOTICE_PAD_H = 10
+        const NOTICE_PAD_V = 6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(FONT_SMALL)
+        const noticeLines = doc.splitTextToSize(
+            bulletPoints,
+            noticeBoxW - NOTICE_PAD_H * 2
         )
-    }
-    if (yearViewModel.coverageWarning) {
-        y = writeText(doc, yearViewModel.coverageWarning.message, y, {
-            fontSize: FONT_SMALL,
-        })
+        const noticeLineH = FONT_SMALL * 1.3
+        const noticeTextH = noticeLines.length * noticeLineH
+        const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
+        y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
+        doc.setFillColor(245, 245, 245)
+        doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
+        doc.setFillColor(100, 100, 100)
+        doc.setLineWidth(0.5)
+        doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
+        doc.setTextColor(50, 50, 50)
+        doc.text(
+            noticeLines,
+            noticeBoxX + NOTICE_PAD_H,
+            y + NOTICE_PAD_V + FONT_SMALL
+        )
+        doc.setTextColor(0, 0, 0)
+        y += noticeBoxH + SECTION_GAP
     }
 
     /** @type {Array<Array<string>>} */
@@ -1166,6 +1259,15 @@ export async function exportReportPdf(context, meta) {
 
     context.employeeName = meta.employeeName || 'Unknown'
 
+    const yearCoveragePrecomputed = prepareCoverageEntries(
+        /** @type {any[]} */ (context.entries || [])
+    )
+    const globalEntryIndexPrecomputed = new Map(
+        /** @type {any[]} */ (context.entries || []).map((entry, index) => [
+            entry,
+            index,
+        ])
+    )
     context.yearGroups.forEach((entriesForYear, yearKey) => {
         const strYearKey = String(yearKey || 'Unknown')
         const yearIdx = pdfYearKeys.indexOf(strYearKey)
@@ -1183,7 +1285,9 @@ export async function exportReportPdf(context, meta) {
             strYearKey,
             context,
             { yearPageNumbers, payslipPageNumbers },
-            openingBalance
+            openingBalance,
+            yearCoveragePrecomputed,
+            globalEntryIndexPrecomputed
         )
         yearPageNumbers.set(strYearKey, pageNumber)
     })

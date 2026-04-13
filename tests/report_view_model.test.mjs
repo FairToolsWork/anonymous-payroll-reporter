@@ -579,6 +579,7 @@ describe('buildSummaryViewModel', () => {
         expect(viewModel.contractTypeMismatchWarning).toBe(
             'Worker type mismatch'
         )
+        expect(viewModel.thresholdStalenessNotice).toBeNull()
         expect(viewModel.globalCoverageNotice).toBeTruthy()
         expect(viewModel.globalCoverageNotice?.affectedYears).toEqual([
             '2024/25',
@@ -635,6 +636,49 @@ describe('buildSummaryViewModel', () => {
         expect(ruleSnapshotRow?.displayValue).toBe(
             'Rules 2026-03-30 · Thresholds 2026-03-30'
         )
+    })
+
+    it('shows threshold staleness notice only after April 6 with new-tax-year fallback periods', () => {
+        const { context, meta } = buildStageTwoContext()
+        context.thresholdStaleness = {
+            reportRunDateIso: '2026-04-12T12:00:00.000Z',
+            runTaxYearLabel: '2026/27',
+            fallbackTaxYearLabels: ['2025/26'],
+            affectedPeriods: ['10 Apr 2026'],
+            hasRunTaxYearFallback: true,
+        }
+
+        const viewModel = buildSummaryViewModel(context, meta)
+
+        expect(viewModel.thresholdStalenessNotice).toBeTruthy()
+        expect(viewModel.thresholdStalenessNotice?.message).toContain(
+            'Threshold data for 2026/27 has not been updated.'
+        )
+    })
+
+    it('keeps threshold staleness notice silent before/at April 6 or without run-year fallback periods', () => {
+        const { context, meta } = buildStageTwoContext()
+        context.thresholdStaleness = {
+            reportRunDateIso: '2026-04-06T12:00:00.000Z',
+            runTaxYearLabel: '2026/27',
+            fallbackTaxYearLabels: ['2025/26'],
+            affectedPeriods: ['10 Apr 2026'],
+            hasRunTaxYearFallback: true,
+        }
+
+        const onBoundaryViewModel = buildSummaryViewModel(context, meta)
+        expect(onBoundaryViewModel.thresholdStalenessNotice).toBeNull()
+
+        context.thresholdStaleness = {
+            reportRunDateIso: '2026-04-12T12:00:00.000Z',
+            runTaxYearLabel: '2026/27',
+            fallbackTaxYearLabels: ['2025/26'],
+            affectedPeriods: [],
+            hasRunTaxYearFallback: false,
+        }
+
+        const noFallbackViewModel = buildSummaryViewModel(context, meta)
+        expect(noFallbackViewModel.thresholdStalenessNotice).toBeNull()
     })
 
     it('omits holiday coverage notices for salary-only years', () => {

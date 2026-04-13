@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
     formatTaxYearLabelFromStartYear,
+    getLatestConfiguredThresholdTaxYearStart,
     getIncomeTaxBandsForRegion,
     getPayPeriodIndexForDate,
     getPayPeriodsPerYear,
     getPeriodizedAnnualAmount,
+    getThresholdStalenessStatus,
     getTaxYearStartYearFromDate,
     getTaxYearStartYearFromKey,
     getTaxYearThresholdsByStartYear,
     getTaxYearThresholdsForContext,
+    parseThresholdsVersionDate,
     parsePayeTaxCode,
     resolveTaxYearThresholdsForContext,
     TAX_YEAR_THRESHOLDS,
@@ -441,5 +444,54 @@ describe('getTaxYearThresholdsForContext', () => {
         const thresholds = getTaxYearThresholdsForContext(new Date(2028, 4, 15))
         // Should return 2026 thresholds as fallback
         expect(thresholds).not.toBeNull()
+    })
+})
+
+describe('threshold staleness policy', () => {
+    it('parses thresholds version date in YYYY-MM-DD format', () => {
+        const parsed = parseThresholdsVersionDate('2026-04-04')
+        expect(parsed).toBeInstanceOf(Date)
+        expect(parsed?.getFullYear()).toBe(2026)
+        expect(parsed?.getMonth()).toBe(3)
+        expect(parsed?.getDate()).toBe(4)
+    })
+
+    it('returns null for invalid thresholds version date strings', () => {
+        expect(parseThresholdsVersionDate('2026/04/04')).toBeNull()
+        expect(parseThresholdsVersionDate('invalid')).toBeNull()
+        expect(parseThresholdsVersionDate('2026-02-30')).toBeNull()
+    })
+
+    it('returns the latest configured threshold tax year start', () => {
+        expect(getLatestConfiguredThresholdTaxYearStart()).toBe(2026)
+    })
+
+    it('returns warning before April 1 when thresholds version is stale for the year', () => {
+        const status = getThresholdStalenessStatus(
+            new Date(2027, 2, 20),
+            '2026-04-04'
+        )
+        expect(status.status).toBe('warning')
+    })
+
+    it('returns expired on/after April 1 when thresholds version is stale for the year', () => {
+        const onCutoff = getThresholdStalenessStatus(
+            new Date(2027, 3, 1),
+            '2026-04-04'
+        )
+        expect(onCutoff.status).toBe('expired')
+    })
+
+    it('returns ok when thresholds version has been refreshed on/after April 1 in current year', () => {
+        const status = getThresholdStalenessStatus(
+            new Date(2027, 3, 12),
+            '2027-04-02'
+        )
+        expect(status.status).toBe('ok')
+    })
+
+    it('returns invalid-thresholds-version for malformed version', () => {
+        const status = getThresholdStalenessStatus(new Date(2027, 3, 12), 'bad')
+        expect(status.status).toBe('invalid-thresholds-version')
     })
 })
