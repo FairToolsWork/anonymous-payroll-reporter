@@ -550,7 +550,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
         } else {
             y += SECTION_GAP
             const bulletPoints = summaryNotices
-                .map((notice) => '• ' + sanitizeText(notice))
+                .map((notice) => '- ' + sanitizeText(notice))
                 .join('\n')
             const noticeBoxX = PAGE_MARGIN
             const noticeBoxW = maxWidth(doc)
@@ -794,7 +794,7 @@ function renderYearPage(
     } else if (yearNotices.length > 1) {
         y += SECTION_GAP
         const bulletPoints = yearNotices
-            .map((notice) => '• ' + sanitizeText(notice))
+            .map((notice) => '- ' + sanitizeText(notice))
             .join('\n')
         const noticeBoxX = PAGE_MARGIN
         const noticeBoxW = maxWidth(doc)
