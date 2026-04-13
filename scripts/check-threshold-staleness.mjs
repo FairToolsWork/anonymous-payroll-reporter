@@ -30,7 +30,8 @@ if (process.env.THRESHOLD_CHECK_TODAY && !overrideDate) {
 const today = overrideDate || new Date()
 const status = getThresholdStalenessStatus(today, THRESHOLDS_VERSION)
 const latestConfiguredTaxYearStart = getLatestConfiguredThresholdTaxYearStart()
-const expectedTaxYearStart = today.getFullYear()
+const expectedTaxYearStart =
+    today.getMonth() < 3 ? today.getFullYear() - 1 : today.getFullYear()
 const latestConfiguredLabel =
     latestConfiguredTaxYearStart === null
         ? 'none configured'
