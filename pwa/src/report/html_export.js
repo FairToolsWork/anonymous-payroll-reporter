@@ -409,6 +409,12 @@ export function renderHtmlReport(context, meta) {
     const yearCoveragePrecomputed = prepareCoverageEntries(
         /** @type {any[]} */ (context.entries || [])
     )
+    const globalEntryIndexPrecomputed = new Map(
+        /** @type {any[]} */ (context.entries || []).map((entry, index) => [
+            entry,
+            index,
+        ])
+    )
     Array.from(context.yearGroups.keys()).forEach((yearKey) => {
         const entriesForYear = context.yearGroups.get(yearKey)
         if (!entriesForYear) {
@@ -437,7 +443,8 @@ export function renderHtmlReport(context, meta) {
                 workerProfile: context.workerProfile,
             },
             openingBalance,
-            yearCoveragePrecomputed
+            yearCoveragePrecomputed,
+            globalEntryIndexPrecomputed
         )
         reportSections.push('<div class="page">')
         reportSections.push(
