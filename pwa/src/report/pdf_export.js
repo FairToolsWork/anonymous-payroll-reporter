@@ -566,12 +566,28 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             const noticeTextH = noticeLines.length * noticeLineH
             const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
             y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
-            doc.setFillColor(245, 245, 245)
-            doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
-            doc.setFillColor(100, 100, 100)
-            doc.setLineWidth(0.5)
-            doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
-            doc.setTextColor(50, 50, 50)
+            if (hasErrors) {
+                doc.setFillColor(253, 244, 237)
+                doc.roundedRect(
+                    noticeBoxX,
+                    y,
+                    noticeBoxW,
+                    noticeBoxH,
+                    2,
+                    2,
+                    'F'
+                )
+                doc.setFillColor(194, 84, 45)
+                doc.rect(noticeBoxX, y, 4, noticeBoxH, 'F')
+                doc.setTextColor(74, 40, 0)
+            } else {
+                doc.setFillColor(245, 245, 245)
+                doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH, 'F')
+                doc.setFillColor(100, 100, 100)
+                doc.setLineWidth(0.5)
+                doc.rect(noticeBoxX, y, noticeBoxW, noticeBoxH)
+                doc.setTextColor(50, 50, 50)
+            }
             doc.text(
                 noticeLines,
                 noticeBoxX + NOTICE_PAD_H,
