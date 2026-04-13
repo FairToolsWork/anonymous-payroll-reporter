@@ -548,6 +548,10 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
                 fontSize: FONT_SMALL,
             })
         } else {
+            const isErrorNotice =
+                hasErrors ||
+                Boolean(summaryViewModel.thresholdStalenessNotice) ||
+                Boolean(summaryViewModel.contractTypeMismatchWarning)
             y += SECTION_GAP
             const bulletPoints = summaryNotices
                 .map((notice) => '- ' + sanitizeText(notice))
@@ -556,7 +560,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             const noticeBoxW = maxWidth(doc)
             const NOTICE_PAD_H = 10
             const NOTICE_PAD_V = 6
-            doc.setFont('helvetica', 'normal')
+            doc.setFont('helvetica', isErrorNotice ? 'bold' : 'normal')
             doc.setFontSize(FONT_SMALL)
             const noticeLines = doc.splitTextToSize(
                 bulletPoints,
@@ -566,7 +570,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
             const noticeTextH = noticeLines.length * noticeLineH
             const noticeBoxH = noticeTextH + NOTICE_PAD_V * 2
             y = ensureSpace(doc, y, noticeBoxH + SECTION_GAP)
-            if (hasErrors) {
+            if (isErrorNotice) {
                 doc.setFillColor(253, 244, 237)
                 doc.roundedRect(
                     noticeBoxX,
