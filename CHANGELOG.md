@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.10.0...anonymous-payroll-reporter-v3.10.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* **pwa/styles, release-please-config:** normalise card header layout, and track holiday-doc version ([ab74b90](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/ab74b90fcd0be2c4debb17976288017562f62356))
+
 ## [3.10.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.9.0...anonymous-payroll-reporter-v3.10.0) (2026-04-13)
 
 
