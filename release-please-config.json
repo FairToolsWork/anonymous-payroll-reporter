@@ -11,6 +11,10 @@
                 {
                     "type": "generic",
                     "path": "pwa/index.html"
+                },
+                {
+                    "type": "generic",
+                    "path": "pwa/public/holiday-calculations.html"
                 }
             ]
         }
