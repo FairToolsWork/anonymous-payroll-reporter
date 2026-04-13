@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.10.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.9.0...anonymous-payroll-reporter-v3.10.0) (2026-04-13)
+
+
+### Features
+
+* **report:** consolidate summary notices and persist misc footnotes by year in report view models ([e1af7b0](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/e1af7b020435dbe0678cecb04b1f5b0be5d6bdac))
+* **report:** implement rolling reference calculations with enhanced coverage handling ([92a425d](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/92a425df70299095c9562a0739fb4bd658d42f06))
+* **thresholds:** add threshold staleness detection and April cutoff enforcement ([92e8c11](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/92e8c11c4eba917e526dc099ea204c68841b4e20))
+
+
+### Bug Fixes
+
+* **pdf:** add isErrorNotice variable and bold font in multi-notice error branch ([1fa334b](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/1fa334b8d70090e5f87c89ffca93f2d8a37452a3))
+* **pdf:** change bullet point style from '•' to '-' in summary and year notices ([ec88297](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/ec88297edb46f81bf6f3e39cdc740c5568547a1b))
+* **pdf:** enhance error notice styling in summary page rendering ([197bd5e](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/197bd5e074ce494ea7a181ec0a8f684571692e7a))
+* **pdf:** remove duplicate notice rendering in renderYearPage, use buildYearNoticesList as single source ([475796c](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/475796c1cac47982a3f4d7bd4c53b4a391100118))
+* **scripts:** account for April 6 tax year start in expectedTaxYearStart ([9154362](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/91543621eddc4e08e5e6a05113bde42fe8aee28c))
+* **scripts:** correct expectedTaxYearStart for Jan-Mar dates in check-threshold-staleness ([f1ba006](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/f1ba0069e7a4f4e094532382a1dafff050599135))
+* **scripts:** simplify expectedTaxYearStart condition formatting ([0faf594](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/0faf5949068ac3de57d84e5ef14dbb9405189fca))
+
+
+### Performance Improvements
+
+* precompute globalEntryIndexByEntry once per report, pass into buildYearViewModel ([eb40748](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/eb407489c28cdda52349d13db8148931ccbf1517))
+* **report:** optimize global entry index retrieval in year view model ([8e0add1](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8e0add17aa5161daa1e522bdd92e9872657960dc))
+* **report:** precompute holiday coverage entries once and reuse across HTML and PDF year rendering ([8d8995a](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/8d8995a284e7b4006afee037d034d80ae5d64bf8))
+
 ## [3.9.0](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.8.3...anonymous-payroll-reporter-v3.9.0) (2026-04-12)
 
 
