@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { THRESHOLDS_VERSION } from '../pwa/src/report/uk_thresholds.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,15 +24,23 @@ function runCheck(dateValue) {
     })
 }
 
+const thresholdsVersionYear = Number.parseInt(
+    String(THRESHOLDS_VERSION).slice(0, 4),
+    10
+)
+const staleCycleYear = thresholdsVersionYear + 1
+const staleCyclePreCutoffDate = `${staleCycleYear}-03-20`
+const staleCycleCutoffDate = `${staleCycleYear}-04-01`
+
 describe('check-threshold-staleness script', () => {
     it('warns (exit 0) before April 1 when THRESHOLDS_VERSION is stale for the cycle', () => {
-        const result = runCheck('2027-03-20')
+        const result = runCheck(staleCyclePreCutoffDate)
         expect(result.status).toBe(0)
         expect(`${result.stdout}${result.stderr}`).toContain('WARNING')
     })
 
     it('fails (exit 1) on/after April 1 when THRESHOLDS_VERSION is stale for the cycle', () => {
-        const result = runCheck('2027-04-01')
+        const result = runCheck(staleCycleCutoffDate)
         expect(result.status).toBe(1)
         expect(`${result.stdout}${result.stderr}`).toContain('ERROR')
     })

@@ -7,6 +7,7 @@ import {
     buildHolidaySummaryDisplay,
     buildMiscReviewLine,
     buildSummaryNoticesList,
+    buildYearNoticesList,
     buildWorkerProfileSummaryFields,
     buildYearRowHolidayDisplay,
     formatContribution,
@@ -450,26 +451,20 @@ export function renderHtmlReport(context, meta) {
         reportSections.push(
             `<h2 id="${yearViewModel.heading.anchorId}">${yearViewModel.heading.yearKey} Summary: ${employeeName}</h2>`
         )
-        const yearNoticeItemsHtml = []
-        if (yearViewModel.coverageWarning?.message) {
-            yearNoticeItemsHtml.push(
-                `<li>${yearViewModel.coverageWarning.message}</li>`
-            )
-        }
-        if (yearViewModel.missingMonths.length) {
-            yearNoticeItemsHtml.push(
-                `<li>Missing months: <span class="missing-months">${yearViewModel.missingMonths.join(', ')}</span></li>`
-            )
-        }
-        if (yearNoticeItemsHtml.length > 0) {
-            const noticeListHtml = yearNoticeItemsHtml.join('')
-            reportSections.push(
-                `<div class="notice">` +
-                    (yearNoticeItemsHtml.length === 1
-                        ? `<p>${yearNoticeItemsHtml[0].replace(/^<li>|<\/li>$/g, '')}</p>`
-                        : `<ul>${noticeListHtml}</ul>`) +
-                    `</div>`
-            )
+        const yearNotices = buildYearNoticesList(yearViewModel)
+        if (yearNotices.length > 0) {
+            const renderedYearNotices = yearNotices.map((notice) => {
+                if (notice.startsWith('Missing months: ')) {
+                    const months = notice.slice('Missing months: '.length)
+                    return `Missing months: <span class="missing-months">${months}</span>`
+                }
+                return notice
+            })
+            const noticeHtml =
+                renderedYearNotices.length === 1
+                    ? `<p>${renderedYearNotices[0]}</p>`
+                    : `<ul>${renderedYearNotices.map((notice) => `<li>${notice}</li>`).join('')}</ul>`
+            reportSections.push(`<div class="notice">${noticeHtml}</div>`)
         }
 
         reportSections.push(renderYearSummaryFromViewModel(yearViewModel))
