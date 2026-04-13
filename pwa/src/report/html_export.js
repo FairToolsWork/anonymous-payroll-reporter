@@ -409,7 +409,7 @@ export function renderHtmlReport(context, meta) {
     const yearCoveragePrecomputed = prepareCoverageEntries(
         /** @type {any[]} */ (context.entries || [])
     )
-    const yearEntryIndexPrecomputed = new Map(
+    const globalEntryIndexPrecomputed = new Map(
         /** @type {any[]} */ (context.entries || []).map((entry, index) => [
             entry,
             index,
@@ -444,7 +444,7 @@ export function renderHtmlReport(context, meta) {
             },
             openingBalance,
             yearCoveragePrecomputed,
-            yearEntryIndexPrecomputed
+            globalEntryIndexPrecomputed
         )
         reportSections.push('<div class="page">')
         reportSections.push(

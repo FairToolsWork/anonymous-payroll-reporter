@@ -1242,7 +1242,7 @@ export async function exportReportPdf(context, meta) {
     const yearCoveragePrecomputed = prepareCoverageEntries(
         /** @type {any[]} */ (context.entries || [])
     )
-    const yearEntryIndexPrecomputed = new Map(
+    const globalEntryIndexPrecomputed = new Map(
         /** @type {any[]} */ (context.entries || []).map((entry, index) => [
             entry,
             index,
@@ -1267,7 +1267,7 @@ export async function exportReportPdf(context, meta) {
             { yearPageNumbers, payslipPageNumbers },
             openingBalance,
             yearCoveragePrecomputed,
-            yearEntryIndexPrecomputed
+            globalEntryIndexPrecomputed
         )
         yearPageNumbers.set(strYearKey, pageNumber)
     })
