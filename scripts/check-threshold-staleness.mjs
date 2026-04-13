@@ -31,8 +31,7 @@ const today = overrideDate || new Date()
 const status = getThresholdStalenessStatus(today, THRESHOLDS_VERSION)
 const latestConfiguredTaxYearStart = getLatestConfiguredThresholdTaxYearStart()
 const expectedTaxYearStart =
-    today.getMonth() < 3 ||
-    (today.getMonth() === 3 && today.getDate() < 6)
+    today.getMonth() < 3 || (today.getMonth() === 3 && today.getDate() < 6)
         ? today.getFullYear() - 1
         : today.getFullYear()
 const latestConfiguredLabel =
