@@ -779,19 +779,20 @@ export function buildSummaryViewModel(context, meta) {
     }
 }
 
-/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] */
+/** @param {any} entriesForYear @param {string} yearKey @param {any} context @param {number} openingBalance @param {{ sortedEntries: HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<ReportEntry, HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed] @param {Map<ReportEntry, number> | null} [globalEntryIndexByEntryPrecomputed] */
 export function buildYearViewModel(
     entriesForYear,
     yearKey,
     context,
     openingBalance,
-    coverageEntriesPrecomputed = null
+    coverageEntriesPrecomputed = null,
+    globalEntryIndexByEntryPrecomputed = null
 ) {
     const yearEntries = /** @type {ReportEntry[]} */ (entriesForYear || [])
     const allEntries = /** @type {ReportEntry[]} */ (context.entries || [])
-    const globalEntryIndexByEntry = new Map(
-        allEntries.map((entry, index) => [entry, index])
-    )
+    const globalEntryIndexByEntry =
+        globalEntryIndexByEntryPrecomputed ??
+        new Map(allEntries.map((entry, index) => [entry, index]))
     const monthEntries = new Map()
     yearEntries.forEach((entry) => {
         if (entry.monthIndex >= 1 && entry.monthIndex <= 12) {

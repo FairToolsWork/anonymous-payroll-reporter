@@ -758,6 +758,7 @@ function renderSummaryPage(doc, context, meta, pageNumbers) {
  * @param {{ yearPageNumbers: Map<string, number>, payslipPageNumbers: Map<number, number> }} pageNumbers
  * @param {number} openingBalance
  * @param {{ sortedEntries: import('./report_view_model.js').HolidayCoverageEntry[], normalizedEntryByOriginalEntry: Map<import('./report_view_model.js').ReportEntry, import('./report_view_model.js').HolidayCoverageEntry> } | null} [coverageEntriesPrecomputed]
+ * @param {Map<import('./report_view_model.js').ReportEntry, number> | null} [globalEntryIndexByEntryPrecomputed]
  * @returns {number}
  */
 function renderYearPage(
@@ -767,7 +768,8 @@ function renderYearPage(
     context,
     pageNumbers,
     openingBalance,
-    coverageEntriesPrecomputed = null
+    coverageEntriesPrecomputed = null,
+    globalEntryIndexByEntryPrecomputed = null
 ) {
     doc.addPage()
     const pageNumber = doc.getCurrentPageInfo().pageNumber
@@ -777,7 +779,8 @@ function renderYearPage(
         String(yearKey),
         context,
         openingBalance,
-        coverageEntriesPrecomputed
+        coverageEntriesPrecomputed,
+        globalEntryIndexByEntryPrecomputed
     )
 
     y = writeHeading(
@@ -1239,6 +1242,12 @@ export async function exportReportPdf(context, meta) {
     const yearCoveragePrecomputed = prepareCoverageEntries(
         /** @type {any[]} */ (context.entries || [])
     )
+    const yearEntryIndexPrecomputed = new Map(
+        /** @type {any[]} */ (context.entries || []).map((entry, index) => [
+            entry,
+            index,
+        ])
+    )
     context.yearGroups.forEach((entriesForYear, yearKey) => {
         const strYearKey = String(yearKey || 'Unknown')
         const yearIdx = pdfYearKeys.indexOf(strYearKey)
@@ -1257,7 +1266,8 @@ export async function exportReportPdf(context, meta) {
             context,
             { yearPageNumbers, payslipPageNumbers },
             openingBalance,
-            yearCoveragePrecomputed
+            yearCoveragePrecomputed,
+            yearEntryIndexPrecomputed
         )
         yearPageNumbers.set(strYearKey, pageNumber)
     })
