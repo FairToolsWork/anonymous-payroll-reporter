@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.2](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.10.1...anonymous-payroll-reporter-v3.10.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* **styles:** correct regression in controls card header alignment and spacing ([50632c3](https://github.com/FairToolsWork/anonymous-payroll-reporter/commit/50632c3165eef761abe7911caae825a680096ad9))
+
 ## [3.10.1](https://github.com/FairToolsWork/anonymous-payroll-reporter/compare/anonymous-payroll-reporter-v3.10.0...anonymous-payroll-reporter-v3.10.1) (2026-04-13)
 
 
