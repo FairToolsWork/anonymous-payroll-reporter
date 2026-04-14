@@ -1622,7 +1622,6 @@
                                 </a>
                             </p>
                         </div>
-
                         <div class="card union">
                             <header>
                                 <svg
@@ -1718,8 +1717,8 @@
                 </div>
             </section>
             <section class="controls" v-cloak="">
-                <div class="card worker-profile-panel">
-                    <header>
+                <div class="card column worker-profile-panel">
+                    <header class="column">
                         <h2>1: Worker Profile</h2>
                         <p>
                             These details help <i>estimate</i> how many days of
@@ -1894,7 +1893,7 @@
                     </div>
                 </div>
                 <div
-                    class="card upload-panel"
+                    class="card column upload-panel"
                     :class="{ 'is-drop-active': dragActive }"
                     @dragenter="onDragOver"
                     @dragover="onDragOver"
@@ -1907,7 +1906,7 @@
                             <span>Release files to add them to the queue</span>
                         </div>
                     </div>
-                    <header>
+                    <header class="column">
                         <h2>2: Payslips &amp; Pension</h2>
                         <p>
                             Drag &amp; drop / choose your Payroll and (optional)
@@ -2024,8 +2023,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="card status-panel">
-                    <header>
+                <div class="card column status-panel">
+                    <header class="column">
                         <h2>3: Run &amp; Review</h2>
                         <p>
                             Once your files are selected, run the report, and

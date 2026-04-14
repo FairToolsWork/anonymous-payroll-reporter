@@ -954,6 +954,17 @@ details img {
     justify-content: flex-start;
 }
 
+.card header.column {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+
+    & p {
+        margin-block-start: 0;
+    }
+}
+
 .card header img {
     inline-size: 60px;
     block-size: 60px;
@@ -1508,6 +1519,7 @@ label.field span:first-of-type {
     font-size: var(--text-sm);
     color: var(--muted);
     line-height: var(--leading-snug);
+    max-inline-size: 65ch;
 }
 
 .disclaimer:focus-within {
